@@ -6,9 +6,12 @@ import { motion } from "framer-motion";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
+import { toast } from "sonner";
+
 export default function SignupPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -48,14 +51,17 @@ export default function SignupPage() {
         setError(
           "Account created but failed to sign in. Please try logging in."
         );
+        toast.error("Account created but failed to sign in");
         setTimeout(() => router.push("/auth/login"), 2000);
         return;
       }
 
       // Success! Redirect to onboarding
+      toast.success("Account created successfully!");
       router.push("/onboarding");
     } catch (err: any) {
       setError(err.message || "Something went wrong");
+      toast.error(err.message || "Something went wrong");
     } finally {
       setIsLoading(false);
     }
@@ -158,7 +164,7 @@ export default function SignupPage() {
                     autoComplete="name"
                     required
                     disabled={isLoading}
-                    className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl placeholder-gray-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-shadow disabled:bg-gray-100"
+                    className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl placeholder-gray-400 text-gray-900 bg-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-shadow disabled:bg-gray-100"
                     placeholder="John Doe"
                   />
                 </div>
@@ -184,7 +190,7 @@ export default function SignupPage() {
                     autoComplete="email"
                     required
                     disabled={isLoading}
-                    className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl placeholder-gray-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-shadow disabled:bg-gray-100"
+                    className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl placeholder-gray-400 text-gray-900 bg-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-shadow disabled:bg-gray-100"
                     placeholder="you@example.com"
                   />
                 </div>
@@ -206,14 +212,23 @@ export default function SignupPage() {
                   <input
                     id="password"
                     name="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     autoComplete="new-password"
                     required
                     disabled={isLoading}
                     minLength={8}
-                    className="appearance-none block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl placeholder-gray-400 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-shadow disabled:bg-gray-100"
+                    className="appearance-none block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl placeholder-gray-400 text-gray-900 bg-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-shadow disabled:bg-gray-100"
                     placeholder="••••••••"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                  >
+                    <span className="material-symbols-outlined text-xl">
+                      {showPassword ? "visibility_off" : "visibility"}
+                    </span>
+                  </button>
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
                   At least 8 characters

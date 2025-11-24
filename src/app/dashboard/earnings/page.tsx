@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useProviderEarnings } from "@/lib/api/hooks/useProvider";
+import { toast } from "sonner";
 
 const EarningsPage = () => {
   const [dateRange, setDateRange] = useState("this-month");
@@ -25,14 +26,51 @@ const EarningsPage = () => {
   const pendingAmount = numericTotalEarnings - totalPayouts;
 
   const handleExport = () => {
-    // Placeholder for export functionality
-    alert("Export functionality would be implemented here");
+    if (earnings.breakdown.length === 0 && earnings.payouts.length === 0) {
+      toast.error("No earnings data available to export");
+      return;
+    }
+
+    try {
+      // Prepare CSV content
+      const rows = [
+        ["Earnings Report"],
+        [`Date Range: ${dateRange}`],
+        [`Total Earnings: ${totalEarnings}`],
+        [`Total Payouts: KES ${totalPayouts.toLocaleString()}`],
+        [],
+        ["Breakdown"],
+        ["Service", "Amount"],
+        ...earnings.breakdown.map((item: any) => [item.service, item.amount]),
+        [],
+        ["Payout History"],
+        ["Date", "Amount"],
+        ...earnings.payouts.map((item: any) => [item.date, item.amount]),
+      ];
+
+      const csvContent = "data:text/csv;charset=utf-8," 
+        + rows.map(e => e.join(",")).join("\n");
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `earnings_report_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success("Earnings report exported successfully");
+    } catch (error) {
+      console.error("Export failed:", error);
+      toast.error("Failed to export earnings report");
+    }
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div role="status" aria-label="Loading earnings" className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <div role="status" aria-label="Loading earnings" className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-4" />
+        <p className="text-gray-700 font-medium">Loading financial data...</p>
       </div>
     );
   }
@@ -42,10 +80,10 @@ const EarningsPage = () => {
       {/* Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-gray-800 text-3xl font-bold leading-tight mb-2">
+          <h1 className="text-gray-900 text-3xl font-bold leading-tight mb-2">
             Earnings
           </h1>
-          <p className="text-gray-500 text-sm font-normal leading-normal">
+          <p className="text-gray-700 text-base font-normal leading-normal">
             Track your income and payout history
           </p>
         </div>
@@ -53,7 +91,7 @@ const EarningsPage = () => {
           <select
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
-            className="px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm font-medium text-gray-700"
+            className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm font-semibold text-gray-900 bg-white shadow-sm cursor-pointer hover:border-emerald-500 transition-colors"
             aria-label="Select date range"
           >
             <option value="this-week">This Week</option>
@@ -63,11 +101,11 @@ const EarningsPage = () => {
           </select>
           <button
             onClick={handleExport}
-            className="px-4 py-2.5 bg-primary-600 text-white rounded-lg font-medium text-sm hover:bg-primary-700 transition-colors flex items-center gap-2"
+            className="px-5 py-2.5 bg-gray-900 text-white rounded-lg font-medium text-sm hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-sm"
             aria-label="Export earnings data"
           >
             <span className="material-symbols-outlined text-sm">download</span>
-            Export
+            Export CSV
           </button>
         </div>
       </div>
@@ -80,6 +118,7 @@ const EarningsPage = () => {
             amount: totalEarnings,
             icon: "payments",
             color: "emerald",
+            gradient: "from-emerald-500 to-emerald-600",
             trend: "+12.5%",
           },
           {
@@ -87,13 +126,15 @@ const EarningsPage = () => {
             amount: `KES ${totalPayouts.toLocaleString()}`,
             icon: "account_balance",
             color: "blue",
+            gradient: "from-blue-500 to-blue-600",
             trend: "+8.2%",
           },
           {
-            label: "Pending",
+            label: "Pending Balance",
             amount: `KES ${pendingAmount.toLocaleString()}`,
             icon: "schedule",
-            color: "yellow",
+            color: "amber",
+            gradient: "from-amber-500 to-amber-600",
             trend: "—",
           },
         ].map((metric, index) => (
@@ -102,44 +143,31 @@ const EarningsPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.1 }}
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+            className="bg-white rounded-xl shadow-md hover:shadow-lg p-6 border border-gray-200 transition-all"
+            whileHover={{ y: -4 }}
           >
             <div className="flex items-start justify-between mb-4">
               <div
-                className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  metric.color === "emerald"
-                    ? "bg-emerald-100"
-                    : metric.color === "blue"
-                    ? "bg-blue-100"
-                    : "bg-yellow-100"
-                }`}
+                className={`w-14 h-14 rounded-xl bg-gradient-to-br ${metric.gradient} flex items-center justify-center shadow-lg`}
               >
-                <span
-                  className={`material-symbols-outlined ${
-                    metric.color === "emerald"
-                      ? "text-emerald-600"
-                      : metric.color === "blue"
-                      ? "text-blue-600"
-                      : "text-yellow-600"
-                  }`}
-                >
+                <span className="material-symbols-outlined text-white text-2xl">
                   {metric.icon}
                 </span>
               </div>
               <span
-                className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                className={`text-xs font-bold px-3 py-1.5 rounded-full border ${
                   metric.trend.startsWith("+")
-                    ? "bg-green-100 text-green-700"
-                    : "bg-gray-100 text-gray-600"
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                    : "bg-gray-50 text-gray-600 border-gray-100"
                 }`}
               >
                 {metric.trend}
               </span>
             </div>
-            <h3 className="text-gray-500 text-sm font-medium mb-1">
+            <h3 className="text-gray-600 text-sm font-semibold mb-1 uppercase tracking-wide">
               {metric.label}
             </h3>
-            <p className="text-3xl font-bold text-gray-900">{metric.amount}</p>
+            <p className="text-3xl font-bold text-gray-900 tracking-tight">{metric.amount}</p>
           </motion.div>
         ))}
       </div>
@@ -153,18 +181,20 @@ const EarningsPage = () => {
           transition={{ duration: 0.3, delay: 0.2 }}
         >
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <span className="material-symbols-outlined text-emerald-600">pie_chart</span>
               Earnings Breakdown
             </h2>
-            <span className="material-symbols-outlined text-gray-400">
-              pie_chart
-            </span>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
             <div className="p-6 space-y-4">
               {earnings.breakdown.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No earnings data for this period
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span className="material-symbols-outlined text-gray-400 text-3xl">bar_chart</span>
+                  </div>
+                  <p className="text-gray-900 font-medium">No earnings data</p>
+                  <p className="text-gray-500 text-sm">Earnings for this period will appear here</p>
                 </div>
               ) : (
                 earnings.breakdown.map((item: any, index: number) => (
@@ -173,19 +203,19 @@ const EarningsPage = () => {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.2, delay: 0.3 + index * 0.05 }}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-emerald-50/50 transition-colors border border-transparent hover:border-emerald-100"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                        <span className="material-symbols-outlined text-primary-600 text-sm">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-white border border-gray-200 rounded-lg flex items-center justify-center shadow-sm">
+                        <span className="material-symbols-outlined text-emerald-600 text-xl">
                           construction
                         </span>
                       </div>
                       <div>
-                        <p className="text-gray-900 font-medium text-sm">
+                        <p className="text-gray-900 font-bold text-sm">
                           {item.service}
                         </p>
-                        <p className="text-gray-500 text-xs">Service income</p>
+                        <p className="text-gray-500 text-xs font-medium">Service Income</p>
                       </div>
                     </div>
                     <p className="font-bold text-gray-900">{item.amount}</p>
@@ -195,8 +225,8 @@ const EarningsPage = () => {
             </div>
             <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
               <div className="flex justify-between items-center">
-                <p className="font-bold text-gray-900">Total Earnings</p>
-                <p className="font-bold text-2xl text-primary-600">
+                <p className="font-bold text-gray-700">Total Earnings</p>
+                <p className="font-bold text-2xl text-emerald-600">
                   {earnings.total}
                 </p>
               </div>
@@ -211,21 +241,22 @@ const EarningsPage = () => {
           transition={{ duration: 0.3, delay: 0.2 }}
         >
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">Payout History</h2>
-            <span className="material-symbols-outlined text-gray-400">
-              history
-            </span>
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <span className="material-symbols-outlined text-blue-600">history</span>
+              Payout History
+            </h2>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
             <div className="p-6 space-y-4">
               {earnings.payouts.length === 0 ? (
-                <div className="text-center py-8">
+                <div className="text-center py-12">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
                     <span className="material-symbols-outlined text-gray-400 text-3xl">
                       account_balance_wallet
                     </span>
                   </div>
-                  <p className="text-gray-500 text-sm">No payouts yet</p>
+                  <p className="text-gray-900 font-medium">No payouts yet</p>
+                  <p className="text-gray-500 text-sm">Your payout history will appear here</p>
                 </div>
               ) : (
                 earnings.payouts.map((payout: any, index: number) => (
@@ -234,20 +265,20 @@ const EarningsPage = () => {
                     initial={{ opacity: 0, x: 10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.2, delay: 0.3 + index * 0.05 }}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-blue-50/50 transition-colors border border-transparent hover:border-blue-100"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                        <span className="material-symbols-outlined text-green-600 text-sm">
-                          check_circle
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center shadow-sm border border-green-200">
+                        <span className="material-symbols-outlined text-green-600 text-lg">
+                          check
                         </span>
                       </div>
                       <div>
-                        <p className="text-gray-900 font-medium text-sm">
+                        <p className="text-gray-900 font-bold text-sm">
                           Payout Completed
                         </p>
-                        <p className="text-gray-500 text-xs flex items-center gap-1">
-                          <span className="material-symbols-outlined text-xs">
+                        <p className="text-gray-500 text-xs font-medium flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[10px]">
                             calendar_today
                           </span>
                           {payout.date}
@@ -260,8 +291,8 @@ const EarningsPage = () => {
               )}
             </div>
             {earnings.payouts.length > 0 && (
-              <div className="border-t border-gray-200 px-6 py-4">
-                <button className="w-full text-primary-600 hover:text-primary-700 font-medium text-sm flex items-center justify-center gap-1 transition-colors">
+              <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+                <button className="w-full text-gray-900 hover:text-blue-600 font-semibold text-sm flex items-center justify-center gap-2 transition-colors py-2 rounded-lg hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200">
                   View All Payouts
                   <span className="material-symbols-outlined text-sm">
                     arrow_forward
@@ -278,22 +309,23 @@ const EarningsPage = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.4 }}
-        className="mt-8 bg-blue-50 border border-blue-100 rounded-xl p-6"
+        className="mt-8 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-6 shadow-sm"
       >
         <div className="flex items-start gap-4">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-            <span className="material-symbols-outlined text-blue-600">
+          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-blue-100">
+            <span className="material-symbols-outlined text-blue-600 text-2xl">
               info
             </span>
           </div>
           <div>
-            <h3 className="font-semibold text-blue-900 mb-1">
+            <h3 className="font-bold text-gray-900 mb-1 text-lg">
               Payout Information
             </h3>
-            <p className="text-blue-700 text-sm leading-relaxed">
-              Payouts are processed weekly on Fridays. Pending earnings will be
-              transferred to your registered bank account within 2-3 business
-              days.
+            <p className="text-gray-700 text-sm leading-relaxed max-w-3xl">
+              Payouts are automatically processed weekly on <span className="font-semibold text-gray-900">Fridays</span>. 
+              Pending earnings will be transferred to your registered bank account within 
+              <span className="font-semibold text-gray-900"> 2-3 business days</span>. 
+              Ensure your payment details are up to date in Settings.
             </p>
           </div>
         </div>

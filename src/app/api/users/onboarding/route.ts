@@ -24,6 +24,8 @@ export async function POST(req: Request) {
 
     // If provider, create or update profile
     if (role === "PROVIDER") {
+      const { verificationStatus, idDocument } = body;
+      
       await prisma.profile.upsert({
         where: { userId: session.user.id },
         create: {
@@ -31,11 +33,17 @@ export async function POST(req: Request) {
           skills: skills || [],
           location,
           bio,
+          verificationStatus: verificationStatus || "PENDING",
+          idDocument,
+          isVerified: verificationStatus === "VERIFIED",
         },
         update: {
           skills: skills || [],
           location,
           bio,
+          verificationStatus: verificationStatus,
+          idDocument,
+          isVerified: verificationStatus === "VERIFIED",
         },
       });
     }

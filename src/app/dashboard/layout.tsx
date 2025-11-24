@@ -15,7 +15,7 @@ export default function DashboardLayout({
         Skip to main content
       </a>
       
-      <div className="flex h-screen bg-gray-50">
+      <div className="fixed inset-0 flex bg-gray-50 overflow-hidden">
         <Sidebar />
         <main 
           id="main-content"

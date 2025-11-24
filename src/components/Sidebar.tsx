@@ -24,7 +24,7 @@ const Sidebar = () => {
 
   return (
     <aside 
-      className="flex h-screen flex-col bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 border-r border-gray-700 shadow-2xl w-72 sticky top-0 overflow-hidden"
+      className="flex h-full flex-col bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 border-r border-gray-700 shadow-2xl w-72 overflow-hidden"
       role="complementary"
       aria-label="Main navigation"
     >

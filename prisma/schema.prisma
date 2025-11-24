@@ -112,6 +112,7 @@ model Profile {
   hourlyRate  Decimal? @db.Decimal(10, 2)
   portfolio   String[] // URLs to images/videos
   isVerified  Boolean  @default(false)
+  verificationStatus String? @default("PENDING") // PENDING, VERIFIED, REJECTED
   idDocument  String?  // URL to ID document
   location    String?
   latitude    Float?
