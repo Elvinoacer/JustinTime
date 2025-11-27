@@ -23,6 +23,15 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+
+    if (from || to) {
+      where.date = {};
+      if (from) where.date.gte = new Date(from);
+      if (to) where.date.lte = new Date(to);
+    }
+
     const bookings = await prisma.booking.findMany({
       where,
       include: {
@@ -42,6 +51,7 @@ export async function GET(request: NextRequest) {
             title: true,
           },
         },
+        slots: true,
       },
       orderBy: {
         date: "desc",
@@ -54,14 +64,18 @@ export async function GET(request: NextRequest) {
       id: booking.id,
       client: booking.client.name || "Unknown Client",
       clientImage: booking.client.image,
+      clientPhone: booking.clientPhone,
+      clientAddress: booking.clientAddress,
       service: booking.service?.title || booking.job?.title || "Custom Service",
       date: new Date(booking.date).toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
         day: "numeric",
       }),
-      amount: `KES ${booking.totalAmount}`,
+      slots: booking.slots,
+      amount: `Kes ${Number(booking.totalAmount).toLocaleString()}`,
       status: booking.status,
+      notes: booking.notes,
       statusColor: getStatusColor(booking.status),
     }));
 

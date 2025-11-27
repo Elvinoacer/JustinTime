@@ -1,0 +1,400 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface Message {
+  id: string;
+  senderId: string;
+  content: string;
+  fileUrl?: string | null;
+  fileType?: string | null;
+  createdAt: string;
+  isRead: boolean;
+  isDelivered?: boolean;
+}
+
+interface ChatWindowProps {
+  partner: {
+    id: string;
+    name: string;
+    image: string | null;
+    role?: string;
+    phone?: string;
+  } | null;
+  messages: Message[];
+  currentUserId: string;
+  onSendMessage: (content: string, fileUrl?: string, fileType?: string) => Promise<void>;
+  isTyping?: boolean;
+  onDeleteMessage?: (messageId: string) => void;
+  onClearConversation?: (partnerId: string) => void;
+  isOnline?: boolean;
+}
+
+export const ChatWindow: React.FC<ChatWindowProps> = ({
+  partner,
+  messages,
+  currentUserId,
+  onSendMessage,
+  isTyping = false,
+  onDeleteMessage,
+  onClearConversation,
+  isOnline = false,
+}) => {
+  const [newMessage, setNewMessage] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [filePreview, setFilePreview] = useState<{ file: File; url: string; type: 'image' | 'file' } | null>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isTyping]);
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if ((!newMessage.trim() && !filePreview) || isUploading) return;
+
+    try {
+      setIsUploading(true);
+      let fileUrl = undefined;
+      let fileType = undefined;
+
+      if (filePreview) {
+        const formData = new FormData();
+        formData.append('file', filePreview.file);
+        formData.append('upload_preset', 'ml_default'); // Replace with your Cloudinary preset
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) throw new Error('Upload failed');
+        
+        const data = await response.json();
+        fileUrl = data.url;
+        fileType = filePreview.type;
+      }
+
+      await onSendMessage(newMessage, fileUrl, fileType);
+      setNewMessage("");
+      setFilePreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      alert('Failed to send message. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (1MB limit)
+    if (file.size > 1024 * 1024) {
+      alert("File size exceeds 1MB limit. Please choose a smaller file.");
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const fileType = file.type.startsWith('image/') ? 'image' : 'file';
+    const previewUrl = URL.createObjectURL(file);
+    
+    setFilePreview({ file, url: previewUrl, type: fileType });
+  };
+
+  const handleCancelPreview = () => {
+    if (filePreview) {
+      URL.revokeObjectURL(filePreview.url);
+      setFilePreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  if (!partner) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 h-full text-gray-400">
+        <span className="material-symbols-outlined text-6xl mb-4 text-gray-300">chat_bubble_outline</span>
+        <p className="text-lg font-medium">Select a conversation to start messaging</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 flex flex-col bg-gray-50 h-full">
+      {/* Chat Header */}
+      <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center shadow-sm z-10">
+        <div className="flex items-center space-x-3">
+          <div className="relative">
+            {partner.image ? (
+              <img
+                src={partner.image}
+                alt={partner.name}
+                className="h-10 w-10 rounded-full object-cover border border-gray-200"
+              />
+            ) : (
+              <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold border border-emerald-200">
+                {partner.name.charAt(0)}
+              </div>
+            )}
+            {isOnline && (
+              <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-white bg-green-400" />
+            )}
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">{partner.name}</h3>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              {isTyping ? (
+                <span className="text-emerald-600 font-medium animate-pulse">Typing...</span>
+              ) : isOnline ? (
+                <span className="text-green-500 font-medium">Online</span>
+              ) : (
+                <>
+                  {partner.role && (
+                    <span className={`px-1.5 py-0.5 rounded font-medium ${
+                      partner.role === 'PROVIDER' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {partner.role}
+                    </span>
+                  )}
+                  {partner.phone && (
+                    <span className="flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[10px]">phone</span>
+                      {partner.phone}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="relative">
+          <button 
+            onClick={() => setShowMenu(!showMenu)}
+            className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <span className="material-symbols-outlined">more_vert</span>
+          </button>
+          
+          {showMenu && (
+            <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-20">
+              <button 
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                onClick={async () => {
+                  if (window.confirm('Are you sure you want to clear this conversation? This action cannot be undone.')) {
+                    setShowMenu(false);
+                    onClearConversation && partner && onClearConversation(partner.id);
+                  } else {
+                    setShowMenu(false);
+                  }
+                }}
+              >
+                <span className="material-symbols-outlined text-gray-400 text-sm">delete_sweep</span>
+                Clear Conversation
+              </button>
+              <button 
+                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                onClick={() => {
+                  setShowMenu(false);
+                  alert('Block user functionality coming soon');
+                }}
+              >
+                <span className="material-symbols-outlined text-red-400 text-sm">block</span>
+                Block User
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Messages List */}
+      <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50">
+        {messages.map((msg, index) => {
+          const isOwn = msg.senderId === currentUserId;
+          const showTime = index === 0 || 
+            new Date(msg.createdAt).getTime() - new Date(messages[index - 1].createdAt).getTime() > 5 * 60 * 1000;
+
+          return (
+            <React.Fragment key={msg.id || index}>
+              {showTime && (
+                <div className="flex justify-center my-4">
+                  <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                  </span>
+                </div>
+              )}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex ${isOwn ? 'justify-end' : 'justify-start'} relative`}
+              >
+                <div className="relative group max-w-[70%]">
+                  {isOwn && (
+                    <button
+                      onClick={() => onDeleteMessage && onDeleteMessage(msg.id)}
+                      className="opacity-0 group-hover:opacity-100 absolute top-1/2 -translate-y-1/2 right-full mr-2 p-1.5 text-gray-300 hover:text-red-500 transition-all bg-white rounded-full shadow-sm hover:shadow-md"
+                      title="Delete message"
+                    >
+                      <span className="material-symbols-outlined text-sm">delete</span>
+                    </button>
+                  )}
+                  <div
+                    className={`p-3 rounded-2xl shadow-sm text-sm ${
+                      isOwn
+                        ? 'bg-emerald-600 text-white rounded-tr-none'
+                        : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
+                    }`}
+                  >
+                  {(msg.fileUrl && (msg.fileType === 'image' || msg.fileUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i))) && (
+                    <div className="mb-2">
+                      <img 
+                        src={msg.fileUrl} 
+                        alt="Shared image" 
+                        className="rounded-lg max-h-60 object-cover w-full cursor-pointer hover:opacity-95 transition-opacity"
+                        onClick={() => window.open(msg.fileUrl!, '_blank')}
+                      />
+                    </div>
+                  )}
+                  {msg.fileUrl && msg.fileType !== 'image' && !msg.fileUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) && (
+                    <div className="mb-2">
+                      <a 
+                        href={msg.fileUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className={`flex items-center gap-3 p-3 rounded-xl ${
+                          isOwn ? 'bg-emerald-700/50 hover:bg-emerald-700' : 'bg-gray-100 hover:bg-gray-200'
+                        } transition-colors border ${isOwn ? 'border-emerald-500/30' : 'border-gray-200'}`}
+                      >
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isOwn ? 'bg-emerald-800/50' : 'bg-white'}`}>
+                          {msg.fileUrl.endsWith('.pdf') ? (
+                            <span className="material-symbols-outlined text-red-400">picture_as_pdf</span>
+                          ) : msg.fileUrl.match(/\.(doc|docx)$/) ? (
+                            <span className="material-symbols-outlined text-blue-400">description</span>
+                          ) : (
+                            <span className="material-symbols-outlined text-gray-400">insert_drive_file</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate text-xs opacity-90">Attachment</p>
+                          <p className="text-[10px] opacity-70 uppercase">{msg.fileUrl.split('.').pop()}</p>
+                        </div>
+                        <span className="material-symbols-outlined text-sm opacity-70">open_in_new</span>
+                      </a>
+                    </div>
+                  )}
+                  {msg.content && <p className="whitespace-pre-wrap break-words">{msg.content}</p>}
+                  <div className={`text-[10px] mt-1 text-right flex items-center justify-end gap-1 ${isOwn ? 'text-emerald-100' : 'text-gray-400'}`}>
+                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                    {isOwn && (
+                      <span className="flex items-center" title={msg.isRead ? "Read" : msg.isDelivered ? "Delivered" : "Sent"}>
+                        {msg.isRead ? (
+                          <span className="material-symbols-outlined text-[16px] text-blue-200 font-bold">done_all</span>
+                        ) : msg.isDelivered ? (
+                          <span className="material-symbols-outlined text-[16px] text-emerald-200 font-bold">done_all</span>
+                        ) : (
+                          <span className="material-symbols-outlined text-[16px] opacity-70">check</span>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  </div>
+                </div>
+              </motion.div>
+            </React.Fragment>
+          );
+        })}
+        {isTyping && (
+          <div className="flex justify-start">
+            <div className="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm border border-gray-100">
+              <div className="flex space-x-1">
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* File Preview */}
+      {filePreview && (
+        <div className="p-4 border-t border-gray-200 bg-gray-50">
+          <div className="flex items-start gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+            {filePreview.type === 'image' ? (
+              <img 
+                src={filePreview.url} 
+                alt="Preview" 
+                className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center border border-gray-200">
+                <span className="material-symbols-outlined text-gray-400 text-3xl">description</span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">{filePreview.file.name}</p>
+              <p className="text-xs text-gray-500">{(filePreview.file.size / 1024).toFixed(1)} KB</p>
+            </div>
+            <button
+              onClick={handleCancelPreview}
+              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+              title="Remove file"
+            >
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Message Input */}
+      <div className="p-4 border-t border-gray-200 bg-white">
+        <form onSubmit={handleSend} className="flex space-x-3 items-center">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            className="hidden"
+            accept="image/*,.pdf,.doc,.docx"
+          />
+          <button 
+            type="button" 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className={`text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors ${isUploading ? 'animate-pulse' : ''}`}
+          >
+            <span className="material-symbols-outlined">attach_file</span>
+          </button>
+          <input
+            type="text"
+            placeholder={filePreview ? "Add a caption (optional)..." : "Type a message..."}
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+          />
+          <button
+            type="submit"
+            disabled={(!newMessage.trim() && !filePreview) || isUploading}
+            className={`p-3 rounded-xl shadow-sm text-white transition-all ${
+              (newMessage.trim() || filePreview) && !isUploading
+                ? 'bg-emerald-600 hover:bg-emerald-700 hover:shadow-md transform hover:-translate-y-0.5'
+                : 'bg-gray-300 cursor-not-allowed'
+            }`}
+          >
+            {isUploading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <span className="material-symbols-outlined">send</span>
+            )}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};

@@ -1,225 +1,504 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useProviderBookings } from "@/lib/api/hooks/useProvider";
+import { format } from "date-fns";
+import { DateRange } from "react-day-picker";
+import { useProviderBookings, useUpdateBooking, useDeleteBooking } from "@/lib/api/hooks/useProvider";
+import { Calendar } from "@/components/ui/calendar";
+import { Modal, ConfirmModal } from "@/components/Modal";
+import { toast } from "sonner";
+import { Popover, Transition } from "@headlessui/react";
 
 const BookingsPage = () => {
-  const { data: bookingsData, isLoading: bookingsLoading, error: bookingsError } = useProviderBookings();
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  const { data: bookingsData, isLoading: bookingsLoading, error: bookingsError } = useProviderBookings({
+    status: statusFilter === "all" ? undefined : statusFilter,
+    from: dateRange?.from,
+    to: dateRange?.to,
+  });
+  const updateBooking = useUpdateBooking();
+  const deleteBooking = useDeleteBooking();
+  
+  // Modal states
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [editStatus, setEditStatus] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
   const bookings = bookingsData?.bookings || [];
 
-  // Filter bookings based on search and status
+  // Filter bookings based on search
   const filteredBookings = useMemo(() => {
     return bookings.filter((booking: any) => {
       const matchesSearch =
         booking.service.toLowerCase().includes(searchQuery.toLowerCase()) ||
         booking.client.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" || booking.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      return matchesSearch;
     });
-  }, [bookings, searchQuery, statusFilter]);
+  }, [bookings, searchQuery]);
 
   const statusCounts = useMemo(() => {
     return {
       all: bookings.length,
-      Completed: bookings.filter((b: any) => b.status === "Completed").length,
-      Pending: bookings.filter((b: any) => b.status === "Pending").length,
+      COMPLETED: bookings.filter((b: any) => b.status === "COMPLETED").length,
+      PENDING: bookings.filter((b: any) => b.status === "PENDING").length,
+      CONFIRMED: bookings.filter((b: any) => b.status === "CONFIRMED").length,
+      IN_PROGRESS: bookings.filter((b: any) => b.status === "IN_PROGRESS").length,
+      CANCELLED: bookings.filter((b: any) => b.status === "CANCELLED").length,
     };
   }, [bookings]);
 
+  const getStatusColor = (status: string) => {
+    const colors = {
+      PENDING: "bg-amber-100 text-amber-800 border-amber-200",
+      CONFIRMED: "bg-blue-100 text-blue-800 border-blue-200",
+      IN_PROGRESS: "bg-purple-100 text-purple-800 border-purple-200",
+      COMPLETED: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      CANCELLED: "bg-red-100 text-red-800 border-red-200",
+      DISPUTED: "bg-orange-100 text-orange-800 border-orange-200",
+    };
+    return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800 border-gray-200";
+  };
+
+  const getStatusIcon = (status: string) => {
+    const icons = {
+      PENDING: "schedule",
+      CONFIRMED: "check_circle",
+      IN_PROGRESS: "pending",
+      COMPLETED: "task_alt",
+      CANCELLED: "cancel",
+      DISPUTED: "gavel",
+    };
+    return icons[status as keyof typeof icons] || "help";
+  };
+
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-gray-900 text-3xl font-bold leading-tight mb-2">Bookings</h1>
-        <p className="text-gray-700 text-base font-normal leading-normal">Manage and track all your service bookings</p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Bookings</h1>
+            <p className="text-gray-600 text-sm sm:text-base">Manage and track all your service bookings</p>
+          </div>
+          
+          {/* View Toggle */}
+          <div className="flex gap-2 bg-white p-1 rounded-lg shadow-sm border border-gray-200">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`px-3 py-2 rounded-md transition-all flex items-center gap-2 ${
+                viewMode === "grid"
+                  ? "bg-emerald-500 text-white shadow-sm"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+              aria-label="Grid view"
+            >
+              <span className="material-symbols-outlined text-base">grid_view</span>
+              <span className="hidden sm:inline text-sm font-medium">Grid</span>
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`px-3 py-2 rounded-md transition-all flex items-center gap-2 ${
+                viewMode === "list"
+                  ? "bg-emerald-500 text-white shadow-sm"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+              aria-label="List view"
+            >
+              <span className="material-symbols-outlined text-base">view_list</span>
+              <span className="hidden sm:inline text-sm font-medium">List</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         {[
-          { label: "All Bookings", count: statusCounts.all, color: "blue", icon: "calendar_month", gradient: "from-blue-500 to-blue-600" },
-          { label: "Completed", count: statusCounts.Completed, color: "emerald", icon: "check_circle", gradient: "from-emerald-500 to-emerald-600" },
-          { label: "Pending", count: statusCounts.Pending, color: "amber", icon: "schedule", gradient: "from-amber-500 to-amber-600" },
+          { label: "Total", count: statusCounts.all, value: "all", gradient: "from-gray-500 to-gray-600", icon: "calendar_month" },
+          { label: "Pending", count: statusCounts.PENDING, value: "PENDING", gradient: "from-amber-500 to-amber-600", icon: "schedule" },
+          { label: "Confirmed", count: statusCounts.CONFIRMED, value: "CONFIRMED", gradient: "from-blue-500 to-blue-600", icon: "check_circle" },
+          { label: "In Progress", count: statusCounts.IN_PROGRESS, value: "IN_PROGRESS", gradient: "from-purple-500 to-purple-600", icon: "pending" },
+          { label: "Completed", count: statusCounts.COMPLETED, value: "COMPLETED", gradient: "from-emerald-500 to-emerald-600", icon: "task_alt" },
         ].map((stat) => (
-          <motion.div
-            key={stat.label}
-            className="bg-white rounded-xl shadow-md hover:shadow-lg p-6 border border-gray-200 transition-shadow"
-            whileHover={{ y: -4 }}
-            transition={{ duration: 0.2 }}
+          <motion.button
+            key={stat.value}
+            onClick={() => setStatusFilter(stat.value)}
+            className={`bg-white rounded-xl shadow-sm hover:shadow-md p-4 border-2 transition-all text-left ${
+              statusFilter === stat.value ? "border-emerald-500 ring-2 ring-emerald-200" : "border-gray-200"
+            }`}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.98 }}
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-700 text-sm font-semibold mb-1">{stat.label}</p>
-                <p className="text-4xl font-bold text-gray-900">{stat.count}</p>
-              </div>
-              <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-lg`}>
-                <span className="material-symbols-outlined text-white text-2xl">{stat.icon}</span>
+            <div className="flex items-center justify-between mb-3">
+              <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-sm`}>
+                <span className="material-symbols-outlined text-white text-lg">{stat.icon}</span>
               </div>
             </div>
-          </motion.div>
+            <p className="text-2xl font-bold text-gray-900 mb-1">{stat.count}</p>
+            <p className="text-xs font-medium text-gray-600">{stat.label}</p>
+          </motion.button>
         ))}
       </div>
 
       {/* Search and Filter Bar */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6 border border-gray-200">
-        <div className="flex flex-col md:flex-row gap-4">
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 mb-6 border border-gray-200">
+        <div className="flex flex-col lg:flex-row gap-4">
           {/* Search Input */}
           <div className="flex-1 relative">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">search</span>
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">search</span>
             <input
               type="text"
               placeholder="Search by service or client name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-gray-900 placeholder:text-gray-500"
+              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-gray-900 placeholder:text-gray-400"
               aria-label="Search bookings"
             />
           </div>
 
-          {/* Status Filter */}
-          <div className="flex gap-2 flex-wrap">
-            {[
-              { value: "all", label: "All", icon: "list" },
-              { value: "Completed", label: "Completed", icon: "check_circle" },
-              { value: "Pending", label: "Pending", icon: "schedule" }
-            ].map((status) => (
-              <button
-                key={status.value}
-                onClick={() => setStatusFilter(status.value)}
-                className={`px-5 py-3 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 ${
-                  statusFilter === status.value
-                    ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg"
-                    : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-                }`}
-                aria-label={`Filter by ${status.label}`}
-                aria-pressed={statusFilter === status.value}
-              >
-                <span className="material-symbols-outlined text-base">{status.icon}</span>
-                {status.label}
-              </button>
-            ))}
-          </div>
+          {/* Date Range Picker */}
+          <Popover className="relative">
+            <Popover.Button className="flex items-center gap-2 px-4 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-700 font-medium w-full lg:w-auto justify-between lg:justify-start whitespace-nowrap">
+              <span className="material-symbols-outlined text-gray-500">calendar_today</span>
+              <span className="text-sm">
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "MMM dd")} - {format(dateRange.to, "MMM dd")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "MMM dd, yyyy")
+                  )
+                ) : (
+                  "All dates"
+                )}
+              </span>
+              {dateRange?.from && (
+                <span 
+                  className="material-symbols-outlined text-gray-400 hover:text-gray-600"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDateRange(undefined);
+                  }}
+                >
+                  close
+                </span>
+              )}
+            </Popover.Button>
+
+            <Transition
+              as={Fragment}
+              enter="transition ease-out duration-200"
+              enterFrom="opacity-0 translate-y-1"
+              enterTo="opacity-100 translate-y-0"
+              leave="transition ease-in duration-150"
+              leaveFrom="opacity-100 translate-y-0"
+              leaveTo="opacity-0 translate-y-1"
+            >
+              <Popover.Panel className="absolute right-0 z-10 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-4">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
+                  className="p-0"
+                />
+              </Popover.Panel>
+            </Transition>
+          </Popover>
         </div>
       </div>
 
-      {/* Bookings List */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
-        {bookingsLoading ? (
-          <div className="flex flex-col items-center justify-center py-16">
-            <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-4" />
-            <p className="text-gray-700 font-medium">Loading bookings...</p>
+      {/* Bookings Grid/List */}
+      {bookingsLoading ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-4" />
+          <p className="text-gray-600 font-medium">Loading bookings...</p>
+        </div>
+      ) : bookingsError ? (
+        <div className="text-center py-16 px-4 bg-white rounded-xl border border-red-200">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="material-symbols-outlined text-red-600 text-4xl">error</span>
           </div>
-        ) : bookingsError ? (
-          <div className="text-center py-16 px-4">
-            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="material-symbols-outlined text-red-600 text-4xl">error</span>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Bookings</h3>
-            <p className="text-gray-700">Please try refreshing the page</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Bookings</h3>
+          <p className="text-gray-600">Please try refreshing the page</p>
+        </div>
+      ) : filteredBookings.length === 0 ? (
+        <div className="text-center py-20 px-4 bg-white rounded-xl border border-gray-200">
+          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="material-symbols-outlined text-gray-400 text-5xl">event_busy</span>
           </div>
-        ) : filteredBookings.length === 0 ? (
-          <div className="text-center py-20 px-4">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="material-symbols-outlined text-gray-400 text-5xl">event_busy</span>
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">No bookings found</h3>
-            <p className="text-gray-700 text-base">
-              {searchQuery || statusFilter !== "all"
-                ? "Try adjusting your search or filters"
-                : "You don't have any bookings yet"}
-            </p>
-          </div>
-        ) : (
+          <h3 className="text-xl font-bold text-gray-900 mb-2">No bookings found</h3>
+          <p className="text-gray-600 text-base">
+            {searchQuery || statusFilter !== "all"
+              ? "Try adjusting your search or filters"
+              : "You don't have any bookings yet"}
+          </p>
+        </div>
+      ) : viewMode === "grid" ? (
+        // Grid View
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <AnimatePresence mode="popLayout">
+            {filteredBookings.map((booking: any, index: number) => (
+              <motion.div
+                key={booking.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.2, delay: index * 0.05 }}
+                className="bg-white rounded-2xl shadow-sm hover:shadow-lg border border-gray-200 overflow-hidden transition-all group"
+              >
+                {/* Card Header with Status */}
+                <div className="relative p-6 pb-4 bg-gradient-to-br from-gray-50 to-white">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 flex items-center gap-1.5 ${getStatusColor(booking.status)}`}>
+                      <span className="material-symbols-outlined text-sm">{getStatusIcon(booking.status)}</span>
+                      {booking.status}
+                    </div>
+                    <div className="flex gap-1">
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => {
+                          setSelectedBooking(booking);
+                          setIsViewModalOpen(true);
+                        }}
+                        className="p-2 text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                        title="View Details"
+                      >
+                        <span className="material-symbols-outlined text-lg">visibility</span>
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => {
+                          setSelectedBooking(booking);
+                          setEditStatus(booking.status);
+                          setEditNotes(booking.notes || "");
+                          setIsEditModalOpen(true);
+                        }}
+                        className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <span className="material-symbols-outlined text-lg">edit</span>
+                      </motion.button>
+                    </div>
+                  </div>
+
+                  {/* Client Info with Avatar */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                      {booking.clientImage ? (
+                        <img src={booking.clientImage} alt={booking.client} className="w-full h-full rounded-full object-cover" />
+                      ) : (
+                        booking.client.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-gray-900 truncate">{booking.client}</p>
+                     <p className="text-xs text-gray-500 truncate">Client</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Body */}
+                <div className="p-6 pt-4 space-y-4">
+                  {/* Service */}
+                  <div>
+                    <div className="flex items-start gap-2">
+                      <span className="material-symbols-outlined text-emerald-600 mt-0.5">handyman</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-0.5">Service</p>
+                        <p className="font-semibold text-gray-900 truncate">{booking.service}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Date & Time */}
+                  <div>
+                    <div className="flex items-start gap-2">
+                      <span className="material-symbols-outlined text-blue-600 mt-0.5">schedule</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-0.5">Date & Time</p>
+                        {booking.slots && booking.slots.length > 0 ? (
+                          <div className="space-y-1">
+                            {booking.slots.slice(0, 2).map((slot: any, i: number) => (
+                              <p key={i} className="text-sm text-gray-900">
+                                {new Date(slot.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })} • {slot.startTime} - {slot.endTime}
+                              </p>
+                            ))}
+                            {booking.slots.length > 2 && (
+                              <p className="text-xs text-emerald-600 font-medium">+{booking.slots.length - 2} more slots</p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-900">{booking.date}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Amount */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-500 font-medium">Total Amount</span>
+                      <span className="text-xl font-bold text-emerald-600">{booking.amount}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Footer */}
+                {booking.status === "PENDING" && (
+                  <div className="px-6 pb-6">
+                    <button
+                      onClick={() => {
+                        setSelectedBooking(booking);
+                        setIsCancelModalOpen(true);
+                      }}
+                      className="w-full p-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2 group"
+                    >
+                      <span className="material-symbols-outlined text-base group-hover:scale-110 transition-transform">cancel</span>
+                      Cancel Booking
+                    </button>
+                  </div>
+                )}
+                {(booking.status === "CANCELLED" || booking.status === "COMPLETED") && (
+                  <div className="px-6 pb-6">
+                    <button
+                      onClick={() => {
+                        setSelectedBooking(booking);
+                        setIsDeleteModalOpen(true);
+                      }}
+                      className="w-full p-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2 group"
+                    >
+                      <span className="material-symbols-outlined text-base group-hover:scale-110 transition-transform">delete</span>
+                      Delete Booking
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      ) : (
+        // List View
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full" role="table" aria-label="Bookings table">
+            <table className="w-full">
               <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
                 <tr>
-                  <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Service</th>
                   <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Client</th>
+                  <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Service</th>
                   <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Date</th>
+                  <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Amount</th>
                   <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">Status</th>
                   <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-gray-800 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 <AnimatePresence>
-                  {filteredBookings.map((booking, index) => (
+                  {filteredBookings.map((booking: any, index: number) => (
                     <motion.tr
-                      key={booking.service + booking.date}
+                      key={booking.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
-                      transition={{ duration: 0.2, delay: index * 0.05 }}
-                      className="hover:bg-emerald-50/50 transition-colors"
+                      transition={{ duration: 0.2, delay: index * 0.03 }}
+                      className="hover:bg-emerald-50/30 transition-colors"
                     >
                       <td className="px-6 py-5 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center mr-3 shadow-md">
-                            <span className="material-symbols-outlined text-white text-xl">construction</span>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold shadow-sm">
+                            {booking.clientImage ? (
+                              <img src={booking.clientImage} alt={booking.client} className="w-full h-full rounded-full object-cover" />
+                            ) : (
+                              booking.client.charAt(0).toUpperCase()
+                            )}
                           </div>
-                          <div>
-                            <div className="text-sm font-bold text-gray-900">{booking.service}</div>
-                          </div>
+                          <span className="text-sm font-semibold text-gray-900">{booking.client}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="text-sm font-medium text-gray-900">{booking.service}</div>
+                      </td>
+                      <td className="px-6 py-5 whitespace-nowrap">
+                        <div className="text-sm text-gray-800">
+                          {booking.slots && booking.slots.length > 0 ? (
+                            <div>
+                              {new Date(booking.slots[0].date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                              {booking.slots.length > 1 && <span className="text-xs text-gray-500 ml-1">+{booking.slots.length - 1}</span>}
+                            </div>
+                          ) : (
+                            booking.date
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-5 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mr-3 shadow-md">
-                            <span className="material-symbols-outlined text-white text-lg">person</span>
-                          </div>
-                          <span className="text-sm text-gray-900 font-semibold">{booking.client}</span>
-                        </div>
+                        <span className="text-sm font-bold text-emerald-600">{booking.amount}</span>
                       </td>
                       <td className="px-6 py-5 whitespace-nowrap">
-                        <div className="flex items-center text-sm text-gray-800 font-medium">
-                          <span className="material-symbols-outlined text-gray-600 mr-2 text-lg">calendar_today</span>
-                          {booking.date}
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 whitespace-nowrap">
-                        <span
-                          className={`px-4 py-2 inline-flex items-center gap-2 text-xs leading-5 font-bold rounded-full shadow-sm ${
-                            booking.status === "Completed"
-                              ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white"
-                              : "bg-gradient-to-r from-amber-500 to-amber-600 text-white"
-                          }`}
-                          role="status"
-                          aria-label={`Status: ${booking.status}`}
-                        >
-                          <span className="material-symbols-outlined text-sm">
-                            {booking.status === "Completed" ? "check_circle" : "schedule"}
-                          </span>
+                        <span className={`px-3 py-1.5 inline-flex items-center gap-1.5 text-xs font-bold rounded-full border-2 ${getStatusColor(booking.status)}`}>
+                          <span className="material-symbols-outlined text-sm">{getStatusIcon(booking.status)}</span>
                           {booking.status}
                         </span>
                       </td>
-                      <td className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-6 py-5 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            className="p-2.5 text-gray-700 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors shadow-sm border border-gray-200"
-                            aria-label={`View details for ${booking.service}`}
+                            onClick={() => {
+                              setSelectedBooking(booking);
+                              setIsViewModalOpen(true);
+                            }}
+                            className="p-2 text-gray-600 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
                             title="View Details"
                           >
-                            <span className="material-symbols-outlined text-lg">visibility</span>
+                            <span className="material-symbols-outlined text-base">visibility</span>
                           </button>
                           <button
-                            className="p-2.5 text-gray-700 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors shadow-sm border border-gray-200"
-                            aria-label={`Edit booking for ${booking.service}`}
+                            onClick={() => {
+                              setSelectedBooking(booking);
+                              setEditStatus(booking.status);
+                              setEditNotes(booking.notes || "");
+                              setIsEditModalOpen(true);
+                            }}
+                            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
                             title="Edit"
                           >
-                            <span className="material-symbols-outlined text-lg">edit</span>
+                            <span className="material-symbols-outlined text-base">edit</span>
                           </button>
-                          {booking.status === "Pending" && (
+                          {booking.status === "PENDING" && (
                             <button
-                              className="p-2.5 text-gray-700 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors shadow-sm border border-gray-200"
-                              aria-label={`Cancel booking for ${booking.service}`}
+                              onClick={() => {
+                                setSelectedBooking(booking);
+                                setIsCancelModalOpen(true);
+                              }}
+                              className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
                               title="Cancel"
                             >
-                              <span className="material-symbols-outlined text-lg">cancel</span>
+                              <span className="material-symbols-outlined text-base">cancel</span>
+                            </button>
+                          )}
+                          {(booking.status === "CANCELLED" || booking.status === "COMPLETED") && (
+                            <button
+                              onClick={() => {
+                                setSelectedBooking(booking);
+                                setIsDeleteModalOpen(true);
+                              }}
+                              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                              title="Delete"
+                            >
+                              <span className="material-symbols-outlined text-base">delete</span>
                             </button>
                           )}
                         </div>
@@ -230,16 +509,318 @@ const BookingsPage = () => {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Results Count */}
       {filteredBookings.length > 0 && (
-        <div className="mt-6 flex items-center justify-center gap-2 text-sm font-medium text-gray-800 bg-white py-3 px-6 rounded-lg border border-gray-200 shadow-sm">
-          <span className="material-symbols-outlined text-emerald-600">list_alt</span>
-          Showing <span className="font-bold text-emerald-600">{filteredBookings.length}</span> of <span className="font-bold">{bookings.length}</span> booking{bookings.length !== 1 ? "s" : ""}
+        <div className="mt-6 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-200 shadow-sm">
+            <span className="material-symbols-outlined text-emerald-600 text-sm">list_alt</span>
+            <span className="text-sm font-medium text-gray-600">
+              Showing <span className="font-bold text-emerald-600">{filteredBookings.length}</span> of <span className="font-bold">{bookings.length}</span> bookings
+            </span>
+          </div>
         </div>
       )}
+
+      {/* View Modal */}
+      <Modal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        title="Booking Details"
+        icon="info"
+      >
+        {selectedBooking && (
+          <div className="space-y-6">
+            {/* Client Info */}
+            <div className="flex items-center gap-4 p-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+                {selectedBooking.clientImage ? (
+                  <img src={selectedBooking.clientImage} alt={selectedBooking.client} className="w-full h-full rounded-full object-cover" />
+                ) : (
+                  selectedBooking.client.charAt(0).toUpperCase()
+                )}
+              </div>
+              <div>
+                <h4 className="font-bold text-gray-900 text-lg">{selectedBooking.client}</h4>
+                <p className="text-sm text-gray-600">Client</p>
+              </div>
+            </div>
+            
+            {/* Contact Information - Quick Actions */}
+            {(selectedBooking.clientPhone || selectedBooking.clientAddress) && (
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                <h4 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
+                  <span className="material-symbols-outlined">contact_phone</span>
+                  Contact Information
+                </h4>
+                <div className="space-y-3">
+                  {selectedBooking.clientPhone && (
+                    <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-blue-200">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                          <span className="material-symbols-outlined text-white text-lg">phone</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Phone</p>
+                          <p className="text-sm font-bold text-gray-900 truncate">{selectedBooking.clientPhone}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 ml-3">
+                        <a
+                          href={`tel:${selectedBooking.clientPhone}`}
+                          className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-sm transition-all flex items-center gap-2 shadow-md"
+                          onClick={() => toast.success("Opening phone app...")}
+                        >
+                          <span className="material-symbols-outlined text-base">call</span>
+                          Call Now
+                        </a>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(selectedBooking.clientPhone);
+                            toast.success("Phone number copied!");
+                          }}
+                          className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                          title="Copy phone number"
+                        >
+                          <span className="material-symbols-outlined text-base">content_copy</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedBooking.clientAddress && (
+                    <div className="bg-white p-3 rounded-lg border border-blue-200">
+                      <div className="flex items-start gap-3 mb-2">
+                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                          <span className="material-symbols-outlined text-white text-lg">location_on</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Address</p>
+                          <p className="text-sm text-gray-900 leading-relaxed">{selectedBooking.clientAddress}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => {
+                            const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedBooking.clientAddress)}`;
+                            window.open(mapsUrl, '_blank');
+                            toast.success("Opening in Google Maps...");
+                          }}
+                          className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-md"
+                        >
+                          <span className="material-symbols-outlined text-base">map</span>
+                          Open in Maps
+                        </button>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(selectedBooking.clientAddress);
+                            toast.success("Address copied!");
+                          }}
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
+                        >
+                          <span className="material-symbols-outlined text-base">content_copy</span>
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Details Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="material-symbols-outlined text-emerald-600 text-lg">handyman</span>
+                  <p className="text-xs text-gray-500 uppercase font-bold tracking-wide">Service</p>
+                </div>
+                <p className="font-semibold text-gray-900">{selectedBooking.service}</p>
+              </div>
+              
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="material-symbols-outlined text-emerald-600 text-lg">payments</span>
+                  <p className="text-xs text-gray-500 uppercase font-bold tracking-wide">Amount</p>
+                </div>
+                <p className="font-semibold text-emerald-600 text-xl">{selectedBooking.amount}</p>
+              </div>
+              
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 sm:col-span-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="material-symbols-outlined text-emerald-600 text-lg">schedule</span>
+                  <p className="text-xs text-gray-500 uppercase font-bold tracking-wide">Date & Time</p>
+                </div>
+                {selectedBooking.slots && selectedBooking.slots.length > 0 ? (
+                  <div className="space-y-2">
+                    {selectedBooking.slots.map((slot: any, i: number) => (
+                      <div key={i} className="flex items-center gap-2 text-sm text-gray-900 bg-white p-2 rounded-lg">
+                        <span className="material-symbols-outlined text-blue-600 text-base">event</span>
+                        {new Date(slot.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })} • {slot.startTime} - {slot.endTime}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="font-medium text-gray-900">{selectedBooking.date}</p>
+                )}
+              </div>
+              
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 sm:col-span-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="material-symbols-outlined text-emerald-600 text-lg">flag</span>
+                  <p className="text-xs text-gray-500 uppercase font-bold tracking-wide">Status</p>
+                </div>
+                <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border-2 ${getStatusColor(selectedBooking.status)}`}>
+                  <span className="material-symbols-outlined text-base">{getStatusIcon(selectedBooking.status)}</span>
+                  {selectedBooking.status}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-gray-200">
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Booking"
+        icon="warning"
+      >
+        <div className="space-y-5">
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+              <span className="material-symbols-outlined text-emerald-600">flag</span>
+              Status
+            </label>
+            <select
+              value={editStatus}
+              onChange={(e) => setEditStatus(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+            >
+              <option value="PENDING">Pending</option>
+              <option value="CONFIRMED">Confirmed</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+              <span className="material-symbols-outlined text-emerald-600">notes</span>
+              Notes
+            </label>
+            <textarea
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              rows={4}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none transition-all"
+              placeholder="Add notes about this booking..."
+            />
+          </div>
+          
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <button
+              onClick={() => setIsEditModalOpen(false)}
+              className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (!selectedBooking) return;
+                updateBooking.mutate(
+                  { id: selectedBooking.id, data: { status: editStatus, notes: editNotes } },
+                  {
+                    onSuccess: () => {
+                      toast.success("Booking updated successfully");
+                      setIsEditModalOpen(false);
+                    },
+                    onError: () => {
+                      toast.error("Failed to update booking");
+                    }
+                  }
+                );
+              }}
+              disabled={updateBooking.isPending}
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/50"
+            >
+              {updateBooking.isPending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined">save</span>
+                  Save Changes
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Cancel Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isCancelModalOpen}
+        onClose={() => setIsCancelModalOpen(false)}
+        onConfirm={() => {
+          if (!selectedBooking) return;
+          updateBooking.mutate(
+            { id: selectedBooking.id, data: { status: "CANCELLED" } },
+            {
+              onSuccess: () => {
+                toast.success("Booking cancelled successfully");
+                setIsCancelModalOpen(false);
+              },
+              onError: () => {
+                toast.error("Failed to cancel booking");
+              }
+            }
+          );
+        }}
+        title="Cancel Booking"
+        description="Are you sure you want to cancel this booking? This action cannot be undone and the client will be notified."
+        confirmText="Yes, Cancel Booking"
+        danger
+        isLoading={updateBooking.isPending}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={() => {
+          if (!selectedBooking) return;
+          deleteBooking.mutate(selectedBooking.id, {
+            onSuccess: () => {
+              toast.success("Booking deleted permanently");
+              setIsDeleteModalOpen(false);
+            },
+            onError: (error: any) => {
+              toast.error(error.response?.data?.message || "Failed to delete booking");
+            },
+          });
+        }}
+        title="Delete Booking Permanently"
+        description="Are you sure you want to permanently delete this booking? This action cannot be undone and will remove all booking history."
+        confirmText="Yes, Delete Permanently"
+        danger
+        isLoading={deleteBooking.isPending}
+      />
     </div>
   );
 };

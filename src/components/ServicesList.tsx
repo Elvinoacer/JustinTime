@@ -1,17 +1,14 @@
-"use client";
-
-import { useState } from "react";
 import { motion } from "framer-motion";
 import ServiceCard from "./ServiceCard";
 import { useServices, ServicesFilters } from "@/lib/api/hooks/useServices";
 
-const ServicesList = () => {
-  const [filters, setFilters] = useState<ServicesFilters>({
-    page: 1,
-    limit: 12,
-    sort: "relevance",
-  });
+interface ServicesListProps {
+  filters: ServicesFilters;
+  onPageChange: (page: number) => void;
+  onSortChange: (sort: any) => void;
+}
 
+const ServicesList = ({ filters, onPageChange, onSortChange }: ServicesListProps) => {
   // Fetch services from API
   const { data, isLoading, isError, error } = useServices(filters);
 
@@ -19,16 +16,12 @@ const ServicesList = () => {
   const handleSortChange = (sort: string) => {
     const sortMap: Record<string, ServicesFilters["sort"]> = {
       "Relevance": "relevance",
+      "Distance: Nearest": "distance",
       "Rating: High to Low": "rating",
       "Price: Low to High": "price_low",
       "Price: High to Low": "price_high",
     };
-    setFilters({ ...filters, sort: sortMap[sort] || "relevance", page: 1 });
-  };
-
-  // Handle load more
-  const handleLoadMore = () => {
-    setFilters({ ...filters, page: (filters.page || 1) + 1 });
+    onSortChange(sortMap[sort] || "relevance");
   };
 
   // Loading State
@@ -103,8 +96,16 @@ const ServicesList = () => {
             <select
               className="rounded-xl border-gray-200 bg-white py-2.5 pl-4 pr-10 text-sm font-medium text-gray-900 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
               onChange={(e) => handleSortChange(e.target.value)}
+              value={
+                filters.sort === "distance" ? "Distance: Nearest" :
+                filters.sort === "rating" ? "Rating: High to Low" :
+                filters.sort === "price_low" ? "Price: Low to High" :
+                filters.sort === "price_high" ? "Price: High to Low" :
+                "Relevance"
+              }
             >
               <option>Relevance</option>
+              {filters.latitude && <option>Distance: Nearest</option>}
               <option>Rating: High to Low</option>
               <option>Price: Low to High</option>
               <option>Price: High to Low</option>
@@ -124,8 +125,23 @@ const ServicesList = () => {
 
       {/* Services Grid - Improved Responsive Layout */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 lg:gap-8">
-        {services.map((service, index) => (
-          <ServiceCard key={service.id} service={service} index={index} />
+        {services.map((service: any, index: number) => (
+          <ServiceCard 
+            key={service.id} 
+            service={{
+              id: service.id,
+              name: service.title || service.name,
+              category: service.category?.name || 'General',
+              description: service.description,
+              rating: service.rating || 5.0,
+              reviews: service.reviews || 0,
+              startingPrice: Number(service.price || service.startingPrice || 0),
+              isVerified: service.provider?.profile?.isVerified || false,
+              imageUrl: service.images?.[0] || service.imageUrl || '/images/placeholder.png',
+              distance: service.distance
+            }} 
+            index={index} 
+          />
         ))}
       </div>
       
@@ -133,7 +149,7 @@ const ServicesList = () => {
       {pagination && pagination.page < pagination.totalPages && (
         <div className="mt-16 flex justify-center">
           <motion.button
-            onClick={handleLoadMore}
+            onClick={() => onPageChange((pagination.page || 1) + 1)}
             className="group flex items-center gap-3 px-10 py-4 bg-white border-2 border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gradient-to-r hover:from-emerald-500 hover:to-green-600 hover:text-white hover:border-transparent transition-all duration-300 shadow-md hover:shadow-xl"
             whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.98 }}

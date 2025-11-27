@@ -73,6 +73,7 @@ export async function PUT(
         categoryId,
         ...(body.images && { images: body.images }),
         ...(body.status && { status: body.status }),
+        ...(body.maxApplicants !== undefined && { maxApplicants: body.maxApplicants }),
       },
       include: {
         client: { select: { id: true, name: true, image: true } },

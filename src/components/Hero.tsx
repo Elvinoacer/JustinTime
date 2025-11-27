@@ -1,9 +1,80 @@
 "use client";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { MapPin, Globe } from "lucide-react";
+
+// Kenyan counties
+const kenyanCounties = [
+  "All Counties",
+  "Baringo", "Bomet", "Bungoma", "Busia", "Elgeyo-Marakwet", "Embu", "Garissa",
+  "Homa Bay", "Isiolo", "Kajiado", "Kakamega", "Kericho", "Kiambu", "Kilifi",
+  "Kirinyaga", "Kisii", "Kisumu", "Kitui", "Kwale", "Laikipia", "Lamu", "Machakos",
+  "Makueni", "Mandera", "Marsabit", "Meru", "Migori", "Mombasa", "Murang'a", "Nairobi",
+  "Nakuru", "Nandi", "Narok", "Nyamira", "Nyandarua", "Nyeri", "Samburu", "Siaya",
+  "Taita-Taveta", "Tana River", "Tharaka-Nithi", "Trans Nzoia", "Turkana", "Uasin Gishu",
+  "Vihiga", "Wajir", "West Pokot"
+];
+
+// Countries and their subdivisions
+const countries = [
+  { 
+    name: "Kenya", 
+    code: "KE",
+    subdivisions: kenyanCounties
+  },
+  { 
+    name: "Uganda", 
+    code: "UG",
+    subdivisions: ["All Regions", "Central", "Eastern", "Northern", "Western"]
+  },
+  { 
+    name: "Tanzania", 
+    code: "TZ",
+    subdivisions: ["All Regions", "Dar es Salaam", "Arusha", "Dodoma", "Mwanza", "Tanga"]
+  },
+  { 
+    name: "Nigeria", 
+    code: "NG",
+    subdivisions: ["All States", "Lagos", "Abuja", "Kano", "Ibadan", "Port Harcourt"]
+  },
+  { 
+    name: "South Africa", 
+    code: "ZA",
+    subdivisions: ["All Provinces", "Gauteng", "Western Cape", "KwaZulu-Natal", "Eastern Cape"]
+  }
+];
 
 const Hero = () => {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState(countries[0]); // Default to Kenya
+  const [selectedLocation, setSelectedLocation] = useState(kenyanCounties[0]); // Default to "All Counties"
+
+  const handleCountryChange = (countryCode: string) => {
+    const country = countries.find(c => c.code === countryCode);
+    if (country) {
+      setSelectedCountry(country);
+      setSelectedLocation(country.subdivisions[0]); // Reset to "All" when country changes
+    }
+  };
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (searchQuery) params.append("search", searchQuery);
+    if (selectedLocation && !selectedLocation.startsWith("All")) {
+      params.append("location", selectedLocation);
+    }
+    if (selectedCountry.code !== "KE") {
+      params.append("country", selectedCountry.code);
+    }
+    
+    router.push(`/services?${params.toString()}`);
+  };
+
+  const handleCategoryClick = (category: string) => {
+    router.push(`/services?category=${encodeURIComponent(category)}`);
+  };
 
   return (
     <div className="relative rounded-b-3xl md:rounded-b-none overflow-hidden mx-4 mt-4 sm:mx-6 sm:mt-6 md:mx-0 md:mt-0">
@@ -42,56 +113,128 @@ const Hero = () => {
         </div>
 
         <motion.div
-          className="z-20 w-full max-w-2xl mt-6"
+          className="z-20 w-full max-w-4xl mt-8"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl p-1.5 flex flex-col sm:flex-row items-stretch w-full">
-            <div className="flex items-center px-4 py-3 sm:py-0">
-              <span className="material-symbols-outlined text-gray-500">
-                search
-              </span>
-              <input
-                className="flex-1 min-w-0 border-none outline-none text-gray-800 placeholder-gray-500 text-base sm:text-lg font-normal ml-3 bg-transparent"
-                placeholder="What service do you need?..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+          {/* Enhanced Search Container */}
+          <div className="backdrop-blur-md bg-white/95 rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+            {/* Main Search Row */}
+            <div className="p-4 sm:p-6">
+              <div className="flex flex-col lg:flex-row gap-4">
+                {/* Search Input Section */}
+                <div className="flex-1 relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <span className="material-symbols-outlined text-emerald-600 text-2xl group-focus-within:scale-110 transition-transform">
+                      search
+                    </span>
+                  </div>
+                  <input
+                    className="w-full pl-14 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl outline-none text-gray-800 placeholder-gray-500 text-base sm:text-lg font-medium focus:border-emerald-500 focus:bg-white transition-all duration-300"
+                    placeholder="What service do you need?..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  />
+                </div>
+
+                {/* Location Selectors Section */}
+                <div className="flex flex-col sm:flex-row gap-3 lg:w-auto">
+                  {/* Country Selector */}
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Globe className="w-5 h-5 text-emerald-600 group-focus-within:scale-110 transition-transform" />
+                    </div>
+                    <select 
+                      className="w-full sm:w-auto pl-12 pr-10 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 text-base font-semibold cursor-pointer outline-none focus:border-emerald-500 focus:bg-white transition-all duration-300 appearance-none"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2310b981'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 0.75rem center',
+                        backgroundSize: '1.25rem'
+                      }}
+                      value={selectedCountry.code}
+                      onChange={(e) => handleCountryChange(e.target.value)}
+                    >
+                      {countries.map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* County/State Selector */}
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <MapPin className="w-5 h-5 text-emerald-600 group-focus-within:scale-110 transition-transform" />
+                    </div>
+                    <select 
+                      className="w-full sm:w-auto pl-12 pr-10 py-4 bg-gray-50 border-2 border-gray-200 rounded-2xl text-gray-800 text-base font-semibold cursor-pointer outline-none focus:border-emerald-500 focus:bg-white transition-all duration-300 appearance-none"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2310b981'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 0.75rem center',
+                        backgroundSize: '1.25rem'
+                      }}
+                      value={selectedLocation}
+                      onChange={(e) => setSelectedLocation(e.target.value)}
+                    >
+                      {selectedCountry.subdivisions.map((subdivision, index) => (
+                        <option key={index} value={subdivision}>
+                          {subdivision}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Search Button */}
+              <div className="mt-4">
+                <motion.button
+                  className="w-full sm:w-auto sm:min-w-[200px] flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 via-emerald-600 to-green-600 text-white text-lg font-bold rounded-2xl shadow-lg shadow-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/60 transition-all duration-300 group"
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleSearch}
+                >
+                  <span className="material-symbols-outlined text-2xl group-hover:rotate-90 transition-transform duration-300">
+                    search
+                  </span>
+                  <span className="truncate">Search Now</span>
+                </motion.button>
+              </div>
             </div>
 
-            <div className="flex items-center border-t border-gray-200 sm:border-t-0 sm:border-l sm:pl-2 pt-3 sm:pt-0">
-              <select className="text-gray-700 bg-transparent border-none outline-none text-base sm:text-lg font-medium mx-3 sm:mx-4">
-                <option>Location</option>
-                <option>Nairobi</option>
-                <option>Mombasa</option>
-                <option>Kisumu</option>
-                <option>Nakuru</option>
-              </select>
-
-              <div className="h-6 w-px bg-gray-300 hidden sm:block"></div>
-
-              <motion.button
-                className="flex min-w-[140px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-12 sm:h-14 px-6 bg-gradient-to-r from-emerald-500 to-green-500 text-white text-base font-bold leading-normal tracking-wide hover:from-emerald-600 hover:to-green-600 transition-all duration-300 ml-auto mx-3 sm:mx-4 my-2 sm:my-0"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <span className="truncate">Search Now</span>
-              </motion.button>
+            {/* Current Selection Display Bar */}
+            <div className="bg-gradient-to-r from-emerald-50 to-green-50 px-6 py-3 border-t border-emerald-100">
+              <div className="flex items-center justify-center gap-2 text-sm">
+                <MapPin className="w-4 h-4 text-emerald-600" />
+                <p className="text-gray-700">
+                  Searching in{" "}
+                  <span className="font-bold text-emerald-700">
+                    {selectedLocation === selectedCountry.subdivisions[0] 
+                      ? selectedCountry.name 
+                      : `${selectedLocation}, ${selectedCountry.name}`}
+                  </span>
+                </p>
+              </div>
             </div>
           </div>
 
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             {["Plumbing", "Electrical", "Cleaning", "Repairs", "Painting"].map(
               (service, index) => (
-                <motion.span
+                <motion.button
                   key={index}
-                  className="inline-flex items-center px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-full text-sm font-medium cursor-pointer hover:bg-white/20 transition-all duration-300"
+                  className="inline-flex items-center px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-full text-sm font-medium cursor-pointer hover:bg-white/20 transition-all duration-300 border border-white/10"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  onClick={() => handleCategoryClick(service)}
                 >
                   {service}
-                </motion.span>
+                </motion.button>
               )
             )}
           </div>

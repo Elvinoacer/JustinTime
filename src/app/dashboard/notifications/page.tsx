@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 interface Notification {
   id: string;
@@ -16,6 +17,7 @@ const NotificationsPage = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchNotifications();
@@ -64,15 +66,43 @@ const NotificationsPage = () => {
   };
 
   const deleteNotification = async (id: string) => {
+    setDeletingId(id);
     try {
       const response = await fetch(`/api/notifications/${id}`, {
         method: "DELETE",
       });
+      
       if (response.ok) {
         setNotifications(notifications.filter(n => n.id !== id));
+        toast.success("Notification deleted");
+      } else {
+        throw new Error("Failed to delete");
       }
     } catch (error) {
       console.error("Error deleting notification:", error);
+      toast.error("Failed to delete notification");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    if (!confirm("Are you sure you want to clear all notifications?")) return;
+    
+    try {
+      const response = await fetch("/api/notifications", {
+        method: "DELETE",
+      });
+      
+      if (response.ok) {
+        setNotifications([]);
+        toast.success("All notifications cleared");
+      } else {
+        throw new Error("Failed to clear notifications");
+      }
+    } catch (error) {
+      console.error("Error clearing notifications:", error);
+      toast.error("Failed to clear notifications");
     }
   };
 
@@ -162,6 +192,15 @@ const NotificationsPage = () => {
             Mark all as read
           </button>
         )}
+        {notifications.length > 0 && (
+          <button
+            onClick={clearAllNotifications}
+            className="px-4 py-2 text-red-600 hover:text-red-700 font-medium flex items-center gap-2 ml-2"
+          >
+            <span className="material-symbols-outlined text-sm">delete_sweep</span>
+            Clear All
+          </button>
+        )}
       </div>
 
       {/* Notifications List */}
@@ -224,10 +263,15 @@ const NotificationsPage = () => {
                       )}
                       <button
                         onClick={() => deleteNotification(notification.id)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        disabled={deletingId === notification.id}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                         title="Delete"
                       >
-                        <span className="material-symbols-outlined text-lg">delete</span>
+                        {deletingId === notification.id ? (
+                          <div className="w-5 h-5 border-2 border-red-500/20 border-t-red-500 rounded-full animate-spin" />
+                        ) : (
+                          <span className="material-symbols-outlined text-lg">delete</span>
+                        )}
                       </button>
                     </div>
                   </div>

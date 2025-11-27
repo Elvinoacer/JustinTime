@@ -4,16 +4,16 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useProviderServices,
-  useCreateService,
-  useUpdateService,
   useDeleteService,
+  useUpdateService,
 } from "@/lib/api/hooks/useProvider";
+import ServiceFormModal from "@/components/dashboard/services/ServiceFormModal";
+import { toast } from "sonner";
 
 const ServicesPage = () => {
   const { data: servicesData, isLoading } = useProviderServices();
-  const createServiceMutation = useCreateService();
-  const updateServiceMutation = useUpdateService();
   const deleteServiceMutation = useDeleteService();
+  const updateServiceMutation = useUpdateService();
 
   const servicesList = servicesData?.data || [];
 
@@ -21,22 +21,16 @@ const ServicesPage = () => {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<any | null>(null);
 
-  // Form state
-  const [formData, setFormData] = useState({
-    name: "",
-    category: "",
-    description: "",
-    price: "",
-  });
-
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     try {
       await updateServiceMutation.mutateAsync({
         id,
         data: { isActive: !currentStatus },
       });
+      toast.success(`Service ${!currentStatus ? 'activated' : 'deactivated'}`);
     } catch (error) {
       console.error("Failed to toggle status", error);
+      toast.error("Failed to update status");
     }
   };
 
@@ -44,46 +38,24 @@ const ServicesPage = () => {
     try {
       await deleteServiceMutation.mutateAsync(id);
       setDeleteConfirm(null);
+      toast.success("Service deleted successfully");
     } catch (error) {
       console.error("Failed to delete service", error);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const price = parseFloat(formData.price.replace(/[^0-9.]/g, ""));
-
-    try {
-      if (editingService) {
-        await updateServiceMutation.mutateAsync({
-          id: editingService.id,
-          data: { ...formData, price },
-        });
-      } else {
-        await createServiceMutation.mutateAsync({ ...formData, price });
-      }
-      setShowAddModal(false);
-      setEditingService(null);
-      setFormData({ name: "", category: "", description: "", price: "" });
-    } catch (error) {
-      console.error("Failed to save service", error);
+      toast.error("Failed to delete service");
     }
   };
 
   const openEditModal = (service: any) => {
     setEditingService(service);
-    setFormData({
-      name: service.name,
-      category: service.category,
-      description: service.description || "",
-      price: service.price.toString(),
-    });
     setShowAddModal(true);
   };
 
   const openAddModal = () => {
+    if (servicesList.length >= 5) {
+      toast.error("You have reached the maximum limit of 5 services.");
+      return;
+    }
     setEditingService(null);
-    setFormData({ name: "", category: "", description: "", price: "" });
     setShowAddModal(true);
   };
 
@@ -93,7 +65,7 @@ const ServicesPage = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div role="status" aria-label="Loading services" className="w-12 h-12 border-4 border-primary-500/20 border-t-primary-500 rounded-full animate-spin" />
+        <div role="status" aria-label="Loading services" className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
       </div>
     );
   }
@@ -103,16 +75,16 @@ const ServicesPage = () => {
       {/* Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-gray-800 text-3xl font-bold leading-tight mb-2">
-            Services
+          <h1 className="text-gray-900 text-3xl font-bold leading-tight mb-2">
+            My Services
           </h1>
           <p className="text-gray-500 text-sm font-normal leading-normal">
-            Manage your service offerings and pricing
+            Manage your service offerings and showcase your work
           </p>
         </div>
         <button
           onClick={openAddModal}
-          className="px-6 py-2.5 bg-primary-600 text-white rounded-lg font-medium text-sm hover:bg-primary-700 transition-colors flex items-center gap-2"
+          className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center gap-2"
           aria-label="Add new service"
         >
           <span className="material-symbols-outlined text-sm">add</span>
@@ -121,11 +93,12 @@ const ServicesPage = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         {[
           {
             label: "Total Services",
             count: servicesList.length,
+            limit: "/ 5",
             icon: "construction",
             color: "blue",
           },
@@ -133,12 +106,12 @@ const ServicesPage = () => {
             label: "Active",
             count: activeServices,
             icon: "check_circle",
-            color: "green",
+            color: "emerald",
           },
           {
             label: "Inactive",
             count: inactiveServices,
-            icon: "cancel",
+            icon: "pause_circle",
             color: "gray",
           },
         ].map((stat, index) => (
@@ -147,35 +120,32 @@ const ServicesPage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+            className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100"
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 text-sm font-medium">
                   {stat.label}
                 </p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">
-                  {stat.count}
-                </p>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <p className="text-3xl font-bold text-gray-900">
+                    {stat.count}
+                  </p>
+                  {stat.limit && (
+                    <span className="text-gray-400 text-lg font-medium">{stat.limit}</span>
+                  )}
+                </div>
               </div>
               <div
-                className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                   stat.color === "blue"
-                    ? "bg-blue-100"
-                    : stat.color === "green"
-                    ? "bg-green-100"
-                    : "bg-gray-100"
+                    ? "bg-blue-50 text-blue-600"
+                    : stat.color === "emerald"
+                    ? "bg-emerald-50 text-emerald-600"
+                    : "bg-gray-50 text-gray-600"
                 }`}
               >
-                <span
-                  className={`material-symbols-outlined ${
-                    stat.color === "blue"
-                      ? "text-blue-600"
-                      : stat.color === "green"
-                      ? "text-green-600"
-                      : "text-gray-600"
-                  }`}
-                >
+                <span className="material-symbols-outlined">
                   {stat.icon}
                 </span>
               </div>
@@ -194,94 +164,116 @@ const ServicesPage = () => {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 0.2, delay: index * 0.05 }}
-              className={`bg-white rounded-xl shadow-sm border overflow-hidden transition-all hover:shadow-md ${
+              className={`bg-white rounded-2xl shadow-sm border overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 group ${
                 service.isActive
                   ? "border-gray-100"
-                  : "border-gray-200 opacity-60"
+                  : "border-gray-200 opacity-75 grayscale-[0.5]"
               }`}
             >
-              {/* Service Header */}
-              <div className="p-6 pb-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
-                    <span className="material-symbols-outlined text-primary-600">
-                      construction
+              {/* Service Preview Image */}
+              <div className="h-48 bg-gray-100 relative overflow-hidden">
+                {service.images && service.images.length > 0 ? (
+                  <img 
+                    src={service.images[0]} 
+                    alt={service.name}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                    <span className="material-symbols-outlined text-gray-300 text-5xl">construction</span>
+                  </div>
+                )}
+                
+                {/* Media Indicators */}
+                <div className="absolute bottom-3 right-3 flex gap-2">
+                  {service.images?.length > 0 && (
+                    <span className="px-2 py-1 bg-black/60 backdrop-blur-sm text-white text-xs font-medium rounded-lg flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">photo_library</span>
+                      {service.images.length}
                     </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {/* Status Toggle */}
-                    <button
-                      onClick={() => handleToggleStatus(service.id, service.isActive)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        service.isActive ? "bg-green-500" : "bg-gray-300"
-                      }`}
-                      role="switch"
-                      aria-checked={service.isActive}
-                      aria-label={`Toggle ${service.name} status`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          service.isActive ? "translate-x-6" : "translate-x-1"
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                <h3 className="text-lg font-bold text-gray-900 mb-1">
-                  {service.name}
-                </h3>
-                <p className="text-sm text-gray-500 mb-3">{service.category}</p>
-                <p className="text-gray-700 text-sm leading-relaxed mb-4 line-clamp-2">
-                  {service.description}
-                </p>
-
-                {/* Price */}
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-2xl font-bold text-primary-600">
-                    KES {service.price.toLocaleString()}
-                  </span>
-                  <span className="text-sm text-gray-500">per service</span>
+                  )}
+                  {service.video && (
+                    <span className="px-2 py-1 bg-black/60 backdrop-blur-sm text-white text-xs font-medium rounded-lg flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">videocam</span>
+                      1
+                    </span>
+                  )}
                 </div>
 
                 {/* Status Badge */}
-                <div className="flex items-center gap-2 mb-4">
+                <div className="absolute top-3 right-3">
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
+                    className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm backdrop-blur-md ${
                       service.isActive
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-600"
+                        ? "bg-emerald-500/90 text-white"
+                        : "bg-gray-500/90 text-white"
                     }`}
                   >
-                    <span className="material-symbols-outlined text-xs">
-                      {service.isActive ? "check_circle" : "cancel"}
-                    </span>
                     {service.isActive ? "Active" : "Inactive"}
                   </span>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="border-t border-gray-100 p-4 bg-gray-50 flex items-center gap-2">
-                <button
-                  onClick={() => openEditModal(service)}
-                  className="flex-1 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                  aria-label={`Edit ${service.name}`}
-                >
-                  <span className="material-symbols-outlined text-sm">
-                    edit
-                  </span>
-                  Edit
-                </button>
+              {/* Service Content */}
+              <div className="p-6">
+                <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full uppercase tracking-wide group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors">
+                      {service.category}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-1">
+                    {service.name}
+                  </h3>
+                  <p className="text-gray-500 text-sm leading-relaxed line-clamp-2 h-10">
+                    {service.description}
+                  </p>
+                </div>
+
+                <div className="flex items-end justify-between mb-6">
+                  <div>
+                    <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5">Price</p>
+                    <div className="flex items-baseline gap-1">
+                      <p className="text-xl font-bold text-gray-900">
+                        KES {service.price.toLocaleString()}
+                      </p>
+                      <span className="text-sm text-gray-500 font-medium">
+                        {service.pricingUnit === 'hourly' ? '/hr' : '(Fixed)'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => openEditModal(service)}
+                    className="px-4 py-2 bg-gray-50 text-gray-700 rounded-xl font-semibold text-sm hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-sm">edit</span>
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleToggleStatus(service.id, service.isActive)}
+                    className={`px-4 py-2 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 ${
+                      service.isActive
+                        ? "bg-orange-50 text-orange-700 hover:bg-orange-100"
+                        : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      {service.isActive ? "pause" : "play_arrow"}
+                    </span>
+                    {service.isActive ? "Pause" : "Activate"}
+                  </button>
+                </div>
+                
                 <button
                   onClick={() => setDeleteConfirm(service.id)}
-                  className="px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg font-medium text-sm hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
-                  aria-label={`Delete ${service.name}`}
+                  className="w-full mt-3 px-4 py-2 text-red-600 text-sm font-medium hover:bg-red-50 rounded-xl transition-colors flex items-center justify-center gap-2 opacity-60 hover:opacity-100"
                 >
-                  <span className="material-symbols-outlined text-sm">
-                    delete
-                  </span>
-                  Delete
+                  <span className="material-symbols-outlined text-sm">delete</span>
+                  Delete Service
                 </button>
               </div>
             </motion.div>
@@ -291,23 +283,23 @@ const ServicesPage = () => {
 
       {/* Empty State */}
       {servicesList.length === 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-16 text-center border border-gray-100">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="material-symbols-outlined text-gray-400 text-4xl">
+        <div className="bg-white rounded-2xl shadow-sm p-16 text-center border border-gray-100">
+          <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span className="material-symbols-outlined text-gray-300 text-5xl">
               construction
             </span>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <h3 className="text-xl font-bold text-gray-900 mb-2">
             No services yet
           </h3>
-          <p className="text-gray-500 text-sm mb-6">
-            Get started by adding your first service
+          <p className="text-gray-500 text-base mb-8 max-w-md mx-auto">
+            Start building your profile by adding your first service. You can add up to 5 services to showcase your expertise.
           </p>
           <button
             onClick={openAddModal}
-            className="px-6 py-2.5 bg-primary-600 text-white rounded-lg font-medium text-sm hover:bg-primary-700 transition-colors inline-flex items-center gap-2"
+            className="px-8 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 inline-flex items-center gap-2"
           >
-            <span className="material-symbols-outlined text-sm">add</span>
+            <span className="material-symbols-outlined">add</span>
             Add Your First Service
           </button>
         </div>
@@ -320,53 +312,46 @@ const ServicesPage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => setDeleteConfirm(null)}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full"
-              role="dialog"
-              aria-labelledby="delete-dialog-title"
-              aria-describedby="delete-dialog-description"
+              className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center relative overflow-hidden"
             >
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="material-symbols-outlined text-red-600">
-                    warning
-                  </span>
-                </div>
-                <div>
-                  <h3
-                    id="delete-dialog-title"
-                    className="text-lg font-bold text-gray-900 mb-1"
-                  >
-                    Delete Service
-                  </h3>
-                  <p
-                    id="delete-dialog-description"
-                    className="text-sm text-gray-600"
-                  >
-                    Are you sure you want to delete this service? This action
-                    cannot be undone.
-                  </p>
-                </div>
+              {/* Decorative background element */}
+              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-400 to-red-600" />
+              
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6 mx-auto">
+                <span className="material-symbols-outlined text-red-500 text-3xl">
+                  delete_forever
+                </span>
               </div>
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setDeleteConfirm(null)}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors"
-                >
-                  Cancel
-                </button>
+              
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Delete Service?
+              </h3>
+              
+              <p className="text-gray-500 mb-8 leading-relaxed">
+                This action cannot be undone. This will permanently delete the service and all associated media.
+              </p>
+              
+              <div className="flex flex-col gap-3">
                 <button
                   onClick={() => handleDelete(deleteConfirm!)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium text-sm hover:bg-red-700 transition-colors"
+                  className="w-full px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200 flex items-center justify-center gap-2 group"
                 >
-                  Delete Service
+                  <span className="material-symbols-outlined group-hover:animate-bounce">delete</span>
+                  Yes, Delete Service
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  className="w-full px-6 py-3 bg-white text-gray-700 border border-gray-200 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
                 </button>
               </div>
             </motion.div>
@@ -375,138 +360,11 @@ const ServicesPage = () => {
       </AnimatePresence>
 
       {/* Add/Edit Service Modal */}
-      <AnimatePresence>
-        {showAddModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowAddModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-              role="dialog"
-              aria-labelledby="add-dialog-title"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3
-                  id="add-dialog-title"
-                  className="text-xl font-bold text-gray-900"
-                >
-                  {editingService ? "Edit Service" : "Add New Service"}
-                </h3>
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  aria-label="Close dialog"
-                >
-                  <span className="material-symbols-outlined text-gray-600">
-                    close
-                  </span>
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="service-name"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Service Name
-                  </label>
-                  <input
-                    id="service-name"
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g., Plumbing Repair"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="service-category"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Category
-                  </label>
-                  <input
-                    id="service-category"
-                    type="text"
-                    required
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    placeholder="e.g., Home Repair"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="service-description"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Description
-                  </label>
-                  <textarea
-                    id="service-description"
-                    rows={4}
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Describe your service..."
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="service-price"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Price
-                  </label>
-                  <input
-                    id="service-price"
-                    type="text"
-                    required
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    placeholder="e.g., 5000"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddModal(false)}
-                    className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={createServiceMutation.isPending || updateServiceMutation.isPending}
-                    className="flex-1 px-4 py-2.5 bg-primary-600 text-white rounded-lg font-medium text-sm hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {(createServiceMutation.isPending || updateServiceMutation.isPending) && (
-                      <div role="status" className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    )}
-                    {editingService ? "Save Changes" : "Add Service"}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ServiceFormModal 
+        isOpen={showAddModal} 
+        onClose={() => setShowAddModal(false)} 
+        service={editingService} 
+      />
     </div>
   );
 };

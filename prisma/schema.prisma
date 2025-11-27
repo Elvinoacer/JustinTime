@@ -36,6 +36,8 @@ model User {
   updatedAt           DateTime  @updatedAt
   onboardingCompleted Boolean   @default(false)
   clientInterests     String[]
+  isBanned            Boolean   @default(false)
+  adminLogs           AdminLog[]
   
   // Settings preferences (stored as JSON)
   notificationPreferences Json? @default("{\"emailJobAlerts\":true,\"emailMessages\":true,\"emailBookings\":true,\"emailReviews\":true,\"emailMarketing\":false,\"pushNotifications\":true}")
@@ -44,6 +46,10 @@ model User {
   // Account deletion tracking
   deletionScheduledAt DateTime?
   deletionReason      String?
+  
+  // Password reset
+  resetToken          String?   @unique
+  resetTokenExpiry    DateTime?
 
   accounts      Account[]
   sessions      Session[]
@@ -65,6 +71,10 @@ model User {
   disputes      Dispute[]     @relation("CreatedDisputes")
   disputesAgainst Dispute[]   @relation("DisputesAgainst")
   supportTickets SupportTicket[]
+  availability  Availability[]
+  availabilityExceptions AvailabilityException[]
+  initiatedNegotiations BookingNegotiation[] @relation("InitiatedNegotiations")
+  receivedNegotiations BookingNegotiation[]  @relation("ReceivedNegotiations")
 }
 
 // NextAuth Models
@@ -148,7 +158,12 @@ model Service {
   price       Decimal  @db.Decimal(10, 2)
   pricingUnit String   // e.g., "per hour", "fixed"
   images      String[]
+  video       String?  // URL to service video
   isActive    Boolean  @default(true)
+  requiresAvailability Boolean @default(true) // Whether service needs availability scheduling
+  defaultDuration Int?  // Duration in minutes
+  locationType String  @default("PROVIDER_LOCATION") // PROVIDER_LOCATION, CLIENT_LOCATION, NEGOTIABLE, REMOTE
+  location    String?  // Default location for service
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -173,7 +188,10 @@ model Job {
   description String    @db.Text
   budget      Decimal?  @db.Decimal(10, 2)
   location    String?
+  latitude    Float?
+  longitude   Float?
   deadline    DateTime?
+  maxApplicants Int?    // Maximum number of proposals allowed
   status      JobStatus @default(OPEN)
   images      String[]  // URLs to job images/photos
   createdAt   DateTime  @default(now())
@@ -204,6 +222,8 @@ model Proposal {
 
   job         Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
   provider    User           @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  estimatedDays Int?
+  attachments String[]
 }
 
 // Bookings
@@ -223,8 +243,16 @@ model Booking {
   serviceId   String?
   jobId       String?
   date        DateTime
+  startTime   String?       // e.g., "09:00"
+  endTime     String?       // e.g., "10:00"
   status      BookingStatus @default(PENDING)
   totalAmount Decimal       @db.Decimal(10, 2)
+  proposedPrice Decimal?    @db.Decimal(10, 2) // If client proposes different price
+  location    String?       // Agreed location for service
+  proposedLocation String?   // If client proposes different location
+  notes       String?       @db.Text // Additional notes from client
+  clientPhone String?       // Client contact phone for this booking
+  clientAddress String?     @db.Text // Client address for this booking
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -235,6 +263,20 @@ model Booking {
   payment     Payment?
   review      Review?
   dispute     Dispute?
+  negotiations BookingNegotiation[]
+  slots       BookingSlot[]
+}
+
+model BookingSlot {
+  id        String   @id @default(cuid())
+  bookingId String
+  date      DateTime
+  startTime String
+  endTime   String
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([date])
 }
 
 // Reviews
@@ -316,7 +358,10 @@ model Message {
   senderId    String
   receiverId  String
   content     String   @db.Text
+  fileUrl     String?
+  fileType    String?  // "image", "file", etc.
   isRead      Boolean  @default(false)
+  isDelivered Boolean  @default(false)
   createdAt   DateTime @default(now())
 
   sender      User     @relation("SentMessages", fields: [senderId], references: [id])
@@ -398,4 +443,103 @@ model SupportTicket {
   
   @@index([userId])
   @@index([status])
+}
+
+// Provider Availability Schedule
+model Availability {
+  id          String   @id @default(cuid())
+  providerId  String
+  serviceId   String?  // Optional: link to specific service
+  dayOfWeek   Int      // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  startTime   String   // e.g., "09:00"
+  endTime     String   // e.g., "17:00"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  provider    User     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  
+  @@index([providerId])
+  @@index([serviceId])
+}
+
+// Date-specific Availability Exceptions
+model AvailabilityException {
+  id          String   @id @default(cuid())
+  providerId  String
+  date        DateTime // Specific date for this exception
+  isAvailable Boolean  // false = blocked date, true = special availability
+  startTime   String?  // If available, custom start time
+  endTime     String?  // If available, custom end time
+  reason      String?  // e.g., "Holiday", "Personal event"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  provider    User     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  
+  @@index([providerId])
+  @@index([date])
+}
+
+// Booking Negotiation
+enum NegotiationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COUNTERED
+  EXPIRED
+}
+
+model BookingNegotiation {
+  id              String            @id @default(cuid())
+  bookingId       String
+  initiatorId     String            // Who started this negotiation
+  receiverId      String            // Who receives this negotiation
+  proposedPrice   Decimal?          @db.Decimal(10, 2)
+  proposedLocation String?
+  message         String?           @db.Text
+  status          NegotiationStatus @default(PENDING)
+  parentId        String?           // For counter-offers
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  booking         Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  initiator       User              @relation("InitiatedNegotiations", fields: [initiatorId], references: [id])
+  receiver        User              @relation("ReceivedNegotiations", fields: [receiverId], references: [id])
+  parent          BookingNegotiation? @relation("NegotiationThread", fields: [parentId], references: [id])
+  counterOffers   BookingNegotiation[] @relation("NegotiationThread")
+  
+  @@index([bookingId])
+  @@index([initiatorId])
+  @@index([receiverId])
+}
+
+// Newsletter Subscribers
+model NewsletterSubscriber {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([email])
+}
+
+
+// Admin Audit Log
+model AdminLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  action    String   // e.g., "VERIFIED_USER", "RESOLVED_DISPUTE"
+  targetId  String?  // ID of the object affected
+  details   Json?
+  createdAt DateTime @default(now())
+  admin     User     @relation(fields: [adminId], references: [id])
+}
+
+// System Settings
+model SystemSetting {
+  key         String   @id
+  value       Json
+  description String?
 }

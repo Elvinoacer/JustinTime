@@ -112,13 +112,45 @@ export function useDeleteService() {
 }
 
 // Provider Bookings Hook
-export function useProviderBookings(status?: string) {
+export function useProviderBookings(params?: { status?: string; from?: Date; to?: Date }) {
   return useQuery({
-    queryKey: ['provider', 'bookings', status],
+    queryKey: ['provider', 'bookings', params],
     queryFn: async () => {
-      const params = status ? `?status=${status}` : '';
-      const response = await apiClient.get(`/provider/bookings${params}`);
+      const queryParams = new URLSearchParams();
+      if (params?.status && params.status !== 'all') queryParams.append('status', params.status);
+      if (params?.from) queryParams.append('from', params.from.toISOString());
+      if (params?.to) queryParams.append('to', params.to.toISOString());
+      
+      const response = await apiClient.get(`/provider/bookings?${queryParams.toString()}`);
       return response.data;
+    },
+  });
+}
+
+// Update Booking Hook
+export function useUpdateBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const response = await apiClient.patch(`/bookings/${id}`, data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['provider', 'bookings'] });
+    },
+  });
+}
+
+// Delete Booking Hook
+export function useDeleteBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiClient.delete(`/bookings/${id}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['provider', 'bookings'] });
     },
   });
 }

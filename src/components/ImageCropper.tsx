@@ -58,7 +58,7 @@ const ImageCropper = ({ image, onCropComplete, onCancel, aspectRatio = 1 }: Imag
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-4">
       <div className="bg-white rounded-xl max-w-2xl w-full overflow-hidden">
         {/* Header */}
         <div className="p-6 border-b border-gray-200">
@@ -67,18 +67,32 @@ const ImageCropper = ({ image, onCropComplete, onCancel, aspectRatio = 1 }: Imag
         </div>
 
         {/* Cropper */}
-        <div className="relative h-96 bg-gray-100">
-          <Cropper
-            image={image}
-            crop={crop}
-            zoom={zoom}
-            aspect={aspectRatio}
-            onCropChange={onCropChange}
-            onZoomChange={onZoomChange}
-            onCropComplete={onCropCompleteCallback}
-            cropShape="round"
-            showGrid={false}
-          />
+        <div className="relative h-96 bg-black w-full">
+          {image ? (
+            <Cropper
+              image={image}
+              crop={crop}
+              zoom={zoom}
+              aspect={aspectRatio}
+              onCropChange={onCropChange}
+              onZoomChange={onZoomChange}
+              onCropComplete={onCropCompleteCallback}
+              cropShape="round"
+              showGrid={true}
+              objectFit="contain"
+              style={{
+                containerStyle: {
+                  width: "100%",
+                  height: "100%",
+                  backgroundColor: "black",
+                },
+              }}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-white">
+              No image selected
+            </div>
+          )}
         </div>
 
         {/* Controls */}

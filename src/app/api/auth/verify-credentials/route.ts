@@ -40,6 +40,8 @@ export async function POST(request: NextRequest) {
       name: user.name,
       role: user.role,
       image: user.image,
+      onboardingCompleted: user.onboardingCompleted,
+      clientInterests: user.clientInterests,
     });
   } catch (error) {
     console.error("[Auth Verify Error]", error);

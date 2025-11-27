@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -16,9 +16,11 @@ export async function GET(
       );
     }
 
+    const { id } = await params;
+
     const ticket = await prisma.supportTicket.findUnique({
       where: {
-        id: params.id,
+        id,
       },
       include: {
         user: {

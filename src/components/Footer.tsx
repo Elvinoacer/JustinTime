@@ -1,7 +1,59 @@
 "use client";
 import { motion } from "framer-motion";
+import Link from "next/link";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 const Footer = () => {
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Basic validation
+    if (!email.trim()) {
+      toast.error("Please enter your email address");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/newsletter/subscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(data.message || "Successfully subscribed to our newsletter!");
+        setEmail(""); // Clear the input
+      } else if (response.status === 409) {
+        // Email already exists
+        toast.info("You're already subscribed to our newsletter!");
+      } else {
+        toast.error(data.error || "Failed to subscribe. Please try again.");
+      }
+    } catch (error) {
+      console.error("Newsletter subscription error:", error);
+      toast.error("Something went wrong. Please try again later.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <footer className="bg-gradient-to-br from-gray-900 to-gray-800 text-white py-12 sm:py-16 md:py-20">
       <div className="container mx-auto px-4 sm:px-6 md:px-8 max-w-7xl">
@@ -15,9 +67,7 @@ const Footer = () => {
             viewport={{ once: true }}
           >
             <div className="flex items-center justify-center md:justify-start gap-3 text-white mb-5">
-              <span className="material-symbols-outlined text-4xl text-emerald-400">
-                hub
-              </span>
+              <img src="/images/JustinTimeLogo.png" alt="JustInTime Logo" className="h-10 w-auto" />
               <h2 className="text-2xl font-bold leading-tight tracking-tight bg-gradient-to-r from-emerald-400 to-green-500 bg-clip-text text-transparent">
                 JustInTime
               </h2>
@@ -30,18 +80,33 @@ const Footer = () => {
             {/* Newsletter Subscription */}
             <div className="mt-6">
               <h4 className="text-gray-200 font-medium mb-3">Stay Updated</h4>
-              <div className="flex flex-col sm:flex-row gap-2 max-w-xs mx-auto md:mx-0">
+              <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-2 max-w-xs mx-auto md:mx-0">
                 <input
                   type="email"
                   placeholder="Your email address"
-                  className="px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isSubmitting}
+                  className="px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 />
-                <button className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-300 whitespace-nowrap">
-                  Subscribe
+                <button 
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-300 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Subscribing...</span>
+                    </>
+                  ) : (
+                    "Subscribe"
+                  )}
                 </button>
-              </div>
+              </form>
             </div>
           </motion.div>
+
 
           {/* Quick Links */}
           <motion.div
@@ -55,23 +120,23 @@ const Footer = () => {
             </h3>
             <ul className="space-y-3">
               {[
-                "About Us",
-                "Contact",
-                "Privacy Policy",
-                "Terms of Service",
-                "FAQ",
-                "Blog",
+                { name: "About Us", href: "/about" },
+                { name: "Contact", href: "/contact" },
+                { name: "Privacy Policy", href: "/privacy" },
+                { name: "Terms of Service", href: "/terms" },
+                { name: "FAQ", href: "/faq" },
+                { name: "Blog", href: "/blog" },
               ].map((item, index) => (
                 <li key={index}>
-                  <a
+                  <Link
+                    href={item.href}
                     className="text-gray-300 hover:text-emerald-400 text-base transition-colors duration-300 flex items-center justify-center md:justify-start group"
-                    href="#"
                   >
                     <span className="mr-2 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       •
                     </span>
-                    {item}
-                  </a>
+                    {item.name}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -89,23 +154,23 @@ const Footer = () => {
             </h3>
             <ul className="space-y-3">
               {[
-                "Plumbing",
-                "Electrical",
-                "Cleaning",
-                "Carpentry",
-                "Painting",
-                "More Services...",
+                { name: "Plumbing", href: "/services?category=plumbing" },
+                { name: "Electrical", href: "/services?category=electrical" },
+                { name: "Cleaning", href: "/services?category=cleaning" },
+                { name: "Carpentry", href: "/services?category=carpentry" },
+                { name: "Painting", href: "/services?category=painting" },
+                { name: "More Services...", href: "/services" },
               ].map((service, index) => (
                 <li key={index}>
-                  <a
+                  <Link
+                    href={service.href}
                     className="text-gray-300 hover:text-emerald-400 text-base transition-colors duration-300 flex items-center justify-center md:justify-start group"
-                    href="#"
                   >
                     <span className="mr-2 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       •
                     </span>
-                    {service}
-                  </a>
+                    {service.name}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -134,28 +199,7 @@ const Footer = () => {
                 <span className="material-symbols-outlined text-emerald-500 mr-2 text-lg">
                   call
                 </span>
-                <span>+254 700 123 456</span>
-              </div>
-            </div>
-
-            {/* App Download Badges */}
-            <div className="mt-6">
-              <h4 className="text-gray-200 font-medium mb-3 text-center md:text-left">
-                Get Our App
-              </h4>
-              <div className="flex flex-col sm:flex-row gap-2 justify-center md:justify-start">
-                <button className="bg-gray-800 hover:bg-gray-700 text-white px-3 py-2 rounded-lg text-xs transition-colors duration-300 flex items-center justify-center">
-                  <span className="material-symbols-outlined mr-1">
-                    android
-                  </span>
-                  Google Play
-                </button>
-                <button className="bg-gray-800 hover:bg-gray-700 text-white px-3 py-2 rounded-lg text-xs transition-colors duration-300 flex items-center justify-center">
-                  <span className="material-symbols-outlined mr-1">
-                    phone_iphone
-                  </span>
-                  App Store
-                </button>
+                <span>+254 790 670 542</span>
               </div>
             </div>
           </motion.div>
@@ -179,24 +223,24 @@ const Footer = () => {
         >
           <p>© 2024 JustInTime. All rights reserved.</p>
           <div className="flex gap-5 mt-3 md:mt-0">
-            <a
-              href="#"
+            <Link
+              href="/privacy"
               className="text-gray-400 hover:text-emerald-400 transition-colors duration-300 text-xs"
             >
               Privacy Policy
-            </a>
-            <a
-              href="#"
+            </Link>
+            <Link
+              href="/terms"
               className="text-gray-400 hover:text-emerald-400 transition-colors duration-300 text-xs"
             >
               Terms of Service
-            </a>
-            <a
-              href="#"
+            </Link>
+            <Link
+              href="/cookie-policy"
               className="text-gray-400 hover:text-emerald-400 transition-colors duration-300 text-xs"
             >
               Cookie Policy
-            </a>
+            </Link>
           </div>
         </motion.div>
       </div>

@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
+import { formatDistance } from '@/lib/utils/geolocation';
 
 interface ServiceCardProps {
   service: {
@@ -15,6 +16,7 @@ interface ServiceCardProps {
     startingPrice: number;
     isVerified: boolean;
     imageUrl: string;
+    distance?: number;
   };
   index?: number;
 }
@@ -81,46 +83,26 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, index = 0 }) => {
                     <span className="text-xs font-bold text-white">Verified Pro</span>
                   </motion.div>
                 )}
-
-                {/* Rating Badge */}
-                <motion.div
-                  className="flex items-center gap-1.5 rounded-2xl bg-white/95 backdrop-blur-xl px-3.5 py-2 shadow-xl"
-                  initial={{ x: 20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: index * 0.1 + 0.4 }}
-                >
-                  <span className="material-symbols-outlined text-lg text-amber-500 fill-current">star</span>
-                  <span className="text-sm font-bold text-gray-900">{service.rating.toFixed(1)}</span>
-                  <span className="text-xs text-gray-500">({service.reviews})</span>
-                </motion.div>
-              </div>
-
-              {/* Price Tag - Positioned at bottom of image */}
-              <div className="absolute bottom-4 left-4">
-                <motion.div
-                  className="rounded-2xl bg-white/95 backdrop-blur-xl px-4 py-2.5 shadow-xl"
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: index * 0.1 + 0.5 }}
-                >
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Starting at</p>
-                  <p className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
-                    KES {service.startingPrice}
-                  </p>
-                </motion.div>
               </div>
             </div>
 
             {/* Content Section */}
-            <div className="p-6">
-              {/* Category Tag */}
-              <div className="mb-3 flex items-center gap-2">
-                <div className="rounded-lg bg-gradient-to-r from-emerald-50 to-green-50 p-2">
-                  <span className="material-symbols-outlined text-emerald-600 text-lg">category</span>
+            <div className="p-6 flex flex-col flex-grow">
+              {/* Category Tag & Rating Row */}
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="rounded-lg bg-emerald-50 p-2">
+                    <span className="material-symbols-outlined text-emerald-600 text-lg">category</span>
+                  </div>
+                  <span className="text-sm font-bold text-emerald-600 uppercase tracking-wide">
+                    {service.category}
+                  </span>
                 </div>
-                <span className="text-sm font-bold text-emerald-600 uppercase tracking-wide">
-                  {service.category}
-                </span>
+                <div className="flex items-center gap-1">
+                   <span className="material-symbols-outlined text-amber-500 text-lg fill-current">star</span>
+                   <span className="font-bold text-gray-900">{service.rating.toFixed(1)}</span>
+                   <span className="text-xs text-gray-500">({service.reviews})</span>
+                </div>
               </div>
 
               {/* Title */}
@@ -129,9 +111,25 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, index = 0 }) => {
               </h3>
 
               {/* Description */}
-              <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed mb-5">
+              <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed mb-6 flex-grow">
                 {service.description}
               </p>
+              
+              {/* Price Row */}
+              <div className="mb-6 flex items-end justify-between border-t border-gray-100 pt-4">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Starting at</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    KES {service.startingPrice.toLocaleString()}
+                  </p>
+                </div>
+                {service.distance !== undefined && (
+                  <div className="flex items-center gap-1 text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                    <span className="material-symbols-outlined text-sm">near_me</span>
+                    <span className="text-xs font-bold">{formatDistance(service.distance)}</span>
+                  </div>
+                )}
+              </div>
 
               {/* Action Button */}
               <motion.div
@@ -139,12 +137,12 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, index = 0 }) => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <div className="flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-3.5 group-hover:bg-gradient-to-r group-hover:from-emerald-500 group-hover:to-green-600 transition-all duration-300">
-                  <span className="text-sm font-bold text-emerald-600 group-hover:text-white transition-colors">
+                <div className="flex items-center justify-center gap-3 rounded-2xl bg-white px-6 py-4 group-hover:bg-gradient-to-r group-hover:from-emerald-500 group-hover:to-green-600 transition-all duration-300">
+                  <span className="text-base font-bold text-emerald-600 group-hover:text-white transition-colors">
                     View Profile
                   </span>
                   <motion.span
-                    className="material-symbols-outlined text-emerald-600 group-hover:text-white transition-colors"
+                    className="material-symbols-outlined text-emerald-600 group-hover:text-white transition-colors text-xl"
                     animate={{ x: [0, 4, 0] }}
                     transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
                   >

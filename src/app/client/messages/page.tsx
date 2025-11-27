@@ -1,83 +1,295 @@
-import React from 'react';
+"use client";
+
+import { ChatWindow } from "@/components/client/messages/ChatWindow";
+import { ConversationsList } from "@/components/client/messages/ConversationsList";
+import { NewConversationModal } from "@/components/client/messages/NewConversationModal";
+import apiClient from "@/lib/api/client";
+import { socket } from "@/lib/socket";
+import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
+
+interface Conversation {
+  partner: {
+    id: string;
+    name: string;
+    image: string | null;
+  };
+  lastMessage: {
+    content: string;
+    createdAt: string;
+    isRead: boolean;
+    isOwn: boolean;
+  };
+  unreadCount: number;
+}
+
+interface Message {
+  id: string;
+  senderId: string;
+  content: string;
+  fileUrl?: string | null;
+  fileType?: string | null;
+  createdAt: string;
+  isRead: boolean;
+  isDelivered?: boolean;
+}
 
 export default function ClientMessagesPage() {
+  const { data: session } = useSession();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(
+    null
+  );
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
+
+  // Fetch conversations on mount
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        const { data } = await apiClient.get<{ conversations: Conversation[] }>(
+          "/messages/conversations"
+        );
+        setConversations(data.conversations);
+      } catch (error) {
+        console.error("Failed to fetch conversations:", error);
+      }
+    };
+
+    if (session?.user) {
+      fetchConversations();
+    }
+  }, [session]);
+
+  // Socket connection
+  useEffect(() => {
+    if (session?.user) {
+      socket.connect();
+      socket.emit("join", session.user.id);
+
+      socket.on("receive_message", (message: any) => {
+        // Update messages if looking at this conversation
+        if (
+          selectedPartnerId &&
+          (message.senderId === selectedPartnerId ||
+            message.receiverId === selectedPartnerId)
+        ) {
+          setMessages((prev) => [...prev, message]);
+        }
+
+        // Update conversations list
+        setConversations((prev) => {
+          const newConvs = [...prev];
+          const convIndex = newConvs.findIndex(
+            (c) =>
+              c.partner.id === message.senderId ||
+              c.partner.id === message.receiverId
+          );
+
+          if (convIndex >= 0) {
+            // Update existing conversation
+            newConvs[convIndex] = {
+              ...newConvs[convIndex],
+              lastMessage: {
+                content: message.content,
+                createdAt: message.createdAt,
+                isRead: false,
+                isOwn: message.senderId === session.user.id,
+              },
+              unreadCount:
+                message.senderId !== session.user.id &&
+                selectedPartnerId !== message.senderId
+                  ? newConvs[convIndex].unreadCount + 1
+                  : newConvs[convIndex].unreadCount,
+            };
+            // Move to top
+            const [updatedConv] = newConvs.splice(convIndex, 1);
+            newConvs.unshift(updatedConv);
+          } else {
+            // New conversation (would need to fetch partner details, for now we skip or could fetch)
+            // Ideally we'd fetch the user info here if it's a brand new conversation
+          }
+          return newConvs;
+        });
+      });
+
+      socket.on("user_typing", ({ senderId }) => {
+        if (senderId === selectedPartnerId) {
+          setIsTyping(true);
+        }
+      });
+
+      socket.on("user_stop_typing", ({ senderId }) => {
+        if (senderId === selectedPartnerId) {
+          setIsTyping(false);
+        }
+      });
+
+      return () => {
+        socket.off("receive_message");
+        socket.off("user_typing");
+        socket.off("user_stop_typing");
+        socket.disconnect();
+      };
+    }
+  }, [session, selectedPartnerId]);
+
+  // Fetch messages when selecting a partner
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!selectedPartnerId) return;
+      try {
+        const { data } = await apiClient.get<{ messages: Message[] }>(
+          `/messages/history/${selectedPartnerId}`
+        );
+        setMessages(data.messages);
+
+        // Mark as read locally
+        setConversations((prev) =>
+          prev.map((c) => {
+            if (c.partner.id === selectedPartnerId) {
+              return { ...c, unreadCount: 0 };
+            }
+            return c;
+          })
+        );
+      } catch (error) {
+        console.error("Failed to fetch messages:", error);
+      }
+    };
+
+    fetchMessages();
+  }, [selectedPartnerId]);
+
+  const handleSendMessage = async (content: string, fileUrl?: string, fileType?: string) => {
+    if (!selectedPartnerId || !session?.user) return;
+
+    // Optimistic update
+    const tempId = Date.now().toString();
+    const newMessage = {
+      id: tempId,
+      senderId: session.user.id,
+      content,
+      fileUrl,
+      fileType,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      isDelivered: false,
+    };
+
+    // Add to messages immediately for instant feedback
+    setMessages((prev) => [...prev, newMessage]);
+
+    // Emit socket event immediately for real-time feel
+    socket.emit("send_message", {
+      ...newMessage,
+      receiverId: selectedPartnerId,
+    });
+
+    try {
+      // Persist to DB
+      await apiClient.post("/messages/send", {
+        receiverId: selectedPartnerId,
+        content,
+        fileUrl,
+        fileType,
+      });
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      // Remove optimistic message on error
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    // Optimistic update
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
+
+    try {
+      await apiClient.delete(`/messages/${messageId}`);
+    } catch (error) {
+      console.error("Failed to delete message:", error);
+      // Revert if failed (would need to fetch messages again or keep a backup)
+      // For now, we'll just log the error
+    }
+  };
+
+  const handleClearConversation = async (partnerId: string) => {
+    // Optimistic update - clear messages locally
+    setMessages([]);
+
+    try {
+      await apiClient.delete(`/messages/clear/${partnerId}`);
+      // Remove conversation from list
+      setConversations((prev) => prev.filter((c) => c.partner.id !== partnerId));
+      setSelectedPartnerId(null);
+    } catch (error) {
+      console.error("Failed to clear conversation:", error);
+      // Could refetch messages here if needed
+    }
+  };
+
+  const handleSelectUser = (contact: any) => {
+    // Check if conversation already exists
+    const existingConv = conversations.find(c => c.partner.id === contact.id);
+    
+    if (existingConv) {
+      setSelectedPartnerId(contact.id);
+    } else {
+      // Create new temporary conversation
+      const newConv: Conversation = {
+        partner: {
+          id: contact.id,
+          name: contact.name || 'Unknown',
+          image: contact.image,
+        },
+        lastMessage: {
+          content: '',
+          createdAt: new Date().toISOString(),
+          isRead: true,
+          isOwn: true,
+        },
+        unreadCount: 0,
+      };
+      
+      setConversations(prev => [newConv, ...prev]);
+      setSelectedPartnerId(contact.id);
+    }
+    
+    setIsNewConversationOpen(false);
+  };
+
+  const selectedPartner =
+    conversations.find((c) => c.partner.id === selectedPartnerId)?.partner ||
+    null;
+
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-gray-100">
-      {/* Sidebar */}
-      <div className="w-1/3 border-r border-gray-200 bg-white overflow-y-auto">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">Messages</h2>
-          <div className="mt-2">
-            <input type="text" placeholder="Search messages..." className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-          </div>
-        </div>
-        <ul className="divide-y divide-gray-200">
-          {[1, 2, 3].map((item) => (
-            <li key={item} className="p-4 hover:bg-gray-50 cursor-pointer">
-              <div className="flex space-x-3">
-                <div className="flex-shrink-0">
-                  <span className="inline-block h-10 w-10 rounded-full overflow-hidden bg-gray-100">
-                    <svg className="h-full w-full text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    Provider Name {item}
-                  </p>
-                  <p className="text-sm text-gray-500 truncate">
-                    Yes, I can do that for you.
-                  </p>
-                </div>
-                <div>
-                   <span className="text-xs text-gray-400">11:30 AM</span>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Chat Area */}
-      <div className="flex-1 flex flex-col bg-gray-50">
-        {/* Chat Header */}
-        <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center">
-          <h3 className="text-lg font-medium text-gray-900">Provider Name 1</h3>
-          <button className="text-gray-400 hover:text-gray-500">
-             <span className="sr-only">More options</span>
-             <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-             </svg>
-          </button>
-        </div>
-
-        {/* Messages List */}
-        <div className="flex-1 p-4 overflow-y-auto space-y-4">
-           <div className="flex justify-end">
-              <div className="bg-blue-600 p-3 rounded-lg shadow-sm max-w-xs text-sm text-white">
-                 Hi, are you available for a plumbing job tomorrow?
-              </div>
-           </div>
-           <div className="flex justify-start">
-              <div className="bg-white p-3 rounded-lg shadow-sm max-w-xs text-sm text-gray-700">
-                 Yes, I am available. What time works for you?
-              </div>
-           </div>
-        </div>
-
-        {/* Message Input */}
-        <div className="p-4 border-t border-gray-200 bg-white">
-          <div className="flex space-x-3">
-            <input type="text" placeholder="Type a message..." className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
-            <button className="inline-flex items-center p-2 border border-transparent rounded-full shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-              <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="flex h-[calc(100vh-64px)] bg-gray-100 rounded-2xl overflow-hidden shadow-sm border border-gray-200 m-4">
+      <ConversationsList
+        conversations={conversations}
+        selectedPartnerId={selectedPartnerId}
+        onSelect={setSelectedPartnerId}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onNewMessage={() => setIsNewConversationOpen(true)}
+        onlineUsers={new Set()}
+      />
+      <ChatWindow
+        partner={selectedPartner}
+        messages={messages}
+        currentUserId={session?.user?.id || ""}
+        onSendMessage={handleSendMessage}
+        onDeleteMessage={handleDeleteMessage}
+        onClearConversation={handleClearConversation}
+        isTyping={isTyping}
+      />
+      <NewConversationModal
+        isOpen={isNewConversationOpen}
+        onClose={() => setIsNewConversationOpen(false)}
+        onSelectUser={handleSelectUser}
+      />
     </div>
   );
 }

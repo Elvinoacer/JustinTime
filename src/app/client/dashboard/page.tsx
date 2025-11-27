@@ -73,6 +73,73 @@ export default function ClientDashboardPage() {
         ))}
       </div>
 
+      {/* Quick Actions - Navigation Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Link href="/jobs">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="group relative bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-8 overflow-hidden cursor-pointer shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300 transition-all duration-300"
+          >
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-white rounded-full translate-y-1/2 -translate-x-1/2" />
+            </div>
+
+            <div className="relative z-10">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                  <span className="material-symbols-outlined text-white text-3xl">
+                    work
+                  </span>
+                </div>
+                <span className="material-symbols-outlined text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                  arrow_forward
+                </span>
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Browse Available Jobs</h3>
+              <p className="text-emerald-50 text-sm">
+                Find opportunities that match your needs and connect with service providers
+              </p>
+            </div>
+          </motion.div>
+        </Link>
+
+        <Link href="/professionals">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="group relative bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl p-8 overflow-hidden cursor-pointer shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 transition-all duration-300"
+          >
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-white rounded-full translate-y-1/2 -translate-x-1/2" />
+            </div>
+
+            <div className="relative z-10">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                  <span className="material-symbols-outlined text-white text-3xl">
+                    person_search
+                  </span>
+                </div>
+                <span className="material-symbols-outlined text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                  arrow_forward
+                </span>
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Find Professionals</h3>
+              <p className="text-blue-50 text-sm">
+                Connect with skilled service providers and hire top talent for your projects
+              </p>
+            </div>
+          </motion.div>
+        </Link>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Active Jobs Table */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
@@ -202,9 +269,12 @@ export default function ClientDashboardPage() {
                   </div>
                 </div>
               ))}
-              <button className="w-full mt-6 py-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors">
+              <Link 
+                href="/client/notifications"
+                className="block w-full mt-6 py-2 text-center text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+              >
                 View All Activity
-              </button>
+              </Link>
             </div>
           ) : (
             <div className="text-center py-8">

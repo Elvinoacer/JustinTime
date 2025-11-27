@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { successResponse, handleError } from "@/lib/middleware/errorHandler";
+import { calculateDistance } from "@/lib/utils/geolocation";
 
 /**
  * GET /api/services
- * Fetch all services with optional filtering
+ * Fetch all services with optional filtering and location-based sorting
  */
 export async function GET(request: NextRequest) {
   try {
@@ -22,6 +23,10 @@ export async function GET(request: NextRequest) {
     const maxPrice = searchParams.get("maxPrice");
     const search = searchParams.get("search");
     const sort = searchParams.get("sort") || "relevance";
+    
+    // Location parameters
+    const userLat = searchParams.get("latitude");
+    const userLon = searchParams.get("longitude");
 
     // Build where clause
     const where: any = {
@@ -55,29 +60,33 @@ export async function GET(request: NextRequest) {
       if (maxPrice) where.price.lte = parseFloat(maxPrice);
     }
 
-    // Build orderBy clause
+    // Build orderBy clause (skip for distance sorting - we'll do it in memory)
     let orderBy: any = {};
-    switch (sort) {
-      case "rating":
-        orderBy = { provider: { profile: { /* avg rating */ } } };
-        break;
-      case "price_low":
-        orderBy = { price: "asc" };
-        break;
-      case "price_high":
-        orderBy = { price: "desc" };
-        break;
-      default:
-        orderBy = { createdAt: "desc" };
+    const isDistanceSort = sort === "distance" && userLat && userLon;
+    
+    if (!isDistanceSort) {
+      switch (sort) {
+        case "rating":
+          orderBy = { createdAt: "desc" }; // TODO: Add proper rating sort
+          break;
+        case "price_low":
+          orderBy = { price: "asc" };
+          break;
+        case "price_high":
+          orderBy = { price: "desc" };
+          break;
+        default:
+          orderBy = { createdAt: "desc" };
+      }
     }
 
-    // Fetch services
+    // Fetch services with provider location data
     const [services, total] = await Promise.all([
       prisma.service.findMany({
         where,
-        orderBy,
-        skip,
-        take: limit,
+        orderBy: isDistanceSort ? undefined : orderBy,
+        skip: isDistanceSort ? undefined : skip,
+        take: isDistanceSort ? undefined : limit,
         include: {
           provider: {
             select: {
@@ -87,6 +96,9 @@ export async function GET(request: NextRequest) {
               profile: {
                 select: {
                   isVerified: true,
+                  latitude: true,
+                  longitude: true,
+                  location: true,
                 },
               },
             },
@@ -103,22 +115,47 @@ export async function GET(request: NextRequest) {
       prisma.service.count({ where }),
     ]);
 
-    // Calculate ratings (simplified - you might want to add a reviews model)
-    const servicesWithRatings = services.map((service) => ({
-      id: service.id,
-      name: service.provider.name || "Unknown Provider",
-      category: service.category.name,
-      description: service.description,
-      rating: 4.5 + Math.random() * 0.5, // TODO: Calculate from reviews
-      reviews: Math.floor(Math.random() * 200) + 20, // TODO: Get from reviews count
-      startingPrice: parseFloat(service.price.toString()),
-      isVerified: service.provider.profile?.isVerified || false,
-      imageUrl: service.images[0] || service.provider.image || "/placeholder.jpg",
-      pricingUnit: service.pricingUnit,
-    }));
+    // Calculate distances and add to services
+    let servicesWithData = services.map((service) => {
+      let distance: number | undefined;
+      
+      if (userLat && userLon && service.provider.profile?.latitude && service.provider.profile?.longitude) {
+        distance = calculateDistance(
+          parseFloat(userLat),
+          parseFloat(userLon),
+          service.provider.profile.latitude,
+          service.provider.profile.longitude
+        );
+      }
+
+      return {
+        id: service.id,
+        name: service.provider.name || "Unknown Provider",
+        category: service.category.name,
+        description: service.description,
+        rating: 4.5 + Math.random() * 0.5, // TODO: Calculate from reviews
+        reviews: Math.floor(Math.random() * 200) + 20, // TODO: Get from reviews count
+        startingPrice: parseFloat(service.price.toString()),
+        isVerified: service.provider.profile?.isVerified || false,
+        imageUrl: service.images[0] || service.provider.image || "/placeholder.jpg",
+        pricingUnit: service.pricingUnit,
+        distance,
+        providerLocation: service.provider.profile?.location,
+      };
+    });
+
+    // Sort by distance if requested
+    if (isDistanceSort) {
+      servicesWithData = servicesWithData
+        .filter(s => s.distance !== undefined)
+        .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+      
+      // Apply pagination after sorting
+      servicesWithData = servicesWithData.slice(skip, skip + limit);
+    }
 
     return successResponse({
-      services: servicesWithRatings,
+      services: servicesWithData,
       pagination: {
         page,
         limit,

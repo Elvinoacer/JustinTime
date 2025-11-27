@@ -541,6 +541,113 @@ If you have any questions or concerns, please contact our support team at suppor
   }
 };
 
+// Send password reset email
+export const sendPasswordResetEmail = async (
+  userEmail: string,
+  userName: string,
+  resetUrl: string
+) => {
+  try {
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: `"JustInTime Security" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: "Reset Your Password - JustInTime",
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #f0fdf4; padding: 30px; border-radius: 0 0 10px 10px; }
+            .button { display: inline-block; background: #10b981; color: white; padding: 15px 35px; text-decoration: none; border-radius: 8px; margin-top: 20px; font-weight: bold; }
+            .button:hover { background: #059669; }
+            .info-box { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border: 1px solid #d1d5db; }
+            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+            .security-icon { font-size: 48px; margin-bottom: 10px; }
+            .alert-box { background: #fff7ed; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 5px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="security-icon">🔑</div>
+              <h1 style="margin: 0;">Reset Your Password</h1>
+            </div>
+            <div class="content">
+              <h2 style="color: #059669;">Hi ${userName},</h2>
+              
+              <p>We received a request to reset your password for your JustInTime account.</p>
+              
+              <p>Click the button below to create a new password:</p>
+              
+              <div style="text-align: center;">
+                <a href="${resetUrl}" class="button">
+                  Reset My Password
+                </a>
+              </div>
+              
+              <div class="info-box">
+                <p style="margin: 0;"><strong>⏱️ This link will expire in 1 hour</strong></p>
+                <p style="margin: 5px 0 0 0; font-size: 14px; color: #6b7280;">For security reasons, please reset your password as soon as possible.</p>
+              </div>
+
+              <div class="alert-box">
+                <h3 style="margin-top: 0; color: #f59e0b;">🔐 Didn't Request This?</h3>
+                <p style="margin-bottom: 0;">
+                  If you didn't request a password reset, please ignore this email or contact our support team if you have concerns about your account security.
+                </p>
+              </div>
+
+              <h3 style="color: #059669;">Can't Click The Button?</h3>
+              <p style="font-size: 14px;">Copy and paste this link into your browser:</p>
+              <p style="word-break: break-all; background: white; padding: 15px; border-radius: 5px; font-size: 12px; color: #6b7280;">
+                ${resetUrl}
+              </p>
+
+              <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
+                This is an automated security email. Please do not reply to this email.
+              </p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
+              <p>Need help? Contact us at <a href="mailto:support@justintime.com" style="color: #10b981;">support@justintime.com</a></p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+Hi ${userName},
+
+We received a request to reset your password for your JustInTime account.
+
+Click the link below to create a new password:
+${resetUrl}
+
+⏱️ This link will expire in 1 hour. For security reasons, please reset your password as soon as possible.
+
+DIDN'T REQUEST THIS?
+If you didn't request a password reset, please ignore this email or contact our support team if you have concerns about your account security.
+
+Need help? Contact us at support@justintime.com
+
+© ${new Date().getFullYear()} JustInTime. All rights reserved.
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Password reset email sent to ${userEmail}`);
+    return true;
+  } catch (error) {
+    console.error("Error sending password reset email:", error);
+    return false;
+  }
+};
+
 // Send support ticket created confirmation email
 export const sendSupportTicketCreatedEmail = async (
   userEmail: string,
@@ -762,6 +869,903 @@ Have more questions? Feel free to reply to this email or create a new ticket.
     return true;
   } catch (error) {
     console.error("Error sending support ticket status email:", error);
+    return false;
+  }
+};
+
+// Send booking confirmation email to client
+export const sendBookingConfirmationEmail = async (
+  clientEmail: string,
+  clientName: string,
+  providerName: string,
+  providerEmail: string,
+  serviceTitle: string,
+  bookingDate: Date,
+  startTime: string,
+  endTime: string,
+  location: string,
+  price: number,
+  bookingId: string
+) => {
+  try {
+    const transporter = createTransporter();
+
+    const formattedDate = bookingDate.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const mailOptions = {
+      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: clientEmail,
+      subject: `Booking Confirmation - ${serviceTitle}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #f0fdf4; padding: 30px; border-radius: 0 0 10px 10px; }
+            .booking-card { background: white; padding: 25px; margin: 20px 0; border-radius: 12px; border: 2px solid #10b981; }
+            .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+            .detail-label { font-weight: 600; color: #6b7280; }
+            .detail-value { font-weight: 700; color: #111827; }
+            .button { display: inline-block; background: #10b981; color: white; padding: 15px 35px; text-decoration: none; border-radius: 8px; margin-top: 20px; font-weight: bold; }
+            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0;">✅ Booking Confirmed!</h1>
+            </div>
+            <div class="content">
+              <h2 style="color: #059669;">Hi ${clientName},</h2>
+              
+              <p>Great news! Your booking request has been sent successfully. You'll receive a notification once ${providerName} confirms your booking.</p>
+              
+              <div class="booking-card">
+                <h3 style="margin-top: 0; color: #10b981;">📋 Booking Details</h3>
+                <div class="detail-row">
+                  <span class="detail-label">Service:</span>
+                  <span class="detail-value">${serviceTitle}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Provider:</span>
+                  <span class="detail-value">${providerName}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Date:</span>
+                  <span class="detail-value">${formattedDate}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Time:</span>
+                  <span class="detail-value">${startTime} - ${endTime}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Location:</span>
+                  <span class="detail-value">${location}</span>
+                </div>
+                <div class="detail-row" style="border-bottom: none; border-top: 2px solid #10b981; margin-top: 10px; padding-top: 15px;">
+                  <span class="detail-label">Total Amount:</span>
+                  <span class="detail-value" style="font-size: 20px; color: #10b981;">Kes ${price.toLocaleString()}</span>
+                </div>
+              </div>
+
+              <p><strong>Provider Contact:</strong> ${providerEmail}</p>
+
+              <a href="${process.env.NEXTAUTH_URL}/client/bookings" class="button">
+                View My Bookings
+              </a>
+
+              <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
+                Need to make changes or have questions? Contact ${providerName} directly or reach out to our support team.
+              </p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+Hi ${clientName},
+
+Great news! Your booking request has been sent successfully.
+
+BOOKING DETAILS
+Service: ${serviceTitle}
+Provider: ${providerName}
+Date: ${formattedDate}
+Time: ${startTime} - ${endTime}
+Location: ${location}
+Total Amount: Kes ${price.toLocaleString()}
+
+Provider Contact: ${providerEmail}
+
+View your bookings: ${process.env.NEXTAUTH_URL}/client/bookings
+
+© ${new Date().getFullYear()} JustInTime. All rights reserved.
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Booking confirmation email sent to ${clientEmail}`);
+    return true;
+  } catch (error) {
+    console.error("Error sending booking confirmation email:", error);
+    return false;
+  }
+};
+
+// Send booking notification email to provider
+export const sendProviderBookingNotificationEmail = async (
+  providerEmail: string,
+  providerName: string,
+  clientName: string,
+  serviceTitle: string,
+  bookingDate: Date,
+  startTime: string,
+  endTime: string,
+  location: string,
+  price: number,
+  notes: string,
+  bookingId: string
+) => {
+  try {
+    const transporter = createTransporter();
+
+    const formattedDate = bookingDate.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const mailOptions = {
+      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: providerEmail,
+      subject: `New Booking Request - ${serviceTitle}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #fffbeb; padding: 30px; border-radius: 0 0 10px 10px; }
+            .booking-card { background: white; padding: 25px; margin: 20px 0; border-radius: 12px; border: 2px solid #f59e0b; }
+            .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+            .detail-label { font-weight: 600; color: #6b7280; }
+            .detail-value { font-weight: 700; color: #111827; }
+            .notes-box { background: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b; margin: 15px 0; }
+            .button { display: inline-block; padding: 15px 35px; text-decoration: none; border-radius: 8px; margin: 10px 10px 10px 0; font-weight: bold; }
+            .accept-btn { background: #10b981; color: white; }
+            .reject-btn { background: #ef4444; color: white; }
+            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0;">🔔 New Booking Request!</h1>
+            </div>
+            <div class="content">
+              <h2 style="color: #f59e0b;">Hi ${providerName},</h2>
+              
+              <p>You have a new booking request from <strong>${clientName}</strong>!</p>
+              
+              <div class="booking-card">
+                <h3 style="margin-top: 0; color: #f59e0b;">📋 Booking Details</h3>
+                <div class="detail-row">
+                  <span class="detail-label">Service:</span>
+                  <span class="detail-value">${serviceTitle}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Client:</span>
+                  <span class="detail-value">${clientName}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Date:</span>
+                  <span class="detail-value">${formattedDate}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Time:</span>
+                  <span class="detail-value">${startTime} - ${endTime}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Location:</span>
+                  <span class="detail-value">${location}</span>
+                </div>
+                <div class="detail-row" style="border-bottom: none; border-top: 2px solid #f59e0b; margin-top: 10px; padding-top: 15px;">
+                  <span class="detail-label">Amount:</span>
+                  <span class="detail-value" style="font-size: 20px; color: #f59e0b;">Kes ${price.toLocaleString()}</span>
+                </div>
+              </div>
+
+              ${notes ? `
+                <div class="notes-box">
+                  <strong>📝 Client Notes:</strong>
+                  <p style="margin: 5px 0 0 0;">${notes}</p>
+                </div>
+              ` : ""}
+
+              <p><strong>Action Required:</strong> Please review and respond to this booking request.</p>
+
+              <a href="${process.env.NEXTAUTH_URL}/dashboard/bookings" class="button accept-btn">
+                View Booking
+              </a>
+
+              <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
+                Make sure to review your schedule before accepting. The client will be notified of your decision.
+              </p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+Hi ${providerName},
+
+You have a new booking request from ${clientName}!
+
+BOOKING DETAILS
+Service: ${serviceTitle}
+Client: ${clientName}
+Date: ${formattedDate}
+Time: ${startTime} - ${endTime}
+Location: ${location}
+Amount: Kes ${price.toLocaleString()}
+
+${notes ? `Client Notes: ${notes}` : ""}
+
+View and respond to this booking: ${process.env.NEXTAUTH_URL}/dashboard/bookings
+
+© ${new Date().getFullYear()} JustInTime. All rights reserved.
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Provider booking notification sent to ${providerEmail}`);
+    return true;
+  } catch (error) {
+    console.error("Error sending provider booking notification:", error);
+    return false;
+  }
+};
+
+// Send negotiation request email
+export const sendNegotiationRequestEmail = async (
+  receiverEmail: string,
+  receiverName: string,
+  initiatorName: string,
+  serviceTitle: string,
+  originalPrice: number,
+  proposedPrice?: number,
+  proposedLocation?: string,
+  message?: string,
+  negotiationId?: string
+) => {
+  try {
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: receiverEmail,
+      subject: `Negotiation Request - ${serviceTitle}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #eff6ff; padding: 30px; border-radius: 0 0 10px 10px; }
+            .proposal-card { background: white; padding: 25px; margin: 20px 0; border-radius: 12px; border: 2px solid #3b82f6; }
+            .comparison { display: flex; justify-content: space-around; margin: 20px 0; }
+            .price-box { text-align: center; padding: 15px; }
+            .original-price { color: #6b7280; text-decoration: line-through; }
+            .proposed-price { color: #3b82f6; font-size: 24px; font-weight: bold; }
+            .message-box { background: #dbeafe; padding: 15px; border-radius: 8px; border-left: 4px solid #3b82f6; margin: 15px 0; }
+            .button { display: inline-block; background: #3b82f6; color: white; padding: 15px 35px; text-decoration: none; border-radius: 8px; margin-top: 20px; font-weight: bold; }
+            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0;">💬 Negotiation Request</h1>
+            </div>
+            <div class="content">
+              <h2 style="color: #2563eb;">Hi ${receiverName},</h2>
+              
+              <p><strong>${initiatorName}</strong> has sent you a negotiation request for <strong>${serviceTitle}</strong>.</p>
+              
+              <div class="proposal-card">
+                <h3 style="margin-top: 0; color: #3b82f6;">📊 Proposed Changes</h3>
+                
+                ${proposedPrice ? `
+                  <div class="comparison">
+                    <div class="price-box">
+                      <div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">Original Price</div>
+                      <div class="original-price" style="font-size: 20px;">Kes ${originalPrice.toLocaleString()}</div>
+                    </div>
+                    <div style="display: flex; align-items: center; font-size: 24px; color: #3b82f6;">→</div>
+                    <div class="price-box">
+                      <div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">Proposed Price</div>
+                      <div class="proposed-price">Kes ${proposedPrice.toLocaleString()}</div>
+                    </div>
+                  </div>
+                ` : ""}
+
+                ${proposedLocation ? `
+                  <div style="padding: 15px; background: #f3f4f6; border-radius: 8px; margin-top: 15px;">
+                    <strong>📍 Proposed Location:</strong>
+                    <div style="margin-top: 5px;">${proposedLocation}</div>
+                  </div>
+                ` : ""}
+              </div>
+
+              ${message ? `
+                <div class="message-box">
+                  <strong>💬 Message from ${initiatorName}:</strong>
+                  <p style="margin: 5px 0 0 0;">${message}</p>
+                </div>
+              ` : ""}
+
+              <p><strong>What would you like to do?</strong></p>
+              <ul>
+                <li>Accept the proposal</li>
+                <li>Reject the proposal</li>
+                <li>Send a counter-offer</li>
+              </ul>
+
+              <a href="${process.env.NEXTAUTH_URL}/dashboard/bookings" class="button">
+                Respond to Negotiation
+              </a>
+
+              <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
+                Respond within 48 hours to keep the negotiation active.
+              </p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+Hi ${receiverName},
+
+${initiatorName} has sent you a negotiation request for ${serviceTitle}.
+
+PROPOSED CHANGES
+${proposedPrice ? `Original Price: Kes ${originalPrice.toLocaleString()}
+Proposed Price: Kes ${proposedPrice.toLocaleString()}` : ""}
+
+${proposedLocation ? `Proposed Location: ${proposedLocation}` : ""}
+
+${message ? `Message from ${initiatorName}: ${message}` : ""}
+
+What would you like to do?
+- Accept the proposal
+- Reject the proposal
+- Send a counter-offer
+
+Respond to negotiation: ${process.env.NEXTAUTH_URL}/dashboard/bookings
+
+© ${new Date().getFullYear()} JustInTime. All rights reserved.
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Negotiation request email sent to ${receiverEmail}`);
+    return true;
+  } catch (error) {
+    console.error("Error sending negotiation request email:", error);
+    return false;
+  }
+};
+
+// Send negotiation response email
+export const sendNegotiationResponseEmail = async (
+  receiverEmail: string,
+  receiverName: string,
+  responderName: string,
+  serviceTitle: string,
+  responseType: "ACCEPTED" | "REJECTED" | "COUNTERED",
+  counterPrice?: number,
+  counterLocation?: string,
+  message?: string
+) => {
+  try {
+    const transporter = createTransporter();
+
+    const responseConfig = {
+      ACCEPTED: {
+        color: "#10b981",
+        title: "✅ Negotiation Accepted!",
+        text: `Great news! ${responderName} has accepted your negotiation proposal for ${serviceTitle}.`,
+      },
+      REJECTED: {
+        color: "#ef4444",
+        title: "❌ Negotiation Declined",
+        text: `${responderName} has declined your negotiation proposal for ${serviceTitle}.`,
+      },
+      COUNTERED: {
+        color: "#f59e0b",
+        title: "🔄 Counter Offer Received",
+        text: `${responderName} has sent you a counter offer for ${serviceTitle}.`,
+      },
+    };
+
+    const config = responseConfig[responseType];
+
+    const mailOptions = {
+      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: receiverEmail,
+      subject: `${config.title} - ${serviceTitle}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, ${config.color} 0%, ${config.color}dd 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+            .response-card { background: white; padding: 25px; margin: 20px 0; border-radius: 12px; border: 2px solid ${config.color}; }
+            .message-box { background: #f3f4f6; padding: 15px; border-radius: 8px; border-left: 4px solid ${config.color}; margin: 15px 0; }
+            .button { display: inline-block; background: ${config.color}; color: white; padding: 15px 35px; text-decoration: none; border-radius: 8px; margin-top: 20px; font-weight: bold; }
+            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0;">${config.title}</h1>
+            </div>
+            <div class="content">
+              <h2>Hi ${receiverName},</h2>
+              
+              <p>${config.text}</p>
+              
+              <div class="response-card">
+                ${responseType === "COUNTERED" && (counterPrice || counterLocation) ? `
+                  <h3 style="margin-top: 0; color: ${config.color};">📊 Counter Offer Details</h3>
+                  ${counterPrice ? `<p><strong>Counter Price:</strong> Kes ${counterPrice.toLocaleString()}</p>` : ""}
+                  ${counterLocation ? `<p><strong>Counter Location:</strong> ${counterLocation}</p>` : ""}
+                ` : ""}
+
+                ${message ? `
+                  <div class="message-box">
+                    <strong>💬 Message from ${responderName}:</strong>
+                    <p style="margin: 5px 0 0 0;">${message}</p>
+                  </div>
+                ` : ""}
+              </div>
+
+              ${responseType === "ACCEPTED" ? `
+                <p><strong>Next Steps:</strong></p>
+                <p>Your booking has been updated with the agreed terms. You can now proceed with the payment.</p>
+              ` : responseType === "COUNTERED" ? `
+                <p><strong>What would you like to do?</strong></p>
+                <ul>
+                  <li>Accept the counter offer</li>
+                  <li>Reject the counter offer</li>
+                  <li>Send another counter offer</li>
+                </ul>
+              ` : ""}
+
+              <a href="${process.env.NEXTAUTH_URL}/client/bookings" class="button">
+                View Booking Details
+              </a>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+Hi ${receiverName},
+
+${config.text}
+
+${responseType === "COUNTERED" && (counterPrice || counterLocation) ? `
+COUNTER OFFER DETAILS
+${counterPrice ? `Counter Price: Kes ${counterPrice.toLocaleString()}` : ""}
+${counterLocation ? `Counter Location: ${counterLocation}` : ""}
+` : ""}
+
+${message ? `Message from ${responderName}: ${message}` : ""}
+
+View booking details: ${process.env.NEXTAUTH_URL}/client/bookings
+
+© ${new Date().getFullYear()} JustInTime. All rights reserved.
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Negotiation response email sent to ${receiverEmail}`);
+    return true;
+  } catch (error) {
+    console.error("Error sending negotiation response email:", error);
+    return false;
+  }
+};
+
+// Send booking status update email to client
+export const sendBookingStatusUpdateEmail = async (
+  clientEmail: string,
+  clientName: string,
+  providerName: string,
+  serviceTitle: string,
+  newStatus: string,
+  bookingDate: Date,
+  bookingId: string,
+  slots?: Array<{ date: Date; startTime: string; endTime: string }>
+) => {
+  try {
+    const transporter = createTransporter();
+
+    const statusColors: Record<string, string> = {
+      PENDING: "#f59e0b",
+      CONFIRMED: "#3b82f6",
+      IN_PROGRESS: "#8b5cf6",
+      COMPLETED: "#10b981",
+      CANCELLED: "#ef4444",
+      DISPUTED: "#f97316",
+    };
+
+    const statusIcons: Record<string, string> = {
+      PENDING: "⏳",
+      CONFIRMED: "✅",
+      IN_PROGRESS: "🔄",
+      COMPLETED: "🎉",
+      CANCELLED: "❌",
+      DISPUTED: "⚠️",
+    };
+
+    const statusColor = statusColors[newStatus] || "#6b7280";
+    const statusIcon = statusIcons[newStatus] || "📋";
+
+    const formattedDate = bookingDate.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const mailOptions = {
+      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: clientEmail,
+      subject: `Booking ${newStatus} - ${serviceTitle}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, ${statusColor} 0%, ${statusColor}dd 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+            .status-badge { display: inline-block; padding: 8px 20px; background: ${statusColor}; color: white; border-radius: 20px; font-weight: bold; font-size: 16px; }
+            .info-box { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid ${statusColor}; }
+            .button { display: inline-block; background: ${statusColor}; color: white; padding: 15px 35px; text-decoration: none; border-radius: 8px; margin-top: 20px; font-weight: bold; }
+            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+            .slots-list { list-style: none; padding: 0; }
+            .slots-list li { background: #f3f4f6; padding: 10px; margin: 5px 0; border-radius: 5px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0; font-size: 32px;">${statusIcon} Booking Status Update</h1>
+            </div>
+            <div class="content">
+              <h2>Hi ${clientName},</h2>
+              
+              <p>Your booking with <strong>${providerName}</strong> has been updated.</p>
+              
+              <div class="info-box">
+                <p style="margin: 0 0 10px 0;"><strong>Service:</strong> ${serviceTitle}</p>
+                <p style="margin: 0 0 10px 0;"><strong>New Status:</strong> <span class="status-badge">${newStatus}</span></p>
+                <p style="margin: 0 0 10px 0;"><strong>Date:</strong> ${formattedDate}</p>
+                ${
+                  slots && slots.length > 0
+                    ? `
+                  <p style="margin: 10px 0 5px 0;"><strong>Time Slots:</strong></p>
+                  <ul class="slots-list">
+                    ${slots
+                      .map(
+                        (slot) => `
+                      <li>${new Date(slot.date).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })} • ${slot.startTime} - ${slot.endTime}</li>
+                    `
+                      )
+                      .join("")}
+                  </ul>
+                `
+                    : ""
+                }
+              </div>
+
+              ${
+                newStatus === "CONFIRMED"
+                  ? `
+                <p><strong>Great news!</strong> Your booking has been confirmed by ${providerName}. Please be ready at the scheduled time.</p>
+              `
+                  : ""
+              }
+              
+              ${
+                newStatus === "IN_PROGRESS"
+                  ? `
+                <p>Your service is currently <strong>in progress</strong>. ${providerName} is working on your request.</p>
+              `
+                  : ""
+              }
+              
+              ${
+                newStatus === "COMPLETED"
+                  ? `
+                <p><strong>All done!</strong> Your service has been completed. We hope you're satisfied with the result!</p>
+                <p>Don't forget to leave a review for ${providerName} to help other clients make informed decisions.</p>
+              `
+                  : ""
+              }
+              
+              ${
+                newStatus === "CANCELLED"
+                  ? `
+                <p style="color: ${statusColor};"><strong>Important:</strong> This booking has been cancelled. If you have any questions, please contact ${providerName}.</p>
+              `
+                  : ""
+              }
+
+              <a href="${process.env.NEXTAUTH_URL}/client/bookings" class="button">
+                View Booking Details
+              </a>
+
+              <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
+                Need help? Contact us at <a href="mailto:support@justintime.com" style="color: ${statusColor};">support@justintime.com</a>
+              </p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
+              <p>You're receiving this email because you have a booking with JustInTime.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+Hi ${clientName},
+
+Your booking with ${providerName} has been updated.
+
+Service: ${serviceTitle}
+New Status: ${newStatus}
+Date: ${formattedDate}
+${
+  slots && slots.length > 0
+    ? `\nTime Slots:\n${slots.map((slot) => `- ${new Date(slot.date).toLocaleDateString()} • ${slot.startTime} - ${slot.endTime}`).join("\n")}`
+    : ""
+}
+
+${newStatus === "CONFIRMED" ? `Great news! Your booking has been confirmed by ${providerName}. Please be ready at the scheduled time.` : ""}
+${newStatus === "IN_PROGRESS" ? `Your service is currently in progress. ${providerName} is working on your request.` : ""}
+${newStatus === "COMPLETED" ? `All done! Your service has been completed. We hope you're satisfied with the result! Don't forget to leave a review for ${providerName}.` : ""}
+${newStatus === "CANCELLED" ? `Important: This booking has been cancelled. If you have any questions, please contact ${providerName}.` : ""}
+
+View booking details: ${process.env.NEXTAUTH_URL}/client/bookings
+
+Need help? Contact us at support@justintime.com
+
+© ${new Date().getFullYear()} JustInTime. All rights reserved.
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Booking status update email sent to ${clientEmail}`);
+    return true;
+  } catch (error) {
+    console.error("Error sending booking status update email:", error);
+    return false;
+  }
+};
+
+// Send review request email
+export const sendReviewRequestEmail = async (
+  clientEmail: string,
+  clientName: string,
+  providerName: string,
+  serviceTitle: string,
+  bookingId: string
+) => {
+  try {
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: clientEmail,
+      subject: `How was your service with ${providerName}?`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #f0fdf4; padding: 30px; border-radius: 0 0 10px 10px; }
+            .button { display: inline-block; background: #10b981; color: white; padding: 15px 35px; text-decoration: none; border-radius: 8px; margin-top: 20px; font-weight: bold; }
+            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+            .stars { color: #fbbf24; font-size: 24px; margin: 10px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0;">Rate Your Experience</h1>
+            </div>
+            <div class="content">
+              <h2>Hi ${clientName},</h2>
+              
+              <p>Your service <strong>${serviceTitle}</strong> with <strong>${providerName}</strong> has been marked as completed.</p>
+              
+              <p>We'd love to hear about your experience! Your review helps ${providerName} build their reputation and helps other clients make informed decisions.</p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <div class="stars">★★★★★</div>
+                <p>How would you rate your service?</p>
+                
+                <a href="${process.env.NEXTAUTH_URL}/client/reviews/submit/${bookingId}" class="button">
+                  Write a Review
+                </a>
+              </div>
+
+              <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
+                It only takes a minute to share your thoughts!
+              </p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+Hi ${clientName},
+
+Your service ${serviceTitle} with ${providerName} has been marked as completed.
+
+We'd love to hear about your experience! Your review helps ${providerName} build their reputation and helps other clients make informed decisions.
+
+Write a review: ${process.env.NEXTAUTH_URL}/client/reviews/submit/${bookingId}
+
+It only takes a minute to share your thoughts!
+
+© ${new Date().getFullYear()} JustInTime. All rights reserved.
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Review request email sent to ${clientEmail}`);
+    return true;
+  } catch (error) {
+    console.error("Error sending review request email:", error);
+    return false;
+  }
+};
+
+// Send contact form submission email
+export const sendContactFormEmail = async (
+  name: string,
+  email: string,
+  subject: string,
+  message: string
+) => {
+  try {
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: `"JustInTime Contact Form" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: process.env.EMAIL_USER || "support@justintime.com",
+      replyTo: email,
+      subject: `Contact Form: ${subject}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+            .info-box { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border: 1px solid #d1d5db; }
+            .message-box { background: #f0fdf4; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #10b981; }
+            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0;">📧 New Contact Form Submission</h1>
+            </div>
+            <div class="content">
+              <p><strong>You have received a new message from your website contact form.</strong></p>
+              
+              <div class="info-box">
+                <p style="margin: 0;"><strong>From:</strong> ${name}</p>
+                <p style="margin: 0;"><strong>Email:</strong> <a href="mailto:${email}" style="color: #10b981;">${email}</a></p>
+                <p style="margin: 0;"><strong>Subject:</strong> ${subject}</p>
+                <p style="margin: 0;"><strong>Date:</strong> ${new Date().toLocaleString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "numeric",
+                })}</p>
+              </div>
+
+              <div class="message-box">
+                <h3 style="margin-top: 0; color: #059669;">Message:</h3>
+                <p style="margin: 0; white-space: pre-wrap;">${message}</p>
+              </div>
+
+              <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+                You can reply directly to this email to respond to ${name}.
+              </p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
+              <p>This email was sent from the contact form on your website.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+New Contact Form Submission
+
+From: ${name}
+Email: ${email}
+Subject: ${subject}
+Date: ${new Date().toLocaleString()}
+
+Message:
+${message}
+
+---
+You can reply directly to this email to respond to ${name}.
+
+© ${new Date().getFullYear()} JustInTime. All rights reserved.
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Contact form email sent from ${email}`);
+    return true;
+  } catch (error) {
+    console.error("Error sending contact form email:", error);
     return false;
   }
 };

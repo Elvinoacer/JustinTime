@@ -1,5 +1,6 @@
 "use client";
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 const CTA = () => {
   return (
@@ -42,22 +43,26 @@ const CTA = () => {
             </p>
 
             <div className="mt-8 sm:mt-10 md:mt-12 flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4">
-              <motion.button
-                className="relative min-w-[140px] sm:min-w-[160px] cursor-pointer overflow-hidden rounded-xl h-12 sm:h-14 px-6 sm:px-8 bg-white text-emerald-700 text-base sm:text-lg font-bold leading-normal tracking-wide hover:bg-gray-50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 group"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <span className="relative z-10">Sign Up Now</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-white to-gray-100 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-0"></div>
-              </motion.button>
+              <Link href="/auth/signup">
+                <motion.button
+                  className="relative min-w-[140px] sm:min-w-[160px] cursor-pointer overflow-hidden rounded-xl h-12 sm:h-14 px-6 sm:px-8 bg-white text-emerald-700 text-base sm:text-lg font-bold leading-normal tracking-wide hover:bg-gray-50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 group"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <span className="relative z-10">Sign Up Now</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-white to-gray-100 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-0"></div>
+                </motion.button>
+              </Link>
 
-              <motion.button
-                className="min-w-[140px] sm:min-w-[160px] cursor-pointer overflow-hidden rounded-xl h-12 sm:h-14 px-6 sm:px-8 bg-transparent border-2 border-white text-white text-base sm:text-lg font-bold leading-normal tracking-wide hover:bg-white hover:text-emerald-700 transition-all duration-300"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <span>Learn More</span>
-              </motion.button>
+              <Link href="/#how-it-works">
+                <motion.button
+                  className="min-w-[140px] sm:min-w-[160px] cursor-pointer overflow-hidden rounded-xl h-12 sm:h-14 px-6 sm:px-8 bg-transparent border-2 border-white text-white text-base sm:text-lg font-bold leading-normal tracking-wide hover:bg-white hover:text-emerald-700 transition-all duration-300"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <span>Learn More</span>
+                </motion.button>
+              </Link>
             </div>
 
             <p className="text-sm sm:text-base text-white mt-6 opacity-80">

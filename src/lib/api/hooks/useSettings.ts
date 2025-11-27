@@ -8,6 +8,8 @@ interface Settings {
     role: string;
     createdAt: string;
     onboardingCompleted: boolean;
+    deletionScheduledAt?: string | null;
+    deletionReason?: string | null;
   };
   subscription: {
     plan: string;

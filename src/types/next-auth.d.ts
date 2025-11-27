@@ -6,12 +6,14 @@ declare module "next-auth" {
       id: string
       role: string
       onboardingCompleted: boolean
+      clientInterests: string[]
     } & DefaultSession["user"]
   }
 
   interface User {
     role: string
     onboardingCompleted: boolean
+    clientInterests: string[]
   }
 }
 
@@ -20,5 +22,6 @@ declare module "next-auth/jwt" {
     id: string
     role: string
     onboardingCompleted: boolean
+    clientInterests: string[]
   }
 }

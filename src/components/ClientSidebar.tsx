@@ -8,11 +8,18 @@ import { useSession } from 'next-auth/react';
 
 const navItems = [
   { name: 'Dashboard', href: '/client/dashboard', icon: 'dashboard' },
+  { name: 'Analytics', href: '/client/analytics', icon: 'analytics' },
   { name: 'Post a Job', href: '/client/post-job', icon: 'add_circle' },
-  { name: 'My Jobs', href: '/client/bookings', icon: 'work' },
+  { name: 'My Proposals', href: '/client/proposals', icon: 'description' },
+  { name: 'Bookings', href: '/client/bookings', icon: 'calendar_month' },
   { name: 'Messages', href: '/client/messages', icon: 'chat' },
   { name: 'Wallet', href: '/client/wallet', icon: 'account_balance_wallet' },
   { name: 'Profile', href: '/client/profile', icon: 'person' },
+];
+
+const secondaryItems = [
+  { name: 'Notifications', href: '/client/notifications', icon: 'notifications' },
+  { name: 'Referral', href: '/client/referral', icon: 'card_giftcard' },
   { name: 'Settings', href: '/client/settings', icon: 'settings' },
 ];
 
@@ -30,8 +37,8 @@ const ClientSidebar = () => {
         {/* Logo/Brand */}
         <div className="flex items-center gap-3 px-2 py-2">
           <Link href="/" className="flex items-center gap-2">
-            <div className="bg-emerald-600 text-white p-1.5 rounded-lg">
-              <span className="material-symbols-outlined text-xl">schedule</span>
+            <div className="w-10 h-10 flex items-center justify-center">
+              <img src="/images/JustinTimeLogo.png" alt="JustInTime Logo" className="w-full h-full object-contain" />
             </div>
             <span className="font-bold text-xl text-gray-900">JustInTime</span>
           </Link>
@@ -74,7 +81,77 @@ const ClientSidebar = () => {
               );
             })}
           </ul>
+          
+          {/* Secondary Navigation */}
+          <div className="pt-2 mt-2 border-t border-gray-100">
+            <ul className="flex flex-col gap-1.5" role="list">
+              {secondaryItems.map((item) => {
+                const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
+                
+                return (
+                  <li key={item.name}>
+                    <Link 
+                      href={item.href}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
+                        isActive 
+                          ? 'bg-emerald-50 text-emerald-700 font-medium shadow-sm' 
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`}
+                    >
+                      <span 
+                        className={`material-symbols-outlined text-[22px] transition-colors ${
+                          isActive ? 'text-emerald-600' : 'text-gray-400 group-hover:text-gray-600'
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {item.icon}
+                      </span>
+                      <span className="text-sm">{item.name}</span>
+                      {isActive && (
+                        <motion.div
+                          layoutId="activeIndicator"
+                          className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500"
+                        />
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </nav>
+        
+        {/* Dashboard Switch - Role-based */}
+        <div className="pt-2 mt-2 border-t border-gray-100">
+          {session?.user?.role === "PROVIDER" ? (
+            <Link 
+              href="/dashboard"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            >
+              <span 
+                className="material-symbols-outlined text-[22px] transition-colors text-gray-400 group-hover:text-gray-600"
+                aria-hidden="true"
+              >
+                swap_horiz
+              </span>
+              <span className="text-sm">Provider Dashboard</span>
+            </Link>
+          ) : (
+            <Link 
+              href="/onboarding?upgrade=true"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+            >
+              <span 
+                className="material-symbols-outlined text-[22px] transition-colors text-emerald-600"
+                aria-hidden="true"
+              >
+                work
+              </span>
+              <span className="text-sm font-medium">Become a Provider</span>
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* User Profile */}

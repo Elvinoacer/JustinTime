@@ -7,7 +7,12 @@ export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     
-    if (!session || !session.user || session.user.role !== "CLIENT") {
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    
+    // Allow both CLIENT and PROVIDER roles to access client dashboard
+    if (session.user.role !== "CLIENT" && session.user.role !== "PROVIDER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

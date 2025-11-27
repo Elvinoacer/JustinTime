@@ -2,65 +2,85 @@
 import { useState } from 'react';
 import CustomSelect from './CustomSelect';
 
-const Filters = () => {
-  const [price, setPrice] = useState(5000);
+import { ServicesFilters } from "@/lib/api/hooks/useServices";
 
-  const serviceTypeOptions = ["All Services", "Electrician", "Plumbing", "House Cleaning", "Gardening", "IT Support", "Tutoring", "Event Planning", "Catering"];
-  const locationOptions = ["All Locations", "Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret", "Thika"];
-  const sortOptions = ["Relevance", "Rating", "Price: Low to High", "Price: High to Low"];
+interface FiltersProps {
+  filters: ServicesFilters;
+  onFilterChange: (filters: Partial<ServicesFilters>) => void;
+}
 
+const Filters = ({ filters, onFilterChange }: FiltersProps) => {
   return (
     <aside className="w-full md:w-64 lg:w-72 flex-shrink-0">
       <div className="sticky top-24 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-gray-900">Filters</h2>
-          <button className="text-sm text-emerald-600 font-medium hover:text-emerald-700">
+          <button 
+            onClick={() => onFilterChange({ 
+              minPrice: undefined, 
+              maxPrice: undefined, 
+              verified: undefined,
+              category: "All Services"
+            })}
+            className="text-sm text-emerald-600 font-medium hover:text-emerald-700"
+          >
             Reset
           </button>
         </div>
         
-        <div className="space-y-6">
-          <CustomSelect label="Service Type" options={serviceTypeOptions} />
-          <CustomSelect label="Location" options={locationOptions} />
-          
+        <div className="space-y-8">
+          {/* Price Range */}
           <div>
-            <label
-              className="block text-sm font-medium text-gray-700 mb-2"
-              htmlFor="price-range"
-            >
-              Max Price (KES)
+            <label className="block text-sm font-bold text-gray-900 mb-4">
+              Price Range
             </label>
-            <div className="relative pt-2">
-              <input
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-                max="10000"
-                min="100"
-                type="range"
-                value={price}
-                onChange={(e) => setPrice(parseInt(e.target.value))}
-              />
-              <div className="flex justify-between text-xs text-gray-500 mt-2 font-medium">
-                <span>100</span>
-                <span className="text-emerald-600 font-bold">{price.toLocaleString()}</span>
-                <span>10k+</span>
+            <div className="space-y-4">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 mb-1 block">Min</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">KES</span>
+                    <input
+                      type="number"
+                      value={filters.minPrice || ""}
+                      onChange={(e) => onFilterChange({ minPrice: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full rounded-xl border-gray-200 pl-10 py-2 text-sm focus:border-emerald-500 focus:ring-emerald-500"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 mb-1 block">Max</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">KES</span>
+                    <input
+                      type="number"
+                      value={filters.maxPrice || ""}
+                      onChange={(e) => onFilterChange({ maxPrice: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full rounded-xl border-gray-200 pl-10 py-2 text-sm focus:border-emerald-500 focus:ring-emerald-500"
+                      placeholder="Any"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-gray-100">
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 transition-all" />
-              <span className="text-sm text-gray-700 group-hover:text-gray-900">Verified Pros Only</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer group mt-3">
-              <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 transition-all" />
-              <span className="text-sm text-gray-700 group-hover:text-gray-900">Available Now</span>
+          {/* Toggles */}
+          <div className="space-y-4 pt-4 border-t border-gray-100">
+            <label className="flex items-center justify-between cursor-pointer group">
+              <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">Verified Pros Only</span>
+              <div className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="sr-only peer" 
+                  checked={filters.verified || false}
+                  onChange={(e) => onFilterChange({ verified: e.target.checked })}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+              </div>
             </label>
           </div>
-
-          <button className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 px-4 py-3 text-sm font-bold text-white shadow-md hover:from-emerald-600 hover:to-green-700 transition-all duration-300 transform hover:-translate-y-0.5">
-            Apply Filters
-          </button>
         </div>
       </div>
     </aside>

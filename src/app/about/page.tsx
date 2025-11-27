@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Image from "next/image";
+import Link from "next/link";
 
 const AboutPage = () => {
   return (
@@ -160,12 +161,18 @@ const AboutPage = () => {
               Whether you're looking for work or need a service, we have you covered.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-bold text-lg transition-colors shadow-lg shadow-emerald-200">
+              <Link 
+                href="/auth/signup"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-bold text-lg transition-colors shadow-lg shadow-emerald-200 inline-block"
+              >
                 Get Started
-              </button>
-              <button className="bg-white border-2 border-gray-200 hover:border-emerald-600 hover:text-emerald-600 text-gray-700 px-8 py-3 rounded-xl font-bold text-lg transition-colors">
+              </Link>
+              <Link 
+                href="/contact"
+                className="bg-white border-2 border-gray-200 hover:border-emerald-600 hover:text-emerald-600 text-gray-700 px-8 py-3 rounded-xl font-bold text-lg transition-colors inline-block"
+              >
                 Contact Us
-              </button>
+              </Link>
             </div>
           </div>
         </section>

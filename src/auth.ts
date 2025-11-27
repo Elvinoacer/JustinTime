@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
@@ -55,10 +56,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = (user as any).role;
         token.id = user.id;
         token.onboardingCompleted = (user as any).onboardingCompleted;
+        token.clientInterests = (user as any).clientInterests;
       }
       if (trigger === "update" && session?.user) {
         token.onboardingCompleted = session.user.onboardingCompleted;
         token.role = session.user.role;
+        token.clientInterests = session.user.clientInterests;
       }
       return token;
     },
@@ -67,6 +70,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = token.role as string;
         session.user.id = token.id as string;
         session.user.onboardingCompleted = token.onboardingCompleted as boolean;
+        session.user.clientInterests = token.clientInterests as string[];
       }
       return session;
     },

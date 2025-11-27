@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { role, onboardingCompleted, clientInterests, skills, location, bio } = body;
+    const { role, onboardingCompleted, clientInterests, skills, location, bio, image } = body;
 
     // Update user with common fields
     const updatedUser = await prisma.user.update({
@@ -19,6 +19,7 @@ export async function POST(req: Request) {
         role,
         onboardingCompleted,
         clientInterests: clientInterests || [],
+        ...(image && { image }), // Update image if provided
       },
     });
 

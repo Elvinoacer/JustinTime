@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
@@ -27,7 +27,7 @@ const categories = [
   { id: "other", label: "Other", icon: "more_horiz" },
 ];
 
-export default function PostJobPage() {
+function PostJobPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -42,6 +42,7 @@ export default function PostJobPage() {
     budget: "",
     location: "",
     date: "",
+    maxApplicants: "",
   });
   
   // Improved image upload tracking
@@ -92,6 +93,7 @@ export default function PostJobPage() {
         budget: existingJob.budget?.toString() || "",
         location: existingJob.location || "",
         date: "",
+        maxApplicants: existingJob.maxApplicants?.toString() || "",
       });
       // Prefill images if they exist
       if (existingJob.images && existingJob.images.length > 0) {
@@ -198,11 +200,16 @@ export default function PostJobPage() {
            newErrors.location = "Location is required";
            isValid = false;
         }
+        if (formData.maxApplicants && isNaN(Number(formData.maxApplicants))) {
+           newErrors.maxApplicants = "Please enter a valid number";
+           isValid = false;
+        }
         // Schema validation for other constraints
         if (isValid) {
-             createJobSchema.pick({ budget: true, location: true }).parse({
+             createJobSchema.pick({ budget: true, location: true, maxApplicants: true }).parse({
             budget: Number(formData.budget),
             location: formData.location,
+            maxApplicants: formData.maxApplicants ? Number(formData.maxApplicants) : undefined,
           });
         }
       }
@@ -278,6 +285,7 @@ export default function PostJobPage() {
         budget: Number(formData.budget),
         location: formData.location,
         images: uploadedImages.map(img => img.url), // Extract URLs only
+        maxApplicants: formData.maxApplicants ? Number(formData.maxApplicants) : undefined,
       };
 
       if (isEditMode) {
@@ -628,6 +636,33 @@ export default function PostJobPage() {
                   </div>
 
                   <div>
+                    <label htmlFor="maxApplicants" className="block text-sm font-bold text-gray-700 mb-2">
+                      Max Applicants (Optional)
+                    </label>
+                    <p className="text-sm text-gray-500 mb-2">Limit the number of proposals you receive.</p>
+                    <input
+                      type="number"
+                      name="maxApplicants"
+                      id="maxApplicants"
+                      min="1"
+                      value={formData.maxApplicants}
+                      onChange={handleChange}
+                      aria-invalid={!!errors.maxApplicants}
+                      aria-describedby={errors.maxApplicants ? "maxApplicants-error" : undefined}
+                      className={`w-full px-4 py-3 rounded-xl border text-gray-900 ${
+                        errors.maxApplicants ? "border-red-300 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:ring-emerald-500 focus:border-emerald-500"
+                      } focus:ring-2 transition-shadow`}
+                      placeholder="e.g. 10"
+                    />
+                    {errors.maxApplicants && (
+                      <p id="maxApplicants-error" className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-sm">error</span>
+                        {errors.maxApplicants}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
                     <label htmlFor="location" className="block text-sm font-bold text-gray-700 mb-2">
                       Location <span className="text-red-500">*</span>
                     </label>
@@ -707,12 +742,17 @@ export default function PostJobPage() {
                         </div>
                       </div>
                       <div>
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Preferred Date</h3>
                         <div className="flex items-center gap-2">
                           <span className="material-symbols-outlined text-gray-400 text-lg">calendar_today</span>
                           <p className="text-base text-gray-900">{formData.date || "Flexible"}</p>
                         </div>
                       </div>
+                      {formData.maxApplicants && (
+                        <div>
+                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Max Applicants</h3>
+                          <p className="text-base text-gray-900">{formData.maxApplicants}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -750,5 +790,13 @@ export default function PostJobPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PostJobPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div></div>}>
+      <PostJobPageContent />
+    </Suspense>
   );
 }

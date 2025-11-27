@@ -1,26 +1,88 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { motion } from "framer-motion";
 import Filters from "@/components/Filters";
 import ServicesList from "@/components/ServicesList";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import LocationPicker from "@/components/LocationPicker";
 
-const categories = [
-  { name: "All Services", icon: "apps", count: 120 },
-  { name: "Electrician", icon: "electrical_services", count: 24 },
-  { name: "Plumbing", icon: "plumbing", count: 18 },
-  { name: "Cleaning", icon: "cleaning_services", count: 32 },
-  { name: "Gardening", icon: "yard", count: 15 },
-  { name: "IT Support", icon: "computer", count: 12 },
-  { name: "Tutoring", icon: "school", count: 21 },
-  { name: "Events", icon: "event", count: 8 },
-];
+import { useCategories, ServicesFilters } from "@/lib/api/hooks/useServices";
 
-export default function ServicesPage() {
+import { useSearchParams } from "next/navigation";
+
+function ServicesPageContent() {
+  const searchParams = useSearchParams();
+  const categoryParam = searchParams.get("category");
+
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Services");
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    address?: string;
+  } | null>(null);
+
+  // Lifted filter state
+  const [filters, setFilters] = useState<ServicesFilters>({
+    page: 1,
+    limit: 12,
+    sort: "relevance",
+    category: "All Services",
+  });
+
+  // Update selectedCategory when URL param changes
+  useEffect(() => {
+    if (categoryParam) {
+      // Capitalize first letter to match category names (e.g. "plumbing" -> "Plumbing")
+      // This is a simple heuristic; ideally we'd match against actual category data
+      const formattedCategory = categoryParam.charAt(0).toUpperCase() + categoryParam.slice(1);
+      setSelectedCategory(formattedCategory);
+    }
+  }, [categoryParam]);
+
+  // Update filters when search, category or location changes
+  useEffect(() => {
+    setFilters(prev => ({
+      ...prev,
+      search: searchQuery,
+      category: selectedCategory,
+      latitude: userLocation?.latitude,
+      longitude: userLocation?.longitude,
+      sort: userLocation ? "distance" : prev.sort,
+      page: 1, // Reset page on filter change
+    }));
+  }, [searchQuery, selectedCategory, userLocation]);
+
+  const { data: categoriesData, isLoading: isCategoriesLoading } = useCategories();
+  
+  const categories = categoriesData || [
+    { name: "All Services", icon: "apps", count: 0 },
+  ];
+
+  const handleFilterChange = (newFilters: Partial<ServicesFilters>) => {
+    setFilters(prev => ({ ...prev, ...newFilters, page: 1 }));
+  };
+
+  const handlePageChange = (page: number) => {
+    setFilters(prev => ({ ...prev, page }));
+  };
+
+  // Handle window resize for responsive filters
+  const [isDesktop, setIsDesktop] = useState(true);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+
+    // Set initial value
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   return (
     <div
@@ -32,7 +94,7 @@ export default function ServicesPage() {
       <Header />
 
       {/* Hero Section with Search */}
-      <section className="relative bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 py-16 md:py-24">
+      <section className="relative bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 py-16 md:py-24 z-50">
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDEzNGgzNnYzNkgzNnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-30"></div>
         
@@ -104,6 +166,11 @@ export default function ServicesPage() {
                 <div className="text-sm text-emerald-100 mt-1">Average Rating</div>
               </motion.div>
             </div>
+
+            {/* Location Picker */}
+            <div className="mt-8 flex justify-center">
+              <LocationPicker onLocationChange={setUserLocation} />
+            </div>
           </motion.div>
         </div>
       </section>
@@ -112,26 +179,33 @@ export default function ServicesPage() {
       <section className="bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex gap-3 overflow-x-auto py-4 no-scrollbar">
-            {categories.map((category, index) => (
-              <motion.button
-                key={category.name}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
-                  selectedCategory === category.name
-                    ? "bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-md"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-                onClick={() => setSelectedCategory(category.name)}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <span className="material-symbols-outlined text-lg">{category.icon}</span>
-                <span>{category.name}</span>
-                <span className="text-xs opacity-75">({category.count})</span>
-              </motion.button>
-            ))}
+            {isCategoriesLoading ? (
+               // Skeleton loading for categories
+               Array.from({ length: 8 }).map((_, i) => (
+                 <div key={i} className="h-10 w-32 bg-gray-100 rounded-full animate-pulse flex-shrink-0" />
+               ))
+            ) : (
+              categories.map((category, index) => (
+                <motion.button
+                  key={category.name}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
+                    selectedCategory === category.name
+                      ? "bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-md"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  onClick={() => setSelectedCategory(category.name)}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span className="material-symbols-outlined text-lg">{category.icon}</span>
+                  <span>{category.name}</span>
+                  <span className="text-xs opacity-75">({category.count})</span>
+                </motion.button>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -161,13 +235,17 @@ export default function ServicesPage() {
         <motion.div
           className={`${isFiltersOpen ? "block" : "hidden"} md:block`}
           initial={false}
-          animate={{ opacity: isFiltersOpen || window.innerWidth >= 768 ? 1 : 0 }}
+          animate={{ opacity: isFiltersOpen || isDesktop ? 1 : 0 }}
         >
-          <Filters />
+          <Filters filters={filters} onFilterChange={handleFilterChange} />
         </motion.div>
 
         {/* Services List */}
-        <ServicesList />
+        <ServicesList 
+          filters={filters} 
+          onPageChange={handlePageChange}
+          onSortChange={(sort: any) => setFilters(prev => ({ ...prev, sort, page: 1 }))}
+        />
       </main>
 
       <Footer />
@@ -182,5 +260,13 @@ export default function ServicesPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function ServicesPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div></div>}>
+      <ServicesPageContent />
+    </Suspense>
   );
 }
