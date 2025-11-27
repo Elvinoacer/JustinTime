@@ -10,7 +10,20 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { role, onboardingCompleted, clientInterests, skills, location, bio, image } = body;
+    const { 
+      role, 
+      onboardingCompleted, 
+      clientInterests, 
+      skills, 
+      location, 
+      latitude,
+      longitude,
+      bio, 
+      image,
+      phone,
+      hourlyRate,
+      address
+    } = body;
 
     // Update user with common fields
     const updatedUser = await prisma.user.update({
@@ -20,6 +33,7 @@ export async function POST(req: Request) {
         onboardingCompleted,
         clientInterests: clientInterests || [],
         ...(image && { image }), // Update image if provided
+        ...(phone && { phone }), // Update phone if provided
       },
     });
 
@@ -33,21 +47,31 @@ export async function POST(req: Request) {
           userId: session.user.id,
           skills: skills || [],
           location,
+          latitude,
+          longitude,
           bio,
-          verificationStatus: verificationStatus || "PENDING",
+          hourlyRate: hourlyRate ? Number(hourlyRate) : null,
+          verificationStatus: "PENDING",
           idDocument,
-          isVerified: verificationStatus === "VERIFIED",
+          isVerified: false,
         },
         update: {
           skills: skills || [],
           location,
+          latitude,
+          longitude,
           bio,
-          verificationStatus: verificationStatus,
+          hourlyRate: hourlyRate ? Number(hourlyRate) : null,
+          verificationStatus: "PENDING",
           idDocument,
-          isVerified: verificationStatus === "VERIFIED",
+          isVerified: false,
         },
       });
     }
+    
+    // If client, we might want to create a profile too or store address somewhere
+    // For now, we can extend the User model or store in a separate ClientProfile
+    // Since the schema doesn't have a specific client profile, we'll just ensure phone is saved above
 
     return NextResponse.json(updatedUser);
   } catch (error) {

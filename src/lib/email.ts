@@ -1769,3 +1769,188 @@ You can reply directly to this email to respond to ${name}.
     return false;
   }
 };
+
+// Send email verification email
+export const sendVerificationEmail = async (
+  userEmail: string,
+  userName: string,
+  verificationUrl: string
+) => {
+  try {
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: `"JustInTime Security" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: "Verify Your Email Address - JustInTime",
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #f0fdf4; padding: 30px; border-radius: 0 0 10px 10px; }
+            .button { display: inline-block; background: #10b981; color: white; padding: 15px 35px; text-decoration: none; border-radius: 8px; margin-top: 20px; font-weight: bold; }
+            .button:hover { background: #059669; }
+            .info-box { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border: 1px solid #d1d5db; }
+            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+            .security-icon { font-size: 48px; margin-bottom: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="security-icon">✉️</div>
+              <h1 style="margin: 0;">Verify Your Email</h1>
+            </div>
+            <div class="content">
+              <h2 style="color: #059669;">Hi ${userName},</h2>
+              
+              <p>Welcome to JustInTime! We're excited to have you on board.</p>
+              
+              <p>Please verify your email address to secure your account and access all features.</p>
+              
+              <div style="text-align: center;">
+                <a href="${verificationUrl}" class="button">
+                  Verify Email Address
+                </a>
+              </div>
+              
+              <div class="info-box">
+                <p style="margin: 0;"><strong>⏱️ This link will expire in 24 hours</strong></p>
+                <p style="margin: 5px 0 0 0; font-size: 14px; color: #6b7280;">If you didn't create an account with JustInTime, you can safely ignore this email.</p>
+              </div>
+
+              <h3 style="color: #059669;">Can't Click The Button?</h3>
+              <p style="font-size: 14px;">Copy and paste this link into your browser:</p>
+              <p style="word-break: break-all; background: white; padding: 15px; border-radius: 5px; font-size: 12px; color: #6b7280;">
+                ${verificationUrl}
+              </p>
+
+              <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
+                This is an automated security email. Please do not reply to this email.
+              </p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
+              <p>Need help? Contact us at <a href="mailto:support@justintime.com" style="color: #10b981;">support@justintime.com</a></p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+Hi ${userName},
+
+Welcome to JustInTime! Please verify your email address to secure your account and access all features.
+
+Click the link below to verify your email:
+${verificationUrl}
+
+⏱️ This link will expire in 24 hours.
+
+If you didn't create an account with JustInTime, you can safely ignore this email.
+
+Can't click the link? Copy and paste this URL into your browser:
+${verificationUrl}
+
+Need help? Contact us at support@justintime.com
+
+© ${new Date().getFullYear()} JustInTime. All rights reserved.
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Verification email sent to ${userEmail}. Link: ${verificationUrl}`);
+    return true;
+  } catch (error) {
+    console.error("Error sending verification email:", error);
+    return false;
+  }
+};
+
+// Send 2FA token email
+export const sendTwoFactorTokenEmail = async (
+  userEmail: string,
+  userName: string,
+  token: string
+) => {
+  try {
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: `"JustInTime Security" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: "Your Authentication Code - JustInTime",
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #eff6ff; padding: 30px; border-radius: 0 0 10px 10px; }
+            .code-box { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border: 2px dashed #3b82f6; text-align: center; }
+            .code { font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #3b82f6; }
+            .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+            .security-icon { font-size: 48px; margin-bottom: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="security-icon">🛡️</div>
+              <h1 style="margin: 0;">Authentication Code</h1>
+            </div>
+            <div class="content">
+              <h2 style="color: #2563eb;">Hi ${userName},</h2>
+              
+              <p>Here is your One-Time Password (OTP) to log in to your JustInTime account.</p>
+              
+              <div class="code-box">
+                <div class="code">${token}</div>
+              </div>
+              
+              <p style="text-align: center; font-size: 14px; color: #6b7280;">
+                This code will expire in 10 minutes.
+              </p>
+
+              <p>If you didn't request this code, please secure your account immediately by resetting your password.</p>
+
+              <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
+                This is an automated security email. Please do not reply to this email.
+              </p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+Hi ${userName},
+
+Here is your One-Time Password (OTP) to log in to your JustInTime account:
+
+${token}
+
+This code will expire in 10 minutes.
+
+If you didn't request this code, please secure your account immediately.
+
+© ${new Date().getFullYear()} JustInTime. All rights reserved.
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`2FA email sent to ${userEmail}. Token: ${token}`);
+    return true;
+  } catch (error) {
+    console.error("Error sending 2FA email:", error);
+    return false;
+  }
+};

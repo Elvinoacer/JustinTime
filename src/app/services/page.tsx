@@ -6,6 +6,8 @@ import ServicesList from "@/components/ServicesList";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LocationPicker from "@/components/LocationPicker";
+import CategoryDropdown from "@/components/CategoryDropdown";
+import AllCategoriesModal from "@/components/AllCategoriesModal";
 
 import { useCategories, ServicesFilters } from "@/lib/api/hooks/useServices";
 
@@ -16,8 +18,10 @@ function ServicesPageContent() {
   const categoryParam = searchParams.get("category");
 
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // User's input
+  const [searchQuery, setSearchQuery] = useState(""); // Debounced search
   const [selectedCategory, setSelectedCategory] = useState("All Services");
+  const [isAllCategoriesOpen, setIsAllCategoriesOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -32,11 +36,18 @@ function ServicesPageContent() {
     category: "All Services",
   });
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput);
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   // Update selectedCategory when URL param changes
   useEffect(() => {
     if (categoryParam) {
-      // Capitalize first letter to match category names (e.g. "plumbing" -> "Plumbing")
-      // This is a simple heuristic; ideally we'd match against actual category data
       const formattedCategory = categoryParam.charAt(0).toUpperCase() + categoryParam.slice(1);
       setSelectedCategory(formattedCategory);
     }
@@ -51,14 +62,26 @@ function ServicesPageContent() {
       latitude: userLocation?.latitude,
       longitude: userLocation?.longitude,
       sort: userLocation ? "distance" : prev.sort,
-      page: 1, // Reset page on filter change
+      page: 1,
     }));
   }, [searchQuery, selectedCategory, userLocation]);
 
   const { data: categoriesData, isLoading: isCategoriesLoading } = useCategories();
   
-  const categories = categoriesData || [
+  const allCategories = categoriesData || [
     { name: "All Services", icon: "apps", count: 0 },
+  ];
+
+  // Get top 8 categories by count (excluding "All Services")
+  const topCategories = allCategories
+    .filter(cat => cat.name !== "All Services")
+    .sort((a, b) => (b.count || 0) - (a.count || 0))
+    .slice(0, 8);
+
+  // Add "All Services" at the beginning
+  const featuredCategories = [
+    { name: "All Services", icon: "apps", count: 0 },
+    ...topCategories,
   ];
 
   const handleFilterChange = (newFilters: Partial<ServicesFilters>) => {
@@ -77,9 +100,7 @@ function ServicesPageContent() {
       setIsDesktop(window.innerWidth >= 768);
     };
 
-    // Set initial value
     handleResize();
-
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
@@ -113,28 +134,7 @@ function ServicesPageContent() {
               Connect with verified local service providers for all your needs
             </p>
 
-            {/* Search Bar */}
-            <div className="max-w-3xl mx-auto">
-              <div className="flex flex-col sm:flex-row gap-3 bg-white rounded-2xl p-2 shadow-2xl">
-                <div className="flex-1 flex items-center gap-3 px-4">
-                  <span className="material-symbols-outlined text-gray-400">search</span>
-                  <input
-                    type="text"
-                    placeholder="What service do you need?"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 py-3 outline-none text-gray-900 placeholder-gray-400"
-                  />
-                </div>
-                <motion.button
-                  className="bg-gradient-to-r from-emerald-500 to-green-600  px-8 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-shadow"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Search
-                </motion.button>
-              </div>
-            </div>
+
 
             {/* Quick Stats */}
             <div className="grid grid-cols-3 gap-4 md:gap-8 mt-12 max-w-2xl mx-auto">
@@ -175,97 +175,192 @@ function ServicesPageContent() {
         </div>
       </section>
 
-      {/* Category Pills */}
+      {/* Enhanced Category Section */}
       <section className="bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-3 overflow-x-auto py-4 no-scrollbar">
-            {isCategoriesLoading ? (
-               // Skeleton loading for categories
-               Array.from({ length: 8 }).map((_, i) => (
-                 <div key={i} className="h-10 w-32 bg-gray-100 rounded-full animate-pulse flex-shrink-0" />
-               ))
-            ) : (
-              categories.map((category, index) => (
-                <motion.button
-                  key={category.name}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
-                    selectedCategory === category.name
-                      ? "bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-md"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                  onClick={() => setSelectedCategory(category.name)}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <span className="material-symbols-outlined text-lg">{category.icon}</span>
-                  <span>{category.name}</span>
-                  <span className="text-xs opacity-75">({category.count})</span>
-                </motion.button>
-              ))
-            )}
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+            {/* Category Dropdown (Mobile/Tablet) */}
+            <div className="lg:hidden w-full">
+              <CategoryDropdown
+                categories={allCategories}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+              />
+            </div>
+
+            {/* Featured Categories Pills (Desktop) */}
+            <div className="hidden lg:flex gap-2 overflow-x-auto flex-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#10b981 transparent' }}>
+              {isCategoriesLoading ? (
+                Array.from({ length: 9 }).map((_, i) => (
+                  <div key={i} className="h-10 w-32 bg-gray-100 rounded-full animate-pulse flex-shrink-0" />
+                ))
+              ) : (
+                featuredCategories.map((category, index) => (
+                  <motion.button
+                    key={category.name}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all flex-shrink-0 ${
+                      selectedCategory === category.name
+                        ? "bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-md"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                    onClick={() => setSelectedCategory(category.name)}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <span className="material-symbols-outlined text-lg">
+                      {category.icon || "apps"}
+                    </span>
+                    <span>{category.name}</span>
+                    {category.count > 0 && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                        selectedCategory === category.name
+                          ? "bg-white/20"
+                          : "bg-emerald-100 text-emerald-700"
+                      }`}>
+                        {category.count}
+                      </span>
+                    )}
+                  </motion.button>
+                ))
+              )}
+            </div>
+
+            {/* View All Categories Button */}
+            <motion.button
+              onClick={() => setIsAllCategoriesOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-200 text-emerald-700 rounded-full font-medium hover:border-emerald-300 hover:shadow-md transition-all whitespace-nowrap"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <span className="material-symbols-outlined">apps</span>
+              <span className="hidden sm:inline">All Categories</span>
+              <span className="sm:hidden">All</span>
+              <span className="text-xs px-2 py-0.5 bg-emerald-200 rounded-full">
+                {allCategories.length}
+              </span>
+            </motion.button>
           </div>
         </div>
       </section>
 
-      {/* Main Content */}
-      <main className="container mx-auto flex flex-1 flex-col px-4 sm:px-6 lg:px-8 py-8 md:flex-row md:gap-8">
-        {/* Mobile Filter Button */}
-        <div className="md:hidden mb-4">
-          <motion.button
-            onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-white border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-800 shadow-sm hover:bg-gray-50 hover:border-emerald-500 transition-all"
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-          >
-            <span className="material-symbols-outlined">filter_list</span>
-            <span>{isFiltersOpen ? "Hide" : "Show"} Filters</span>
-            <motion.span
-              className="material-symbols-outlined ml-auto"
-              animate={{ rotate: isFiltersOpen ? 180 : 0 }}
-            >
-              expand_more
-            </motion.span>
-          </motion.button>
-        </div>
+      {/* All Categories Modal */}
+      <AllCategoriesModal
+        categories={allCategories}
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+        isOpen={isAllCategoriesOpen}
+        onClose={() => setIsAllCategoriesOpen(false)}
+      />
 
-        {/* Filters Sidebar */}
+      {/* Main Content */}
+      <main className="container mx-auto flex flex-1 flex-col px-4 sm:px-6 lg:px-8 py-8">
+        {/* Search Bar - Centered and Polished */}
         <motion.div
-          className={`${isFiltersOpen ? "block" : "hidden"} md:block`}
-          initial={false}
-          animate={{ opacity: isFiltersOpen || isDesktop ? 1 : 0 }}
+          className="w-full mb-8 flex justify-center"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
         >
-          <Filters filters={filters} onFilterChange={handleFilterChange} />
+          <div className="w-full max-w-3xl">
+            <div className="relative">
+              <div className="flex items-center gap-4 bg-white rounded-2xl border border-gray-300 px-6 py-4 shadow-lg hover:shadow-xl focus-within:shadow-xl focus-within:border-emerald-500 transition-all duration-200">
+                <span className="material-symbols-outlined text-gray-400 text-xl">search</span>
+                <input
+                  type="text"
+                  placeholder="Search for services by name, category, or description..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="flex-1 outline-none text-gray-900 placeholder-gray-400 text-base"
+                />
+                {searchInput && searchInput !== searchQuery && (
+                  <span className="material-symbols-outlined text-emerald-500 animate-spin">
+                    progress_activity
+                  </span>
+                )}
+                {searchInput && (
+                  <button
+                    onClick={() => {
+                      setSearchInput('');
+                      setSearchQuery('');
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    aria-label="Clear search"
+                  >
+                    <span className="material-symbols-outlined text-gray-400">close</span>
+                  </button>
+                )}
+              </div>
+              {searchQuery && (
+                <p className="mt-2 text-sm text-gray-600 text-center">
+                  Searching for: <span className="font-semibold text-emerald-600">{searchQuery}</span>
+                </p>
+              )}
+            </div>
+          </div>
         </motion.div>
 
-        {/* Services List */}
-        <ServicesList 
-          filters={filters} 
-          onPageChange={handlePageChange}
-          onSortChange={(sort: any) => setFilters(prev => ({ ...prev, sort, page: 1 }))}
-        />
+        {/* Content Grid - Filters and Services */}
+        <div className="flex flex-col md:flex-row md:gap-8">
+          {/* Mobile Filter Button */}
+          <div className="md:hidden mb-6">
+            <button
+              onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+              className="w-full flex items-center justify-center gap-3 rounded-xl bg-white border-2 border-gray-300 px-6 py-4 text-base font-semibold text-gray-700 shadow-md hover:shadow-lg hover:border-emerald-500 transition-all"
+            >
+              <span className="material-symbols-outlined">tune</span>
+              {isFiltersOpen ? 'Hide Filters' : 'Show Filters'}
+            </button>
+          </div>
+
+          {/* Filters Sidebar - Classic Card Style */}
+          {(isDesktop || isFiltersOpen) && (
+            <aside className="md:w-80 flex-shrink-0 mb-8 md:mb-0">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden sticky top-24">
+                <div className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200 px-6 py-4">
+                  <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-emerald-600">filter_list</span>
+                    Filters
+                  </h2>
+                </div>
+                <div className="p-6">
+                  <Filters filters={filters} onFilterChange={handleFilterChange} />
+                </div>
+              </div>
+            </aside>
+          )}
+
+          {/* Services List - Classic Card Grid */}
+          <div className="flex-1">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
+              <div className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200 px-6 py-4">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-emerald-600">store</span>
+                  Available Services
+                </h2>
+              </div>
+              <div className="p-6">
+                <ServicesList 
+                  filters={filters} 
+                  onPageChange={handlePageChange}
+                  onSortChange={(sort) => handleFilterChange({ sort })}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       </main>
 
       <Footer />
-
-      <style jsx global>{`
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
     </div>
   );
 }
 
 export default function ServicesPage() {
   return (
-    <Suspense fallback={<div className="flex justify-center items-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div></div>}>
+    <Suspense fallback={<div>Loading...</div>}>
       <ServicesPageContent />
     </Suspense>
   );

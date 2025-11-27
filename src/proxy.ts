@@ -31,6 +31,14 @@ export default auth((req) => {
   
   const hasCompletedOnboarding = req.auth?.user?.onboardingCompleted;
   const userRole = req.auth?.user?.role;
+  const emailVerified = req.auth?.user?.emailVerified;
+
+  // Email Verification Check - Block access to protected routes for unverified users
+  // Allow access only to auth pages and public pages
+  if (isLoggedIn && !emailVerified && !isOnAuth) {
+    // Redirect to a "please verify your email" page
+    return NextResponse.redirect(new URL("/auth/verify-request", nextUrl));
+  }
 
   // Admin Route Protection
   if (isOnAdmin) {
@@ -93,7 +101,13 @@ export default auth((req) => {
       if (userRole === "ADMIN") {
         return NextResponse.redirect(new URL("/admin", nextUrl));
       }
-      // If logged in, redirect to appropriate dashboard or onboarding
+      
+      // If email is not verified, keep them on auth pages
+      if (!emailVerified) {
+        return NextResponse.next();
+      }
+      
+      // If logged in and verified, redirect to appropriate dashboard or onboarding
       if (!hasCompletedOnboarding) {
         return NextResponse.redirect(new URL("/onboarding", nextUrl));
       }

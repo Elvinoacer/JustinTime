@@ -67,7 +67,10 @@ export async function GET(request: NextRequest) {
     if (!isDistanceSort) {
       switch (sort) {
         case "rating":
-          orderBy = { createdAt: "desc" }; // TODO: Add proper rating sort
+          // We can't easily sort by computed rating in Prisma without raw SQL or aggregate
+          // For now, we'll sort by createdAt as fallback or handle in memory if dataset is small
+          // But for pagination, we stick to DB sort. 
+          orderBy = { createdAt: "desc" }; 
           break;
         case "price_low":
           orderBy = { price: "asc" };
@@ -80,7 +83,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch services with provider location data
+    // Fetch services with provider location data and reviews
     const [services, total] = await Promise.all([
       prisma.service.findMany({
         where,
@@ -110,12 +113,24 @@ export async function GET(request: NextRequest) {
               slug: true,
             },
           },
+          bookings: {
+            where: {
+              review: { isNot: null }
+            },
+            select: {
+              review: {
+                select: {
+                  rating: true
+                }
+              }
+            }
+          }
         },
       }),
       prisma.service.count({ where }),
     ]);
 
-    // Calculate distances and add to services
+    // Calculate distances, ratings and format response
     let servicesWithData = services.map((service) => {
       let distance: number | undefined;
       
@@ -128,19 +143,35 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      // Calculate rating from bookings
+      const ratings = service.bookings.map(b => b.review?.rating).filter((r): r is number => r !== undefined);
+      const averageRating = ratings.length > 0 
+        ? ratings.reduce((a, b) => a + b, 0) / ratings.length 
+        : 0;
+
       return {
         id: service.id,
-        name: service.provider.name || "Unknown Provider",
-        category: service.category.name,
+        title: service.title, // Correctly mapped title
         description: service.description,
-        rating: 4.5 + Math.random() * 0.5, // TODO: Calculate from reviews
-        reviews: Math.floor(Math.random() * 200) + 20, // TODO: Get from reviews count
-        startingPrice: parseFloat(service.price.toString()),
-        isVerified: service.provider.profile?.isVerified || false,
-        imageUrl: service.images[0] || service.provider.image || "/placeholder.jpg",
+        price: parseFloat(service.price.toString()),
         pricingUnit: service.pricingUnit,
+        images: service.images,
+        video: service.video,
+        category: {
+          id: service.category.id,
+          name: service.category.name,
+          slug: service.category.slug,
+        },
+        provider: {
+          id: service.provider.id,
+          name: service.provider.name || "Unknown Provider",
+          image: service.provider.image,
+          isVerified: service.provider.profile?.isVerified || false,
+          location: service.provider.profile?.location,
+        },
+        rating: averageRating,
+        reviews: ratings.length,
         distance,
-        providerLocation: service.provider.profile?.location,
       };
     });
 
@@ -152,6 +183,10 @@ export async function GET(request: NextRequest) {
       
       // Apply pagination after sorting
       servicesWithData = servicesWithData.slice(skip, skip + limit);
+    } 
+    // Handle rating sort in memory since we computed it
+    else if (sort === "rating") {
+       servicesWithData.sort((a, b) => b.rating - a.rating);
     }
 
     return successResponse({

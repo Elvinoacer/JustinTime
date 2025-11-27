@@ -100,6 +100,14 @@ export default function UsersTable({ users, total, currentPage, totalPages }: Us
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => router.push(`/admin/users/${user.id}`)}
+                      className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+                      title="View Details"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">visibility</span>
+                    </button>
+
                     {user.role === 'PROVIDER' && user.profile?.verificationStatus === 'PENDING' && (
                       <>
                         <button
@@ -148,22 +156,69 @@ export default function UsersTable({ users, total, currentPage, totalPages }: Us
       {/* Pagination */}
       <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
         <p className="text-sm text-slate-500">
-          Showing <span className="font-medium">{users.length}</span> of <span className="font-medium">{total}</span> users
+          Showing <span className="font-medium">{((currentPage - 1) * 10) + 1}</span> - <span className="font-medium">{Math.min(currentPage * 10, total)}</span> of <span className="font-medium">{total}</span> users
         </p>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            disabled={currentPage <= 1}
+            onClick={() => router.push(`?page=1`)}
+            className="px-2 py-1 text-sm border border-slate-200 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+            title="First page"
+          >
+            <span className="material-symbols-outlined text-base">keyboard_double_arrow_left</span>
+          </button>
           <button
             disabled={currentPage <= 1}
             onClick={() => router.push(`?page=${currentPage - 1}`)}
-            className="px-3 py-1 text-sm border border-slate-200 rounded-lg disabled:opacity-50 hover:bg-slate-50"
+            className="px-3 py-1 text-sm border border-slate-200 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
           >
             Previous
           </button>
+          
+          {/* Page numbers */}
+          <div className="flex gap-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum: number;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+              
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => router.push(`?page=${pageNum}`)}
+                  className={`px-3 py-1 text-sm rounded-lg transition-all ${
+                    currentPage === pageNum
+                      ? 'bg-emerald-600 text-white font-semibold shadow-md'
+                      : 'border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+
           <button
             disabled={currentPage >= totalPages}
             onClick={() => router.push(`?page=${currentPage + 1}`)}
-            className="px-3 py-1 text-sm border border-slate-200 rounded-lg disabled:opacity-50 hover:bg-slate-50"
+            className="px-3 py-1 text-sm border border-slate-200 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
           >
             Next
+          </button>
+          <button
+            disabled={currentPage >= totalPages}
+            onClick={() => router.push(`?page=${totalPages}`)}
+            className="px-2 py-1 text-sm border border-slate-200 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+            title="Last page"
+          >
+            <span className="material-symbols-outlined text-base">keyboard_double_arrow_right</span>
           </button>
         </div>
       </div>

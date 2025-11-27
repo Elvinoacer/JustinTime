@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 import { toast } from "sonner";
@@ -40,25 +39,9 @@ export default function SignupPage() {
         throw new Error(result.error || "Failed to create account");
       }
 
-      // Account created successfully, now sign in with NextAuth
-      const signInResult = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
-
-      if (signInResult?.error) {
-        setError(
-          "Account created but failed to sign in. Please try logging in."
-        );
-        toast.error("Account created but failed to sign in");
-        setTimeout(() => router.push("/auth/login"), 2000);
-        return;
-      }
-
-      // Success! Redirect to onboarding
-      toast.success("Account created successfully!");
-      router.push("/onboarding");
+      // Account created successfully, redirect to verification request page
+      toast.success("Account created! Please verify your email.");
+      router.push(`/auth/verify-request?email=${encodeURIComponent(data.email)}`);
     } catch (err: any) {
       setError(err.message || "Something went wrong");
       toast.error(err.message || "Something went wrong");

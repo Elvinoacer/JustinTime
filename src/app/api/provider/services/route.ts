@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
       price: Number(service.price),
       pricingUnit: service.pricingUnit,
       category: service.category.name,
+      categoryId: service.categoryId,
       isActive: service.isActive,
       images: service.images,
       video: service.video,
@@ -79,19 +80,16 @@ export async function POST(request: NextRequest) {
     
     const validatedData = serviceSchema.parse(body);
 
-    // Find or create category
-    const slug = validatedData.category.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    let category = await prisma.category.findUnique({
-      where: { slug },
+    // Find category by ID
+    const category = await prisma.category.findUnique({
+      where: { id: validatedData.category },
     });
 
     if (!category) {
-      category = await prisma.category.create({
-        data: {
-          name: validatedData.category,
-          slug,
-        },
-      });
+      return NextResponse.json(
+        { error: "Invalid category selected." },
+        { status: 400 }
+      );
     }
 
     const service = await prisma.service.create({
@@ -115,6 +113,7 @@ export async function POST(request: NextRequest) {
       price: Number(service.price),
       pricingUnit: service.pricingUnit,
       category: category.name,
+      categoryId: category.id,
       isActive: service.isActive,
       images: service.images,
       video: service.video,
@@ -161,18 +160,15 @@ export async function PUT(request: NextRequest) {
     if (body.video !== undefined) updateData.video = body.video;
 
     if (body.category) {
-      const slug = body.category.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      let category = await prisma.category.findUnique({
-        where: { slug },
+      const category = await prisma.category.findUnique({
+        where: { id: body.category },
       });
 
       if (!category) {
-        category = await prisma.category.create({
-          data: {
-            name: body.category,
-            slug,
-          },
-        });
+        return NextResponse.json(
+          { error: "Invalid category selected." },
+          { status: 400 }
+        );
       }
       updateData.categoryId = category.id;
     }
@@ -207,6 +203,7 @@ export async function PUT(request: NextRequest) {
       price: Number(updatedService.price),
       pricingUnit: updatedService.pricingUnit,
       category: updatedService.category.name,
+      categoryId: updatedService.categoryId,
       isActive: updatedService.isActive,
       images: updatedService.images,
       video: updatedService.video,

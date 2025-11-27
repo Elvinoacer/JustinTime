@@ -14,7 +14,7 @@ export async function GET() {
         id: true,
         name: true,
         slug: true,
-        // image: true, // Use image if needed, but frontend expects icon name
+        image: true,
         _count: {
           select: {
             services: {
@@ -51,7 +51,8 @@ export async function GET() {
       id: cat.id,
       name: cat.name,
       slug: cat.slug,
-      icon: getIconForCategory(cat.name),
+      image: cat.image, // Include database image URL
+      icon: getIconForCategory(cat.name), // Keep icon as fallback for components that expect it
       count: cat._count.services,
     }));
 

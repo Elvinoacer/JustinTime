@@ -107,6 +107,16 @@ export async function GET(request: Request) {
       ];
     }
 
+    // Verified clients only filter
+    if (searchParams.get("verifiedOnly") === "true") {
+      where.client = {
+        profile: {
+          verificationStatus: "VERIFIED",
+          isVerified: true,
+        },
+      };
+    }
+
     // Sorting
     const sortBy = searchParams.get("sortBy") || "createdAt";
     const sortOrder = searchParams.get("sortOrder") || "desc";
@@ -218,9 +228,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validatedData = createJobSchema.parse(body);
 
-    // Look up the category by slug (the form sends slug like "gardening", "plumbing", etc.)
+    // Look up the category by ID (frontend sends ID)
     const category = await prisma.category.findUnique({
-      where: { slug: validatedData.category },
+      where: { id: validatedData.category },
     });
 
     if (!category) {

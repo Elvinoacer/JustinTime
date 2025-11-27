@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useProfessionals } from "@/lib/api/hooks/useProfessionals";
 import Link from "next/link";
@@ -8,16 +8,28 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
 export default function ProfessionalsPage() {
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // User's input
+  const [search, setSearch] = useState(""); // Debounced search term
   const [minPrice, setMinPrice] = useState<number>();
   const [maxPrice, setMaxPrice] = useState<number>();
   const [sortBy, setSortBy] = useState("rating");
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const { data, isLoading, error } = useProfessionals({
     search,
     minPrice,
     maxPrice,
     sortBy,
+    verifiedOnly,
   });
 
   const professionals = data?.data || [];
@@ -56,22 +68,30 @@ export default function ProfessionalsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               {/* Search */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
                 <div className="relative">
                   <input
                     type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
                     placeholder="Name, skills, bio..."
                     className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900"
                   />
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                     search
                   </span>
+                  {searchInput && searchInput !== search && (
+                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 animate-spin">
+                      progress_activity
+                    </span>
+                  )}
                 </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Try searching by skills (e.g., "React", "Plumbing")
+                </p>
               </div>
 
               {/* Min Price */}
@@ -113,6 +133,29 @@ export default function ProfessionalsPage() {
                 </select>
               </div>
             </div>
+
+            {/* Verified Toggle */}
+            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-200">
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-emerald-600 text-2xl">verified</span>
+                <div>
+                  <p className="font-semibold text-gray-900">Show Verified Professionals Only</p>
+                  <p className="text-sm text-gray-600">See only professionals with verified profiles</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setVerifiedOnly(!verifiedOnly)}
+                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                  verifiedOnly ? 'bg-emerald-600' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                    verifiedOnly ? 'translate-x-7' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
           </motion.div>
 
           {/* Results Count */}
@@ -120,6 +163,7 @@ export default function ProfessionalsPage() {
             <div className="mb-6">
               <p className="text-gray-600">
                 Showing <span className="font-bold text-gray-900">{professionals.length}</span> professionals
+                {verifiedOnly && <span className="text-emerald-600 font-semibold"> (verified only)</span>}
               </p>
             </div>
           )}

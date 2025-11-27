@@ -37,6 +37,8 @@ model User {
   onboardingCompleted Boolean   @default(false)
   clientInterests     String[]
   isBanned            Boolean   @default(false)
+  isTwoFactorEnabled  Boolean   @default(false)
+  twoFactorConfirmation TwoFactorConfirmation?
   adminLogs           AdminLog[]
   
   // Settings preferences (stored as JSON)
@@ -75,6 +77,7 @@ model User {
   availabilityExceptions AvailabilityException[]
   initiatedNegotiations BookingNegotiation[] @relation("InitiatedNegotiations")
   receivedNegotiations BookingNegotiation[]  @relation("ReceivedNegotiations")
+  fcmTokens     UserToken[]
 }
 
 // NextAuth Models
@@ -111,6 +114,23 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model TwoFactorToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model TwoFactorConfirmation {
+  id      String   @id @default(cuid())
+  userId  String
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
 }
 
 // Provider Profile
@@ -542,4 +562,17 @@ model SystemSetting {
   key         String   @id
   value       Json
   description String?
+}
+
+// FCM Tokens for Push Notifications
+model UserToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String   @default("web") // "web" | "android" | "ios"
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }

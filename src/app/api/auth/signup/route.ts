@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { handleError, successResponse, ConflictError } from "@/lib/middleware/errorHandler";
 import { signupSchema } from "@/lib/validations/schemas";
+import { sendVerificationEmail } from "@/lib/email";
+import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,11 +44,28 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Generate verification token
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Save verification token
+    await prisma.verificationToken.create({
+      data: {
+        identifier: user.email!,
+        token,
+        expires,
+      },
+    });
+
+    // Send verification email
+    const verificationUrl = `${process.env.NEXTAUTH_URL}/auth/verify-email?token=${token}`;
+    await sendVerificationEmail(user.email!, user.name || "User", verificationUrl);
+
     // Return success - client will then sign in with NextAuth
     return successResponse(
       {
         user,
-        message: "Account created successfully",
+        message: "Account created successfully. Please check your email to verify your account.",
       },
       201
     );

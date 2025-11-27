@@ -1,28 +1,34 @@
 import { getDisputes } from '@/app/actions/admin';
-import DisputesTable from '@/components/admin/DisputesTable';
+import DisputesClient from '@/components/admin/DisputesClient';
+
+export const dynamic = 'force-dynamic';
+
+interface SearchParams {
+  page?: string;
+  status?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  creatorRole?: string;
+}
 
 export default async function AdminDisputesPage({
   searchParams,
 }: {
-  searchParams: { page?: string; status?: string };
+  searchParams: Promise<SearchParams>;
 }) {
-  const page = Number(searchParams.page) || 1;
-  const status = searchParams.status || '';
+  const params = await searchParams;
+  const page = Number(params.page) || 1;
+  
+  const filters = {
+    status: params.status || 'ALL',
+    search: params.search || '',
+    dateFrom: params.dateFrom || '',
+    dateTo: params.dateTo || '',
+    creatorRole: params.creatorRole || 'ALL',
+  };
 
-  const { disputes, total, totalPages, currentPage } = await getDisputes(page, 10, status);
+  const data = await getDisputes(page, 15, filters);
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Disputes</h1>
-      </div>
-
-      <DisputesTable 
-        disputes={disputes} 
-        total={total} 
-        currentPage={currentPage} 
-        totalPages={totalPages} 
-      />
-    </div>
-  );
+  return <DisputesClient initialData={data} />;
 }

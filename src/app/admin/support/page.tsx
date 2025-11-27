@@ -1,29 +1,36 @@
 import { getSupportTickets } from '@/app/actions/admin';
-import SupportTicketsTable from '@/components/admin/SupportTicketsTable';
+import SupportClient from '@/components/admin/SupportClient';
+
+export const dynamic = 'force-dynamic';
+
+interface SearchParams {
+  page?: string;
+  status?: string;
+  priority?: string;
+  search?: string;
+  category?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
 
 export default async function AdminSupportPage({
   searchParams,
 }: {
-  searchParams: { page?: string; status?: string; priority?: string };
+  searchParams: Promise<SearchParams>;
 }) {
-  const page = Number(searchParams.page) || 1;
-  const status = searchParams.status || '';
-  const priority = searchParams.priority || '';
+  const params = await searchParams;
+  const page = Number(params.page) || 1;
+  
+  const filters = {
+    status: params.status || 'ALL',
+    priority: params.priority || 'ALL',
+    search: params.search || '',
+    category: params.category || 'ALL',
+    dateFrom: params.dateFrom || '',
+    dateTo: params.dateTo || '',
+  };
 
-  const { tickets, total, totalPages, currentPage } = await getSupportTickets(page, 10, status, priority);
+  const data = await getSupportTickets(page, 15, filters);
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Support Tickets</h1>
-      </div>
-
-      <SupportTicketsTable 
-        tickets={tickets} 
-        total={total} 
-        currentPage={currentPage} 
-        totalPages={totalPages} 
-      />
-    </div>
-  );
+  return <SupportClient initialData={data} />;
 }

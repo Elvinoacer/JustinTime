@@ -20,6 +20,7 @@ interface UseProfessionalsParams {
   minPrice?: number;
   maxPrice?: number;
   sortBy?: string;
+  verifiedOnly?: boolean;
 }
 
 export const useProfessionals = (params?: UseProfessionalsParams) => {
@@ -28,6 +29,7 @@ export const useProfessionals = (params?: UseProfessionalsParams) => {
   if (params?.minPrice) queryParams.append("minPrice", params.minPrice.toString());
   if (params?.maxPrice) queryParams.append("maxPrice", params.maxPrice.toString());
   if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
+  if (params?.verifiedOnly) queryParams.append("verifiedOnly", "true");
 
   return useQuery<{ data: Professional[] }>({
     queryKey: ["professionals", params],

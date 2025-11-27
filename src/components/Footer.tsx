@@ -11,7 +11,7 @@ const Footer = () => {
 
   const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Basic validation
     if (!email.trim()) {
       toast.error("Please enter your email address");
@@ -38,7 +38,9 @@ const Footer = () => {
       const data = await response.json();
 
       if (response.ok) {
-        toast.success(data.message || "Successfully subscribed to our newsletter!");
+        toast.success(
+          data.message || "Successfully subscribed to our newsletter!"
+        );
         setEmail(""); // Clear the input
       } else if (response.status === 409) {
         // Email already exists
@@ -67,7 +69,11 @@ const Footer = () => {
             viewport={{ once: true }}
           >
             <div className="flex items-center justify-center md:justify-start gap-3 text-white mb-5">
-              <img src="/images/JustinTimeLogo.png" alt="JustInTime Logo" className="h-10 w-auto" />
+              <img
+                src="/images/JustinTimeLogo.png"
+                alt="JustInTime Logo"
+                className="h-10 w-auto"
+              />
               <h2 className="text-2xl font-bold leading-tight tracking-tight bg-gradient-to-r from-emerald-400 to-green-500 bg-clip-text text-transparent">
                 JustInTime
               </h2>
@@ -80,7 +86,10 @@ const Footer = () => {
             {/* Newsletter Subscription */}
             <div className="mt-6">
               <h4 className="text-gray-200 font-medium mb-3">Stay Updated</h4>
-              <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-2 max-w-xs mx-auto md:mx-0">
+              <form
+                onSubmit={handleNewsletterSubmit}
+                className="flex flex-col sm:flex-row gap-2 max-w-xs mx-auto md:mx-0"
+              >
                 <input
                   type="email"
                   placeholder="Your email address"
@@ -89,7 +98,7 @@ const Footer = () => {
                   disabled={isSubmitting}
                   className="px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-700 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 />
-                <button 
+                <button
                   type="submit"
                   disabled={isSubmitting}
                   className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-300 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
@@ -106,7 +115,6 @@ const Footer = () => {
               </form>
             </div>
           </motion.div>
-
 
           {/* Quick Links */}
           <motion.div
@@ -221,7 +229,10 @@ const Footer = () => {
           transition={{ duration: 0.6, delay: 0.4 }}
           viewport={{ once: true }}
         >
-          <p>© 2024 JustInTime. All rights reserved.</p>
+          <p>
+            © {new Date().getFullYear().toString()} JustInTime. All rights
+            reserved.
+          </p>
           <div className="flex gap-5 mt-3 md:mt-0">
             <Link
               href="/privacy"

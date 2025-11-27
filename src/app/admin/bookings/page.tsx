@@ -1,29 +1,36 @@
 import { getBookings } from '@/app/actions/admin';
-import BookingsTable from '@/components/admin/BookingsTable';
+import BookingsClient from '@/components/admin/BookingsClient';
+
+export const dynamic = 'force-dynamic';
+
+interface SearchParams {
+  page?: string;
+  status?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  minAmount?: string;
+  maxAmount?: string;
+}
 
 export default async function AdminBookingsPage({
   searchParams,
 }: {
-  searchParams: { page?: string; status?: string };
+  searchParams: Promise<SearchParams>;
 }) {
-  const page = Number(searchParams.page) || 1;
-  const status = searchParams.status || '';
+  const params = await searchParams;
+  const page = Number(params.page) || 1;
+  
+  const filters = {
+    status: params.status || 'ALL',
+    search: params.search || '',
+    dateFrom: params.dateFrom || '',
+    dateTo: params.dateTo || '',
+    minAmount: params.minAmount || '',
+    maxAmount: params.maxAmount || '',
+  };
 
-  const { bookings, total, totalPages, currentPage } = await getBookings(page, 10, status);
+  const data = await getBookings(page, 15, filters);
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Bookings</h1>
-        {/* Add filters here later */}
-      </div>
-
-      <BookingsTable 
-        bookings={bookings} 
-        total={total} 
-        currentPage={currentPage} 
-        totalPages={totalPages} 
-      />
-    </div>
-  );
+  return <BookingsClient initialData={data} />;
 }

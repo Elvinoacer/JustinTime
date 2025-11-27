@@ -130,15 +130,19 @@ const ServicesList = ({ filters, onPageChange, onSortChange }: ServicesListProps
             key={service.id} 
             service={{
               id: service.id,
-              name: service.title || service.name,
+              name: service.title,
               category: service.category?.name || 'General',
               description: service.description,
-              rating: service.rating || 5.0,
-              reviews: service.reviews || 0,
-              startingPrice: Number(service.price || service.startingPrice || 0),
-              isVerified: service.provider?.profile?.isVerified || false,
-              imageUrl: service.images?.[0] || service.imageUrl || '/images/placeholder.png',
-              distance: service.distance
+              rating: service.rating,
+              reviews: service.reviews,
+              startingPrice: service.price,
+              isVerified: service.provider?.isVerified || false,
+              imageUrl: service.images?.[0] || service.provider?.image || '/images/placeholder.png',
+              distance: service.distance,
+              provider: {
+                name: service.provider?.name || "Unknown Provider",
+                image: service.provider?.image
+              }
             }} 
             index={index} 
           />

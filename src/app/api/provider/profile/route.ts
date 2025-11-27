@@ -121,12 +121,20 @@ export async function PUT(request: NextRequest) {
     if (validatedData.certifications !== undefined) profileData.certifications = validatedData.certifications;
     if (validatedData.education !== undefined) profileData.education = validatedData.education;
 
+    // If critical fields are updated, reset verification status
+    if (validatedData.name || validatedData.location || validatedData.bio || validatedData.certifications) {
+      profileData.verificationStatus = "PENDING";
+      profileData.isVerified = false;
+    }
+
     const updatedProfile = await prisma.profile.upsert({
       where: { userId },
       update: profileData,
       create: {
         userId,
         ...profileData,
+        verificationStatus: "PENDING",
+        isVerified: false,
       },
     });
 

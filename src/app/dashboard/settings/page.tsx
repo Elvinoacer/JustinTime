@@ -5,8 +5,47 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useSettings, useUpdateSettings } from "@/lib/api/hooks/useSettings";
 import { ConfirmModal, PromptModal } from "@/components/Modal";
+import { toggleTwoFactor, getTwoFactorStatus } from "@/app/actions/twoFactor";
+import { toast } from "sonner";
 
 type Tab = "account" | "security" | "notifications" | "privacy";
+
+// TwoFactorToggle Component
+function TwoFactorToggle({ initialEnabled }: { initialEnabled: boolean }) {
+  const [enabled, setEnabled] = useState(initialEnabled);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleToggle = async () => {
+    setIsLoading(true);
+    try {
+      const newState = !enabled;
+      await toggleTwoFactor(newState);
+      setEnabled(newState);
+      toast.success(
+        newState
+          ? "Two-Factor Authentication enabled! You'll receive a code via email during login."
+          : "Two-Factor Authentication disabled."
+      );
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update 2FA settings");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <label className="relative inline-flex items-center cursor-pointer">
+      <input
+        type="checkbox"
+        className="sr-only peer"
+        checked={enabled}
+        onChange={handleToggle}
+        disabled={isLoading}
+      />
+      <div className={`w-14 h-7 bg-gray-300 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}></div>
+    </label>
+  );
+}
 
 const SettingsPage = () => {
   const router = useRouter();
@@ -640,23 +679,25 @@ const SettingsPage = () => {
                   </div>
 
                   {/* Two-Factor Authentication */}
-                  <div className="p-6 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                          <span className="material-symbols-outlined text-emerald-600">verified_user</span>
-                          Two-Factor Authentication
+                          <span className="material-symbols-outlined text-blue-600">verified_user</span>
+                          Two-Factor Authentication (2FA)
                         </h3>
-                        <p className="text-sm text-gray-800">
-                          Add an extra layer of security to your account
+                        <p className="text-sm text-gray-700 mb-3">
+                          Add an extra layer of security to your account by requiring a verification code sent to your email during login.
                         </p>
+                        {settingsData?.twoFactorEnabled && (
+                          <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-100 px-3 py-2 rounded-lg w-fit">
+                            <span className="material-symbols-outlined text-base">check_circle</span>
+                            <span className="font-medium">2FA is currently enabled</span>
+                          </div>
+                        )}
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" disabled />
-                        <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-emerald-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 opacity-50"></div>
-                      </label>
+                      <TwoFactorToggle initialEnabled={settingsData?.twoFactorEnabled || false} />
                     </div>
-                    <p className="text-xs text-gray-700">Coming soon</p>
                   </div>
 
                   {/* Active Sessions */}

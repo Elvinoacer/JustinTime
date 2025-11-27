@@ -78,9 +78,10 @@ export async function GET(req: NextRequest) {
       } : null,
       notifications: notificationPreferences,
       privacy: privacySettings,
+      twoFactorEnabled: user.isTwoFactorEnabled || false,
     };
 
-    return NextResponse.json({ settings });
+    return NextResponse.json({ settings, twoFactorEnabled: user.isTwoFactorEnabled || false });
   } catch (error) {
     console.error("Error fetching settings:", error);
     return NextResponse.json(

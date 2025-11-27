@@ -7,6 +7,7 @@ import { createJobSchema } from "@/lib/validations/schemas";
 import { useCreateJob } from "@/lib/api/hooks/useJobs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api/client";
+import CategorySelector from "@/components/CategorySelector";
 
 // Steps configuration
 const steps = [
@@ -16,16 +17,15 @@ const steps = [
   { id: 4, title: "Review", icon: "check_circle", description: "Final Check" },
 ];
 
-// Categories with icons
-const categories = [
-  { id: "plumbing", label: "Plumbing", icon: "plumbing" },
-  { id: "electrical", label: "Electrical", icon: "bolt" },
-  { id: "cleaning", label: "Cleaning", icon: "cleaning_services" },
-  { id: "gardening", label: "Gardening", icon: "yard" },
-  { id: "painting", label: "Painting", icon: "format_paint" },
-  { id: "moving", label: "Moving", icon: "local_shipping" },
-  { id: "other", label: "Other", icon: "more_horiz" },
-];
+// Category type
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  image?: string;
+  icon: string;
+  count: number;
+}
 
 function PostJobPageContent() {
   const router = useRouter();
@@ -60,6 +60,17 @@ function PostJobPageContent() {
   const stepRef = useRef<HTMLDivElement>(null);
   
   const createJobMutation = useCreateJob();
+
+  // Fetch categories from database
+  const { data: categoriesData = [], isLoading: isLoadingCategories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const response = await apiClient.get("/categories");
+      // Filter out the "all" category for the post job form
+      // API response is { success: true, data: [...] }, so we access response.data.data
+      return response.data.data.filter((cat: Category) => cat.id !== "all");
+    },
+  });
 
   // Fetch job data if in edit mode
   const { data: existingJob, isLoading: isLoadingJob } = useQuery({
@@ -437,34 +448,14 @@ function PostJobPageContent() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-3">
-                      Category <span className="text-red-500">*</span>
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4" role="radiogroup" aria-label="Job Category">
-                      {categories.map((cat) => (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => handleCategorySelect(cat.id)}
-                          aria-checked={formData.category === cat.id}
-                          role="radio"
-                          className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                            formData.category === cat.id
-                              ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                              : "border-gray-200 hover:border-emerald-200 hover:bg-gray-50 text-gray-700"
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-3xl mb-2">{cat.icon}</span>
-                          <span className="text-sm font-medium">{cat.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                    {errors.category && (
-                      <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-sm">error</span>
-                        {errors.category}
-                      </p>
-                    )}
+                    <CategorySelector
+                      categories={categoriesData}
+                      selectedIds={formData.category ? [formData.category] : []}
+                      onToggle={(id) => handleCategorySelect(id)}
+                      isLoading={isLoadingCategories}
+                      error={errors.category}
+                      label="Category"
+                    />
                   </div>
                 </div>
               )}
@@ -714,11 +705,19 @@ function PostJobPageContent() {
                       <div>
                         <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Category</h3>
                         <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-gray-600 text-lg">
-                            {categories.find(c => c.id === formData.category)?.icon}
-                          </span>
+                          {categoriesData.find((c: Category) => c.id === formData.category)?.image ? (
+                            <img
+                              src={categoriesData.find((c: Category) => c.id === formData.category)?.image}
+                              alt="Category"
+                              className="w-6 h-6 object-contain"
+                            />
+                          ) : (
+                            <span className="material-symbols-outlined text-gray-600 text-lg">
+                              {categoriesData.find((c: Category) => c.id === formData.category)?.icon}
+                            </span>
+                          )}
                           <p className="text-base text-gray-900 capitalize">
-                            {categories.find(c => c.id === formData.category)?.label}
+                            {categoriesData.find((c: Category) => c.id === formData.category)?.name}
                           </p>
                         </div>
                       </div>

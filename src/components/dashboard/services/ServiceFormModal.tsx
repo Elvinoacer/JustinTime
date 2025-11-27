@@ -5,6 +5,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { z } from "zod";
 import { useCreateService, useUpdateService } from "@/lib/api/hooks/useProvider";
 import { toast } from "sonner";
+import CategorySelector from "@/components/CategorySelector";
+import { useQuery } from "@tanstack/react-query";
+import apiClient from "@/lib/api/client";
 
 // Validation Schema
 const serviceFormSchema = z.object({
@@ -33,15 +36,33 @@ type UploadingFile = {
   type: "image" | "video";
 };
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  image?: string;
+  icon: string;
+  count: number;
+}
+
 const ServiceFormModal = ({ isOpen, onClose, service }: ServiceFormModalProps) => {
   const isEditMode = !!service;
   const createServiceMutation = useCreateService();
   const updateServiceMutation = useUpdateService();
 
+  // Fetch categories
+  const { data: categoriesData = [], isLoading: isLoadingCategories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const response = await apiClient.get("/categories");
+      return response.data.data.filter((cat: Category) => cat.id !== "all");
+    },
+  });
+
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<ServiceFormData>({
     name: service?.name || "",
-    category: service?.category || "",
+    category: service?.categoryId || "",
     description: service?.description || "",
     price: service?.price || 0,
     pricingUnit: service?.pricingUnit || "fixed",
@@ -58,7 +79,7 @@ const ServiceFormModal = ({ isOpen, onClose, service }: ServiceFormModalProps) =
       setStep(1);
       setFormData({
         name: service?.name || "",
-        category: service?.category || "",
+        category: service?.categoryId || "",
         description: service?.description || "",
         price: service?.price || 0,
         pricingUnit: service?.pricingUnit || "fixed",
@@ -271,17 +292,14 @@ const ServiceFormModal = ({ isOpen, onClose, service }: ServiceFormModalProps) =
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Category <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className={`w-full px-4 py-3 rounded-xl border ${errors.category ? 'border-red-300 focus:ring-red-500' : 'border-gray-200 focus:ring-emerald-500'} focus:ring-2 focus:border-transparent transition-all text-gray-900 placeholder:text-gray-500`}
-                    placeholder="e.g. Cleaning"
+                  <CategorySelector
+                    categories={categoriesData}
+                    selectedIds={formData.category ? [formData.category] : []}
+                    onToggle={(id) => setFormData({ ...formData, category: id })}
+                    isLoading={isLoadingCategories}
+                    error={errors.category}
+                    label="Category"
                   />
-                  {errors.category && <p className="text-red-500 text-sm mt-1">{errors.category}</p>}
                 </div>
 
                 <div>

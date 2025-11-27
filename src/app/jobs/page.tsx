@@ -1,28 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Link from "next/link";
+import { useCategories } from "@/lib/api/hooks/useServices";
 
 const JobsPage = () => {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // User's input
+  const [searchQuery, setSearchQuery] = useState(""); // Debounced search
   const [selectedStatus, setSelectedStatus] = useState("OPEN");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(searchInput);
+    }, 500); // Wait500ms after user stops typing
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Fetch categories
+  const { data: categoriesData } = useCategories();
+  const categories = categoriesData || [];
+
+  // Build query params
+  const buildQueryParams = () => {
+    const params = new URLSearchParams();
+    params.append("status", selectedStatus);
+    params.append("page", currentPage.toString());
+    params.append("pageSize", "12");
+    if (searchQuery) params.append("search", searchQuery);
+    if (selectedCategory) params.append("category", selectedCategory);
+    if (verifiedOnly) params.append("verifiedOnly", "true");
+    return params.toString();
+  };
+
   const { data, isLoading } = useQuery({
-    queryKey: ["jobs", selectedStatus, currentPage],
+    queryKey: ["jobs", selectedStatus, currentPage, searchQuery, selectedCategory, verifiedOnly],
     queryFn: async () => {
-      const response = await apiClient.get(`/jobs?status=${selectedStatus}&page=${currentPage}&pageSize=12`);
+      const response = await apiClient.get(`/jobs?${buildQueryParams()}`);
       return response.data;
     },
   });
   
   const jobs = data?.items || [];
-
 
   const tabs = [
     { id: "OPEN", label: "Open Jobs", icon: "work" },
@@ -53,54 +81,95 @@ const JobsPage = () => {
             <p className="text-lg md:text-xl text-emerald-50 mb-8 max-w-2xl mx-auto">
               Browse available jobs and submit proposals to grow your business
             </p>
-
-            {/* Search Bar */}
-            <div className="max-w-3xl mx-auto">
-              <div className="flex flex-col sm:flex-row gap-3 bg-white rounded-2xl p-2 shadow-2xl">
-                <div className="flex-1 flex items-center gap-3 px-4">
-                  <span className="material-symbols-outlined text-gray-400">search</span>
-                  <input
-                    type="text"
-                    placeholder="Search jobs..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 py-3 outline-none text-gray-900 placeholder-gray-400"
-                  />
-                </div>
-                <motion.button
-                  className="bg-gradient-to-r from-emerald-500 to-green-600 px-8 py-3 rounded-xl text-white font-semibold shadow-lg hover:shadow-xl transition-shadow"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Search
-                </motion.button>
-              </div>
-            </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Tabs */}
+      {/* Filters Bar */}
       <section className="bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm">
-        <div className="container mx-auto px-4">
-          <div className="flex gap-4 overflow-x-auto py-4 no-scrollbar">
-            {tabs.map((tab) => (
+        <div className="container mx-auto px-4 py-4">
+          {/* Search and Category Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* Search Input */}
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                search
+              </span>
+              <input
+                type="text"
+                placeholder="Search jobs by title or description..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900"
+              />
+              {searchInput && searchInput !== searchQuery && (
+                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 animate-spin">
+                  progress_activity
+                </span>
+              )}
+            </div>
+
+            {/* Category Filter */}
+            <select
+              value={selectedCategory}
+              onChange={(e) => {
+                setSelectedCategory(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900 bg-white"
+            >
+              <option value="">All Categories</option>
+              {categories.map((cat) => (
+                <option key={cat.id || cat.name} value={cat.id || cat.name}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status Tabs and Verified Toggle */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            {/* Status Tabs */}
+            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap font-medium transition-all ${
+                    selectedStatus === tab.id
+                      ? "bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-md"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  onClick={() => {
+                    setSelectedStatus(tab.id);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <span className="material-symbols-outlined text-lg">{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Verified Toggle */}
+            <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-200 whitespace-nowrap">
+              <span className="material-symbols-outlined text-emerald-600">verified</span>
+              <span className="text-sm font-medium text-gray-900">Verified Clients Only</span>
               <button
-                key={tab.id}
-                className={`flex items-center gap-2 px-6 py-3 rounded-full whitespace-nowrap font-medium transition-all ${
-                  selectedStatus === tab.id
-                    ? "bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-md"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
                 onClick={() => {
-                  setSelectedStatus(tab.id);
+                  setVerifiedOnly(!verifiedOnly);
                   setCurrentPage(1);
                 }}
+                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+                  verifiedOnly ? 'bg-emerald-600' : 'bg-gray-300'
+                }`}
               >
-                <span className="material-symbols-outlined text-lg">{tab.icon}</span>
-                <span>{tab.label}</span>
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                    verifiedOnly ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
               </button>
-            ))}
+            </div>
           </div>
         </div>
       </section>
@@ -120,7 +189,7 @@ const JobsPage = () => {
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-2">No Jobs Found</h3>
             <p className="text-gray-600">
-              There are no jobs with status "{selectedStatus}" at the moment.
+              Try adjusting your filters or search query.
             </p>
           </div>
         ) : (

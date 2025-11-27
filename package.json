@@ -33,6 +33,8 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "face-api.js": "^0.22.2",
+    "firebase": "^12.6.0",
+    "firebase-admin": "^13.6.0",
     "framer-motion": "^12.23.12",
     "intasend-inlinejs-sdk": "^4.0.7",
     "jsonwebtoken": "^9.0.2",

@@ -3,23 +3,25 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api/client";
 import * as faceapi from "face-api.js";
 import { toast } from "sonner";
 import ImageCropper from "@/components/ImageCropper";
 import Image from "next/image";
+import CategorySelector from "@/components/CategorySelector";
 
 type Role = "CLIENT" | "PROVIDER";
 
-const categories = [
-  { id: "plumbing", label: "Plumbing", icon: "plumbing" },
-  { id: "electrical", label: "Electrical", icon: "bolt" },
-  { id: "cleaning", label: "Cleaning", icon: "cleaning_services" },
-  { id: "gardening", label: "Gardening", icon: "yard" },
-  { id: "painting", label: "Painting", icon: "format_paint" },
-  { id: "moving", label: "Moving", icon: "local_shipping" },
-  { id: "other", label: "Other", icon: "more_horiz" },
-];
+// Category type
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  image?: string;
+  icon: string;
+  count: number;
+}
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -51,6 +53,17 @@ export default function OnboardingPage() {
     longitude: null as number | null,
   });
   const [clientInterests, setClientInterests] = useState<string[]>([]);
+
+  // Fetch categories from database
+  const { data: categoriesData = [], isLoading: isLoadingCategories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const response = await apiClient.get("/categories");
+      // Filter out the "all" category for onboarding
+      // API response is { success: true, data: [...] }, so we access response.data.data
+      return response.data.data.filter((cat: Category) => cat.id !== "all");
+    },
+  });
 
   // Check if user has already completed onboarding
   useEffect(() => {
@@ -203,6 +216,37 @@ export default function OnboardingPage() {
         ? prev.skills.filter(id => id !== skillId)
         : [...prev.skills, skillId]
     }));
+  };
+
+  // Phone number formatter for Kenyan numbers
+  const formatPhoneNumber = (input: string): string => {
+    // Remove all non-digit characters
+    let cleaned = input.replace(/\D/g, '');
+    
+    // Handle different input formats
+    if (cleaned.startsWith('254')) {
+      // Already in correct format (254...)
+      return cleaned;
+    } else if (cleaned.startsWith('0')) {
+      // Convert 07... to 2547...
+      return '254' + cleaned.substring(1);
+    } else if (cleaned.startsWith('7') || cleaned.startsWith('1')) {
+      // Handle direct entry without 0 (7... or 1...)
+      return '254' + cleaned;
+    }
+    
+    // Return as is if doesn't match expected patterns
+    return cleaned;
+  };
+
+  const handlePhoneChange = (value: string, userType: 'provider' | 'client') => {
+    const formatted = formatPhoneNumber(value);
+    
+    if (userType === 'provider') {
+      setProviderData({ ...providerData, phone: formatted });
+    } else {
+      setClientData({ ...clientData, phone: formatted });
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: "id" | "selfie") => {
@@ -529,9 +573,9 @@ export default function OnboardingPage() {
                         id="client-phone"
                         type="tel"
                         value={clientData.phone}
-                        onChange={(e) => setClientData({ ...clientData, phone: e.target.value })}
+                        onChange={(e) => handlePhoneChange(e.target.value, 'client')}
                         className="w-full pl-11 pr-4 py-4 rounded-xl bg-gray-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium"
-                        placeholder="+254 712 345 678"
+                        placeholder="254712345678"
                         required
                       />
                     </div>
@@ -610,37 +654,14 @@ export default function OnboardingPage() {
 
                   {/* Optional: Service Interests */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-3">
-                      What services might you need? (Optional)
-                    </label>
-                    <div 
-                      className="grid grid-cols-2 sm:grid-cols-3 gap-3"
-                      role="group" 
-                      aria-label="Service categories selection"
-                    >
-                      {categories.map((cat) => {
-                        const isSelected = clientInterests.includes(cat.id);
-                        return (
-                          <button
-                            key={cat.id}
-                            type="button"
-                            onClick={() => handleInterestToggle(cat.id)}
-                            aria-pressed={isSelected}
-                            className={`p-4 rounded-2xl border-2 transition-all duration-300 flex flex-col items-center text-center focus:outline-none focus:ring-4 focus:ring-emerald-500/20 relative overflow-hidden group ${
-                              isSelected
-                                ? "border-emerald-500 bg-emerald-50 text-emerald-800 shadow-md scale-[1.02]"
-                                : "border-gray-100 bg-white hover:border-emerald-200 hover:bg-gray-50 text-gray-600 hover:shadow-sm"
-                            }`}
-                          >
-                            {isSelected && (
-                              <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500" />
-                            )}
-                            <span className={`material-symbols-outlined text-3xl mb-2 transition-colors duration-300 ${isSelected ? "text-emerald-600" : "text-gray-400 group-hover:text-emerald-500"}`}>{cat.icon}</span>
-                            <span className="text-xs font-bold">{cat.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <CategorySelector
+                      categories={categoriesData}
+                      selectedIds={clientInterests}
+                      onToggle={(id) => handleInterestToggle(id)}
+                      multiSelect={true}
+                      isLoading={isLoadingCategories}
+                      label="What services might you need? (Optional)"
+                    />
                   </div>
                 </div>
 
@@ -689,35 +710,14 @@ export default function OnboardingPage() {
                 <div className="space-y-6">
                   {/* Skills Selection */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-3">What services do you offer? *</label>
-                    <div 
-                      className="grid grid-cols-2 sm:grid-cols-3 gap-4"
-                      role="group"
-                      aria-label="Service skills selection"
-                    >
-                     {categories.map((cat) => {
-                        const isSelected = providerData.skills.includes(cat.id);
-                        return (
-                          <button
-                            key={cat.id}
-                            type="button"
-                            onClick={() => handleSkillToggle(cat.id)}
-                            aria-pressed={isSelected}
-                            className={`p-4 rounded-2xl border-2 transition-all duration-300 flex flex-col items-center text-center focus:outline-none focus:ring-4 focus:ring-emerald-500/20 relative overflow-hidden group ${
-                              isSelected
-                                ? "border-emerald-500 bg-emerald-50 text-emerald-800 shadow-md scale-[1.02]"
-                                : "border-gray-100 bg-white hover:border-emerald-200 hover:bg-gray-50 text-gray-600 hover:shadow-sm"
-                            }`}
-                          >
-                            {isSelected && (
-                              <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500" />
-                            )}
-                            <span className={`material-symbols-outlined text-3xl mb-2 transition-colors duration-300 ${isSelected ? "text-emerald-600" : "text-gray-400 group-hover:text-emerald-500"}`}>{cat.icon}</span>
-                            <span className="text-xs font-bold">{cat.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <CategorySelector
+                      categories={categoriesData}
+                      selectedIds={providerData.skills}
+                      onToggle={(id) => handleSkillToggle(id)}
+                      multiSelect={true}
+                      isLoading={isLoadingCategories}
+                      label="What services do you offer? *"
+                    />
                   </div>
 
                   {/* Phone Number */}
@@ -733,9 +733,9 @@ export default function OnboardingPage() {
                         id="provider-phone"
                         type="tel"
                         value={providerData.phone}
-                        onChange={(e) => setProviderData({ ...providerData, phone: e.target.value })}
+                        onChange={(e) => handlePhoneChange(e.target.value, 'provider')}
                         className="w-full pl-11 pr-4 py-4 rounded-xl bg-gray-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium"
-                        placeholder="+254 712 345 678"
+                        placeholder="254712345678"
                         required
                       />
                     </div>

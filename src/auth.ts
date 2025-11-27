@@ -33,6 +33,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               body: JSON.stringify({
                 email: credentials.email,
                 password: credentials.password,
+                code: credentials.code,
               }),
             }
           );
@@ -57,11 +58,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.onboardingCompleted = (user as any).onboardingCompleted;
         token.clientInterests = (user as any).clientInterests;
+        token.emailVerified = (user as any).emailVerified;
       }
       if (trigger === "update" && session?.user) {
         token.onboardingCompleted = session.user.onboardingCompleted;
         token.role = session.user.role;
         token.clientInterests = session.user.clientInterests;
+        token.emailVerified = session.user.emailVerified;
       }
       return token;
     },
@@ -71,6 +74,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
         session.user.onboardingCompleted = token.onboardingCompleted as boolean;
         session.user.clientInterests = token.clientInterests as string[];
+        session.user.emailVerified = token.emailVerified as Date | null;
       }
       return session;
     },
