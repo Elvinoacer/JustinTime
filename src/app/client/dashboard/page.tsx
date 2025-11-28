@@ -8,6 +8,7 @@ import {
   useClientActivity, 
   useClientJobs 
 } from "@/lib/api/hooks/useClientDashboard";
+import NotificationPermissionOverlay from "@/components/NotificationPermissionOverlay";
 
 export default function ClientDashboardPage() {
   const { data: session } = useSession();
@@ -283,6 +284,8 @@ export default function ClientDashboardPage() {
           )}
         </div>
       </div>
+
+      <NotificationPermissionOverlay />
     </div>
   );
 }

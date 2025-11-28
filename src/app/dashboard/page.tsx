@@ -11,6 +11,7 @@ import JobFilters from "@/components/dashboard/JobFilters";
 import JobSort from "@/components/dashboard/JobSort";
 import Link from "next/link";
 import { toast } from "sonner";
+import NotificationPermissionOverlay from "@/components/NotificationPermissionOverlay";
 
 const DashboardPage = () => {
   const { data: session } = useSession();
@@ -338,6 +339,8 @@ const DashboardPage = () => {
           )}
         </main>
       </div>
+
+      <NotificationPermissionOverlay />
     </div>
   );
 };

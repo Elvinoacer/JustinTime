@@ -10,6 +10,56 @@ import { toast } from "sonner";
 
 type Tab = "account" | "security" | "notifications" | "privacy";
 
+import { useFcmToken } from "@/lib/hooks/useFcmToken";
+
+// PushNotificationToggle Component
+function PushNotificationToggle() {
+  const { token, requestPermission, notificationPermission } = useFcmToken();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleToggle = async () => {
+    if (!token && notificationPermission !== 'denied') {
+      setIsLoading(true);
+      await requestPermission();
+      setIsLoading(false);
+    }
+  };
+
+  const isEnabled = !!token;
+
+  return (
+    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+      <div className="flex-1">
+        <h3 className="font-medium text-gray-900 flex items-center gap-2">
+          Push Notifications
+          {isEnabled && (
+            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded-full font-medium">
+              Active
+            </span>
+          )}
+        </h3>
+        <p className="text-sm text-gray-600 mt-1">
+          {isEnabled 
+            ? "You are receiving real-time updates on this device." 
+            : notificationPermission === 'denied' 
+              ? "Notifications are blocked in your browser settings. Please enable them manually." 
+              : "Enable to receive real-time updates on orders and messages."}
+        </p>
+      </div>
+      <label className={`relative inline-flex items-center cursor-pointer ${isLoading ? 'opacity-50' : ''}`}>
+        <input
+          type="checkbox"
+          className="sr-only peer"
+          checked={isEnabled}
+          onChange={handleToggle}
+          disabled={isEnabled || notificationPermission === 'denied' || isLoading} 
+        />
+        <div className={`w-14 h-7 bg-gray-300 rounded-full peer peer-focus:ring-4 peer-focus:ring-emerald-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-600 ${(isEnabled || notificationPermission === 'denied') ? 'cursor-default' : ''}`}></div>
+      </label>
+    </div>
+  );
+}
+
 // TwoFactorToggle Component
 function TwoFactorToggle({ initialEnabled }: { initialEnabled: boolean }) {
   const [enabled, setEnabled] = useState(initialEnabled);
@@ -765,20 +815,8 @@ const SettingsPage = () => {
 
                   <div className="pt-6 border-t border-gray-200">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Push Notifications</h3>
-                    <label className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={notifications.pushNotifications}
-                        onChange={(e) => setNotifications({ ...notifications, pushNotifications: e.target.checked })}
-                        className="mt-1 w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">Enable Push Notifications</p>
-                        <p className="text-sm text-gray-600">Get real-time notifications on your device</p>
-                      </div>
-                    </label>
+                    <PushNotificationToggle />
                   </div>
-
                   <button
                     onClick={handleNotificationsUpdate}
                     disabled={updateSettings.isPending}

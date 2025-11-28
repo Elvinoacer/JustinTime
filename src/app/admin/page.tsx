@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
+import NotificationPermissionOverlay from "@/components/NotificationPermissionOverlay";
 
 export const dynamic = 'force-dynamic';
 
@@ -252,6 +253,8 @@ export default async function AdminDashboard() {
           </Link>
         </div>
       </div>
+
+      <NotificationPermissionOverlay />
     </div>
   );
 }

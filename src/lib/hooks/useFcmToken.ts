@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getToken, onMessage } from "firebase/messaging";
 import { messaging } from "@/lib/firebase";
 
@@ -6,42 +6,59 @@ export const useFcmToken = () => {
   const [token, setToken] = useState<string | null>(null);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
 
-  useEffect(() => {
-    const retrieveToken = async () => {
-      try {
-        if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-          const msg = await messaging();
-          if (!msg) return;
+  const retrieveToken = useCallback(async () => {
+    try {
+      if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+        const msg = await messaging();
+        if (!msg) return null;
 
-          // Request permission
-          const permission = await Notification.requestPermission();
-          setNotificationPermission(permission);
+        const currentToken = await getToken(msg, {
+          vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+        });
 
-          if (permission === "granted") {
-            const currentToken = await getToken(msg, {
-              vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
-            });
-
-            if (currentToken) {
-              setToken(currentToken);
-              // Send token to backend
-              await fetch("/api/notifications/store-token", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ token: currentToken }),
-              });
-            }
-          }
+        if (currentToken) {
+          setToken(currentToken);
+          // Send token to backend
+          await fetch("/api/notifications/store-token", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ token: currentToken }),
+          });
+          return currentToken;
         }
-      } catch (error) {
-        console.error("An error occurred while retrieving token:", error);
       }
-    };
-
-    retrieveToken();
+    } catch (error) {
+      console.error("An error occurred while retrieving token:", error);
+    }
+    return null;
   }, []);
+
+  const requestPermission = useCallback(async () => {
+    try {
+      if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+        const permission = await Notification.requestPermission();
+        setNotificationPermission(permission);
+
+        if (permission === "granted") {
+          await retrieveToken();
+        }
+      }
+    } catch (error) {
+      console.error("Error requesting permission:", error);
+    }
+  }, [retrieveToken]);
+
+  useEffect(() => {
+    // Check current permission status without requesting
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      setNotificationPermission(Notification.permission);
+      if (Notification.permission === "granted") {
+        retrieveToken();
+      }
+    }
+  }, [retrieveToken]);
 
   // Listen for foreground messages
   useEffect(() => {
@@ -61,5 +78,5 @@ export const useFcmToken = () => {
     setupMessageListener();
   }, []);
 
-  return { token, notificationPermission };
+  return { token, notificationPermission, requestPermission };
 };

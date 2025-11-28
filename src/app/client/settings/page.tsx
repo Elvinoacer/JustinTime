@@ -25,6 +25,54 @@ import {
   XCircle,
 } from 'lucide-react';
 
+import { useFcmToken } from "@/lib/hooks/useFcmToken";
+
+// PushNotificationToggle Component
+function PushNotificationToggle() {
+  const { token, requestPermission, notificationPermission } = useFcmToken();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleToggle = async () => {
+    if (!token && notificationPermission !== 'denied') {
+      setIsLoading(true);
+      await requestPermission();
+      setIsLoading(false);
+    }
+  };
+
+  const isEnabled = !!token;
+
+  return (
+    <div className="flex items-center justify-between p-5 rounded-2xl transition-all border-2 bg-gray-50 border-gray-100 hover:border-gray-200">
+      <div className="flex items-center gap-4">
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isEnabled ? 'bg-emerald-100' : 'bg-gray-100'}`}>
+          <Smartphone className={`w-6 h-6 ${isEnabled ? 'text-emerald-600' : 'text-gray-400'}`} />
+        </div>
+        <div>
+          <p className="font-semibold text-gray-900">Push Notifications</p>
+          <p className="text-sm text-gray-600">
+            {isEnabled 
+              ? "Active on this device" 
+              : notificationPermission === 'denied' 
+                ? "Blocked in browser settings" 
+                : "Enable to receive real-time updates"}
+          </p>
+        </div>
+      </div>
+      <label className={`relative inline-flex items-center cursor-pointer ${isLoading ? 'opacity-50' : ''}`}>
+        <input
+          type="checkbox"
+          className="sr-only peer"
+          checked={isEnabled}
+          onChange={handleToggle}
+          disabled={isEnabled || notificationPermission === 'denied' || isLoading} 
+        />
+        <div className={`w-14 h-7 bg-gray-300 rounded-full peer peer-focus:ring-4 peer-focus:ring-emerald-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-600 ${(isEnabled || notificationPermission === 'denied') ? 'cursor-default' : ''}`}></div>
+      </label>
+    </div>
+  );
+}
+
 // TwoFactorToggle Component
 function TwoFactorToggle({ initialEnabled }: { initialEnabled: boolean }) {
   const [enabled, setEnabled] = useState(initialEnabled);
@@ -656,12 +704,6 @@ export default function ClientSettingsPage() {
                           desc: 'Receive news, updates, and special offers',
                           icon: Bell,
                         },
-                        {
-                          key: 'pushNotifications',
-                          label: 'Push Notifications',
-                          desc: 'Receive push notifications on your device',
-                          icon: Smartphone,
-                        },
                       ].map((item) => {
                         const Icon = item.icon;
                         const isEnabled = notifications[item.key as keyof typeof notifications];
@@ -699,6 +741,7 @@ export default function ClientSettingsPage() {
                           </div>
                         );
                       })}
+                      <PushNotificationToggle />
                     </div>
                   </div>
                 )}
