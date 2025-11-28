@@ -5,7 +5,7 @@ import nodemailer from 'nodemailer';
 // Create email transporter (same as lib/email.ts)
 const createTransporter = () => {
   const port = parseInt(process.env.EMAIL_PORT || "587");
-  const config = {
+  return nodemailer.createTransport({
     host: process.env.EMAIL_HOST || "smtp.gmail.com",
     port: port,
     secure: port === 465, // true for 465 (SSL), false for other ports like 587 (TLS)
@@ -13,19 +13,8 @@ const createTransporter = () => {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD,
     },
-  };
-
-  console.log('[Email] Creating transporter with config:', {
-    host: config.host,
-    port: config.port,
-    secure: config.secure,
-    user: config.auth.user,
-    hasPassword: !!config.auth.pass,
   });
-
-  return nodemailer.createTransport(config);
 };
-
 interface NotificationPayload {
   userId: string;
   title: string;
