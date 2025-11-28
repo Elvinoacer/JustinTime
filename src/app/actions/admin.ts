@@ -6,7 +6,7 @@ import { auth } from '@/auth';
 import crypto from 'crypto';
 import { sendComprehensiveNotification, emailTemplates } from '@/lib/notifications/adminNotifications';
 
-async function checkAdmin() {
+export async function checkAdmin() {
   const session = await auth();
   if (session?.user?.role !== 'ADMIN') {
     throw new Error('Unauthorized: Admin access required');
