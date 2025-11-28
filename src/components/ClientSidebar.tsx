@@ -23,16 +23,32 @@ const secondaryItems = [
   { name: 'Settings', href: '/client/settings', icon: 'settings' },
 ];
 
-const ClientSidebar = () => {
+interface ClientSidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
   const pathname = usePathname();
   const { data: session } = useSession();
 
   return (
-    <aside 
-      className="hidden lg:flex h-screen flex-col justify-between bg-white border-r border-gray-100 p-4 w-64 sticky top-0"
-      role="complementary"
-      aria-label="Client navigation"
-    >
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+      
+      <aside 
+        className={`fixed lg:sticky top-0 left-0 z-50 h-screen w-64 bg-white border-r border-gray-100 p-4 transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        } flex flex-col justify-between`}
+        role="complementary"
+        aria-label="Client navigation"
+      >
       <div className="flex flex-col gap-8">
         {/* Logo/Brand */}
         <div className="flex items-center gap-3 px-2 py-2">
@@ -54,6 +70,7 @@ const ClientSidebar = () => {
                 <li key={item.name}>
                   <Link 
                     href={item.href}
+                    onClick={onClose}
                     aria-current={isActive ? 'page' : undefined}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
                       isActive 
@@ -92,6 +109,7 @@ const ClientSidebar = () => {
                   <li key={item.name}>
                     <Link 
                       href={item.href}
+                      onClick={onClose}
                       aria-current={isActive ? 'page' : undefined}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
                         isActive 
@@ -127,6 +145,7 @@ const ClientSidebar = () => {
           {session?.user?.role === "PROVIDER" ? (
             <Link 
               href="/dashboard"
+              onClick={onClose}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group text-gray-600 hover:bg-gray-50 hover:text-gray-900"
             >
               <span 
@@ -140,6 +159,7 @@ const ClientSidebar = () => {
           ) : (
             <Link 
               href="/onboarding?upgrade=true"
+              onClick={onClose}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
             >
               <span 
@@ -190,6 +210,7 @@ const ClientSidebar = () => {
         </Link>
       </div>
     </aside>
+    </>
   );
 };
 

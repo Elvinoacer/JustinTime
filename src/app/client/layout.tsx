@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import ClientSidebar from "@/components/ClientSidebar";
 
 export default function ClientLayout({
@@ -6,14 +8,32 @@ export default function ClientLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <ClientSidebar />
-      <main className="flex-1 p-8 overflow-y-auto h-screen">
-        <div className="max-w-7xl mx-auto">
-          {children}
-        </div>
-      </main>
+      <ClientSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Mobile Header */}
+        <header className="lg:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+            >
+              <span className="material-symbols-outlined">menu</span>
+            </button>
+            <span className="font-bold text-lg text-gray-900">JustInTime</span>
+          </div>
+        </header>
+
+        <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

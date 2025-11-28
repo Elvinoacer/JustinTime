@@ -429,30 +429,35 @@ export default function ProviderMessagesPage() {
 
   return (
     <div className="flex h-[calc(100vh-64px)] bg-gray-50 rounded-2xl overflow-hidden shadow-sm border border-gray-200 m-4">
-      <ConversationsList
-        conversations={conversations}
-        selectedPartnerId={selectedPartnerId}
-        onSelect={setSelectedPartnerId}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onNewMessage={() => setIsNewConversationOpen(true)}
-        onlineUsers={onlineUsers}
-      />
-      <ChatWindow
-        partner={
-          selectedPartnerId
-            ? conversations.find((c) => c.partner.id === selectedPartnerId)
-                ?.partner || null
-            : null
-        }
-        messages={messages}
-        currentUserId={session?.user?.id || ""}
-        onSendMessage={handleSendMessage}
-        onDeleteMessage={handleDeleteMessage}
-        onClearConversation={handleClearConversation}
-        isTyping={isTyping}
-        isOnline={selectedPartnerId ? onlineUsers.has(selectedPartnerId) : false}
-      />
+      <div className={`${selectedPartnerId ? 'hidden md:block' : 'block'} w-full md:w-1/3 h-full`}>
+        <ConversationsList
+          conversations={conversations}
+          selectedPartnerId={selectedPartnerId}
+          onSelect={setSelectedPartnerId}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onNewMessage={() => setIsNewConversationOpen(true)}
+          onlineUsers={onlineUsers}
+        />
+      </div>
+      <div className={`${!selectedPartnerId ? 'hidden md:block' : 'block'} w-full md:w-2/3 h-full`}>
+        <ChatWindow
+          partner={
+            selectedPartnerId
+              ? conversations.find((c) => c.partner.id === selectedPartnerId)
+                  ?.partner || null
+              : null
+          }
+          messages={messages}
+          currentUserId={session?.user?.id || ""}
+          onSendMessage={handleSendMessage}
+          onDeleteMessage={handleDeleteMessage}
+          onClearConversation={handleClearConversation}
+          isTyping={isTyping}
+          isOnline={selectedPartnerId ? onlineUsers.has(selectedPartnerId) : false}
+          onBack={() => setSelectedPartnerId(null)}
+        />
+      </div>
       <NewConversationModal
         isOpen={isNewConversationOpen}
         onClose={() => setIsNewConversationOpen(false)}
