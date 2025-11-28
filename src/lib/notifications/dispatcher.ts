@@ -11,41 +11,57 @@ interface NotificationPayload {
 /**
  * Sends a notification to a specific user across all their devices
  */
-export async function sendNotificationToUser(userId: string, payload: NotificationPayload) {
+export async function sendNotificationToUser(
+  userId: string, 
+  payload: NotificationPayload | { notification: { title: string; body: string; imageUrl?: string }; data?: Record<string, string> }
+) {
   try {
+    // Handle both payload formats (direct and nested)
+    const title = 'notification' in payload ? payload.notification.title : payload.title;
+    const body = 'notification' in payload ? payload.notification.body : payload.body;
+    const imageUrl = 'notification' in payload ? payload.notification.imageUrl : payload.imageUrl;
+    const data = payload.data || {};
+
+    console.log('[FCM Dispatcher] Sending notification:', { title, body, imageUrl, userId });
+
     // 1. Get all tokens for the user
     const tokens = await prisma.userToken.findMany({
       where: { userId },
     });
 
     if (tokens.length === 0) {
-      console.log(`No tokens found for user ${userId}`);
+      console.log(`[FCM Dispatcher] No tokens found for user ${userId}`);
       return { success: false, reason: "no_tokens" };
     }
+
+    console.log(`[FCM Dispatcher] Found ${tokens.length} token(s) for user ${userId}`);
 
     // 2. Prepare messages
     const messages = tokens.map((t) => ({
       token: t.token,
       notification: {
-        title: payload.title,
-        body: payload.body,
-        imageUrl: payload.imageUrl,
+        title,
+        body,
+        imageUrl,
       },
-      data: payload.data || {},
+      data,
       // Web push specific options
       webpush: {
         notification: {
           icon: "/icons/icon-192x192.png",
           badge: "/icons/badge-72x72.png",
+          image: imageUrl,
         },
         fcmOptions: {
-          link: payload.data?.url || "/",
+          link: data?.url || "/",
         },
       },
     }));
 
     // 3. Send via Firebase Admin
+    console.log('[FCM Dispatcher] Sending to Firebase...');
     const response = await admin.messaging().sendEach(messages);
+    console.log(`[FCM Dispatcher] Sent: ${response.successCount} success, ${response.failureCount} failures`);
 
     // 4. Cleanup invalid tokens
     const tokensToDelete: string[] = [];
@@ -53,6 +69,7 @@ export async function sendNotificationToUser(userId: string, payload: Notificati
     response.responses.forEach((res, idx) => {
       if (!res.success) {
         const errorCode = res.error?.code;
+        console.error(`[FCM Dispatcher] Failed to send to token ${idx}:`, res.error?.message);
         if (
           errorCode === "messaging/invalid-registration-token" ||
           errorCode === "messaging/registration-token-not-registered"
@@ -70,19 +87,11 @@ export async function sendNotificationToUser(userId: string, payload: Notificati
           },
         },
       });
-      console.log(`Cleaned up ${tokensToDelete.length} invalid tokens`);
+      console.log(`[FCM Dispatcher] Cleaned up ${tokensToDelete.length} invalid tokens`);
     }
 
-    // 5. Store in database for history (optional but recommended)
-    await prisma.notification.create({
-      data: {
-        userId,
-        title: payload.title,
-        message: payload.body,
-        type: payload.data?.type || "SYSTEM",
-        isRead: false,
-      },
-    });
+    // NOTE: We don't create notification in database here anymore
+    // since adminNotifications.ts already creates it to avoid duplicates
 
     return { 
       success: true, 
@@ -90,7 +99,7 @@ export async function sendNotificationToUser(userId: string, payload: Notificati
       failureCount: response.failureCount 
     };
   } catch (error) {
-    console.error("Error sending notification:", error);
+    console.error("[FCM Dispatcher] Error sending notification:", error);
     return { success: false, error };
   }
 }

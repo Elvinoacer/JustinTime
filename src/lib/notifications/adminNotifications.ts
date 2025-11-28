@@ -5,7 +5,7 @@ import nodemailer from 'nodemailer';
 // Create email transporter (same as lib/email.ts)
 const createTransporter = () => {
   const port = parseInt(process.env.EMAIL_PORT || "587");
-  return nodemailer.createTransporter({
+  const config = {
     host: process.env.EMAIL_HOST || "smtp.gmail.com",
     port: port,
     secure: port === 465, // true for 465 (SSL), false for other ports like 587 (TLS)
@@ -13,7 +13,17 @@ const createTransporter = () => {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD,
     },
+  };
+
+  console.log('[Email] Creating transporter with config:', {
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    user: config.auth.user,
+    hasPassword: !!config.auth.pass,
   });
+
+  return nodemailer.createTransporter(config);
 };
 
 interface NotificationPayload {
@@ -100,8 +110,11 @@ export async function sendComprehensiveNotification(payload: NotificationPayload
           html: emailHtml
         });
         console.log('[Notification] Email sent successfully to', user.email, 'MessageID:', emailResult.messageId);
-      } catch (emailError) {
-        console.error('[Notification] Failed to send email notification:', emailError);
+      } catch (emailError: any) {
+        console.error('[Notification] Failed to send email notification:');
+        console.error('[Notification] Error message:', emailError.message);
+        console.error('[Notification] Error code:', emailError.code);
+        console.error('[Notification] Full error:', JSON.stringify(emailError, null, 2));
         // Don't throw - DB and push notification are still sent
       }
     } else {
