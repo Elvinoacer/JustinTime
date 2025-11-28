@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import crypto from 'crypto';
+import { sendComprehensiveNotification, emailTemplates } from '@/lib/notifications/adminNotifications';
 
 async function checkAdmin() {
   const session = await auth();
@@ -200,6 +201,18 @@ export async function updateUserRole(userId: string, newRole: 'CLIENT' | 'PROVID
   try {
     const admin = await checkAdmin();
     
+    // Get user details and old role
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true, role: true }
+    });
+
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
+
+    const oldRole = user.role;
+    
     await prisma.user.update({
       where: { id: userId },
       data: { role: newRole }
@@ -210,8 +223,20 @@ export async function updateUserRole(userId: string, newRole: 'CLIENT' | 'PROVID
         adminId: admin.id,
         action: 'UPDATED_USER_ROLE',
         targetId: userId,
-        details: { newRole }
+        details: { newRole, oldRole }
       }
+    });
+
+    // Send comprehensive notification
+    const template = emailTemplates.roleChanged(user.name || 'User', oldRole, newRole);
+
+    await sendComprehensiveNotification({
+      userId,
+      title: 'Account Role Updated',
+      message: `Your account role has been changed from ${oldRole} to ${newRole}.`,
+      type: 'ROLE_CHANGED',
+      emailSubject: template.subject,
+      emailHtml: template.html
     });
 
     revalidatePath(`/admin/users/${userId}`);
@@ -225,6 +250,16 @@ export async function updateUserRole(userId: string, newRole: 'CLIENT' | 'PROVID
 export async function scheduleUserDeletion(userId: string, reason: string) {
   try {
     const admin = await checkAdmin();
+    
+    // Get user details
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true }
+    });
+
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
     
     const deletionDate = new Date();
     deletionDate.setDate(deletionDate.getDate() + 30); // 30 days grace period
@@ -246,6 +281,18 @@ export async function scheduleUserDeletion(userId: string, reason: string) {
       }
     });
 
+    // Send comprehensive notification
+    const template = emailTemplates.accountDeletionScheduled(user.name || 'User', reason, deletionDate);
+
+    await sendComprehensiveNotification({
+      userId,
+      title: 'Account Deletion Scheduled',
+      message: `Your account has been scheduled for deletion on ${deletionDate.toLocaleDateString()}. You have 30 days to appeal this decision.`,
+      type: 'ACCOUNT_DELETION_SCHEDULED',
+      emailSubject: template.subject,
+      emailHtml: template.html
+    });
+
     revalidatePath(`/admin/users/${userId}`);
     return { success: true };
   } catch (error) {
@@ -257,6 +304,16 @@ export async function scheduleUserDeletion(userId: string, reason: string) {
 export async function cancelUserDeletion(userId: string) {
   try {
     const admin = await checkAdmin();
+    
+    // Get user details
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true }
+    });
+
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
     
     await prisma.user.update({
       where: { id: userId },
@@ -272,6 +329,18 @@ export async function cancelUserDeletion(userId: string) {
         action: 'CANCELLED_USER_DELETION',
         targetId: userId
       }
+    });
+
+    // Send comprehensive notification
+    const template = emailTemplates.accountDeletionCancelled(user.name || 'User');
+
+    await sendComprehensiveNotification({
+      userId,
+      title: 'Account Deletion Cancelled',
+      message: 'Good news! The scheduled deletion of your account has been cancelled. Your account remains active.',
+      type: 'ACCOUNT_DELETION_CANCELLED',
+      emailSubject: template.subject,
+      emailHtml: template.html
     });
 
     revalidatePath(`/admin/users/${userId}`);
@@ -308,8 +377,8 @@ export async function sendPasswordReset(userId: string) {
       }
     });
 
-    // TODO: Send email with reset link
-    // For now, just log the action
+    // Generate reset link
+    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL}/auth/reset-password?token=${resetToken}`;
 
     await prisma.adminLog.create({
       data: {
@@ -317,6 +386,18 @@ export async function sendPasswordReset(userId: string) {
         action: 'SENT_PASSWORD_RESET',
         targetId: userId
       }
+    });
+
+    // Send comprehensive notification
+    const template = emailTemplates.passwordResetRequested(user.name || 'User', resetLink);
+
+    await sendComprehensiveNotification({
+      userId,
+      title: 'Password Reset Requested',
+      message: 'A password reset has been requested for your account. Check your email for instructions.',
+      type: 'PASSWORD_RESET',
+      emailSubject: template.subject,
+      emailHtml: template.html
     });
 
     revalidatePath(`/admin/users/${userId}`);
@@ -360,6 +441,16 @@ export async function toggleBanUser(userId: string, isBanned: boolean) {
   try {
     const admin = await checkAdmin();
     
+    // Get user details for notifications
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true }
+    });
+
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
+    
     await prisma.user.update({
       where: { id: userId },
       data: { isBanned },
@@ -371,6 +462,22 @@ export async function toggleBanUser(userId: string, isBanned: boolean) {
         action: isBanned ? 'BANNED_USER' : 'UNBANNED_USER',
         targetId: userId,
       }
+    });
+
+    // Send comprehensive notification (Email + Push + Database)
+    const template = isBanned 
+      ? emailTemplates.userBanned(user.name || 'User')
+      : emailTemplates.userUnbanned(user.name || 'User');
+
+    await sendComprehensiveNotification({
+      userId,
+      title: isBanned ? 'Account Suspended' : 'Account Reinstated',
+      message: isBanned 
+        ? 'Your account has been temporarily restricted. Please check your email for more details.'
+        : 'Your account has been reinstated. You can now access all features again.',
+      type: isBanned ? 'ACCOUNT_SUSPENDED' : 'ACCOUNT_REINSTATED',
+      emailSubject: template.subject,
+      emailHtml: template.html
     });
 
     revalidatePath('/admin/users');

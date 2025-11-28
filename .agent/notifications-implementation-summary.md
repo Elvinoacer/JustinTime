@@ -87,7 +87,7 @@ Added `PushNotificationToggle` component to:
 
 ## Environment Variables Required
 
-Ensure these are set in your `.env`:
+Ensure your `.env` file has the following variables set for the application to work:
 
 ```env
 # Public (Client-side)
@@ -103,6 +103,16 @@ NEXT_PUBLIC_FIREBASE_VAPID_KEY=...
 FIREBASE_PROJECT_ID=...
 FIREBASE_CLIENT_EMAIL=...
 FIREBASE_PRIVATE_KEY=...
+
+# Email (Nodemailer - for notifications)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASSWORD=your_app_password
+EMAIL_FROM=noreply@justintime.com
+
+# App URL (for links)
+NEXTAUTH_URL=https://yourapp.com
 ```
 
 ## ⚠️ CRITICAL: Manual Action Required
