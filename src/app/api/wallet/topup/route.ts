@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
     const apiRef = `TOPUP_${session.user.id}_${Date.now()}`;
 
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const baseUrl = process.env.NEXTAUTH_URL || "https://justintimeservices.vercel.app";
     const url = new URL("/client/wallet", baseUrl);
     url.searchParams.append("payment_status", "success");
     url.searchParams.append("ref", apiRef);

@@ -26,7 +26,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           // Call internal API route for verification (avoids Prisma in Edge)
           const response = await fetch(
-            `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/auth/verify-credentials`,
+            `${process.env.NEXTAUTH_URL||"https://justintimeservices.vercel.app"}/api/auth/verify-credentials`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
