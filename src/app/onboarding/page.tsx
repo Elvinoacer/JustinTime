@@ -505,7 +505,7 @@ export default function OnboardingPage() {
                 className="space-y-8"
               >
                 <h2 className="text-2xl font-bold text-center text-gray-800">What brings you here today?</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <button
                     onClick={() => handleRoleSelect("CLIENT")}
                     className="group relative p-8 rounded-[2rem] border-2 border-transparent bg-white shadow-[0_0_20px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_30px_rgba(16,185,129,0.15)] hover:border-emerald-500/30 transition-all duration-300 text-left focus:outline-none focus:ring-4 focus:ring-emerald-500/20 overflow-hidden"

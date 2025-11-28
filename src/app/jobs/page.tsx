@@ -89,7 +89,7 @@ const JobsPage = () => {
       <section className="bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm">
         <div className="container mx-auto px-4 py-4">
           {/* Search and Category Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
             {/* Search Input */}
             <div className="relative">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -128,7 +128,7 @@ const JobsPage = () => {
           </div>
 
           {/* Status Tabs and Verified Toggle */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             {/* Status Tabs */}
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
               {tabs.map((tab) => (

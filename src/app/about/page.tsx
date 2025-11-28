@@ -48,7 +48,7 @@ const AboutPage = () => {
         {/* Mission & Vision */}
         <section className="py-20 bg-white">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
               <motion.div
                 initial={{ opacity: 0, x: -50 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -87,7 +87,7 @@ const AboutPage = () => {
         {/* Stats */}
         <section className="py-16 bg-emerald-600 text-white">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
               {[
                 { number: "10k+", label: "Active Users" },
                 { number: "5k+", label: "Professionals" },
@@ -119,7 +119,7 @@ const AboutPage = () => {
               </p>
             </div>
             
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid lg:grid-cols-3 gap-8">
               {[
                 { name: "Elvin", role: "Founder & CEO", image: "https://lh3.googleusercontent.com/aida-public/AB6AXuAdl8N_EVL-Gd0YIY4nl4FKR_ss93wWyW11IjR5QyVYoYmfsOSt3FTmxqvfRgqDyclWYUmHlEvK9JOPtlzRv1QP3ZVtCpOMSg94B-XK0J6TaCZinPljfyg1-HPphq-z5RYR8-NJaQaX1xhZg9j4Q1g0ciXvQu5QsmlCVIPG9jjtP4q73Kqhb34OjUOvV8x1W--8nFz9rdS48U-XvreG09Atgj1gY6f_nciYxYqjslEVh2aZCu9LhI7uoFg9e8TqkjHHB4u9LqD3MEg" },
                 { name: "Sarah Johnson", role: "Head of Operations", image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" },

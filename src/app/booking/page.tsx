@@ -605,7 +605,7 @@ function BookingPageContent() {
                           </div>
 
                           {slots.length > 0 ? (
-                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
                               {slots.map((time: string) => {
                                 const isSelected = selectedSlots.includes(time);
                                 return (
@@ -732,7 +732,7 @@ function BookingPageContent() {
                     Contact Information
                   </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {/* Phone Number */}
                     <div>
                       <label

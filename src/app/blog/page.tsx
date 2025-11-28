@@ -209,7 +209,7 @@ export default function BlogPage() {
               </div>
               <Link href={`/blog/${featuredPost.slug}`}>
                 <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 hover:shadow-2xl transition-all duration-300 group">
-                  <div className="grid md:grid-cols-2 gap-0">
+                  <div className="grid lg:grid-cols-2 gap-0">
                     <div className="h-64 md:h-auto bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 to-transparent"></div>
                       <Sparkles className="w-24 h-24 text-orange-600/30" />
