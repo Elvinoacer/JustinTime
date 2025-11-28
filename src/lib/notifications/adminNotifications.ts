@@ -39,6 +39,8 @@ export async function sendComprehensiveNotification(payload: NotificationPayload
     emailHtml
   } = payload;
 
+  console.log('[Notification] Starting comprehensive notification for user:', userId, 'Type:', type);
+
   try {
     // Get user details
     const user = await prisma.user.findUnique({
@@ -47,10 +49,14 @@ export async function sendComprehensiveNotification(payload: NotificationPayload
     });
 
     if (!user) {
+      console.error('[Notification] User not found:', userId);
       throw new Error('User not found');
     }
 
+    console.log('[Notification] User found:', user.email);
+
     // 1. Create notification in database
+    console.log('[Notification] Creating database record...');
     const dbNotification = await prisma.notification.create({
       data: {
         userId,
@@ -60,8 +66,10 @@ export async function sendComprehensiveNotification(payload: NotificationPayload
         isRead: false
       }
     });
+    console.log('[Notification] Database record created:', dbNotification.id);
 
     // 2. Send push notification (via FCM) 
+    console.log('[Notification] Attempting to send push notification...');
     try {
       await sendNotificationToUser(userId, {
         notification: {
@@ -74,35 +82,40 @@ export async function sendComprehensiveNotification(payload: NotificationPayload
           url: '/dashboard/notifications'
         }
       });
+      console.log('[Notification] Push notification sent successfully');
     } catch (pushError) {
-      console.error('Failed to send push notification:', pushError);
+      console.error('[Notification] Failed to send push notification:', pushError);
       // Don't throw - email and DB notification are still sent
     }
 
     // 3. Send email notification
     if (emailSubject && emailHtml) {
+      console.log('[Notification] Attempting to send email to:', user.email);
       try {
         const transporter = createTransporter();
-        await transporter.sendMail({
+        const emailResult = await transporter.sendMail({
           from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
           to: user.email,
           subject: emailSubject,
           html: emailHtml
         });
-        console.log(`Admin notification email sent to ${user.email}`);
+        console.log('[Notification] Email sent successfully to', user.email, 'MessageID:', emailResult.messageId);
       } catch (emailError) {
-        console.error('Failed to send email notification:', emailError);
+        console.error('[Notification] Failed to send email notification:', emailError);
         // Don't throw - DB and push notification are still sent
       }
+    } else {
+      console.log('[Notification] No email subject/html provided, skipping email');
     }
 
+    console.log('[Notification] Comprehensive notification completed successfully');
     return {
       success: true,
       notificationId: dbNotification.id
     };
 
   } catch (error) {
-    console.error('Failed to send comprehensive notification:', error);
+    console.error('[Notification] Failed to send comprehensive notification:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

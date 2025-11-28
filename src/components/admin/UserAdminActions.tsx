@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { toggleBanUser, updateUserRole, scheduleUserDeletion, cancelUserDeletion, sendPasswordReset } from '@/app/actions/admin';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface UserAdminActionsProps {
   user: any;
@@ -21,16 +22,26 @@ export default function UserAdminActions({ user }: UserAdminActionsProps) {
     if (!confirm(`Are you sure you want to ${user.isBanned ? 'unban' : 'ban'} this user?`)) return;
     
     startTransition(async () => {
-      await toggleBanUser(user.id, !user.isBanned);
-      router.refresh();
+      const result = await toggleBanUser(user.id, !user.isBanned);
+      if (result.success) {
+        toast.success(`User ${!user.isBanned ? 'banned' : 'unbanned'} successfully. Notifications sent.`);
+        router.refresh();
+      } else {
+        toast.error(`Failed to ${!user.isBanned ? 'ban' : 'unban'} user: ${result.error}`);
+      }
       setShowMenu(false);
     });
   };
 
   const handleRoleChange = () => {
     startTransition(async () => {
-      await updateUserRole(user.id, selectedRole);
-      router.refresh();
+      const result = await updateUserRole(user.id, selectedRole);
+      if (result.success) {
+        toast.success(`User role updated to ${selectedRole}. Notifications sent.`);
+        router.refresh();
+      } else {
+        toast.error(`Failed to update role: ${result.error}`);
+      }
       setShowRoleModal(false);
       setShowMenu(false);
     });
@@ -43,8 +54,13 @@ export default function UserAdminActions({ user }: UserAdminActionsProps) {
     }
 
     startTransition(async () => {
-      await scheduleUserDeletion(user.id, deleteReason);
-      router.refresh();
+      const result = await scheduleUserDeletion(user.id, deleteReason);
+      if (result.success) {
+        toast.success('Account deletion scheduled. User has been notified.');
+        router.refresh();
+      } else {
+        toast.error(`Failed to schedule deletion: ${result.error}`);
+      }
       setShowDeleteModal(false);
       setShowMenu(false);
     });
@@ -54,8 +70,13 @@ export default function UserAdminActions({ user }: UserAdminActionsProps) {
     if (!confirm('Cancel scheduled deletion?')) return;
 
     startTransition(async () => {
-      await cancelUserDeletion(user.id);
-      router.refresh();
+      const result = await cancelUserDeletion(user.id);
+      if (result.success) {
+        toast.success('Account deletion cancelled. User has been notified.');
+        router.refresh();
+      } else {
+        toast.error(`Failed to cancel deletion: ${result.error}`);
+      }
       setShowMenu(false);
     });
   };
@@ -66,9 +87,9 @@ export default function UserAdminActions({ user }: UserAdminActionsProps) {
     startTransition(async () => {
       const result = await sendPasswordReset(user.id);
       if (result.success) {
-        alert(result.message);
+        toast.success(result.message || 'Password reset email sent successfully.');
       } else {
-        alert(result.error);
+        toast.error(result.error || 'Failed to send password reset');
       }
       setShowMenu(false);
     });

@@ -230,7 +230,8 @@ export async function updateUserRole(userId: string, newRole: 'CLIENT' | 'PROVID
     // Send comprehensive notification
     const template = emailTemplates.roleChanged(user.name || 'User', oldRole, newRole);
 
-    await sendComprehensiveNotification({
+    console.log('[Admin Action] Sending role change notification to user:', userId, 'from', oldRole, 'to', newRole);
+    const notificationResult = await sendComprehensiveNotification({
       userId,
       title: 'Account Role Updated',
       message: `Your account role has been changed from ${oldRole} to ${newRole}.`,
@@ -238,6 +239,7 @@ export async function updateUserRole(userId: string, newRole: 'CLIENT' | 'PROVID
       emailSubject: template.subject,
       emailHtml: template.html
     });
+    console.log('[Admin Action] Role change notification result:', notificationResult);
 
     revalidatePath(`/admin/users/${userId}`);
     return { success: true };
@@ -284,7 +286,8 @@ export async function scheduleUserDeletion(userId: string, reason: string) {
     // Send comprehensive notification
     const template = emailTemplates.accountDeletionScheduled(user.name || 'User', reason, deletionDate);
 
-    await sendComprehensiveNotification({
+    console.log('[Admin Action] Sending deletion scheduled notification to user:', userId);
+    const notificationResult = await sendComprehensiveNotification({
       userId,
       title: 'Account Deletion Scheduled',
       message: `Your account has been scheduled for deletion on ${deletionDate.toLocaleDateString()}. You have 30 days to appeal this decision.`,
@@ -292,6 +295,7 @@ export async function scheduleUserDeletion(userId: string, reason: string) {
       emailSubject: template.subject,
       emailHtml: template.html
     });
+    console.log('[Admin Action] Deletion scheduled notification result:', notificationResult);
 
     revalidatePath(`/admin/users/${userId}`);
     return { success: true };
@@ -334,7 +338,8 @@ export async function cancelUserDeletion(userId: string) {
     // Send comprehensive notification
     const template = emailTemplates.accountDeletionCancelled(user.name || 'User');
 
-    await sendComprehensiveNotification({
+    console.log('[Admin Action] Sending deletion cancelled notification to user:', userId);
+    const notificationResult = await sendComprehensiveNotification({
       userId,
       title: 'Account Deletion Cancelled',
       message: 'Good news! The scheduled deletion of your account has been cancelled. Your account remains active.',
@@ -342,6 +347,7 @@ export async function cancelUserDeletion(userId: string) {
       emailSubject: template.subject,
       emailHtml: template.html
     });
+    console.log('[Admin Action] Deletion cancelled notification result:', notificationResult);
 
     revalidatePath(`/admin/users/${userId}`);
     return { success: true };
@@ -378,7 +384,7 @@ export async function sendPasswordReset(userId: string) {
     });
 
     // Generate reset link
-    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL}/auth/reset-password?token=${resetToken}`;
+    const resetLink = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${resetToken}`;
 
     await prisma.adminLog.create({
       data: {
@@ -391,7 +397,8 @@ export async function sendPasswordReset(userId: string) {
     // Send comprehensive notification
     const template = emailTemplates.passwordResetRequested(user.name || 'User', resetLink);
 
-    await sendComprehensiveNotification({
+    console.log('[Admin Action] Sending password reset notification to user:', userId);
+    const notificationResult = await sendComprehensiveNotification({
       userId,
       title: 'Password Reset Requested',
       message: 'A password reset has been requested for your account. Check your email for instructions.',
@@ -399,6 +406,7 @@ export async function sendPasswordReset(userId: string) {
       emailSubject: template.subject,
       emailHtml: template.html
     });
+    console.log('[Admin Action] Notification result:', notificationResult);
 
     revalidatePath(`/admin/users/${userId}`);
     return { success: true, message: 'Password reset link sent to user' };
@@ -469,7 +477,8 @@ export async function toggleBanUser(userId: string, isBanned: boolean) {
       ? emailTemplates.userBanned(user.name || 'User')
       : emailTemplates.userUnbanned(user.name || 'User');
 
-    await sendComprehensiveNotification({
+    console.log(`[Admin Action] Sending ${isBanned ? 'ban' : 'unban'} notification to user:`, userId);
+    const notificationResult = await sendComprehensiveNotification({
       userId,
       title: isBanned ? 'Account Suspended' : 'Account Reinstated',
       message: isBanned 
@@ -479,6 +488,7 @@ export async function toggleBanUser(userId: string, isBanned: boolean) {
       emailSubject: template.subject,
       emailHtml: template.html
     });
+    console.log('[Admin Action] Ban/Unban notification result:', notificationResult);
 
     revalidatePath('/admin/users');
     return { success: true };
