@@ -65,11 +65,16 @@ export async function sendNotificationToUser(
 
     // 4. Cleanup invalid tokens
     const tokensToDelete: string[] = [];
+    const errors: any[] = [];
     
     response.responses.forEach((res, idx) => {
       if (!res.success) {
         const errorCode = res.error?.code;
-        console.error(`[FCM Dispatcher] Failed to send to token ${idx}:`, res.error?.message);
+        const errorMessage = res.error?.message;
+        
+        errors.push({ token: tokens[idx].token, code: errorCode, message: errorMessage });
+        console.error(`[FCM Dispatcher] Failed to send to token ${idx}:`, errorMessage);
+        
         if (
           errorCode === "messaging/invalid-registration-token" ||
           errorCode === "messaging/registration-token-not-registered"
@@ -96,7 +101,8 @@ export async function sendNotificationToUser(
     return { 
       success: true, 
       sentCount: response.successCount, 
-      failureCount: response.failureCount 
+      failureCount: response.failureCount,
+      errors // Return errors for debugging
     };
   } catch (error) {
     console.error("[FCM Dispatcher] Error sending notification:", error);
