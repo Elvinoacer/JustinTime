@@ -6,22 +6,32 @@ import { Bell, X } from "lucide-react";
 import { useFcmToken } from "@/lib/hooks/useFcmToken";
 
 export default function NotificationPermissionOverlay() {
-  const { notificationPermission, requestPermission } = useFcmToken();
+  const { notificationPermission, requestPermission, token } = useFcmToken();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Show overlay if permission is default (not granted or denied)
+    // Check if dismissed in this session
+    const isDismissed = sessionStorage.getItem("notification_overlay_dismissed") === "true";
+    
+    if (isDismissed) {
+      setIsVisible(false);
+      return;
+    }
+
+    // Show overlay if:
+    // 1. Permission is default (not yet asked), OR
+    // 2. Permission is granted but no token (incomplete setup)
     // Delay slightly to avoid flashing on load
     const timer = setTimeout(() => {
-      if (notificationPermission === "default") {
-        setIsVisible(true);
-      } else {
-        setIsVisible(false);
-      }
+      const shouldShow = 
+        notificationPermission === "default" || 
+        (notificationPermission === "granted" && !token);
+      
+      setIsVisible(shouldShow);
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [notificationPermission]);
+  }, [notificationPermission, token]);
 
   const handleEnable = async () => {
     await requestPermission();
@@ -30,16 +40,9 @@ export default function NotificationPermissionOverlay() {
 
   const handleDismiss = () => {
     setIsVisible(false);
-    // Optionally store dismissal in local storage to not show again for a session
+    // Store dismissal in session storage to not show again for this session
     sessionStorage.setItem("notification_overlay_dismissed", "true");
   };
-
-  // Check if dismissed in this session
-  useEffect(() => {
-    if (sessionStorage.getItem("notification_overlay_dismissed") === "true") {
-      setIsVisible(false);
-    }
-  }, []);
 
   return (
     <AnimatePresence>

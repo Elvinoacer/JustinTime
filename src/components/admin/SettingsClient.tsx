@@ -117,37 +117,8 @@ export default function SettingsClient({ categories, systemSettings }: SettingsC
                   </div>
                   
                   <div className="p-6 bg-slate-50 rounded-xl border border-slate-200">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4">Push Notification Status</h3>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-600">Permission Status:</span>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          notificationPermission === 'granted' 
-                            ? 'bg-emerald-100 text-emerald-700' 
-                            : notificationPermission === 'denied'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {notificationPermission.toUpperCase()}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-600">FCM Token:</span>
-                        <div className="flex items-center gap-2">
-                          <span className={`w-3 h-3 rounded-full ${token ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                          <span className="text-sm text-slate-500">
-                            {token ? 'Active & Registered' : 'Not Registered'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {token && (
-                        <div className="mt-4 p-3 bg-white rounded-lg border border-slate-200 font-mono text-xs text-slate-500 break-all">
-                          {token}
-                        </div>
-                      )}
-                    </div>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-4">Push Notifications</h3>
+                    <PushNotificationToggle />
                   </div>
                 </div>
               )}
@@ -155,6 +126,53 @@ export default function SettingsClient({ categories, systemSettings }: SettingsC
           </AnimatePresence>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PushNotificationToggle() {
+  const { token, requestPermission, notificationPermission } = useFcmToken();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleToggle = async () => {
+    if (!token && notificationPermission !== 'denied') {
+      setIsLoading(true);
+      await requestPermission();
+      setIsLoading(false);
+    }
+  };
+
+  const isEnabled = !!token;
+
+  return (
+    <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-slate-200">
+      <div className="flex-1">
+        <h3 className="font-medium text-slate-900 flex items-center gap-2">
+          Enable Notifications
+          {isEnabled && (
+            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded-full font-medium">
+              Active
+            </span>
+          )}
+        </h3>
+        <p className="text-sm text-slate-600 mt-1">
+          {isEnabled 
+            ? "You are receiving real-time updates on this device." 
+            : notificationPermission === 'denied' 
+              ? "Notifications are blocked in your browser settings." 
+              : "Enable to receive real-time updates."}
+        </p>
+      </div>
+      <label className={`relative inline-flex items-center cursor-pointer ${isLoading ? 'opacity-50' : ''}`}>
+        <input
+          type="checkbox"
+          className="sr-only peer"
+          checked={isEnabled}
+          onChange={handleToggle}
+          disabled={isEnabled || notificationPermission === 'denied' || isLoading} 
+        />
+        <div className={`w-14 h-7 bg-slate-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-emerald-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-600 ${(isEnabled || notificationPermission === 'denied') ? 'cursor-default' : ''}`}></div>
+      </label>
     </div>
   );
 }
