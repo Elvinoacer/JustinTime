@@ -23,7 +23,7 @@ const createTransporter = () => {
     hasPassword: !!config.auth.pass,
   });
 
-  return nodemailer.createTransporter(config);
+  return nodemailer.createTransport(config);
 };
 
 interface NotificationPayload {
@@ -104,7 +104,7 @@ export async function sendComprehensiveNotification(payload: NotificationPayload
       try {
         const transporter = createTransporter();
         const emailResult = await transporter.sendMail({
-          from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+          from: `"JustInTime" <${process.env.EMAIL_USER}>`, // Force use of authenticated email to prevent blocking
           to: user.email,
           subject: emailSubject,
           html: emailHtml
