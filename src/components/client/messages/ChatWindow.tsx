@@ -27,6 +27,7 @@ interface ChatWindowProps {
   onDeleteMessage?: (messageId: string) => void;
   onClearConversation?: (partnerId: string) => void;
   isOnline?: boolean;
+  onBack?: () => void;
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -38,6 +39,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onDeleteMessage,
   onClearConversation,
   isOnline = false,
+  onBack,
 }) => {
   const [newMessage, setNewMessage] = useState("");
   const [isUploading, setIsUploading] = useState(false);
@@ -131,6 +133,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Chat Header */}
       <div className="p-4 border-b border-gray-200 bg-white flex justify-between items-center shadow-sm z-10">
         <div className="flex items-center space-x-3">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="md:hidden mr-2 p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full"
+            >
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+          )}
           <div className="relative">
             {partner.image ? (
               <img

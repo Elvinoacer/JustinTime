@@ -267,24 +267,29 @@ export default function ClientMessagesPage() {
 
   return (
     <div className="flex h-[calc(100vh-64px)] bg-gray-100 rounded-2xl overflow-hidden shadow-sm border border-gray-200 m-4">
-      <ConversationsList
-        conversations={conversations}
-        selectedPartnerId={selectedPartnerId}
-        onSelect={setSelectedPartnerId}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onNewMessage={() => setIsNewConversationOpen(true)}
-        onlineUsers={new Set()}
-      />
-      <ChatWindow
-        partner={selectedPartner}
-        messages={messages}
-        currentUserId={session?.user?.id || ""}
-        onSendMessage={handleSendMessage}
-        onDeleteMessage={handleDeleteMessage}
-        onClearConversation={handleClearConversation}
-        isTyping={isTyping}
-      />
+      <div className={`${selectedPartnerId ? 'hidden md:block' : 'block'} w-full md:w-1/3 h-full`}>
+        <ConversationsList
+          conversations={conversations}
+          selectedPartnerId={selectedPartnerId}
+          onSelect={setSelectedPartnerId}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onNewMessage={() => setIsNewConversationOpen(true)}
+          onlineUsers={new Set()}
+        />
+      </div>
+      <div className={`${!selectedPartnerId ? 'hidden md:block' : 'block'} w-full md:w-2/3 h-full`}>
+        <ChatWindow
+          partner={selectedPartner}
+          messages={messages}
+          currentUserId={session?.user?.id || ""}
+          onSendMessage={handleSendMessage}
+          onDeleteMessage={handleDeleteMessage}
+          onClearConversation={handleClearConversation}
+          isTyping={isTyping}
+          onBack={() => setSelectedPartnerId(null)}
+        />
+      </div>
       <NewConversationModal
         isOpen={isNewConversationOpen}
         onClose={() => setIsNewConversationOpen(false)}
