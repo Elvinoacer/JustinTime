@@ -70,7 +70,7 @@ const ServiceDetailsPage = ({
 
   // Mobile Navigation Tabs
   const MobileTabs = () => (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
       <div className="grid grid-cols-4 gap-1 p-2">
         {[
           { id: "about", label: "About", icon: "info" },
@@ -100,7 +100,7 @@ const ServiceDetailsPage = ({
   return (
     <div className="bg-gray-50 min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 pb-20 md:pb-0">
+      <main className="flex-1 pb-20 lg:pb-0">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
           {/* Breadcrumbs */}
           <nav className="mb-6">
@@ -217,7 +217,7 @@ const ServiceDetailsPage = ({
             {/* Content Sections */}
             <div className="p-6 md:p-8">
               {/* Desktop Tabs */}
-              <div className="hidden md:flex border-b border-gray-200 mb-8">
+              <div className="hidden lg:flex border-b border-gray-200 mb-8 overflow-x-auto">
                 {[
                   { id: "about", label: "About" },
                   { id: "services", label: "Other Services" },

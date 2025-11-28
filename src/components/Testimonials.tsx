@@ -22,7 +22,7 @@ const Testimonials = () => {
   };
 
   useEffect(() => {
-    if (window.innerWidth >= 768) {
+    if (window.innerWidth >= 1024) {
       controls.start({
         x: [0, -1030],
         transition: {
@@ -65,7 +65,7 @@ const Testimonials = () => {
         </div>
 
         {/* Desktop Infinite Scroll */}
-        <div className="hidden md:block relative overflow-hidden">
+        <div className="hidden lg:block relative overflow-hidden">
           <motion.div
             className="flex gap-6 lg:gap-8"
             animate={controls}
@@ -133,8 +133,8 @@ const Testimonials = () => {
           <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-slate-50/90 to-transparent z-10"></div>
         </div>
 
-        {/* Mobile Carousel */}
-        <div className="md:hidden relative">
+        {/* Mobile/Tablet Carousel */}
+        <div className="lg:hidden relative">
           <motion.div
             key={currentIndex}
             className="bg-white p-6 rounded-2xl shadow-lg border border-white border-opacity-20"

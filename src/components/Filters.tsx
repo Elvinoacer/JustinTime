@@ -11,8 +11,8 @@ interface FiltersProps {
 
 const Filters = ({ filters, onFilterChange }: FiltersProps) => {
   return (
-    <aside className="w-full md:w-64 lg:w-72 flex-shrink-0">
-      <div className="sticky top-24 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+    <div className="w-full">
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-gray-900">Filters</h2>
           <button
@@ -109,7 +109,7 @@ const Filters = ({ filters, onFilterChange }: FiltersProps) => {
           </div>
         </div>
       </div>
-    </aside>
+    </div>
   );
 };
 

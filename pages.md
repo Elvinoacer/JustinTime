@@ -255,7 +255,7 @@ Sign up screen for new users.
 **File:** [src/app/auth/forgot-password/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/auth/forgot-password/page.tsx)
 
 **Description:**  
-Password reset screen.
+Password reset request screen.
 
 ---
 
@@ -269,9 +269,39 @@ Identity verification screen (ID upload, document status).
 
 ---
 
+### 20. Verify Request Page
+
+**Path:** `/auth/verify-request`
+**File:** [src/app/auth/verify-request/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/auth/verify-request/page.tsx)
+
+**Description:**
+"Check your email" screen displayed after signup, instructing the user to verify their email address.
+
+---
+
+### 21. Verify Email Page
+
+**Path:** `/auth/verify-email`
+**File:** [src/app/auth/verify-email/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/auth/verify-email/page.tsx)
+
+**Description:**
+Handles the email verification process using a token from the URL. Displays success or error status.
+
+---
+
+### 22. Reset Password Page
+
+**Path:** `/auth/reset-password`
+**File:** [src/app/auth/reset-password/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/auth/reset-password/page.tsx)
+
+**Description:**
+Form for users to enter a new password after clicking a password reset link.
+
+---
+
 ## Onboarding
 
-### 20. Unified Onboarding
+### 23. Unified Onboarding
 
 **Path:** `/onboarding`  
 **File:** [src/app/onboarding/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/onboarding/page.tsx)
@@ -291,7 +321,7 @@ Unified onboarding flow for both clients and providers. Multi-step process for c
 
 ---
 
-### 21. Provider Onboarding
+### 24. Provider Onboarding
 
 **Path:** `/provider/onboarding`  
 **File:** [src/app/provider/onboarding/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/provider/onboarding/page.tsx)
@@ -301,7 +331,7 @@ Provider-specific onboarding flow for service professional registration.
 
 ---
 
-### 22. Client Onboarding
+### 25. Client Onboarding
 
 **Path:** `/client/onboarding`  
 **File:** [src/app/client/onboarding/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/client/onboarding/page.tsx)
@@ -313,7 +343,7 @@ Client-specific onboarding flow for service consumer registration.
 
 ## Service Provider Pages
 
-### 23. Provider Dashboard Home
+### 26. Provider Dashboard Home
 
 **Path:** `/dashboard`  
 **File:** [src/app/dashboard/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/page.tsx)
@@ -331,7 +361,7 @@ Main dashboard overview for service providers. Shows a summary of active jobs, c
 
 ---
 
-### 24. Provider Analytics
+### 27. Provider Analytics
 
 **Path:** `/dashboard/analytics`  
 **File:** [src/app/dashboard/analytics/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/analytics/page.tsx)
@@ -352,7 +382,7 @@ Provider analytics dashboard with performance metrics and insights.
 
 ---
 
-### 25. Availability Management
+### 28. Availability Management
 
 **Path:** `/dashboard/availability`  
 **File:** [src/app/dashboard/availability/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/availability/page.tsx)
@@ -369,7 +399,7 @@ Manage provider availability schedule and time slots.
 
 ---
 
-### 26. Provider Bookings
+### 29. Provider Bookings
 
 **Path:** `/dashboard/bookings`  
 **File:** [src/app/dashboard/bookings/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/bookings/page.tsx)
@@ -386,7 +416,7 @@ Manage all bookings and appointments with comprehensive table view.
 
 ---
 
-### 27. Earnings Page
+### 30. Earnings Page
 
 **Path:** `/dashboard/earnings`  
 **File:** [src/app/dashboard/earnings/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/earnings/page.tsx)
@@ -403,7 +433,7 @@ View detailed earnings breakdown and payout history.
 
 ---
 
-### 28. Provider Profile
+### 31. Provider Profile
 
 **Path:** `/dashboard/profile`  
 **File:** [src/app/dashboard/profile/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/profile/page.tsx)
@@ -420,7 +450,7 @@ Service provider profile management. View and edit provider information.
 
 ---
 
-### 29. Provider Reviews
+### 32. Provider Reviews
 
 **Path:** `/dashboard/reviews`  
 **File:** [src/app/dashboard/reviews/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/reviews/page.tsx)
@@ -437,7 +467,7 @@ View all customer reviews and ratings received by the service provider.
 
 ---
 
-### 30. Services Management
+### 33. Services Management
 
 **Path:** `/dashboard/services`  
 **File:** [src/app/dashboard/services/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/services/page.tsx)
@@ -453,7 +483,7 @@ Manage services offered by the provider. View and edit service listings.
 
 ---
 
-### 31. Provider Job Applications
+### 34. Provider Job Applications
 
 **Path:** `/dashboard/jobs`  
 **File:** [src/app/dashboard/jobs/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/jobs/page.tsx)
@@ -472,7 +502,7 @@ Provider jobs management with real database integration.
 
 ---
 
-### 32. Job Requests
+### 35. Job Requests
 
 **Path:** `/dashboard/requests`  
 **File:** [src/app/dashboard/requests/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/requests/page.tsx)
@@ -482,7 +512,7 @@ Job Requests (Direct Hire) management screen.
 
 ---
 
-### 33. Provider Messages
+### 36. Provider Messages
 
 **Path:** `/dashboard/messages`  
 **File:** [src/app/dashboard/messages/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/messages/page.tsx)
@@ -505,7 +535,7 @@ Real-time chat and messaging interface for providers with comprehensive features
 
 ---
 
-### 34. Provider Notifications
+### 37. Provider Notifications
 
 **Path:** `/dashboard/notifications`  
 **File:** [src/app/dashboard/notifications/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/notifications/page.tsx)
@@ -515,7 +545,7 @@ Notifications screen for providers.
 
 ---
 
-### 35. Provider Settings
+### 38. Provider Settings
 
 **Path:** `/dashboard/settings`  
 **File:** [src/app/dashboard/settings/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/settings/page.tsx)
@@ -525,7 +555,7 @@ Provider account settings screen.
 
 ---
 
-### 36. Premium/Upgrade Page
+### 39. Premium/Upgrade Page
 
 **Path:** `/dashboard/premium`  
 **File:** [src/app/dashboard/premium/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/premium/page.tsx)
@@ -535,7 +565,7 @@ Premium features and subscription upgrade options.
 
 ---
 
-### 37. Help Center
+### 40. Help Center
 
 **Path:** `/dashboard/help`  
 **File:** [src/app/dashboard/help/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/dashboard/help/page.tsx)
@@ -547,7 +577,7 @@ Help center and FAQ for providers.
 
 ## Consumer / Client Pages
 
-### 38. Client Dashboard
+### 41. Client Dashboard
 
 **Path:** `/client/dashboard`  
 **File:** [src/app/client/dashboard/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/client/dashboard/page.tsx)
@@ -557,7 +587,7 @@ Job Listing Management screen for clients.
 
 ---
 
-### 39. Client Analytics
+### 42. Client Analytics
 
 **Path:** `/client/analytics`  
 **File:** [src/app/client/analytics/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/client/analytics/page.tsx)
@@ -578,7 +608,7 @@ Client analytics dashboard with comprehensive metrics and visualizations.
 
 ---
 
-### 40. Post Job
+### 43. Post Job
 
 **Path:** `/client/post-job`  
 **File:** [src/app/client/post-job/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/client/post-job/page.tsx)
@@ -588,7 +618,7 @@ Post a job screen for clients.
 
 ---
 
-### 41. Client Job Details
+### 44. Client Job Details
 
 **Path:** `/client/jobs/[id]`  
 **File:** [src/app/client/jobs/[id]/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/client/jobs/[id]/page.tsx)
@@ -598,7 +628,7 @@ View and manage specific job details and proposals.
 
 ---
 
-### 42. Job Proposals
+### 45. Job Proposals
 
 **Path:** `/client/proposals`  
 **File:** [src/app/client/proposals/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/client/proposals/page.tsx)
@@ -608,7 +638,7 @@ Job Proposals management screen.
 
 ---
 
-### 43. Client Bookings
+### 46. Client Bookings
 
 **Path:** `/client/bookings`  
 **File:** [src/app/client/bookings/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/client/bookings/page.tsx)
@@ -618,7 +648,7 @@ Direct Booking and bookings management screen.
 
 ---
 
-### 44. Client Messages
+### 47. Client Messages
 
 **Path:** `/client/messages`  
 **File:** [src/app/client/messages/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/client/messages/page.tsx)
@@ -628,7 +658,7 @@ Chat and messaging screen for clients.
 
 ---
 
-### 45. Client Profile
+### 48. Client Profile
 
 **Path:** `/client/profile`  
 **File:** [src/app/client/profile/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/client/profile/page.tsx)
@@ -638,7 +668,7 @@ Client profile management and preferences.
 
 ---
 
-### 46. Client Wallet
+### 49. Client Wallet
 
 **Path:** `/client/wallet`  
 **File:** [src/app/client/wallet/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/client/wallet/page.tsx)
@@ -648,7 +678,7 @@ Wallet and payment history screen.
 
 ---
 
-### 47. Client Notifications
+### 50. Client Notifications
 
 **Path:** `/client/notifications`  
 **File:** [src/app/client/notifications/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/client/notifications/page.tsx)
@@ -658,7 +688,7 @@ Notifications screen for clients.
 
 ---
 
-### 48. Client Settings
+### 51. Client Settings
 
 **Path:** `/client/settings`  
 **File:** [src/app/client/settings/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/client/settings/page.tsx)
@@ -668,7 +698,7 @@ Client account settings screen.
 
 ---
 
-### 49. Referral Program
+### 52. Referral Program
 
 **Path:** `/client/referral`  
 **File:** [src/app/client/referral/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/client/referral/page.tsx)
@@ -678,7 +708,7 @@ Referral and loyalty program screen.
 
 ---
 
-### 50. Submit Review
+### 53. Submit Review
 
 **Path:** `/client/reviews/submit/[bookingId]`  
 **File:** [src/app/client/reviews/submit/[bookingId]/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/client/reviews/submit/[bookingId]/page.tsx)
@@ -697,7 +727,7 @@ Submit review page for completed bookings.
 
 ## Admin Pages
 
-### 51. Admin Login
+### 54. Admin Login
 
 **Path:** `/admin/login`  
 **File:** [src/app/admin/login/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/admin/login/page.tsx)
@@ -707,23 +737,103 @@ Admin Login screen.
 
 ---
 
-### 52. Admin Dashboard
+### 55. Admin Dashboard (Main)
+
+**Path:** `/admin`  
+**File:** [src/app/admin/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/admin/page.tsx)
+
+**Description:**  
+Main Admin Dashboard with platform analytics, key stats, and quick actions. Fetches real-time data from the database.
+
+---
+
+### 56. Admin Dashboard (Analytics)
 
 **Path:** `/admin/dashboard`  
 **File:** [src/app/admin/dashboard/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/admin/dashboard/page.tsx)
 
 **Description:**  
-Admin Dashboard with platform analytics.
+Visual analytics dashboard with charts and graphs. Currently serves as a UI representation of platform metrics.
 
 ---
 
-### 53. User Management
+### 57. User Management
 
 **Path:** `/admin/users`  
 **File:** [src/app/admin/users/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/admin/users/page.tsx)
 
 **Description:**  
 User Management screen for admins.
+
+---
+
+### 58. Admin Disputes
+
+**Path:** `/admin/disputes`
+**File:** [src/app/admin/disputes/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/admin/disputes/page.tsx)
+
+**Description:**
+Manage platform disputes between clients and providers.
+
+---
+
+### 59. Admin Bookings
+
+**Path:** `/admin/bookings`
+**File:** [src/app/admin/bookings/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/admin/bookings/page.tsx)
+
+**Description:**
+Comprehensive view of all platform bookings with filtering and management options.
+
+---
+
+### 60. Admin Verifications
+
+**Path:** `/admin/verifications`
+**File:** [src/app/admin/verifications/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/admin/verifications/page.tsx)
+
+**Description:**
+Review and manage provider verification requests (identity, documents).
+
+---
+
+### 61. Admin Finance
+
+**Path:** `/admin/finance`
+**File:** [src/app/admin/finance/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/admin/finance/page.tsx)
+
+**Description:**
+Financial overview, transaction history, and wallet management.
+
+---
+
+### 62. Admin Support
+
+**Path:** `/admin/support`
+**File:** [src/app/admin/support/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/admin/support/page.tsx)
+
+**Description:**
+Support ticket management system.
+
+---
+
+### 63. Admin Settings
+
+**Path:** `/admin/settings`
+**File:** [src/app/admin/settings/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/admin/settings/page.tsx)
+
+**Description:**
+System-wide settings and configuration (e.g., categories).
+
+---
+
+### 64. User Details
+
+**Path:** `/admin/users/[id]`
+**File:** [src/app/admin/users/[id]/page.tsx](file:///home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime/src/app/admin/users/[id]/page.tsx)
+
+**Description:**
+Detailed view of a specific user, including profile, bookings, wallet, and admin actions.
 
 ---
 
@@ -746,11 +856,14 @@ User Management screen for admins.
 14. Terms of Service (`/terms`)
 15. Cookie Policy (`/cookie-policy`)
 
-### Authentication Pages (4)
+### Authentication Pages (7)
 1. Login (`/auth/login`)
 2. Signup (`/auth/signup`)
 3. Forgot Password (`/auth/forgot-password`)
 4. Verification (`/auth/verify`)
+5. Verify Request (`/auth/verify-request`)
+6. Verify Email (`/auth/verify-email`)
+7. Reset Password (`/auth/reset-password`)
 
 ### Onboarding (3)
 1. Unified Onboarding (`/onboarding`)
@@ -789,20 +902,27 @@ User Management screen for admins.
 12. Referral (`/client/referral`)
 13. Submit Review (`/client/reviews/submit/[bookingId]`)
 
-### Admin Pages (3)
+### Admin Pages (11)
 1. Login (`/admin/login`)
-2. Dashboard (`/admin/dashboard`)
-3. User Management (`/admin/users`)
+2. Dashboard Main (`/admin`)
+3. Dashboard Analytics (`/admin/dashboard`)
+4. User Management (`/admin/users`)
+5. Disputes (`/admin/disputes`)
+6. Bookings (`/admin/bookings`)
+7. Verifications (`/admin/verifications`)
+8. Finance (`/admin/finance`)
+9. Support (`/admin/support`)
+10. Settings (`/admin/settings`)
+11. User Details (`/admin/users/[id]`)
 
 ---
 
-## Total Pages: 52
+## Total Pages: 64
 
-**Last Updated:** 2025-11-27
+**Last Updated:** 2025-11-28
 
 ## Recent Changes
-- Added 13 new pages since last update (2025-11-25 → 2025-11-27)
-- New public pages: Blog, Jobs (public), Contact, FAQ, Privacy, Terms, Cookie Policy
-- New client pages: Analytics, Notifications, Onboarding, Submit Review
-- New provider pages: Analytics, Onboarding (provider-specific)
-- Enhanced messaging system with real-time features and file handling
+- Added 12 new pages since last update (2025-11-27 → 2025-11-28)
+- New auth pages: Verify Request, Verify Email, Reset Password
+- New admin pages: Dashboard (Main), Disputes, Bookings, Verifications, Finance, Support, Settings, User Details
+- Updated Admin Dashboard documentation to reflect the main entry point at `/admin`

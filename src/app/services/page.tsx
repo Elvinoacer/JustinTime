@@ -97,7 +97,7 @@ function ServicesPageContent() {
 
   useEffect(() => {
     const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 768);
+      setIsDesktop(window.innerWidth >= 1024);
     };
 
     handleResize();
@@ -303,9 +303,9 @@ function ServicesPageContent() {
         </motion.div>
 
         {/* Content Grid - Filters and Services */}
-        <div className="flex flex-col md:flex-row md:gap-8">
-          {/* Mobile Filter Button */}
-          <div className="md:hidden mb-6">
+        <div className="flex flex-col lg:flex-row lg:gap-8">
+          {/* Mobile/Tablet Filter Button */}
+          <div className="lg:hidden mb-6">
             <button
               onClick={() => setIsFiltersOpen(!isFiltersOpen)}
               className="w-full flex items-center justify-center gap-3 rounded-xl bg-white border-2 border-gray-300 px-6 py-4 text-base font-semibold text-gray-700 shadow-md hover:shadow-lg hover:border-emerald-500 transition-all"
@@ -317,7 +317,7 @@ function ServicesPageContent() {
 
           {/* Filters Sidebar - Classic Card Style */}
           {(isDesktop || isFiltersOpen) && (
-            <aside className="md:w-80 flex-shrink-0 mb-8 md:mb-0">
+            <aside className="lg:w-80 flex-shrink-0 mb-8 lg:mb-0">
               <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden sticky top-24">
                 <div className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200 px-6 py-4">
                   <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">

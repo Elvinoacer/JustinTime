@@ -82,7 +82,7 @@ const Header = () => {
             </Link>
           </motion.div>
 
-          <nav className="hidden md:flex items-center gap-6 lg:gap-8">
+          <nav className="hidden lg:flex items-center gap-6 lg:gap-8">
             {navItems.map((item, index) => (
               <motion.div key={index} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: index * 0.1 }}>
                 <Link
@@ -220,7 +220,7 @@ const Header = () => {
           )}
 
           <motion.button
-            className="md:hidden p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors duration-300"
+            className="lg:hidden p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors duration-300"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             whileTap={{ scale: 0.95 }}
             initial={{ opacity: 0 }}
@@ -238,7 +238,7 @@ const Header = () => {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

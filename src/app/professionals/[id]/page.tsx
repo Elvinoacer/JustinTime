@@ -204,7 +204,7 @@ export default function ProfessionalDetailPage() {
             {/* Left Column - Main Content */}
             <div className="lg:col-span-2 space-y-8">
               {/* Tabs */}
-              <div className="border-b border-gray-200">
+              <div className="border-b border-gray-200 overflow-x-auto">
                 <div className="flex gap-8">
                   {tabs.map((tab) => (
                     <button
