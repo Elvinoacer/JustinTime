@@ -7,11 +7,19 @@ import {
   useDeleteService,
   useUpdateService,
 } from "@/lib/api/hooks/useProvider";
+import { useSubscriptionStatus } from "@/lib/api/hooks/useSubscription";
 import ServiceFormModal from "@/components/dashboard/services/ServiceFormModal";
 import { toast } from "sonner";
 
+const PLAN_LIMITS = {
+  FREE: 5,
+  PRO: Infinity,
+  BUSINESS: Infinity,
+};
+
 const ServicesPage = () => {
   const { data: servicesData, isLoading } = useProviderServices();
+  const { data: subscriptionData } = useSubscriptionStatus();
   const deleteServiceMutation = useDeleteService();
   const updateServiceMutation = useUpdateService();
 
@@ -51,8 +59,11 @@ const ServicesPage = () => {
   };
 
   const openAddModal = () => {
-    if (servicesList.length >= 5) {
-      toast.error("You have reached the maximum limit of 5 services.");
+    const currentPlan = subscriptionData?.subscription?.plan || "FREE";
+    const limit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 5;
+
+    if (servicesList.length >= limit) {
+      toast.error(`You have reached the maximum limit of ${limit} services for your ${currentPlan} plan.`);
       return;
     }
     setEditingService(null);
@@ -98,7 +109,7 @@ const ServicesPage = () => {
           {
             label: "Total Services",
             count: servicesList.length,
-            limit: "/ 5",
+            limit: PLAN_LIMITS[(subscriptionData?.subscription?.plan || "FREE") as keyof typeof PLAN_LIMITS] === Infinity ? " (Unlimited)" : `/ ${PLAN_LIMITS[(subscriptionData?.subscription?.plan || "FREE") as keyof typeof PLAN_LIMITS] || 5}`,
             icon: "construction",
             color: "blue",
           },
@@ -293,7 +304,9 @@ const ServicesPage = () => {
             No services yet
           </h3>
           <p className="text-gray-500 text-base mb-8 max-w-md mx-auto">
-            Start building your profile by adding your first service. You can add up to 5 services to showcase your expertise.
+          <p className="text-gray-500 text-base mb-8 max-w-md mx-auto">
+            Start building your profile by adding your first service. You can add {PLAN_LIMITS[(subscriptionData?.subscription?.plan || "FREE") as keyof typeof PLAN_LIMITS] === Infinity ? "unlimited" : `up to ${PLAN_LIMITS[(subscriptionData?.subscription?.plan || "FREE") as keyof typeof PLAN_LIMITS] || 5}`} services to showcase your expertise.
+          </p>
           </p>
           <button
             onClick={openAddModal}

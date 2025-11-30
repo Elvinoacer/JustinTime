@@ -1,20 +1,35 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { useSession } from 'next-auth/react';
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { useSession } from "next-auth/react";
+import {
+  LayoutDashboard,
+  Users,
+  Shield,
+  Calendar,
+  Gavel,
+  Headphones,
+  CreditCard,
+  Settings,
+  LogOut,
+  Menu,
+  X,
+  User,
+  ChevronRight,
+} from "lucide-react";
 
 const navItems = [
-  { name: 'Dashboard', href: '/admin', icon: 'dashboard' },
-  { name: 'Users', href: '/admin/users', icon: 'group' },
-  { name: 'Verifications', href: '/admin/verifications', icon: 'verified_user' },
-  { name: 'Bookings', href: '/admin/bookings', icon: 'calendar_month' },
-  { name: 'Disputes', href: '/admin/disputes', icon: 'gavel' },
-  { name: 'Support', href: '/admin/support', icon: 'support_agent' },
-  { name: 'Finance', href: '/admin/finance', icon: 'payments' },
-  { name: 'Settings', href: '/admin/settings', icon: 'settings' },
+  { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { name: "Users", href: "/admin/users", icon: Users },
+  { name: "Verifications", href: "/admin/verifications", icon: Shield },
+  { name: "Bookings", href: "/admin/bookings", icon: Calendar },
+  { name: "Disputes", href: "/admin/disputes", icon: Gavel },
+  { name: "Support", href: "/admin/support", icon: Headphones },
+  { name: "Finance", href: "/admin/finance", icon: CreditCard },
+  { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
 interface AdminSidebarProps {
@@ -29,108 +44,179 @@ const AdminSidebar = ({ isOpen, onClose }: AdminSidebarProps) => {
   return (
     <>
       {/* Mobile Backdrop */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={onClose}
-        />
-      )}
-      
-      <aside 
-        className={`fixed lg:sticky top-0 left-0 z-50 h-screen w-64 bg-slate-900 text-white border-r border-slate-800 p-4 transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        } flex flex-col justify-between`}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+            onClick={onClose}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar */}
+      <motion.aside
+        initial={false}
+        animate={{
+          x: isOpen ? 0 : -320,
+        }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        className="fixed lg:sticky top-0 left-0 z-50 h-screen w-80 bg-slate-900 text-white border-r border-slate-800 flex flex-col lg:translate-x-0"
         role="complementary"
         aria-label="Admin navigation"
       >
-      <div className="flex flex-col gap-8">
-        {/* Logo/Brand */}
-        <div className="flex items-center gap-3 px-2 py-2">
-          <Link href="/admin" className="flex items-center gap-2">
-            <div className="w-10 h-10 flex items-center justify-center bg-white rounded-lg p-1">
-              <img src="/images/JustinTimeLogo.png" alt="JustInTime Logo" className="w-full h-full object-contain" />
-            </div>
-            <span className="font-bold text-xl text-white">Admin</span>
-          </Link>
-        </div>
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 lg:p-6 border-b border-slate-800">
+            <Link
+              href="/admin"
+              className="flex items-center gap-3"
+              onClick={onClose}
+            >
+              <div className="w-10 h-10 flex items-center justify-center bg-white rounded-xl p-1.5">
+                <img
+                  src="/images/JustinTimeLogo.png"
+                  alt="JustInTime Logo"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div>
+                <span className="font-bold text-lg text-white block">
+                  Admin Panel
+                </span>
+                <span className="text-slate-400 text-xs">
+                  Management Console
+                </span>
+              </div>
+            </Link>
 
-        {/* Navigation */}
-        <nav aria-label="Primary navigation">
-          <ul className="flex flex-col gap-1.5" role="list">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(`${item.href}`));
-              
-              return (
-                <li key={item.name}>
-                  <Link 
-                    href={item.href}
-                    onClick={onClose}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
-                      isActive 
-                        ? 'bg-emerald-600 text-white font-medium shadow-sm' 
-                        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                    }`}
-                  >
-                    <span 
-                      className={`material-symbols-outlined text-[22px] transition-colors ${
-                        isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'
+            {/* Close Button - Mobile Only */}
+            <button
+              onClick={onClose}
+              className="lg:hidden p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+              aria-label="Close menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 p-4 lg:p-6" aria-label="Primary navigation">
+            <ul className="flex flex-col gap-1" role="list">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== "/admin" && pathname?.startsWith(item.href));
+
+                return (
+                  <li key={item.name}>
+                    <Link
+                      href={item.href}
+                      onClick={() => window.innerWidth < 1024 && onClose?.()}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group relative ${
+                        isActive
+                          ? "bg-emerald-600 text-white font-medium shadow-lg shadow-emerald-600/20"
+                          : "text-slate-400 hover:bg-slate-800 hover:text-white"
                       }`}
-                      aria-hidden="true"
                     >
-                      {item.icon}
-                    </span>
-                    <span className="text-sm">{item.name}</span>
-                    {isActive && (
-                      <motion.div
-                        layoutId="activeIndicator"
-                        className="ml-auto w-1.5 h-1.5 rounded-full bg-white"
+                      <Icon
+                        className={`w-5 h-5 transition-colors ${
+                          isActive
+                            ? "text-white"
+                            : "text-slate-500 group-hover:text-white"
+                        }`}
+                        aria-hidden="true"
                       />
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-      </div>
+                      <span className="text-sm font-medium flex-1">
+                        {item.name}
+                      </span>
 
-      {/* Admin Profile */}
-      <div 
-        className="flex items-center gap-3 border-t border-slate-800 pt-4 mt-auto"
-        role="region"
-        aria-label="User profile"
-      >
-        <div 
-          className="bg-slate-800 rounded-full w-10 h-10 flex items-center justify-center overflow-hidden flex-shrink-0 border border-slate-700"
-        >
-          {session?.user?.image ? (
-            <img 
-              src={session.user.image} 
-              alt={session.user.name || 'Admin'} 
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <span className="material-symbols-outlined text-slate-400">person</span>
-          )}
+                      {isActive && (
+                        <motion.div
+                          layoutId="activeIndicator"
+                          className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white"
+                        />
+                      )}
+
+                      {/* Hover arrow */}
+                      <ChevronRight
+                        className={`w-4 h-4 transition-all ${
+                          isActive
+                            ? "text-white opacity-100"
+                            : "text-slate-600 opacity-0 group-hover:opacity-100 group-hover:text-white"
+                        }`}
+                      />
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+
+          {/* Admin Profile */}
+          <div
+            className="p-4 lg:p-6 border-t border-slate-800 bg-slate-800/50"
+            role="region"
+            aria-label="User profile"
+          >
+            <div className="flex items-center gap-3">
+              {/* Avatar */}
+              <div className="relative">
+                <div className="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center overflow-hidden border-2 border-slate-600">
+                  {session?.user?.image ? (
+                    <img
+                      src={session.user.image}
+                      alt={session.user.name || "Admin"}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-6 h-6 text-slate-400" />
+                  )}
+                </div>
+                {/* Online indicator */}
+                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-900" />
+              </div>
+
+              {/* User Info */}
+              <div className="flex-1 min-w-0">
+                <h2 className="text-white text-sm font-semibold truncate">
+                  {session?.user?.name || "Admin User"}
+                </h2>
+                <p className="text-slate-400 text-xs truncate">
+                  {session?.user?.email || "admin@example.com"}
+                </p>
+              </div>
+
+              {/* Logout Button */}
+              <Link
+                href="/api/auth/signout"
+                className="flex items-center justify-center w-10 h-10 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-xl transition-colors"
+                title="Sign out"
+              >
+                <LogOut className="w-5 h-5" />
+              </Link>
+            </div>
+
+            {/* Quick Stats - Desktop Only */}
+            <div className="hidden lg:block mt-4 pt-4 border-t border-slate-700">
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="text-center p-2 bg-slate-700/50 rounded-lg">
+                  <div className="text-emerald-400 font-semibold">24</div>
+                  <div className="text-slate-400">Pending</div>
+                </div>
+                <div className="text-center p-2 bg-slate-700/50 rounded-lg">
+                  <div className="text-blue-400 font-semibold">156</div>
+                  <div className="text-slate-400">Today</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col min-w-0">
-          <h2 className="text-white text-sm font-semibold truncate">
-            {session?.user?.name || 'Admin User'}
-          </h2>
-          <p className="text-slate-500 text-xs truncate">
-            {session?.user?.email || 'admin@example.com'}
-          </p>
-        </div>
-        <Link 
-          href="/api/auth/signout" 
-          className="ml-auto text-slate-500 hover:text-red-400 transition-colors p-1.5 hover:bg-slate-800 rounded-lg"
-          title="Sign out"
-        >
-          <span className="material-symbols-outlined text-xl">logout</span>
-        </Link>
-      </div>
-    </aside>
+      </motion.aside>
     </>
   );
 };

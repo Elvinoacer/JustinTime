@@ -249,6 +249,86 @@ export async function updateUserRole(userId: string, newRole: 'CLIENT' | 'PROVID
   }
 }
 
+export async function updateUserPlan(userId: string, newPlan: 'FREE' | 'PRO' | 'BUSINESS') {
+  try {
+    const admin = await checkAdmin();
+    
+    // Get user details
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true }
+    });
+
+    if (!user) {
+      return { success: false, error: 'User not found' };
+    }
+
+    // Get current subscription to log change
+    const currentSubscription = await prisma.subscription.findUnique({
+      where: { userId }
+    });
+
+    const oldPlan = currentSubscription?.plan || 'NONE';
+
+    // Upsert subscription
+    await prisma.subscription.upsert({
+      where: { userId },
+      update: { 
+        plan: newPlan,
+        isActive: true,
+        startDate: new Date(), // Reset start date on plan change? Maybe keep original? Let's reset for now as it's a "new" plan
+        endDate: null // Clear end date if any
+      },
+      create: {
+        userId,
+        plan: newPlan,
+        isActive: true,
+        startDate: new Date()
+      }
+    });
+
+    await prisma.adminLog.create({
+      data: {
+        adminId: admin.id,
+        action: 'UPDATED_USER_PLAN',
+        targetId: userId,
+        details: { newPlan, oldPlan }
+      }
+    });
+
+    // Send comprehensive notification
+    // Note: We might want a specific template for plan changes, but for now we can use a generic one or adapt role changed
+    // Let's use a generic system notification for now as we don't have a specific template in the import
+    
+    console.log('[Admin Action] Sending plan change notification to user:', userId, 'from', oldPlan, 'to', newPlan);
+    const notificationResult = await sendComprehensiveNotification({
+      userId,
+      title: 'Subscription Plan Updated',
+      message: `Your subscription plan has been updated to ${newPlan}.`,
+      type: 'PLAN_CHANGED',
+      // We'll skip email template for now or use a simple one if available, 
+      // but since we don't have a specific one imported, we'll rely on the notification system's default behavior if emailHtml is missing
+      // or we could construct a simple one.
+      emailSubject: 'Your Subscription Plan Has Changed',
+      emailHtml: `
+        <div style="font-family: sans-serif; padding: 20px;">
+          <h1>Subscription Plan Updated</h1>
+          <p>Hello ${user.name || 'User'},</p>
+          <p>Your subscription plan has been updated from <strong>${oldPlan}</strong> to <strong>${newPlan}</strong>.</p>
+          <p>If you have any questions, please contact support.</p>
+        </div>
+      `
+    });
+    console.log('[Admin Action] Plan change notification result:', notificationResult);
+
+    revalidatePath(`/admin/users/${userId}`);
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating user plan:', error);
+    return { success: false, error: 'Failed to update user plan' };
+  }
+}
+
 export async function scheduleUserDeletion(userId: string, reason: string) {
   try {
     const admin = await checkAdmin();
