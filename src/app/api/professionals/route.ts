@@ -51,6 +51,13 @@ export async function GET(request: NextRequest) {
       take: 100, // Increased limit for better filtering
     });
 
+    // Fetch all categories for skill mapping
+    const categories = await prisma.category.findMany({
+      select: { id: true, name: true }
+    });
+    
+    const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+
     // Calculate ratings and format response
     const formattedProviders = await Promise.all(
       providers.map(async (provider) => {
@@ -65,7 +72,7 @@ export async function GET(request: NextRequest) {
           image: provider.image,
           title: provider.profile?.bio?.split(".")[0] || "Service Provider",
           bio: provider.profile?.bio,
-          skills: provider.profile?.skills || [],
+          skills: (provider.profile?.skills || []).map(skillId => categoryMap.get(skillId) || skillId),
           hourlyRate: provider.profile?.hourlyRate ? Number(provider.profile.hourlyRate) : 0,
           location: provider.profile?.location,
           rating: avgRating._avg.rating || 0,
