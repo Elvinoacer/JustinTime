@@ -416,7 +416,7 @@ const ServiceDetailsPage = ({
                             Member Since
                           </p>
                           <p className="font-bold text-gray-900 text-sm">
-                            {new Date(provider.createdAt).getFullYear()}
+                            {new Date(provider.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                           </p>
                         </div>
                       </div>
