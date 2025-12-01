@@ -4,9 +4,12 @@ import { ChatWindow } from "@/components/client/messages/ChatWindow";
 import { ConversationsList } from "@/components/client/messages/ConversationsList";
 import { NewConversationModal } from "@/components/client/messages/NewConversationModal";
 import apiClient from "@/lib/api/client";
-import { socket } from "@/lib/socket";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import type { Socket } from "socket.io-client";
+
+// Force dynamic rendering to prevent SSR issues with socket.io
+export const dynamic = 'force-dynamic';
 
 interface Conversation {
   partner: {
@@ -34,7 +37,7 @@ interface Message {
   isDelivered?: boolean;
 }
 
-export default function ClientMessagesPage() {
+function ClientMessagesContent() {
   const { data: session } = useSession();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(
@@ -45,6 +48,18 @@ export default function ClientMessagesPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const socketRef = useRef<Socket | null>(null);
+
+  // Detect mobile on mount
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Fetch conversations on mount
   useEffect(() => {
@@ -67,75 +82,81 @@ export default function ClientMessagesPage() {
     }
   }, [session]);
 
-  // Socket connection
+  // Socket connection - dynamically import socket only in browser
   useEffect(() => {
     if (session?.user) {
-      socket.connect();
-      socket.emit("join", session.user.id);
+      // Dynamically import socket to avoid SSR issues
+      import('@/lib/socket').then(({ socket }) => {
+        socketRef.current = socket;
+        socket.connect();
+        socket.emit("join", session.user.id);
 
-      socket.on("receive_message", (message: any) => {
-        // Update messages if looking at this conversation
-        if (
-          selectedPartnerId &&
-          (message.senderId === selectedPartnerId ||
-            message.receiverId === selectedPartnerId)
-        ) {
-          setMessages((prev) => [...prev, message]);
-        }
-
-        // Update conversations list
-        setConversations((prev) => {
-          const newConvs = [...prev];
-          const convIndex = newConvs.findIndex(
-            (c) =>
-              c.partner.id === message.senderId ||
-              c.partner.id === message.receiverId
-          );
-
-          if (convIndex >= 0) {
-            // Update existing conversation
-            newConvs[convIndex] = {
-              ...newConvs[convIndex],
-              lastMessage: {
-                content: message.content,
-                createdAt: message.createdAt,
-                isRead: false,
-                isOwn: message.senderId === session.user.id,
-              },
-              unreadCount:
-                message.senderId !== session.user.id &&
-                selectedPartnerId !== message.senderId
-                  ? newConvs[convIndex].unreadCount + 1
-                  : newConvs[convIndex].unreadCount,
-            };
-            // Move to top
-            const [updatedConv] = newConvs.splice(convIndex, 1);
-            newConvs.unshift(updatedConv);
-          } else {
-            // New conversation (would need to fetch partner details, for now we skip or could fetch)
-            // Ideally we'd fetch the user info here if it's a brand new conversation
+        socket.on("receive_message", (message: any) => {
+          // Update messages if looking at this conversation
+          if (
+            selectedPartnerId &&
+            (message.senderId === selectedPartnerId ||
+              message.receiverId === selectedPartnerId)
+          ) {
+            setMessages((prev) => [...prev, message]);
           }
-          return newConvs;
+
+          // Update conversations list
+          setConversations((prev) => {
+            const newConvs = [...prev];
+            const convIndex = newConvs.findIndex(
+              (c) =>
+                c.partner.id === message.senderId ||
+                c.partner.id === message.receiverId
+            );
+
+            if (convIndex >= 0) {
+              // Update existing conversation
+              newConvs[convIndex] = {
+                ...newConvs[convIndex],
+                lastMessage: {
+                  content: message.content,
+                  createdAt: message.createdAt,
+                  isRead: false,
+                  isOwn: message.senderId === session.user.id,
+                },
+                unreadCount:
+                  message.senderId !== session.user.id &&
+                  selectedPartnerId !== message.senderId
+                    ? newConvs[convIndex].unreadCount + 1
+                    : newConvs[convIndex].unreadCount,
+              };
+              // Move to top
+              const [updatedConv] = newConvs.splice(convIndex, 1);
+              newConvs.unshift(updatedConv);
+            } else {
+              // New conversation (would need to fetch partner details, for now we skip or could fetch)
+              // Ideally we'd fetch the user info here if it's a brand new conversation
+            }
+            return newConvs;
+          });
+        });
+
+        socket.on("user_typing", ({ senderId }) => {
+          if (senderId === selectedPartnerId) {
+            setIsTyping(true);
+          }
+        });
+
+        socket.on("user_stop_typing", ({ senderId }) => {
+          if (senderId === selectedPartnerId) {
+            setIsTyping(false);
+          }
         });
       });
 
-      socket.on("user_typing", ({ senderId }) => {
-        if (senderId === selectedPartnerId) {
-          setIsTyping(true);
-        }
-      });
-
-      socket.on("user_stop_typing", ({ senderId }) => {
-        if (senderId === selectedPartnerId) {
-          setIsTyping(false);
-        }
-      });
-
       return () => {
-        socket.off("receive_message");
-        socket.off("user_typing");
-        socket.off("user_stop_typing");
-        socket.disconnect();
+        if (socketRef.current) {
+          socketRef.current.off("receive_message");
+          socketRef.current.off("user_typing");
+          socketRef.current.off("user_stop_typing");
+          socketRef.current.disconnect();
+        }
       };
     }
   }, [session, selectedPartnerId]);
@@ -191,10 +212,12 @@ export default function ClientMessagesPage() {
     setMessages((prev) => [...prev, newMessage]);
 
     // Emit socket event immediately for real-time feel
-    socket.emit("send_message", {
-      ...newMessage,
-      receiverId: selectedPartnerId,
-    });
+    if (socketRef.current) {
+      socketRef.current.emit("send_message", {
+        ...newMessage,
+        receiverId: selectedPartnerId,
+      });
+    }
 
     try {
       // Persist to DB
@@ -296,6 +319,7 @@ export default function ClientMessagesPage() {
               onNewMessage={() => setIsNewConversationOpen(true)}
               onlineUsers={new Set()}
               isLoading={isLoading}
+              isMobile={isMobile}
             />
           </div>
 
@@ -316,9 +340,7 @@ export default function ClientMessagesPage() {
               onClearConversation={handleClearConversation}
               isTyping={isTyping}
               onBack={() => setSelectedPartnerId(null)}
-              isMobile={
-                typeof window !== "undefined" && window.innerWidth < 640
-              }
+              isMobile={isMobile}
             />
           </div>
         </div>
@@ -329,8 +351,14 @@ export default function ClientMessagesPage() {
         isOpen={isNewConversationOpen}
         onClose={() => setIsNewConversationOpen(false)}
         onSelectUser={handleSelectUser}
-        isMobile={typeof window !== "undefined" && window.innerWidth < 640}
+        isMobile={isMobile}
       />
     </div>
   );
+}
+
+// Wrapper component that disables SSR for the messages page
+// This prevents socket.io from trying to access window during server-side rendering
+export default function ClientMessagesPage() {
+  return <ClientMessagesContent />;
 }

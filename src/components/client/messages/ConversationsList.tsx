@@ -29,6 +29,7 @@ interface ConversationsListProps {
   onNewMessage: () => void;
   onlineUsers: Set<string>;
   isLoading?: boolean;
+  isMobile?: boolean;
 }
 
 export const ConversationsList: React.FC<ConversationsListProps> = ({
@@ -40,6 +41,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
   onNewMessage,
   onlineUsers,
   isLoading = false,
+  isMobile = false,
 }) => {
   const filteredConversations = conversations.filter((conv) =>
     conv.partner.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -69,17 +71,17 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
       {/* Header */}
       <div
         className={`border-b border-gray-200 ${
-          window.innerWidth < 640 ? "p-3" : "p-4"
+          isMobile ? "p-3" : "p-4"
         }`}
       >
         <div
           className={`flex justify-between items-center ${
-            window.innerWidth < 640 ? "mb-3" : "mb-4"
+            isMobile ? "mb-3" : "mb-4"
           }`}
         >
           <h2
             className={`font-bold text-gray-900 ${
-              window.innerWidth < 640 ? "text-base" : "text-lg"
+              isMobile ? "text-base" : "text-lg"
             }`}
           >
             Messages
@@ -87,7 +89,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
           <button
             onClick={onNewMessage}
             className={`text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100 rounded-full transition-colors touch-manipulation ${
-              window.innerWidth < 640
+              isMobile
                 ? "p-1.5"
                 : "p-2 bg-emerald-50 hover:bg-emerald-100"
             }`}
@@ -96,7 +98,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
           >
             <span
               className={`material-symbols-outlined ${
-                window.innerWidth < 640 ? "text-lg" : "text-xl"
+                isMobile ? "text-lg" : "text-xl"
               }`}
             >
               edit_square
@@ -115,7 +117,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className={`w-full pl-10 pr-4 bg-gray-50 border border-gray-200 focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all ${
-              window.innerWidth < 640
+              isMobile
                 ? "py-1.5 text-sm rounded-lg"
                 : "py-2 text-sm rounded-xl"
             }`}
@@ -149,7 +151,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
         ) : filteredConversations.length === 0 ? (
           <div
             className={`flex flex-col items-center justify-center text-gray-500 ${
-              window.innerWidth < 640 ? "p-6" : "p-8"
+              isMobile ? "p-6" : "p-8"
             }`}
           >
             {searchQuery ? (
@@ -187,7 +189,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                   selectedPartnerId === conv.partner.id
                     ? "bg-emerald-50 hover:bg-emerald-50"
                     : "hover:bg-gray-50"
-                } ${window.innerWidth < 640 ? "p-3" : "p-4"}`}
+                } ${isMobile ? "p-3" : "p-4"}`}
               >
                 <div className="flex space-x-3">
                   <div className="flex-shrink-0 relative">
@@ -196,14 +198,14 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                         src={conv.partner.image}
                         alt={conv.partner.name}
                         className={`rounded-full object-cover border border-gray-200 ${
-                          window.innerWidth < 640 ? "h-10 w-10" : "h-12 w-12"
+                          isMobile ? "h-10 w-10" : "h-12 w-12"
                         }`}
                         loading="lazy"
                       />
                     ) : (
                       <div
                         className={`rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold border border-emerald-200 ${
-                          window.innerWidth < 640
+                          isMobile
                             ? "h-10 w-10 text-base"
                             : "h-12 w-12 text-lg"
                         }`}
@@ -214,7 +216,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                     {onlineUsers.has(conv.partner.id) && (
                       <span
                         className={`absolute block rounded-full ring-2 ring-white bg-green-400 ${
-                          window.innerWidth < 640
+                          isMobile
                             ? "bottom-0 right-0 h-2 w-2"
                             : "bottom-0 right-0 h-3 w-3"
                         }`}
@@ -229,7 +231,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                             ? "text-emerald-900"
                             : "text-gray-900"
                         } ${
-                          window.innerWidth < 640
+                          isMobile
                             ? "text-sm font-semibold"
                             : "text-sm font-bold"
                         }`}
@@ -238,7 +240,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                       </p>
                       <span
                         className={`text-gray-400 whitespace-nowrap ${
-                          window.innerWidth < 640 ? "text-[10px]" : "text-xs"
+                          isMobile ? "text-[10px]" : "text-xs"
                         }`}
                       >
                         {formatTime(conv.lastMessage.createdAt)}
@@ -246,7 +248,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                     </div>
 
                     {/* Role and Phone Display - Hidden on small mobile */}
-                    {window.innerWidth >= 640 &&
+                    {!isMobile &&
                       (conv.partner.role || conv.partner.phone) && (
                         <div className="flex items-center gap-2 mb-1">
                           {conv.partner.role && (
@@ -277,12 +279,12 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                           !conv.lastMessage.isRead && !conv.lastMessage.isOwn
                             ? "font-bold text-gray-900"
                             : "text-gray-500"
-                        } ${window.innerWidth < 640 ? "text-xs" : "text-sm"}`}
+                        } ${isMobile ? "text-xs" : "text-sm"}`}
                       >
                         {conv.lastMessage.isOwn ? (
                           <span
                             className={`${
-                              window.innerWidth < 640
+                              isMobile
                                 ? "text-[10px]"
                                 : "text-xs"
                             } text-gray-400 mr-1`}
@@ -292,7 +294,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                         ) : (
                           <span
                             className={`${
-                              window.innerWidth < 640
+                              isMobile
                                 ? "text-[10px]"
                                 : "text-xs"
                             } text-gray-400 mr-1`}
@@ -307,7 +309,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                       {conv.unreadCount > 0 && (
                         <span
                           className={`ml-2 inline-flex items-center justify-center text-white bg-emerald-500 rounded-full ${
-                            window.innerWidth < 640
+                            isMobile
                               ? "px-1.5 py-0.5 text-[10px] font-bold min-w-[16px] h-[16px]"
                               : "px-2 py-0.5 text-xs font-bold min-w-[18px] h-[18px]"
                           }`}
@@ -325,7 +327,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
       </div>
 
       {/* Mobile-only empty state if no conversations */}
-      {!isLoading && conversations.length === 0 && window.innerWidth < 640 && (
+      {!isLoading && conversations.length === 0 && isMobile && (
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <span className="material-symbols-outlined text-5xl text-gray-200 mb-4">
             chat
