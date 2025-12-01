@@ -148,53 +148,59 @@ const AboutPage = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-1 gap-4 sm:gap-6 lg:gap-8 max-w-md mx-auto">
               {[
                 {
-                  name: "Elvin",
+                  name: "Elvin Juma",
                   role: "Founder & CEO",
-                  image:
-                    "https://lh3.googleusercontent.com/aida-public/AB6AXuAdl8N_EVL-Gd0YIY4nl4FKR_ss93wWyW11IjR5QyVYoYmfsOSt3FTmxqvfRgqDyclWYUmHlEvK9JOPtlzRv1QP3ZVtCpOMSg94B-XK0J6TaCZinPljfyg1-HPphq-z5RYR8-NJaQaX1xhZg9j4Q1g0ciXvQu5QsmlCVIPG9jjtP4q73Kqhb34OjUOvV8x1W--8nFz9rdS48U-XvreG09Atgj1gY6f_nciYxYqjslEVh2aZCu9LhI7uoFg9e8TqkjHHB4u9LqD3MEg",
-                },
-                {
-                  name: "Sarah Johnson",
-                  role: "Head of Operations",
-                  image:
-                    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
-                },
-                {
-                  name: "Michael Chen",
-                  role: "Lead Developer",
-                  image:
-                    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
+                  image: "/images/Elvin-Profile.png",
+                  bio: "Full-stack developer and entrepreneur passionate about building innovative solutions that connect people and transform businesses.",
+                  portfolio: "https://elvin-juma-portfolio.vercel.app",
                 },
               ].map((member, index) => (
-                <motion.div
+                <Link
                   key={index}
-                  className="bg-white rounded-lg sm:rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 hover:translate-y-[-4px]"
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  viewport={{ once: true, margin: "-50px" }}
+                  href={member.portfolio}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block group"
                 >
-                  <div className="relative h-40 xs:h-48 sm:h-56 md:h-64 lg:h-72">
-                    <Image
-                      src={member.image}
-                      alt={member.name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                    />
-                  </div>
-                  <div className="p-3 sm:p-4 md:p-5 text-center">
-                    <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-1">
-                      {member.name}
-                    </h3>
-                    <p className="text-emerald-600 font-medium text-xs sm:text-sm md:text-base">
-                      {member.role}
-                    </p>
-                  </div>
-                </motion.div>
+                  <motion.div
+                    className="bg-white rounded-lg sm:rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 hover:translate-y-[-8px] border border-gray-100 hover:border-emerald-500"
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    viewport={{ once: true, margin: "-50px" }}
+                  >
+                    <div className="relative h-64 sm:h-72 md:h-80 lg:h-96">
+                      <Image
+                        src={member.image}
+                        alt={member.name}
+                        fill
+                        className="object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    </div>
+                    <div className="p-5 sm:p-6 lg:p-7 text-center">
+                      <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+                        {member.name}
+                      </h3>
+                      <p className="text-emerald-600 font-bold text-sm sm:text-base md:text-lg mb-4">
+                        {member.role}
+                      </p>
+                      <p className="text-gray-600 text-sm sm:text-base leading-relaxed mb-4">
+                        {member.bio}
+                      </p>
+                      <div className="flex items-center justify-center gap-2 text-emerald-600 font-semibold text-sm group-hover:text-emerald-700">
+                        <span>View Portfolio</span>
+                        <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">
+                          arrow_forward
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                </Link>
               ))}
             </div>
           </div>
