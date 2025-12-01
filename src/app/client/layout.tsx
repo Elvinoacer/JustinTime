@@ -11,29 +11,48 @@ export default function ClientLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <ClientSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        {/* Mobile Header */}
-        <header className="lg:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-            >
-              <span className="material-symbols-outlined">menu</span>
-            </button>
-            <span className="font-bold text-lg text-gray-900">JustInTime</span>
-          </div>
-        </header>
-
-        <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
+    <div className="fixed inset-0 flex bg-gray-50 overflow-hidden flex-col lg:flex-row">
+      {/* Mobile Header */}
+      <div className="lg:hidden flex-shrink-0 flex items-center justify-between p-4 bg-white border-b border-gray-200 z-30">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+          >
+            <span className="material-symbols-outlined">menu</span>
+          </button>
+          <span className="font-bold text-lg text-gray-900">JustInTime</span>
+        </div>
       </div>
+
+      {/* Sidebar Wrapper */}
+      <div 
+        className={`
+          fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          w-72
+        `}
+      >
+        <ClientSidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+        />
+      </div>
+
+      {/* Backdrop Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <main className="flex-1 p-4 lg:p-8 overflow-y-auto w-full">
+        <div className="max-w-7xl mx-auto">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }
