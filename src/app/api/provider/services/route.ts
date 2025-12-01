@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import { z } from "zod";
-import { deleteFromCloudinary, extractPublicIdFromUrl } from "@/lib/cloudinary";
+import { deleteFile } from "@/lib/s3";
 
 // Schema for service creation/update
 const serviceSchema = z.object({
@@ -180,14 +180,14 @@ export async function PUT(request: NextRequest) {
       const imagesToDelete = oldImages.filter(img => !newImages.includes(img));
       
       for (const imgUrl of imagesToDelete) {
-        const publicId = extractPublicIdFromUrl(imgUrl);
-        if (publicId) await deleteFromCloudinary(publicId);
+      for (const imgUrl of imagesToDelete) {
+        await deleteFile(imgUrl);
+      }
       }
     }
 
     if (body.video !== undefined && existingService.video && existingService.video !== body.video) {
-      const publicId = extractPublicIdFromUrl(existingService.video);
-      if (publicId) await deleteFromCloudinary(publicId);
+      await deleteFile(existingService.video);
     }
 
     const updatedService = await prisma.service.update({
@@ -240,13 +240,11 @@ export async function DELETE(request: NextRequest) {
 
     // Delete media from Cloudinary
     for (const imgUrl of existingService.images) {
-      const publicId = extractPublicIdFromUrl(imgUrl);
-      if (publicId) await deleteFromCloudinary(publicId);
+      await deleteFile(imgUrl);
     }
 
     if (existingService.video) {
-      const publicId = extractPublicIdFromUrl(existingService.video);
-      if (publicId) await deleteFromCloudinary(publicId);
+      await deleteFile(existingService.video);
     }
 
     await prisma.service.delete({

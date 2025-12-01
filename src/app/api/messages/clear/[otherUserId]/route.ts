@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
-import cloudinary from "@/lib/cloudinary";
+import { deleteFile } from "@/lib/s3";
 
 export async function DELETE(
   request: NextRequest,
@@ -17,7 +17,7 @@ export async function DELETE(
     const { otherUserId } = await params;
     const userId = session.user.id;
 
-    // Fetch all messages in this conversation to delete files from Cloudinary
+    // Fetch all messages in this conversation to delete files from storage
     const messages = await prisma.message.findMany({
       where: {
         OR: [
@@ -27,18 +27,13 @@ export async function DELETE(
       },
     });
 
-    // Delete files from Cloudinary if they exist
+    // Delete files from storage if they exist
     for (const message of messages) {
       if (message.fileUrl) {
         try {
-          const regex = /\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/;
-          const match = message.fileUrl.match(regex);
-          
-          if (match && match[1]) {
-            await cloudinary.uploader.destroy(match[1]);
-          }
+          await deleteFile(message.fileUrl);
         } catch (err) {
-          console.error("Failed to delete file from Cloudinary:", err);
+          console.error("Failed to delete file from storage:", err);
           // Continue deletion even if file delete fails
         }
       }

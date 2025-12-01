@@ -1,7 +1,6 @@
-import cloudinary from '@/lib/cloudinary';
-import { put, del } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { uploadFile, deleteFile } from '@/lib/s3';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,36 +17,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    const isImageOrVideo = file.type.startsWith('image/') || file.type.startsWith('video/');
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    
+    // Generate a unique filename
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const fileName = `messages/${session.user.id}/${timestamp}-${safeName}`;
 
-    if (isImageOrVideo) {
-      // Use Cloudinary for images and videos
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      const base64 = buffer.toString('base64');
-      const dataURI = `data:${file.type};base64,${base64}`;
+    const url = await uploadFile(buffer, fileName, file.type);
 
-      const result = await cloudinary.uploader.upload(dataURI, {
-        folder: 'justintime/messages',
-        resource_type: 'auto',
-      });
+    return NextResponse.json({
+      url,
+      fileName: file.name,
+    });
 
-      return NextResponse.json({
-        url: result.secure_url,
-        publicId: result.public_id,
-      });
-    } else {
-      // Use Vercel Blob for other files (PDFs, docs, etc.)
-      const blob = await put(`messages/${session.user.id}/${Date.now()}-${file.name}`, file, {
-        access: 'public',
-        addRandomSuffix: true,
-      });
-
-      return NextResponse.json({
-        url: blob.url,
-        fileName: file.name,
-      });
-    }
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json(
@@ -66,17 +50,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const publicId = searchParams.get('publicId');
     const url = searchParams.get('url');
 
-    if (publicId) {
-      // Delete from Cloudinary
-      await cloudinary.uploader.destroy(publicId);
-    } else if (url) {
-      // Delete from Vercel Blob
-      await del(url);
+    if (url) {
+      await deleteFile(url);
     } else {
-      return NextResponse.json({ error: 'No publicId or url provided' }, { status: 400 });
+      return NextResponse.json({ error: 'No url provided' }, { status: 400 });
     }
 
     return NextResponse.json({ success: true });

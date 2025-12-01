@@ -1,6 +1,6 @@
-import { put, del } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { uploadFile, deleteFile } from '@/lib/s3';
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,20 +28,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File size must be less than 10MB' }, { status: 400 });
     }
 
-    // Upload to Vercel Blob
-    const blob = await put(`certifications/${session.user.id}/${Date.now()}-${file.name}`, file, {
-      access: 'public',
-      addRandomSuffix: true,
-    });
+    // Upload to DO Spaces
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    
+    // Generate a unique filename
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const fileName = `certifications/${session.user.id}/${timestamp}-${safeName}`;
+
+    const url = await uploadFile(buffer, fileName, file.type);
 
     return NextResponse.json({
-      url: blob.url,
+      url,
       fileName: file.name,
       fileSize: file.size,
       uploadedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Blob upload error:', error);
+    console.error('Upload error:', error);
     return NextResponse.json(
       { error: 'Failed to upload file' },
       { status: 500 }
@@ -64,12 +69,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'No URL provided' }, { status: 400 });
     }
 
-    // Delete from Vercel Blob
-    await del(url);
+    // Delete from DO Spaces
+    await deleteFile(url);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Blob delete error:', error);
+    console.error('Delete error:', error);
     return NextResponse.json(
       { error: 'Failed to delete file' },
       { status: 500 }
