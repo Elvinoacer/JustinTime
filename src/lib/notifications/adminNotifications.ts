@@ -32,10 +32,14 @@ export async function sendComprehensiveNotification(payload: NotificationPayload
   console.log('[Notification] Starting comprehensive notification for user:', userId, 'Type:', type);
 
   try {
-    // Get user details
+    // Get user details WITH notification preferences
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, name: true }
+      select: { 
+        email: true, 
+        name: true,
+        notificationPreferences: true
+      }
     });
 
     if (!user) {
@@ -45,7 +49,20 @@ export async function sendComprehensiveNotification(payload: NotificationPayload
 
     console.log('[Notification] User found:', user.email);
 
-    // 1. Create notification in database
+    // Parse notification preferences (stored as JSON)
+    const prefs = (user.notificationPreferences as any) || {};
+    console.log('[Notification] User preferences:', prefs);
+
+    // Map notification type to email preference key
+    const getEmailPreferenceKey = (notifType: string): string | null => {
+      if (notifType === 'BOOKING_CREATED') return 'emailBookings';
+      if (notifType === 'MESSAGE') return 'emailMessages';
+      if (notifType === 'REVIEW') return 'emailReviews';
+      if (notifType === 'JOB_ALERT') return 'emailJobAlerts';
+      return null; // For admin actions, always send
+    };
+
+    // 1. Create notification in database (always create DB record)
     console.log('[Notification] Creating database record...');
     const dbNotification = await prisma.notification.create({
       data: {
@@ -58,43 +75,59 @@ export async function sendComprehensiveNotification(payload: NotificationPayload
     });
     console.log('[Notification] Database record created:', dbNotification.id);
 
-    // 2. Send push notification (via FCM) 
-    console.log('[Notification] Attempting to send push notification...');
-    try {
-      await sendNotificationToUser(userId, {
-        notification: {
-          title,
-          body: message
-        },
-        data: {
-          type,
-          notificationId: dbNotification.id,
-          url: '/dashboard/notifications'
-        }
-      });
-      console.log('[Notification] Push notification sent successfully');
-    } catch (pushError) {
-      console.error('[Notification] Failed to send push notification:', pushError);
-      // Don't throw - email and DB notification are still sent
+    // 2. Send push notification (via FCM) - Check preference
+    const shouldSendPush = prefs.pushNotifications !== false;
+    console.log('[Notification] Push notification enabled:', shouldSendPush);
+    
+    if (shouldSendPush) {
+      console.log('[Notification] Attempting to send push notification...');
+      try {
+        await sendNotificationToUser(userId, {
+          notification: {
+            title,
+            body: message
+          },
+          data: {
+            type,
+            notificationId: dbNotification.id,
+            url: '/dashboard/notifications'
+          }
+        });
+        console.log('[Notification] Push notification sent successfully');
+      } catch (pushError) {
+        console.error('[Notification] Failed to send push notification:', pushError);
+        // Don't throw - email and DB notification are still sent
+      }
+    } else {
+      console.log('[Notification] Push notifications disabled by user, skipping');
     }
 
-    // 3. Send email notification
+    // 3. Send email notification - Check preference
     if (emailSubject && emailHtml) {
-      console.log('[Notification] Attempting to send email to:', user.email);
-      try {
-        const emailResult = await resend.emails.send({
-          from: `JustInTime <${getFromEmail()}>`,
-          to: user.email,
-          subject: emailSubject,
-          html: emailHtml
-        });
-        console.log('[Notification] Email sent successfully to', user.email, 'ID:', emailResult.data?.id);
-      } catch (emailError: any) {
-        console.error('[Notification] Failed to send email notification:');
-        console.error('[Notification] Error message:', emailError.message);
-        console.error('[Notification] Error code:', emailError.code);
-        console.error('[Notification] Full error:', JSON.stringify(emailError, null, 2));
-        // Don't throw - DB and push notification are still sent
+      const emailPrefKey = getEmailPreferenceKey(type);
+      const shouldSendEmail = !emailPrefKey || prefs[emailPrefKey] !== false;
+      
+      console.log('[Notification] Email preference key:', emailPrefKey, 'Enabled:', shouldSendEmail);
+
+      if (shouldSendEmail) {
+        console.log('[Notification] Attempting to send email to:', user.email);
+        try {
+          const emailResult = await resend.emails.send({
+            from: `JustInTime <${getFromEmail()}>`,
+            to: user.email,
+            subject: emailSubject,
+            html: emailHtml
+          });
+          console.log('[Notification] Email sent successfully to', user.email, 'ID:', emailResult.data?.id);
+        } catch (emailError: any) {
+          console.error('[Notification] Failed to send email notification:');
+          console.error('[Notification] Error message:', emailError.message);
+          console.error('[Notification] Error code:', emailError.code);
+          console.error('[Notification] Full error:', JSON.stringify(emailError, null, 2));
+          // Don't throw - DB and push notification are still sent
+        }
+      } else {
+        console.log('[Notification] Email notifications disabled by user for type:', type);
       }
     } else {
       console.log('[Notification] No email subject/html provided, skipping email');
@@ -417,6 +450,109 @@ export const emailTemplates = {
               <a href="${resetLink}" class="button">Reset Password</a>
               
               <p class="warning">This link will expire in 24 hours. If you didn't request this reset, please contact support immediately.</p>
+              
+              <div class="footer">
+                <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `
+  }),
+
+  newBooking: (
+    providerName: string,
+    clientName: string,
+    serviceTitle: string,
+    bookingDate: Date,
+    startTime: string,
+    endTime: string,
+    location: string,
+    totalAmount: number,
+    notes: string,
+    bookingId: string
+  ) => ({
+    subject: `New Booking: ${serviceTitle} - JustInTime`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; }
+            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+            .alert { background: #d1fae5; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0; border-radius: 5px; }
+            .booking-details { background: white; border: 2px solid #10b981; padding: 20px; border-radius: 10px; margin: 20px 0; }
+            .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+            .detail-label { font-weight: bold; color: #6b7280; }
+            .detail-value { color: #111827; }
+            .button { background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 5px; }
+            .button-secondary { background: #3b82f6; }
+            .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 12px; }
+            .notes-box { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 5px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0;">🎉 New Booking Received!</h1>
+            </div>
+            <div class="content">
+              <p>Hello ${providerName},</p>
+              
+              <div class="alert">
+                <strong>✓ You have received a new booking request</strong>
+              </div>
+              
+              <p>Great news! <strong>${clientName}</strong> has booked your service. Here are the details:</p>
+              
+              <div class="booking-details">
+                <div class="detail-row">
+                  <span class="detail-label">Service:</span>
+                  <span class="detail-value">${serviceTitle}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Client:</span>
+                  <span class="detail-value">${clientName}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Date:</span>
+                  <span class="detail-value">${bookingDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Time:</span>
+                  <span class="detail-value">${startTime} - ${endTime}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Location:</span>
+                  <span class="detail-value">${location}</span>
+                </div>
+                <div class="detail-row" style="border-bottom: none;">
+                  <span class="detail-label">Total Amount:</span>
+                  <span class="detail-value" style="color: #10b981; font-weight: bold; font-size: 18px;">Kes ${totalAmount.toLocaleString()}</span>
+                </div>
+              </div>
+              
+              ${notes ? `
+              <div class="notes-box">
+                <strong>📝 Client Notes:</strong><br/>
+                <p style="margin: 10px 0 0 0;">${notes}</p>
+              </div>
+              ` : ''}
+              
+              <p><strong>Next Steps:</strong></p>
+              <ul>
+                <li>Review the booking details</li>
+                <li>Accept or modify the booking if needed</li>
+                <li>Contact the client to confirm</li>
+              </ul>
+              
+              <div style="text-align: center; margin-top: 25px;">
+                <a href="${process.env.NEXTAUTH_URL}/provider/bookings/${bookingId}" class="button">View Booking</a>
+                <a href="${process.env.NEXTAUTH_URL}/provider/bookings/${bookingId}?action=accept" class="button button-secondary">Accept</a>
+              </div>
               
               <div class="footer">
                 <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>

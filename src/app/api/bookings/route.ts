@@ -7,6 +7,7 @@ import {
   sendBookingConfirmationEmail,
   sendProviderBookingNotificationEmail,
 } from "@/lib/email";
+import { sendComprehensiveNotification, emailTemplates } from "@/lib/notifications/adminNotifications";
 
 export async function GET(request: Request) {
   try {
@@ -249,9 +250,32 @@ export async function POST(request: Request) {
       service.title
     );
 
-    // Send confirmation emails
+    // Send notifications and emails
     try {
-      // Email to client
+      // 1. Send comprehensive notification to provider (Push + Email + DB)
+      const bookingTemplate = emailTemplates.newBooking(
+        service.provider.name!,
+        booking.client.name!,
+        service.title,
+        firstSlot.date,
+        firstSlot.startTime,
+        firstSlot.endTime,
+        bookingLocation,
+        totalAmount,
+        notes || '',
+        booking.id
+      );
+
+      await sendComprehensiveNotification({
+        userId: professionalId,
+        title: `New Booking: ${service.title}`,
+        message: `${booking.client.name} has booked your service for ${firstSlot.date.toLocaleDateString()}`,
+        type: 'BOOKING_CREATED',
+        emailSubject: bookingTemplate.subject,
+        emailHtml: bookingTemplate.html
+      });
+
+      // 2. Send email confirm ation to client
       await sendBookingConfirmationEmail(
         booking.client.email!,
         booking.client.name!,
@@ -265,24 +289,9 @@ export async function POST(request: Request) {
         totalAmount,
         booking.id
       );
-
-      // Email to provider
-      await sendProviderBookingNotificationEmail(
-        service.provider.email!,
-        service.provider.name!,
-        booking.client.name!,
-        service.title,
-        firstSlot.date,
-        firstSlot.startTime,
-        firstSlot.endTime,
-        bookingLocation,
-        totalAmount,
-        notes || "",
-        booking.id
-      );
     } catch (emailError) {
-      console.error("Error sending booking emails:", emailError);
-      // Don't fail the booking if emails fail
+      console.error("Error sending booking notifications:", emailError);
+      // Don't fail the booking if notifications fail
     }
 
     return NextResponse.json(booking, { status: 201 });
