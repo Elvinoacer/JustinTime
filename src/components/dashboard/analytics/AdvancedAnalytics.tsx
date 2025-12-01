@@ -77,7 +77,8 @@ const AdvancedAnalytics = ({
     .slice(0, 5);
 
   // Revenue trend data (last 12 months)
-  const monthlyRevenue = Array.from({ length: 12 }).map((_, i) => {
+  // Revenue trend data (last 12 months)
+  const rawMonthlyData = Array.from({ length: 12 }).map((_, i) => {
     const date = new Date();
     date.setMonth(date.getMonth() - (11 - i));
     const month = date.toLocaleDateString("en-US", { month: "short" });
@@ -87,20 +88,25 @@ const AdvancedAnalytics = ({
       .filter((e) => new Date(e.createdAt).getMonth() === monthIndex)
       .reduce((sum, e) => sum + Number(e.amount), 0);
 
-    const growth =
-      i > 0
-        ? ((monthEarnings - monthlyRevenue[i - 1]?.earnings || 0) /
-            (monthlyRevenue[i - 1]?.earnings || 1)) *
-          100
-        : 0;
-
     return {
       month,
       earnings: monthEarnings,
-      growth: Math.round(growth),
       bookings: bookings.filter(
         (b) => new Date(b.createdAt).getMonth() === monthIndex
       ).length,
+    };
+  });
+
+  const monthlyRevenue = rawMonthlyData.map((data, i) => {
+    const previousEarnings = i > 0 ? rawMonthlyData[i - 1].earnings : 0;
+    const growth =
+      i > 0
+        ? ((data.earnings - previousEarnings) / (previousEarnings || 1)) * 100
+        : 0;
+
+    return {
+      ...data,
+      growth: Math.round(growth),
     };
   });
 

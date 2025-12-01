@@ -157,12 +157,20 @@ export async function getUserDetails(userId: string) {
       throw new Error('User not found');
     }
 
+    // Fetch all categories for skill mapping
+    const categories = await prisma.category.findMany({
+      select: { id: true, name: true }
+    });
+    
+    const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+
     // Serialize Decimal fields to numbers to avoid serialization errors in Client Components
     return {
       ...user,
       profile: user.profile ? {
         ...user.profile,
         hourlyRate: user.profile.hourlyRate ? Number(user.profile.hourlyRate) : null,
+        skills: user.profile.skills.map(skillId => categoryMap.get(skillId) || skillId),
       } : null,
       wallet: user.wallet ? {
         ...user.wallet,

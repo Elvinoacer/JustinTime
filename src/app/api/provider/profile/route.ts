@@ -50,6 +50,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Fetch all categories for skill mapping
+    const categories = await prisma.category.findMany({
+      select: { id: true, name: true }
+    });
+    
+    const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+
     // Combine user and profile data
     const profileData = {
       name: user.name,
@@ -58,7 +65,7 @@ export async function GET(request: NextRequest) {
       phone: user.phone,
       location: user.profile?.location,
       bio: user.profile?.bio,
-      skills: user.profile?.skills || [],
+      skills: (user.profile?.skills || []).map(skillId => categoryMap.get(skillId) || skillId),
       hourlyRate: user.profile?.hourlyRate,
       isVerified: user.profile?.isVerified || false,
       certifications: user.profile?.certifications || [],

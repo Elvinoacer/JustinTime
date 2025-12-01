@@ -92,7 +92,7 @@ export async function GET(
       latitude: provider.profile?.latitude,
       longitude: provider.profile?.longitude,
       bio: provider.profile?.bio,
-      skills: provider.profile?.skills || [],
+      skills: (provider.profile?.skills || []).map(skillId => categoryMap.get(skillId) || skillId),
       hourlyRate: provider.profile?.hourlyRate || 0,
       isVerified: provider.profile?.isVerified || false,
       certifications: provider.profile?.certifications || [],
