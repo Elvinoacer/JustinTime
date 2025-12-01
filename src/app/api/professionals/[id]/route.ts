@@ -81,6 +81,13 @@ export async function GET(
 
     const totalReviews = distribution.reduce((sum, d) => sum + d.count, 0);
 
+    // Fetch all categories for skill mapping
+    const categories = await prisma.category.findMany({
+      select: { id: true, name: true }
+    });
+    
+    const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+
     // Format response
     const professionalData = {
       id: provider.id,
