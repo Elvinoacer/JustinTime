@@ -4,8 +4,12 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Helper function to get the from email address
-const getFromEmail = () => {
-  return process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || "noreply@justintime.com";
+// Helper function to get the from email address
+export const getFromEmail = () => {
+  const emailEnv = process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || "noreply@justintime.com";
+  // Check if it's in "Name <email>" format and extract just the email
+  const match = emailEnv.match(/<(.+)>/);
+  return match ? match[1] : emailEnv;
 };
 
 // Send account deletion scheduled email

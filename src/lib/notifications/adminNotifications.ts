@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { sendNotificationToUser } from '@/lib/notifications/dispatcher';
 import { Resend } from 'resend';
+import { getFromEmail } from '@/lib/email';
 
 // Initialize Resend client
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -82,7 +83,7 @@ export async function sendComprehensiveNotification(payload: NotificationPayload
       console.log('[Notification] Attempting to send email to:', user.email);
       try {
         const emailResult = await resend.emails.send({
-          from: `JustInTime <${process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || 'noreply@justintime.com'}>`,
+          from: `JustInTime <${getFromEmail()}>`,
           to: user.email,
           subject: emailSubject,
           html: emailHtml

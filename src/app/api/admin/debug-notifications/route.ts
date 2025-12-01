@@ -3,6 +3,7 @@ import { checkAdmin } from '@/app/actions/admin';
 import { prisma } from '@/lib/prisma';
 import { Resend } from 'resend';
 import { sendNotificationToUser } from '@/lib/notifications/dispatcher';
+import { getFromEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +53,7 @@ export async function GET() {
       const adminUser = await prisma.user.findUnique({ where: { id: admin.id } });
       if (adminUser?.email) {
         const data = await resend.emails.send({
-          from: `Debug Tool <${process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || 'noreply@justintime.com'}>`,
+          from: `Debug Tool <${getFromEmail()}>`,
           to: adminUser.email,
           subject: 'Production Debug Test Email',
           text: 'If you received this, email sending is working correctly in production via Resend.'
