@@ -63,28 +63,8 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
 
   return (
     <>
-      {/* Mobile Backdrop */}
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm"
-          onClick={onClose}
-        />
-      )}
-
       <aside
-        className={`
-          fixed lg:sticky top-0 left-0 z-50 h-screen 
-          ${isMobile ? "w-full max-w-xs" : "w-full max-w-64"}
-          bg-white border-r border-gray-100 
-          transition-all duration-300 ease-in-out 
-          lg:translate-x-0 
-          flex flex-col justify-between
-          ${isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"}
-          overflow-y-auto
-        `}
+        className="h-full w-full bg-white border-r border-gray-100 flex flex-col justify-between overflow-y-auto"
         role="navigation"
         aria-label="Main navigation"
       >

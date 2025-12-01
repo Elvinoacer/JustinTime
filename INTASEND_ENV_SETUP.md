@@ -10,13 +10,11 @@ INTASEND_SECRET_KEY=ISSecretKey_test_xxxxxxxx
 # Test Mode (true for sandbox, false for production)
 INTASEND_TEST_MODE=true
 
-# Email Configuration (for nodemailer)
-# Use your email provider settings (Gmail, SendGrid, etc.)
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USER=your-email@gmail.com
-EMAIL_PASSWORD=your-app-password
-EMAIL_FROM=noreply@justintime.com
+# Email Configuration (Resend)
+# Get your API key from https://resend.com/api-keys
+RESEND_API_KEY=re_xxxxxxxx
 
-# Note: For Gmail, use App Password instead of regular password
-# Generate at: https://myaccount.google.com/apppasswords
+# Verified sender email in Resend
+EMAIL_FROM=noreply@justintime.com
+ADMIN_EMAIL=admin@justintime.com # The email address to send from (must be verified in Resend)
+

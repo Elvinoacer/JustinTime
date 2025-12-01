@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkAdmin } from '@/app/actions/admin';
 import { prisma } from '@/lib/prisma';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { sendNotificationToUser } from '@/lib/notifications/dispatcher';
 
 export const dynamic = 'force-dynamic';
@@ -23,16 +23,13 @@ export async function GET() {
 
     // 2. Config Check (Masked)
     const emailConfig = {
-      host: process.env.EMAIL_HOST,
-      port: process.env.EMAIL_PORT,
-      user: process.env.EMAIL_USER,
-      hasPassword: !!process.env.EMAIL_PASSWORD,
-      from: process.env.EMAIL_FROM,
+      hasApiKey: !!process.env.RESEND_API_KEY,
+      from: process.env.ADMIN_EMAIL || process.env.EMAIL_FROM,
     };
 
     results.config.email = {
       ...emailConfig,
-      passwordLength: process.env.EMAIL_PASSWORD?.length || 0
+      apiKeyLength: process.env.RESEND_API_KEY?.length || 0
     };
 
     results.config.appUrl = process.env.NEXTAUTH_URL;
@@ -45,29 +42,24 @@ export async function GET() {
 
     // 3. Test Email Connection
     try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.EMAIL_HOST || "smtp.gmail.com",
-        port: parseInt(process.env.EMAIL_PORT || "587"),
-        secure: parseInt(process.env.EMAIL_PORT || "587") === 465,
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASSWORD,
-        },
-      });
+      if (!process.env.RESEND_API_KEY) {
+        throw new Error('RESEND_API_KEY is missing');
+      }
 
-      await transporter.verify();
-      results.tests.emailConnection = { success: true, message: 'SMTP connection verified' };
-
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      
       // Send test email to admin
       const adminUser = await prisma.user.findUnique({ where: { id: admin.id } });
       if (adminUser?.email) {
-        await transporter.sendMail({
-          from: `"Debug Tool" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+        const data = await resend.emails.send({
+          from: `Debug Tool <${process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || 'noreply@justintime.com'}>`,
           to: adminUser.email,
           subject: 'Production Debug Test Email',
-          text: 'If you received this, email sending is working correctly in production.'
+          text: 'If you received this, email sending is working correctly in production via Resend.'
         });
-        results.tests.emailSend = { success: true, recipient: adminUser.email };
+        results.tests.emailSend = { success: true, recipient: adminUser.email, id: data.data?.id };
+      } else {
+        results.tests.emailSend = { skipped: true, reason: 'Admin has no email' };
       }
     } catch (error: any) {
       results.tests.emailConnection = { 

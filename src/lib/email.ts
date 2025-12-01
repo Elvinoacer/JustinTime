@@ -1,17 +1,11 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-// Create email transporter
-export const createTransporter = () => {
-  const port = parseInt(process.env.EMAIL_PORT || "587");
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || "smtp.gmail.com",
-    port: port,
-    secure: port === 465, // true for 465 (SSL), false for other ports like 587 (TLS)
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-  });
+// Initialize Resend client
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Helper function to get the from email address
+const getFromEmail = () => {
+  return process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || "noreply@justintime.com";
 };
 
 // Send account deletion scheduled email
@@ -22,8 +16,6 @@ export const sendAccountDeletionScheduledEmail = async (
   reason?: string
 ) => {
   try {
-    const transporter = createTransporter();
-
     const formattedDate = deletionDate.toLocaleString("en-US", {
       weekday: "long",
       year: "numeric",
@@ -33,8 +25,8 @@ export const sendAccountDeletionScheduledEmail = async (
       minute: "numeric",
     });
 
-    const mailOptions = {
-      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime <${getFromEmail()}>`,
       to: userEmail,
       subject: "Account Deletion Scheduled - We're Sad to See You Go",
       html: `
@@ -118,9 +110,7 @@ Thank you for being part of JustInTime. We hope to see you again!
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
       `,
-    };
-
-    await transporter.sendMail(mailOptions);
+    });
     console.log(`Deletion scheduled email sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -135,10 +125,8 @@ export const sendAccountDeletionConfirmedEmail = async (
   userName: string
 ) => {
   try {
-    const transporter = createTransporter();
-
-    const mailOptions = {
-      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime <${getFromEmail()}>`,
       to: userEmail,
       subject: "Account Deleted - Thank You for Being With Us",
       html: `
@@ -210,10 +198,7 @@ All the best in your future endeavors!
 
 This is the last email you'll receive from JustInTime.
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Deletion confirmed email sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -229,10 +214,8 @@ export const sendSubscriptionExpirationEmail = async (
   plan: string
 ) => {
   try {
-    const transporter = createTransporter();
-
-    const mailOptions = {
-      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime <${getFromEmail()}>`,
       to: userEmail,
       subject: "Your Premium Subscription Has Expired",
       html: `
@@ -299,10 +282,7 @@ Renew your subscription: ${process.env.NEXTAUTH_URL}/dashboard/premium
 Thank you for being part of JustInTime!
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Expiration email sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -319,16 +299,14 @@ export const sendSubscriptionActivationEmail = async (
   endDate: Date
 ) => {
   try {
-    const transporter = createTransporter();
-
     const formattedEndDate = endDate.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
 
-    const mailOptions = {
-      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime <${getFromEmail()}>`,
       to: userEmail,
       subject: `Welcome to ${plan} Plan! 🎉`,
       html: `
@@ -406,10 +384,7 @@ View your profile: ${process.env.NEXTAUTH_URL}/dashboard/profile
 Thank you for choosing JustInTime Premium!
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Activation email sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -425,8 +400,6 @@ export const sendPasswordChangedEmail = async (
   changeDateTime: Date
 ) => {
   try {
-    const transporter = createTransporter();
-
     const formattedDate = changeDateTime.toLocaleString("en-US", {
       weekday: "long",
       year: "numeric",
@@ -437,8 +410,8 @@ export const sendPasswordChangedEmail = async (
       timeZoneName: "short",
     });
 
-    const mailOptions = {
-      from: `"JustInTime Security" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime Security <${getFromEmail()}>`,
       to: userEmail,
       subject: "Password Changed - JustInTime Account Security Alert",
       html: `
@@ -529,10 +502,7 @@ SECURITY TIPS:
 If you have any questions or concerns, please contact our support team at support@justintime.com
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Password change notification sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -548,10 +518,8 @@ export const sendPasswordResetEmail = async (
   resetUrl: string
 ) => {
   try {
-    const transporter = createTransporter();
-
-    const mailOptions = {
-      from: `"JustInTime Security" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime Security <${getFromEmail()}>`,
       to: userEmail,
       subject: "Reset Your Password - JustInTime",
       html: `
@@ -636,10 +604,7 @@ If you didn't request a password reset, please ignore this email or contact our 
 Need help? Contact us at support@justintime.com
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Password reset email sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -657,10 +622,8 @@ export const sendSupportTicketCreatedEmail = async (
   category: string
 ) => {
   try {
-    const transporter = createTransporter();
-
-    const mailOptions = {
-      from: `"JustInTime Support" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime Support <${getFromEmail()}>`,
       to: userEmail,
       subject: `Support Ticket Created - ${subject}`,
       html: `
@@ -738,10 +701,7 @@ View your ticket: ${process.env.NEXTAUTH_URL}/dashboard/help
 Need immediate assistance? Contact us at support@justintime.com
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Support ticket created email sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -761,8 +721,6 @@ export const sendSupportTicketStatusEmail = async (
   resolution?: string
 ) => {
   try {
-    const transporter = createTransporter();
-
     const statusColors: Record<string, string> = {
       OPEN: "#3b82f6",
       IN_PROGRESS: "#f59e0b",
@@ -772,8 +730,8 @@ export const sendSupportTicketStatusEmail = async (
 
     const statusColor = statusColors[newStatus] || "#6b7280";
 
-    const mailOptions = {
-      from: `"JustInTime Support" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime Support <${getFromEmail()}>`,
       to: userEmail,
       subject: `Ticket Update - ${subject}`,
       html: `
@@ -861,10 +819,7 @@ View ticket details: ${process.env.NEXTAUTH_URL}/dashboard/help
 Have more questions? Feel free to reply to this email or create a new ticket.
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Support ticket status email sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -888,8 +843,6 @@ export const sendBookingConfirmationEmail = async (
   bookingId: string
 ) => {
   try {
-    const transporter = createTransporter();
-
     const formattedDate = bookingDate.toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
@@ -897,8 +850,8 @@ export const sendBookingConfirmationEmail = async (
       day: "numeric",
     });
 
-    const mailOptions = {
-      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime <${getFromEmail()}>`,
       to: clientEmail,
       subject: `Booking Confirmation - ${serviceTitle}`,
       html: `
@@ -991,10 +944,7 @@ Provider Contact: ${providerEmail}
 View your bookings: ${process.env.NEXTAUTH_URL}/client/bookings
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Booking confirmation email sent to ${clientEmail}`);
     return true;
   } catch (error) {
@@ -1018,8 +968,6 @@ export const sendProviderBookingNotificationEmail = async (
   bookingId: string
 ) => {
   try {
-    const transporter = createTransporter();
-
     const formattedDate = bookingDate.toLocaleDateString("en-US", {
       weekday: "long",
       year: "numeric",
@@ -1027,8 +975,8 @@ export const sendProviderBookingNotificationEmail = async (
       day: "numeric",
     });
 
-    const mailOptions = {
-      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime <${getFromEmail()}>`,
       to: providerEmail,
       subject: `New Booking Request - ${serviceTitle}`,
       html: `
@@ -1131,10 +1079,7 @@ ${notes ? `Client Notes: ${notes}` : ""}
 View and respond to this booking: ${process.env.NEXTAUTH_URL}/dashboard/bookings
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Provider booking notification sent to ${providerEmail}`);
     return true;
   } catch (error) {
@@ -1156,10 +1101,8 @@ export const sendNegotiationRequestEmail = async (
   negotiationId?: string
 ) => {
   try {
-    const transporter = createTransporter();
-
-    const mailOptions = {
-      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime <${getFromEmail()}>`,
       to: receiverEmail,
       subject: `Negotiation Request - ${serviceTitle}`,
       html: `
@@ -1266,10 +1209,7 @@ What would you like to do?
 Respond to negotiation: ${process.env.NEXTAUTH_URL}/dashboard/bookings
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Negotiation request email sent to ${receiverEmail}`);
     return true;
   } catch (error) {
@@ -1290,8 +1230,6 @@ export const sendNegotiationResponseEmail = async (
   message?: string
 ) => {
   try {
-    const transporter = createTransporter();
-
     const responseConfig = {
       ACCEPTED: {
         color: "#10b981",
@@ -1312,8 +1250,8 @@ export const sendNegotiationResponseEmail = async (
 
     const config = responseConfig[responseType];
 
-    const mailOptions = {
-      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime <${getFromEmail()}>`,
       to: receiverEmail,
       subject: `${config.title} - ${serviceTitle}`,
       html: `
@@ -1395,10 +1333,7 @@ ${message ? `Message from ${responderName}: ${message}` : ""}
 View booking details: ${process.env.NEXTAUTH_URL}/client/bookings
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Negotiation response email sent to ${receiverEmail}`);
     return true;
   } catch (error) {
@@ -1419,8 +1354,6 @@ export const sendBookingStatusUpdateEmail = async (
   slots?: Array<{ date: Date; startTime: string; endTime: string }>
 ) => {
   try {
-    const transporter = createTransporter();
-
     const statusColors: Record<string, string> = {
       PENDING: "#f59e0b",
       CONFIRMED: "#3b82f6",
@@ -1449,8 +1382,8 @@ export const sendBookingStatusUpdateEmail = async (
       day: "numeric",
     });
 
-    const mailOptions = {
-      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime <${getFromEmail()}>`,
       to: clientEmail,
       subject: `Booking ${newStatus} - ${serviceTitle}`,
       html: `
@@ -1578,10 +1511,7 @@ View booking details: ${process.env.NEXTAUTH_URL}/client/bookings
 Need help? Contact us at support@justintime.com
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Booking status update email sent to ${clientEmail}`);
     return true;
   } catch (error) {
@@ -1599,10 +1529,8 @@ export const sendReviewRequestEmail = async (
   bookingId: string
 ) => {
   try {
-    const transporter = createTransporter();
-
-    const mailOptions = {
-      from: `"JustInTime" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime <${getFromEmail()}>`,
       to: clientEmail,
       subject: `How was your service with ${providerName}?`,
       html: `
@@ -1663,10 +1591,7 @@ Write a review: ${process.env.NEXTAUTH_URL}/client/reviews/submit/${bookingId}
 It only takes a minute to share your thoughts!
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Review request email sent to ${clientEmail}`);
     return true;
   } catch (error) {
@@ -1683,10 +1608,8 @@ export const sendContactFormEmail = async (
   message: string
 ) => {
   try {
-    const transporter = createTransporter();
-
-    const mailOptions = {
-      from: `"JustInTime Contact Form" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime Contact Form <${getFromEmail()}>`,
       to: process.env.EMAIL_USER || "support@justintime.com",
       replyTo: email,
       subject: `Contact Form: ${subject}`,
@@ -1758,10 +1681,7 @@ ${message}
 You can reply directly to this email to respond to ${name}.
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Contact form email sent from ${email}`);
     return true;
   } catch (error) {
@@ -1777,10 +1697,8 @@ export const sendVerificationEmail = async (
   verificationUrl: string
 ) => {
   try {
-    const transporter = createTransporter();
-
-    const mailOptions = {
-      from: `"JustInTime Security" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime Security <${getFromEmail()}>`,
       to: userEmail,
       subject: "Verify Your Email Address - JustInTime",
       html: `
@@ -1859,10 +1777,7 @@ ${verificationUrl}
 Need help? Contact us at support@justintime.com
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`Verification email sent to ${userEmail}. Link: ${verificationUrl}`);
     return true;
   } catch (error) {
@@ -1878,10 +1793,8 @@ export const sendTwoFactorTokenEmail = async (
   token: string
 ) => {
   try {
-    const transporter = createTransporter();
-
-    const mailOptions = {
-      from: `"JustInTime Security" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: `JustInTime Security <${getFromEmail()}>`,
       to: userEmail,
       subject: "Your Authentication Code - JustInTime",
       html: `
@@ -1943,10 +1856,7 @@ This code will expire in 10 minutes.
 If you didn't request this code, please secure your account immediately.
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,
-    };
-
-    await transporter.sendMail(mailOptions);
+      `,    });
     console.log(`2FA email sent to ${userEmail}. Token: ${token}`);
     return true;
   } catch (error) {

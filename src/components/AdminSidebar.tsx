@@ -43,27 +43,9 @@ const AdminSidebar = ({ isOpen, onClose }: AdminSidebarProps) => {
 
   return (
     <>
-      {/* Mobile Backdrop */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
-            onClick={onClose}
-          />
-        )}
-      </AnimatePresence>
-
       {/* Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{
-          x: isOpen ? 0 : -320,
-        }}
-        transition={{ type: "spring", damping: 30, stiffness: 300 }}
-        className="fixed lg:sticky top-0 left-0 z-50 h-screen w-80 bg-slate-900 text-white border-r border-slate-800 flex flex-col lg:translate-x-0"
+      <aside
+        className="h-full w-full bg-slate-900 text-white border-r border-slate-800 flex flex-col overflow-y-auto"
         role="complementary"
         aria-label="Admin navigation"
       >
@@ -216,7 +198,7 @@ const AdminSidebar = ({ isOpen, onClose }: AdminSidebarProps) => {
             </div>
           </div>
         </div>
-      </motion.aside>
+      </aside>
     </>
   );
 };

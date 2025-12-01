@@ -1,7 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import { sendNotificationToUser } from '@/lib/notifications/dispatcher';
-import nodemailer from 'nodemailer';
-import { createTransporter } from '@/lib/email';
+import { Resend } from 'resend';
+
+// Initialize Resend client
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface NotificationPayload {
   userId: string;
@@ -79,14 +81,13 @@ export async function sendComprehensiveNotification(payload: NotificationPayload
     if (emailSubject && emailHtml) {
       console.log('[Notification] Attempting to send email to:', user.email);
       try {
-        const transporter = createTransporter();
-        const emailResult = await transporter.sendMail({
-          from: `"JustInTime" <${process.env.EMAIL_USER}>`, // Force use of authenticated email to prevent blocking
+        const emailResult = await resend.emails.send({
+          from: `JustInTime <${process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || 'noreply@justintime.com'}>`,
           to: user.email,
           subject: emailSubject,
           html: emailHtml
         });
-        console.log('[Notification] Email sent successfully to', user.email, 'MessageID:', emailResult.messageId);
+        console.log('[Notification] Email sent successfully to', user.email, 'ID:', emailResult.data?.id);
       } catch (emailError: any) {
         console.error('[Notification] Failed to send email notification:');
         console.error('[Notification] Error message:', emailError.message);
