@@ -64,6 +64,7 @@ export interface ServicesFilters {
   category?: string;
   verified?: boolean;
   minPrice?: number;
+  minRating?: number;
   maxPrice?: number;
   search?: string;
   sort?: "relevance" | "rating" | "price_low" | "price_high" | "distance";
@@ -80,19 +81,23 @@ export interface Category {
 }
 
 // Fetch services
-async function fetchServices(filters: ServicesFilters = {}): Promise<ServicesResponse> {
+async function fetchServices(
+  filters: ServicesFilters = {}
+): Promise<ServicesResponse> {
   const params = new URLSearchParams();
-  
+
   if (filters.page) params.append("page", filters.page.toString());
   if (filters.limit) params.append("limit", filters.limit.toString());
   if (filters.category) params.append("category", filters.category);
-  if (filters.verified !== undefined) params.append("verified", filters.verified.toString());
+  if (filters.verified !== undefined)
+    params.append("verified", filters.verified.toString());
   if (filters.minPrice) params.append("minPrice", filters.minPrice.toString());
   if (filters.maxPrice) params.append("maxPrice", filters.maxPrice.toString());
   if (filters.search) params.append("search", filters.search);
   if (filters.sort) params.append("sort", filters.sort);
   if (filters.latitude) params.append("latitude", filters.latitude.toString());
-  if (filters.longitude) params.append("longitude", filters.longitude.toString());
+  if (filters.longitude)
+    params.append("longitude", filters.longitude.toString());
 
   const { data } = await apiClient.get(`/services?${params.toString()}`);
   return data.data;
