@@ -13,12 +13,14 @@ interface JobFiltersProps {
   };
   onFilterChange: (filters: any) => void;
   categories?: Array<{ id: string; name: string; slug: string }>;
+  isMobile?: boolean;
 }
 
 const JobFilters: React.FC<JobFiltersProps> = ({
   filters,
   onFilterChange,
   categories = [],
+  isMobile = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isLargeScreen, setIsLargeScreen] = useState(false);
@@ -28,15 +30,22 @@ const JobFilters: React.FC<JobFiltersProps> = ({
     const checkScreenSize = () => {
       setIsLargeScreen(window.innerWidth >= 1024);
     };
-    
+
     // Initial check
     checkScreenSize();
-    
+
     // Add resize listener
     window.addEventListener("resize", checkScreenSize);
-    
+
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
+
+  // Auto-collapse filters on mobile when screen resizes to desktop
+  useEffect(() => {
+    if (isLargeScreen) {
+      setIsExpanded(true);
+    }
+  }, [isLargeScreen]);
 
   const handleChange = (key: string, value: string) => {
     onFilterChange({ ...filters, [key]: value });
@@ -49,7 +58,7 @@ const JobFilters: React.FC<JobFiltersProps> = ({
       location: "",
       budgetMin: "",
       budgetMax: "",
-      status: "OPEN",
+      status: "",
     });
   };
 
@@ -58,25 +67,48 @@ const JobFilters: React.FC<JobFiltersProps> = ({
   ).length;
 
   return (
-    <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
+    <div
+      className={`bg-white ${
+        isMobile
+          ? "rounded-lg shadow-sm"
+          : "rounded-xl lg:rounded-2xl shadow-sm border border-gray-100"
+      } overflow-hidden`}
+    >
       {/* Mobile Toggle */}
       <button
-        className="lg:hidden w-full p-4 flex items-center justify-between text-left font-semibold text-gray-900"
+        className={`${
+          isMobile ? "w-full p-3" : "lg:hidden w-full p-4"
+        } flex items-center justify-between text-left font-semibold text-gray-900 hover:bg-gray-50 transition-colors`}
         onClick={() => setIsExpanded(!isExpanded)}
+        aria-expanded={isExpanded}
+        aria-controls="filter-content"
       >
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined">filter_list</span>
-          <span>Filters</span>
+          <span
+            className={`material-symbols-outlined ${
+              isMobile ? "text-lg" : "text-xl"
+            }`}
+          >
+            filter_list
+          </span>
+          <span className={isMobile ? "text-sm" : "text-base"}>Filters</span>
           {activeFilterCount > 0 && (
-            <span className="bg-emerald-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+            <span
+              className={`${
+                isMobile ? "text-xs px-1.5 py-0.5" : "text-xs px-2 py-0.5"
+              } bg-emerald-500 text-white font-bold rounded-full`}
+            >
               {activeFilterCount}
             </span>
           )}
         </div>
         <span
-          className={`material-symbols-outlined transition-transform ${
+          className={`material-symbols-outlined ${
+            isMobile ? "text-lg" : "text-xl"
+          } transition-transform duration-300 ${
             isExpanded ? "rotate-180" : ""
           }`}
+          aria-hidden="true"
         >
           expand_more
         </span>
@@ -86,23 +118,34 @@ const JobFilters: React.FC<JobFiltersProps> = ({
       <AnimatePresence initial={false}>
         {(isExpanded || isLargeScreen) && (
           <motion.div
+            id="filter-content"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
             className="lg:block"
           >
-            <div className="p-6 space-y-4 border-t lg:border-t-0 border-gray-100">
+            <div
+              className={`${
+                isMobile ? "p-3 space-y-3" : "p-4 lg:p-6 space-y-4 lg:space-y-6"
+              } border-t lg:border-t-0 border-gray-100`}
+            >
               {/* Search */}
-              <div>
+              <div className="space-y-1 lg:space-y-2">
                 <label
                   htmlFor="search-jobs"
-                  className="block text-sm font-semibold text-gray-700 mb-2"
+                  className={`block ${
+                    isMobile ? "text-xs font-medium" : "text-sm font-semibold"
+                  } text-gray-700`}
                 >
                   Search
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-gray-400 text-xl">
+                  <span
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-gray-400 ${
+                      isMobile ? "text-base" : "text-lg lg:text-xl"
+                    }`}
+                  >
                     search
                   </span>
                   <input
@@ -110,17 +153,25 @@ const JobFilters: React.FC<JobFiltersProps> = ({
                     type="text"
                     value={filters.search}
                     onChange={(e) => handleChange("search", e.target.value)}
-                    placeholder="Search by title or description..."
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                    placeholder="Search jobs..."
+                    className={`w-full ${
+                      isMobile
+                        ? "pl-9 pr-3 py-2 text-sm"
+                        : "pl-10 pr-4 py-2.5 text-sm"
+                    } border border-gray-300 ${
+                      isMobile ? "rounded-lg" : "rounded-lg lg:rounded-xl"
+                    } focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all`}
                   />
                 </div>
               </div>
 
               {/* Category */}
-              <div>
+              <div className="space-y-1 lg:space-y-2">
                 <label
                   htmlFor="category-filter"
-                  className="block text-sm font-semibold text-gray-700 mb-2"
+                  className={`block ${
+                    isMobile ? "text-xs font-medium" : "text-sm font-semibold"
+                  } text-gray-700`}
                 >
                   Category
                 </label>
@@ -128,7 +179,11 @@ const JobFilters: React.FC<JobFiltersProps> = ({
                   id="category-filter"
                   value={filters.category}
                   onChange={(e) => handleChange("category", e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                  className={`w-full ${
+                    isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5 text-sm"
+                  } border border-gray-300 ${
+                    isMobile ? "rounded-lg" : "rounded-lg lg:rounded-xl"
+                  } focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all appearance-none bg-white`}
                 >
                   <option value="">All Categories</option>
                   {categories.map((cat) => (
@@ -140,15 +195,21 @@ const JobFilters: React.FC<JobFiltersProps> = ({
               </div>
 
               {/* Location */}
-              <div>
+              <div className="space-y-1 lg:space-y-2">
                 <label
                   htmlFor="location-filter"
-                  className="block text-sm font-semibold text-gray-700 mb-2"
+                  className={`block ${
+                    isMobile ? "text-xs font-medium" : "text-sm font-semibold"
+                  } text-gray-700`}
                 >
                   Location
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-gray-400 text-xl">
+                  <span
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-gray-400 ${
+                      isMobile ? "text-base" : "text-lg lg:text-xl"
+                    }`}
+                  >
                     location_on
                   </span>
                   <input
@@ -157,39 +218,73 @@ const JobFilters: React.FC<JobFiltersProps> = ({
                     value={filters.location}
                     onChange={(e) => handleChange("location", e.target.value)}
                     placeholder="Enter location..."
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                    className={`w-full ${
+                      isMobile
+                        ? "pl-9 pr-3 py-2 text-sm"
+                        : "pl-10 pr-4 py-2.5 text-sm"
+                    } border border-gray-300 ${
+                      isMobile ? "rounded-lg" : "rounded-lg lg:rounded-xl"
+                    } focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all`}
                   />
                 </div>
               </div>
 
               {/* Budget Range */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <div className="space-y-1 lg:space-y-2">
+                <label
+                  className={`block ${
+                    isMobile ? "text-xs font-medium" : "text-sm font-semibold"
+                  } text-gray-700`}
+                >
                   Budget Range (KES)
                 </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="number"
-                    value={filters.budgetMin}
-                    onChange={(e) => handleChange("budgetMin", e.target.value)}
-                    placeholder="Min"
-                    className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
-                  />
-                  <input
-                    type="number"
-                    value={filters.budgetMax}
-                    onChange={(e) => handleChange("budgetMax", e.target.value)}
-                    placeholder="Max"
-                    className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
-                  />
+                <div
+                  className={`grid ${
+                    isMobile ? "grid-cols-2 gap-2" : "grid-cols-2 gap-3"
+                  }`}
+                >
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={filters.budgetMin}
+                      onChange={(e) =>
+                        handleChange("budgetMin", e.target.value)
+                      }
+                      placeholder="Min"
+                      className={`w-full ${
+                        isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5 text-sm"
+                      } border border-gray-300 ${
+                        isMobile ? "rounded-lg" : "rounded-lg lg:rounded-xl"
+                      } focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all`}
+                      min="0"
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={filters.budgetMax}
+                      onChange={(e) =>
+                        handleChange("budgetMax", e.target.value)
+                      }
+                      placeholder="Max"
+                      className={`w-full ${
+                        isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5 text-sm"
+                      } border border-gray-300 ${
+                        isMobile ? "rounded-lg" : "rounded-lg lg:rounded-xl"
+                      } focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all`}
+                      min="0"
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* Status */}
-              <div>
+              <div className="space-y-1 lg:space-y-2">
                 <label
                   htmlFor="status-filter"
-                  className="block text-sm font-semibold text-gray-700 mb-2"
+                  className={`block ${
+                    isMobile ? "text-xs font-medium" : "text-sm font-semibold"
+                  } text-gray-700`}
                 >
                   Status
                 </label>
@@ -197,7 +292,11 @@ const JobFilters: React.FC<JobFiltersProps> = ({
                   id="status-filter"
                   value={filters.status}
                   onChange={(e) => handleChange("status", e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                  className={`w-full ${
+                    isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5 text-sm"
+                  } border border-gray-300 ${
+                    isMobile ? "rounded-lg" : "rounded-lg lg:rounded-xl"
+                  } focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all appearance-none bg-white`}
                 >
                   <option value="">All Status</option>
                   <option value="OPEN">Open</option>
@@ -206,17 +305,121 @@ const JobFilters: React.FC<JobFiltersProps> = ({
                 </select>
               </div>
 
-              {/* Clear Filters */}
-              {activeFilterCount > 0 && (
+              {/* Action Buttons */}
+              <div
+                className={`flex ${
+                  isMobile
+                    ? "flex-col gap-2 pt-2"
+                    : "flex-col lg:flex-row gap-3 lg:gap-2"
+                } pt-2 lg:pt-4`}
+              >
+                {activeFilterCount > 0 && (
+                  <button
+                    onClick={clearFilters}
+                    className={`${
+                      isMobile
+                        ? "w-full py-2.5 text-xs"
+                        : "w-full lg:flex-1 py-2.5 text-sm"
+                    } bg-gray-100 text-gray-700 ${
+                      isMobile ? "rounded-lg" : "rounded-lg lg:rounded-xl"
+                    } font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-1.5 lg:gap-2`}
+                  >
+                    <span className="material-symbols-outlined text-base lg:text-lg">
+                      close
+                    </span>
+                    Clear Filters
+                  </button>
+                )}
+
+                {/* Apply/Update Button for better UX */}
                 <button
-                  onClick={clearFilters}
-                  className="w-full py-2.5 px-4 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-colors text-sm flex items-center justify-center gap-2"
+                  onClick={() => {
+                    // Trigger filter update
+                    if (isMobile) {
+                      setIsExpanded(false);
+                    }
+                  }}
+                  className={`${
+                    isMobile
+                      ? "w-full py-2.5 text-xs"
+                      : "w-full lg:flex-1 py-2.5 text-sm"
+                  } bg-emerald-600 text-white ${
+                    isMobile ? "rounded-lg" : "rounded-lg lg:rounded-xl"
+                  } font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 lg:gap-2 shadow-sm hover:shadow-md`}
                 >
-                  <span className="material-symbols-outlined text-base">
-                    close
+                  <span className="material-symbols-outlined text-base lg:text-lg">
+                    check
                   </span>
-                  Clear All Filters
+                  {isMobile ? "Apply" : "Update Filters"}
                 </button>
+              </div>
+
+              {/* Active Filters Summary - Mobile Only */}
+              {isMobile && activeFilterCount > 0 && (
+                <div className="pt-3 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 mb-2">Active Filters:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {filters.search && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-[10px] font-medium">
+                        Search: "{filters.search.substring(0, 10)}..."
+                        <button
+                          onClick={() => handleChange("search", "")}
+                          className="ml-1 hover:text-emerald-900"
+                          aria-label="Remove search filter"
+                        >
+                          <span className="material-symbols-outlined text-xs">
+                            close
+                          </span>
+                        </button>
+                      </span>
+                    )}
+                    {filters.category && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-[10px] font-medium">
+                        Category
+                        <button
+                          onClick={() => handleChange("category", "")}
+                          className="ml-1 hover:text-emerald-900"
+                          aria-label="Remove category filter"
+                        >
+                          <span className="material-symbols-outlined text-xs">
+                            close
+                          </span>
+                        </button>
+                      </span>
+                    )}
+                    {filters.location && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-[10px] font-medium">
+                        Location: {filters.location.substring(0, 8)}...
+                        <button
+                          onClick={() => handleChange("location", "")}
+                          className="ml-1 hover:text-emerald-900"
+                          aria-label="Remove location filter"
+                        >
+                          <span className="material-symbols-outlined text-xs">
+                            close
+                          </span>
+                        </button>
+                      </span>
+                    )}
+                    {(filters.budgetMin || filters.budgetMax) && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded text-[10px] font-medium">
+                        Budget
+                        <button
+                          onClick={() => {
+                            handleChange("budgetMin", "");
+                            handleChange("budgetMax", "");
+                          }}
+                          className="ml-1 hover:text-emerald-900"
+                          aria-label="Remove budget filter"
+                        >
+                          <span className="material-symbols-outlined text-xs">
+                            close
+                          </span>
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </motion.div>
