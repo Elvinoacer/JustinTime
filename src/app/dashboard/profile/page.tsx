@@ -14,6 +14,7 @@ const ProfilePage = () => {
   const { data: profileData, isLoading } = useProviderProfile();
   const { data: subscriptionData, isLoading: isLoadingSubscription } = useSubscriptionStatus();
   const updateProfileMutation = useUpdateProviderProfile();
+  const [isMobile, setIsMobile] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<any>(null);
@@ -36,6 +37,18 @@ const ProfilePage = () => {
   const [newCertification, setNewCertification] = useState({ name: '', issuer: '', date: '', fileUrl: '' });
   const [newEducation, setNewEducation] = useState({ institution: '', degree: '', field: '', startYear: '', endYear: '' });
   const certFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     if (profileData?.data) {
@@ -349,32 +362,36 @@ const ProfilePage = () => {
 
   if (isLoading || !formData) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div role="status" aria-label="Loading profile" className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-[300px] sm:min-h-[400px]">
+        <div role="status" aria-label="Loading profile" className={`border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin ${
+          isMobile ? "w-10 h-10 border-3" : "w-12 h-12 border-4"
+        }`} />
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6">
       {/* Success Notification */}
       {showNotification && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="fixed top-4 right-4 bg-emerald-50 border border-emerald-200 rounded-lg p-4 shadow-lg z-50 flex items-center gap-3"
+          className="fixed top-3 sm:top-4 right-3 sm:right-4 bg-emerald-50 border border-emerald-200 rounded-lg p-3 sm:p-4 shadow-lg z-50 flex items-center gap-2 sm:gap-3 max-w-[calc(100vw-2rem)]"
           role="alert"
           aria-live="polite"
         >
-          <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
-            <span className="material-symbols-outlined text-emerald-600 text-sm">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
               check_circle
             </span>
           </div>
-          <div>
-            <p className="font-semibold text-emerald-900">Profile Updated!</p>
-            <p className="text-sm text-emerald-700">
+          <div className="min-w-0">
+            <p className="font-semibold text-emerald-900 text-sm sm:text-base truncate">
+              Profile Updated!
+            </p>
+            <p className="text-xs sm:text-sm text-emerald-700 truncate">
               Your changes have been saved successfully.
             </p>
           </div>
@@ -388,34 +405,42 @@ const ProfilePage = () => {
           onCropComplete={handleCropComplete}
           onCancel={handleCropCancel}
           aspectRatio={1}
+          isMobile={isMobile}
         />
       )}
 
-
       {/* Header */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-gray-800 text-3xl font-bold leading-tight mb-2">
+      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <h1 className={`font-bold text-gray-900 leading-tight mb-1 sm:mb-2 ${
+            isMobile ? "text-xl sm:text-2xl" : "text-2xl md:text-3xl"
+          }`}>
             Profile
           </h1>
-          <p className="text-gray-500 text-sm font-normal leading-normal">
+          <p className={`text-gray-500 font-normal leading-normal ${
+            isMobile ? "text-xs sm:text-sm" : "text-sm"
+          }`}>
             Manage your personal information and skills
           </p>
         </div>
         {!isEditing ? (
           <button
             onClick={() => setIsEditing(true)}
-            className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-medium text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2"
+            className={`bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex items-center gap-1.5 sm:gap-2 touch-manipulation ${
+              isMobile ? "px-4 py-2 text-xs sm:text-sm self-start mt-2 sm:mt-0" : "px-6 py-2.5 text-sm"
+            }`}
             aria-label="Edit profile"
           >
             <span className="material-symbols-outlined text-sm">edit</span>
-            Edit Profile
+            <span>Edit Profile</span>
           </button>
         ) : (
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3 mt-2 sm:mt-0">
             <button
               onClick={handleCancel}
-              className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors"
+              className={`bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 active:bg-gray-300 transition-colors touch-manipulation ${
+                isMobile ? "px-3 py-2 text-xs sm:text-sm" : "px-6 py-2.5 text-sm"
+              }`}
               aria-label="Cancel editing"
             >
               Cancel
@@ -423,15 +448,19 @@ const ProfilePage = () => {
             <button
               onClick={handleSave}
               disabled={updateProfileMutation.isPending}
-              className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-medium text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+              className={`bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex items-center gap-1.5 sm:gap-2 disabled:opacity-50 touch-manipulation ${
+                isMobile ? "px-3 py-2 text-xs sm:text-sm" : "px-6 py-2.5 text-sm"
+              }`}
               aria-label="Save changes"
             >
               {updateProfileMutation.isPending ? (
-                <div role="status" className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                <div role="status" className={`border-2 border-white/20 border-t-white rounded-full animate-spin ${
+                  isMobile ? "w-3 h-3" : "w-4 h-4"
+                }`} />
               ) : (
                 <span className="material-symbols-outlined text-sm">save</span>
               )}
-              Save Changes
+              <span>Save Changes</span>
             </button>
           </div>
         )}
@@ -439,43 +468,53 @@ const ProfilePage = () => {
 
       {/* Profile Completion */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl p-6 mb-6"
+        className={`bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl mb-4 sm:mb-5 md:mb-6 ${
+          isMobile ? "p-4" : "p-5 sm:p-6"
+        }`}
       >
-        <div className="flex items-center justify-between mb-3">
+        <div className={`flex items-center justify-between ${
+          isMobile ? "mb-3" : "mb-4"
+        }`}>
           <div>
-            <h3 className="font-semibold text-gray-900">Profile Completion</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
+              Profile Completion
+            </h3>
+            <p className={`text-gray-600 ${
+              isMobile ? "text-xs sm:text-sm" : "text-sm"
+            }`}>
               {completionPercentage}% complete
             </p>
           </div>
-          <div className="w-16 h-16 relative">
-            <svg className="transform -rotate-90 w-16 h-16">
+          <div className={`relative ${isMobile ? "w-12 h-12" : "w-14 h-14 sm:w-16 sm:h-16"}`}>
+            <svg className="transform -rotate-90 w-full h-full">
               <circle
-                cx="32"
-                cy="32"
-                r="28"
+                cx="50%"
+                cy="50%"
+                r="calc(50% - 3px)"
                 stroke="#e5e7eb"
                 strokeWidth="6"
                 fill="none"
               />
               <circle
-                cx="32"
-                cy="32"
-                r="28"
+                cx="50%"
+                cy="50%"
+                r="calc(50% - 3px)"
                 stroke="#10b981"
                 strokeWidth="6"
                 fill="none"
-                strokeDasharray={`${2 * Math.PI * 28}`}
+                strokeDasharray={`${2 * Math.PI * (isMobile ? 18 : 22)}`}
                 strokeDashoffset={`${
-                  2 * Math.PI * 28 * (1 - completionPercentage / 100)
+                  2 * Math.PI * (isMobile ? 18 : 22) * (1 - completionPercentage / 100)
                 }`}
                 strokeLinecap="round"
               />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-sm font-bold text-gray-900">
+              <span className={`font-bold text-gray-900 ${
+                isMobile ? "text-xs" : "text-sm sm:text-base"
+              }`}>
                 {completionPercentage}%
               </span>
             </div>
@@ -494,23 +533,36 @@ const ProfilePage = () => {
       </motion.div>
 
       {/* Profile Form */}
-      <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100">
+      <div className={`bg-white rounded-xl shadow-sm border border-gray-100 ${
+        isMobile ? "p-4 sm:p-5" : "p-6 md:p-8"
+      }`}>
         {/* Avatar Section */}
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8 pb-8 border-b border-gray-200">
-          <div className="relative group">
-            <div className="w-32 h-32 rounded-full border-4 border-gray-100 overflow-hidden bg-gray-100 flex items-center justify-center">
+        <div className={`flex flex-col md:flex-row items-start md:items-center gap-4 sm:gap-5 md:gap-6 ${
+          isMobile ? "mb-6 pb-6" : "mb-7 md:mb-8 pb-6 md:pb-8"
+        } border-b border-gray-200`}>
+          <div className="relative group self-start">
+            <div className={`rounded-full border-4 border-gray-100 overflow-hidden bg-gray-100 flex items-center justify-center ${
+              isMobile ? "w-24 h-24 sm:w-28 sm:h-28" : "w-32 h-32"
+            }`}>
               {isUploadingAvatar ? (
-                <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+                <div className={`border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin ${
+                  isMobile ? "w-6 h-6 border-3" : "w-8 h-8 border-4"
+                }`} />
               ) : formData.image ? (
                 <Image
                   src={formData.image}
                   alt={formData.name || "Profile"}
-                  width={128}
-                  height={128}
+                  width={isMobile ? 112 : 128}
+                  height={isMobile ? 112 : 128}
                   className="w-full h-full object-cover"
+                  priority
                 />
               ) : (
-                <span className="material-symbols-outlined text-gray-400 text-5xl">person</span>
+                <span className={`material-symbols-outlined text-gray-400 ${
+                  isMobile ? "text-4xl" : "text-5xl"
+                }`}>
+                  person
+                </span>
               )}
             </div>
             <input
@@ -523,36 +575,46 @@ const ProfilePage = () => {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploadingAvatar}
-              className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:cursor-not-allowed"
+              className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:cursor-not-allowed touch-manipulation"
               aria-label="Change profile picture"
             >
-              <span className="material-symbols-outlined text-white text-3xl">
+              <span className="material-symbols-outlined text-white text-xl sm:text-2xl md:text-3xl">
                 photo_camera
               </span>
             </button>
           </div>
-          <div className="flex-1">
-            <h2 className="text-2xl font-bold text-gray-900 mb-1">
+          <div className="flex-1 min-w-0">
+            <h2 className={`font-bold text-gray-900 mb-1 ${
+              isMobile ? "text-lg sm:text-xl" : "text-xl md:text-2xl"
+            }`}>
               {formData.name}
             </h2>
-            <p className="text-gray-500 mb-3">Service Provider</p>
-            <div className="flex items-center gap-2">
+            <p className={`text-gray-500 ${
+              isMobile ? "text-sm mb-2" : "text-base mb-3"
+            }`}>
+              Service Provider
+            </p>
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               {/* Green verification badge for profile completion (100%) */}
               {completionPercentage === 100 && (
-                <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold flex items-center gap-1">
+                <span className={`bg-emerald-100 text-emerald-700 rounded-full font-semibold flex items-center gap-1 ${
+                  isMobile ? "px-2 py-0.5 text-[10px] sm:text-xs" : "px-3 py-1 text-xs"
+                }`}>
                   <span className="material-symbols-outlined text-xs">
                     verified
                   </span>
-                  Verified
+                  <span>Verified</span>
                 </span>
               )}
               {/* Gold verification badge for premium subscription */}
               {subscriptionData?.subscription?.isPremium && (
-                <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold flex items-center gap-1">
+                <span className={`bg-amber-100 text-amber-700 rounded-full font-semibold flex items-center gap-1 ${
+                  isMobile ? "px-2 py-0.5 text-[10px] sm:text-xs" : "px-3 py-1 text-xs"
+                }`}>
                   <span className="material-symbols-outlined text-xs">
                     verified
                   </span>
-                  Premium Verified
+                  <span>Premium Verified</span>
                 </span>
               )}
             </div>
@@ -560,19 +622,23 @@ const ProfilePage = () => {
         </div>
 
         {/* Personal Information */}
-        <div className="mb-8">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-emerald-600">
+        <div className="mb-6 sm:mb-7 md:mb-8">
+          <h3 className={`font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-1.5 sm:gap-2 ${
+            isMobile ? "text-base sm:text-lg" : "text-lg"
+          }`}>
+            <span className="material-symbols-outlined text-emerald-600 text-lg sm:text-xl">
               person
             </span>
             Personal Information
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
             {/* Name */}
             <div>
               <label
                 htmlFor="name"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}
               >
                 Full Name
               </label>
@@ -582,11 +648,17 @@ const ProfilePage = () => {
                   type="text"
                   value={formData.name || ""}
                   onChange={(e) => handleInputChange("name", e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+                  className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 ${
+                    isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                  }`}
                   aria-label="Full name"
                 />
               ) : (
-                <p className="text-gray-900 py-2.5">{formData.name}</p>
+                <p className={`text-gray-900 ${
+                  isMobile ? "py-2 text-sm" : "py-2.5"
+                }`}>
+                  {formData.name}
+                </p>
               )}
             </div>
 
@@ -594,11 +666,15 @@ const ProfilePage = () => {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}
               >
                 Email Address
               </label>
-              <p className="text-gray-900 py-2.5 flex items-center gap-2">
+              <p className={`text-gray-900 flex items-center gap-1.5 sm:gap-2 ${
+                isMobile ? "py-2 text-sm" : "py-2.5"
+              }`}>
                 <span className="material-symbols-outlined text-gray-400 text-sm">
                   mail
                 </span>
@@ -610,7 +686,9 @@ const ProfilePage = () => {
             <div>
               <label
                 htmlFor="phone"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}
               >
                 Phone Number
               </label>
@@ -620,11 +698,15 @@ const ProfilePage = () => {
                   type="tel"
                   value={formData.phone || ""}
                   onChange={(e) => handleInputChange("phone", e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+                  className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 ${
+                    isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                  }`}
                   aria-label="Phone number"
                 />
               ) : (
-                <p className="text-gray-900 py-2.5 flex items-center gap-2">
+                <p className={`text-gray-900 flex items-center gap-1.5 sm:gap-2 ${
+                  isMobile ? "py-2 text-sm" : "py-2.5"
+                }`}>
                   <span className="material-symbols-outlined text-gray-400 text-sm">
                     call
                   </span>
@@ -637,7 +719,9 @@ const ProfilePage = () => {
             <div>
               <label
                 htmlFor="location"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}
               >
                 Location
               </label>
@@ -650,32 +734,40 @@ const ProfilePage = () => {
                     onChange={(e) =>
                       handleInputChange("location", e.target.value)
                     }
-                    className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+                    className={`flex-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 ${
+                      isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                    }`}
                     aria-label="Location"
                     placeholder="e.g., Nairobi, Kenya"
                   />
                   <button
                     onClick={handleGetLocation}
                     disabled={isGettingLocation}
-                    className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    className={`bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap touch-manipulation ${
+                      isMobile ? "px-3 py-2 text-xs" : "px-4 py-2.5 text-sm"
+                    }`}
                     aria-label="Get current location"
                     title="Get current location"
                   >
                     {isGettingLocation ? (
                       <>
-                        <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                        Getting...
+                        <div className={`border-2 border-white/20 border-t-white rounded-full animate-spin ${
+                          isMobile ? "w-3 h-3" : "w-4 h-4"
+                        }`} />
+                        <span className="hidden sm:inline">Getting...</span>
                       </>
                     ) : (
                       <>
                         <span className="material-symbols-outlined text-sm">my_location</span>
-                        Get Location
+                        <span className="hidden sm:inline">Get Location</span>
                       </>
                     )}
                   </button>
                 </div>
               ) : (
-                <p className="text-gray-900 py-2.5 flex items-center gap-2">
+                <p className={`text-gray-900 flex items-center gap-1.5 sm:gap-2 ${
+                  isMobile ? "py-2 text-sm" : "py-2.5"
+                }`}>
                   <span className="material-symbols-outlined text-gray-400 text-sm">
                     location_on
                   </span>
@@ -688,22 +780,28 @@ const ProfilePage = () => {
             <div className="md:col-span-2">
               <label
                 htmlFor="bio"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}
               >
                 Bio
               </label>
               {isEditing ? (
                 <textarea
                   id="bio"
-                  rows={4}
+                  rows={3}
                   value={formData.bio || ""}
                   onChange={(e) => handleInputChange("bio", e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none text-gray-900 placeholder:text-gray-400"
+                  className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none text-gray-900 placeholder:text-gray-400 ${
+                    isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                  }`}
                   aria-label="Bio"
                   placeholder="Tell us about yourself..."
                 />
               ) : (
-                <p className="text-gray-900 py-2.5">
+                <p className={`text-gray-900 ${
+                  isMobile ? "py-2 text-sm" : "py-2.5"
+                }`}>
                   {formData.bio || "No bio added yet"}
                 </p>
               )}
@@ -713,7 +811,9 @@ const ProfilePage = () => {
             <div>
               <label
                 htmlFor="hourlyRate"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}
               >
                 Hourly Rate (KES)
               </label>
@@ -723,12 +823,16 @@ const ProfilePage = () => {
                   type="number"
                   value={formData.hourlyRate || ""}
                   onChange={(e) => handleInputChange("hourlyRate", e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+                  className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 ${
+                    isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                  }`}
                   aria-label="Hourly rate"
                   placeholder="e.g., 1500"
                 />
               ) : (
-                <p className="text-gray-900 py-2.5">
+                <p className={`text-gray-900 ${
+                  isMobile ? "py-2 text-sm" : "py-2.5"
+                }`}>
                   {formData.hourlyRate ? `KES ${Number(formData.hourlyRate).toLocaleString()}` : "Not set"}
                 </p>
               )}
@@ -738,28 +842,32 @@ const ProfilePage = () => {
 
         {/* Skills Section */}
         <div>
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-emerald-600">
+          <h3 className={`font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-1.5 sm:gap-2 ${
+            isMobile ? "text-base sm:text-lg" : "text-lg"
+          }`}>
+            <span className="material-symbols-outlined text-emerald-600 text-lg sm:text-xl">
               workspace_premium
             </span>
             Skills & Expertise
           </h3>
 
           {/* Skills Display */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
             {formData.skills.map((skill: string) => (
               <motion.span
                 key={skill}
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2"
+                className={`bg-emerald-100 text-emerald-700 rounded-full font-medium flex items-center gap-1.5 ${
+                  isMobile ? "px-3 py-1 text-xs" : "px-4 py-2 text-sm"
+                }`}
               >
                 {skill}
                 {isEditing && (
                   <button
                     onClick={() => handleRemoveSkill(skill)}
-                    className="hover:bg-emerald-200 rounded-full p-0.5 transition-colors"
+                    className="hover:bg-emerald-200 rounded-full p-0.5 transition-colors touch-manipulation"
                     aria-label={`Remove ${skill} skill`}
                   >
                     <span className="material-symbols-outlined text-xs">
@@ -780,16 +888,20 @@ const ProfilePage = () => {
                 onChange={(e) => setNewSkill(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleAddSkill()}
                 placeholder="Add a new skill..."
-                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder:text-gray-400"
+                className={`flex-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 ${
+                  isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                }`}
                 aria-label="New skill"
               />
               <button
                 onClick={handleAddSkill}
-                className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg font-medium text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2"
+                className={`bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex items-center gap-1.5 sm:gap-2 touch-manipulation ${
+                  isMobile ? "px-3 py-2 text-xs sm:text-sm" : "px-4 py-2.5 text-sm"
+                }`}
                 aria-label="Add skill"
               >
                 <span className="material-symbols-outlined text-sm">add</span>
-                Add Skill
+                <span>Add Skill</span>
               </button>
             </div>
           )}
@@ -797,25 +909,27 @@ const ProfilePage = () => {
       </div>
 
       {/* Additional Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 md:gap-6 mt-4 sm:mt-5 md:mt-6">
         {/* Account Stats */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+          className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5"
         >
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-emerald-600">
+          <h3 className={`font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-1.5 sm:gap-2 ${
+            isMobile ? "text-base sm:text-lg" : "text-lg"
+          }`}>
+            <span className="material-symbols-outlined text-emerald-600 text-lg sm:text-xl">
               analytics
             </span>
             Account Statistics
           </h3>
-          <div className="space-y-4">
+          <div className="space-y-2 sm:space-y-3">
             {[
               { 
                 label: "Member Since", 
-                value: formData.memberSince ? new Date(formData.memberSince).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : "N/A", 
+                value: formData.memberSince ? new Date(formData.memberSince).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : "N/A", 
                 icon: "event" 
               },
               {
@@ -836,15 +950,21 @@ const ProfilePage = () => {
             ].map((stat) => (
               <div
                 key={stat.label}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <span className="material-symbols-outlined text-gray-400 text-sm">
                     {stat.icon}
                   </span>
-                  <span className="text-sm text-gray-600">{stat.label}</span>
+                  <span className={`text-gray-600 ${
+                    isMobile ? "text-xs sm:text-sm" : "text-sm"
+                  }`}>
+                    {stat.label}
+                  </span>
                 </div>
-                <span className="text-sm font-semibold text-gray-900">
+                <span className={`font-semibold text-gray-900 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}>
                   {stat.value}
                 </span>
               </div>
@@ -854,18 +974,20 @@ const ProfilePage = () => {
 
         {/* Quick Actions */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl shadow-sm p-6 border border-gray-100"
+          className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5"
         >
-          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <span className="material-symbols-outlined text-emerald-600">
+          <h3 className={`font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-1.5 sm:gap-2 ${
+            isMobile ? "text-base sm:text-lg" : "text-lg"
+          }`}>
+            <span className="material-symbols-outlined text-emerald-600 text-lg sm:text-xl">
               bolt
             </span>
             Quick Actions
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {[
               { label: "Change Password", icon: "lock", action: handleChangePassword },
               { label: "Notification Settings", icon: "notifications", action: handleNotificationSettings },
@@ -875,16 +997,18 @@ const ProfilePage = () => {
               <button
                 key={action.label}
                 onClick={action.action}
-                className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
+                className="w-full flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors text-left touch-manipulation"
                 aria-label={action.label}
               >
                 <span className="material-symbols-outlined text-gray-600 text-sm">
                   {action.icon}
                 </span>
-                <span className="text-sm font-medium text-gray-700">
+                <span className={`font-medium text-gray-700 flex-1 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}>
                   {action.label}
                 </span>
-                <span className="material-symbols-outlined text-gray-400 text-sm ml-auto">
+                <span className="material-symbols-outlined text-gray-400 text-sm">
                   chevron_right
                 </span>
               </button>
@@ -896,37 +1020,41 @@ const ProfilePage = () => {
       {/* Subscription Section */}
       {!isLoadingSubscription && subscriptionData?.subscription && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className={`rounded-2xl shadow-lg border-2 p-8 mt-6 ${
+          className={`rounded-xl sm:rounded-2xl shadow-lg border-2 mt-4 sm:mt-5 md:mt-6 ${
             subscriptionData.subscription.isPremium
               ? "bg-gradient-to-br from-amber-50 via-orange-50 to-amber-50 border-amber-200"
               : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
-          }`}
+          } ${isMobile ? "p-4 sm:p-5" : "p-6 md:p-8"}`}
         >
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 sm:gap-5 md:gap-6">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                <div className={`rounded-full flex items-center justify-center flex-shrink-0 ${
                   subscriptionData.subscription.isPremium
                     ? "bg-amber-100"
                     : "bg-gray-200"
-                }`}>
-                  <span className={`material-symbols-outlined text-2xl ${
+                } ${isMobile ? "w-10 h-10" : "w-12 h-12"}`}>
+                  <span className={`material-symbols-outlined ${
                     subscriptionData.subscription.isPremium
                       ? "text-amber-600"
                       : "text-gray-600"
-                  }`}>
+                  } ${isMobile ? "text-xl" : "text-2xl"}`}>
                     workspace_premium
                   </span>
                 </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900">
+                <div className="min-w-0">
+                  <h3 className={`font-bold text-gray-900 ${
+                    isMobile ? "text-lg sm:text-xl" : "text-xl md:text-2xl"
+                  }`}>
                     {subscriptionData.subscription.plan} Plan
                   </h3>
                   {subscriptionData.subscription.isPremium && subscriptionData.subscription.daysRemaining && (
-                    <p className="text-sm text-gray-600">
+                    <p className={`text-gray-600 ${
+                      isMobile ? "text-xs sm:text-sm" : "text-sm"
+                    }`}>
                       {subscriptionData.subscription.daysRemaining} days remaining
                     </p>
                   )}
@@ -935,10 +1063,12 @@ const ProfilePage = () => {
 
               {subscriptionData.subscription.isPremium ? (
                 <div className="space-y-2">
-                  <p className="text-gray-700">
+                  <p className={`text-gray-700 ${
+                    isMobile ? "text-sm" : "text-base"
+                  }`}>
                     You're enjoying premium benefits including:
                   </p>
-                  <ul className="space-y-1.5">
+                  <ul className="space-y-1 sm:space-y-1.5">
                     {[
                       "Unlimited service listings",
                       "Priority support",
@@ -946,31 +1076,41 @@ const ProfilePage = () => {
                       "Featured profile badge",
                       "Priority in search results",
                     ].map((benefit, index) => (
-                      <li key={index} className="flex items-center gap-2 text-sm text-gray-700">
+                      <li key={index} className="flex items-center gap-1.5 sm:gap-2 text-gray-700">
                         <span className="material-symbols-outlined text-amber-600 text-sm">
                           check_circle
                         </span>
-                        {benefit}
+                        <span className={`${
+                          isMobile ? "text-xs sm:text-sm" : "text-sm"
+                        }`}>
+                          {benefit}
+                        </span>
                       </li>
                     ))}
                   </ul>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <p className="text-gray-700">
+                <div className="space-y-2 sm:space-y-3">
+                  <p className={`text-gray-700 ${
+                    isMobile ? "text-sm" : "text-base"
+                  }`}>
                     Upgrade to unlock premium features and grow your business faster!
                   </p>
-                  <ul className="space-y-1.5">
+                  <ul className="space-y-1 sm:space-y-1.5">
                     {[
                       "Unlimited service listings",
                       "Priority support & faster response times",
                       "Advanced analytics & insights",
                     ].map((benefit, index) => (
-                      <li key={index} className="flex items-center gap-2 text-sm text-gray-600">
+                      <li key={index} className="flex items-center gap-1.5 sm:gap-2 text-gray-600">
                         <span className="material-symbols-outlined text-emerald-600 text-sm">
                           star
                         </span>
-                        {benefit}
+                        <span className={`${
+                          isMobile ? "text-xs sm:text-sm" : "text-sm"
+                        }`}>
+                          {benefit}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -979,20 +1119,24 @@ const ProfilePage = () => {
             </div>
 
             {!subscriptionData.subscription.isPremium && (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2 sm:gap-3 mt-3 sm:mt-0">
                 <button
                   onClick={() => router.push("/dashboard/premium")}
-                  className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-500 text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+                  className={`bg-gradient-to-r from-emerald-600 to-teal-500 text-white rounded-lg sm:rounded-xl font-semibold hover:shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap touch-manipulation ${
+                    isMobile ? "px-4 py-2.5 text-xs sm:text-sm" : "px-6 py-3 text-sm"
+                  }`}
                   aria-label="Upgrade to premium"
                 >
                   <span className="material-symbols-outlined text-sm">
                     workspace_premium
                   </span>
-                  Upgrade to Premium
+                  <span>Upgrade to Premium</span>
                 </button>
                 <button
                   onClick={() => router.push("/dashboard/premium")}
-                  className="px-6 py-2 text-emerald-600 text-sm font-medium hover:text-emerald-700 transition-colors"
+                  className={`text-emerald-600 hover:text-emerald-700 active:text-emerald-800 transition-colors ${
+                    isMobile ? "text-xs sm:text-sm px-4 py-1.5" : "text-sm px-6 py-2"
+                  }`}
                 >
                   View Pricing Plans →
                 </button>
@@ -1004,40 +1148,60 @@ const ProfilePage = () => {
 
       {/* Certifications Section */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 mt-6"
+        className={`bg-white rounded-xl shadow-sm border border-gray-100 mt-4 sm:mt-5 md:mt-6 ${
+          isMobile ? "p-4 sm:p-5" : "p-6 md:p-8"
+        }`}
       >
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <span className="material-symbols-outlined text-emerald-600">workspace_premium</span>
+        <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 sm:gap-3 mb-4 sm:mb-5 md:mb-6">
+          <h3 className={`font-bold text-gray-900 flex items-center gap-1.5 sm:gap-2 ${
+            isMobile ? "text-base sm:text-lg" : "text-lg"
+          }`}>
+            <span className="material-symbols-outlined text-emerald-600 text-lg sm:text-xl">workspace_premium</span>
             Certifications
           </h3>
           {isEditing && (
             <button
               onClick={() => setShowCertModal(true)}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2"
+              className={`bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex items-center gap-1.5 sm:gap-2 touch-manipulation ${
+                isMobile ? "px-3 py-1.5 text-xs sm:text-sm self-start xs:self-auto" : "px-4 py-2 text-sm"
+              }`}
             >
               <span className="material-symbols-outlined text-sm">add</span>
-              Add Certification
+              <span>Add Certification</span>
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           {(formData.certifications || []).map((cert: any, index: number) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div key={index} className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-sm sm:hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900">{cert.name}</h4>
-                  <p className="text-sm text-gray-600 mt-1">{cert.issuer}</p>
-                  {cert.date && <p className="text-xs text-gray-500 mt-1">{cert.date}</p>}
+                <div className="flex-1 min-w-0">
+                  <h4 className={`font-semibold text-gray-900 ${
+                    isMobile ? "text-sm" : "text-base"
+                  }`}>
+                    {cert.name}
+                  </h4>
+                  <p className={`text-gray-600 mt-1 ${
+                    isMobile ? "text-xs" : "text-sm"
+                  }`}>
+                    {cert.issuer}
+                  </p>
+                  {cert.date && <p className={`text-gray-500 mt-1 ${
+                    isMobile ? "text-[10px] sm:text-xs" : "text-xs"
+                  }`}>
+                    {cert.date}
+                  </p>}
                   <a
                     href={cert.fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700 mt-2"
+                    className={`inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 active:text-emerald-800 mt-2 ${
+                      isMobile ? "text-xs" : "text-sm"
+                    }`}
                   >
                     <span className="material-symbols-outlined text-sm">description</span>
                     View Certificate
@@ -1046,7 +1210,8 @@ const ProfilePage = () => {
                 {isEditing && (
                   <button
                     onClick={() => handleRemoveCertification(index)}
-                    className="text-red-600 hover:bg-red-50 p-1 rounded transition-colors"
+                    className="text-red-600 hover:bg-red-50 active:bg-red-100 p-1 rounded transition-colors ml-2 flex-shrink-0 touch-manipulation"
+                    aria-label="Remove certification"
                   >
                     <span className="material-symbols-outlined text-sm">delete</span>
                   </button>
@@ -1055,9 +1220,17 @@ const ProfilePage = () => {
             </div>
           ))}
           {(formData.certifications || []).length === 0 && (
-            <div className="col-span-2 text-center py-8 text-gray-500">
-              <span className="material-symbols-outlined text-4xl text-gray-300 mb-2">workspace_premium</span>
-              <p>No certifications added yet</p>
+            <div className="col-span-2 text-center py-6 sm:py-8 text-gray-500">
+              <span className={`material-symbols-outlined text-gray-300 mb-2 ${
+                isMobile ? "text-3xl sm:text-4xl" : "text-4xl"
+              }`}>
+                workspace_premium
+              </span>
+              <p className={`${
+                isMobile ? "text-sm" : "text-base"
+              }`}>
+                No certifications added yet
+              </p>
             </div>
           )}
         </div>
@@ -1065,42 +1238,59 @@ const ProfilePage = () => {
 
       {/* Education Section */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 mt-6"
+        className={`bg-white rounded-xl shadow-sm border border-gray-100 mt-4 sm:mt-5 md:mt-6 ${
+          isMobile ? "p-4 sm:p-5" : "p-6 md:p-8"
+        }`}
       >
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <span className="material-symbols-outlined text-emerald-600">school</span>
+        <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 sm:gap-3 mb-4 sm:mb-5 md:mb-6">
+          <h3 className={`font-bold text-gray-900 flex items-center gap-1.5 sm:gap-2 ${
+            isMobile ? "text-base sm:text-lg" : "text-lg"
+          }`}>
+            <span className="material-symbols-outlined text-emerald-600 text-lg sm:text-xl">school</span>
             Education
           </h3>
           {isEditing && (
             <button
               onClick={() => setShowEduModal(true)}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2"
+              className={`bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex items-center gap-1.5 sm:gap-2 touch-manipulation ${
+                isMobile ? "px-3 py-1.5 text-xs sm:text-sm self-start xs:self-auto" : "px-4 py-2 text-sm"
+              }`}
             >
               <span className="material-symbols-outlined text-sm">add</span>
-              Add Education
+              <span>Add Education</span>
             </button>
           )}
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {(formData.education || []).map((edu: any, index: number) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div key={index} className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-sm sm:hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900">{edu.degree} in {edu.field}</h4>
-                  <p className="text-sm text-gray-600 mt-1">{edu.institution}</p>
-                  <p className="text-xs text-gray-500 mt-1">
+                <div className="flex-1 min-w-0">
+                  <h4 className={`font-semibold text-gray-900 ${
+                    isMobile ? "text-sm" : "text-base"
+                  }`}>
+                    {edu.degree} in {edu.field}
+                  </h4>
+                  <p className={`text-gray-600 mt-1 ${
+                    isMobile ? "text-xs" : "text-sm"
+                  }`}>
+                    {edu.institution}
+                  </p>
+                  <p className={`text-gray-500 mt-1 ${
+                    isMobile ? "text-[10px] sm:text-xs" : "text-xs"
+                  }`}>
                     {edu.startYear} - {edu.endYear || 'Present'}
                   </p>
                 </div>
                 {isEditing && (
                   <button
                     onClick={() => handleRemoveEducation(index)}
-                    className="text-red-600 hover:bg-red-50 p-1 rounded transition-colors"
+                    className="text-red-600 hover:bg-red-50 active:bg-red-100 p-1 rounded transition-colors ml-2 flex-shrink-0 touch-manipulation"
+                    aria-label="Remove education"
                   >
                     <span className="material-symbols-outlined text-sm">delete</span>
                   </button>
@@ -1109,9 +1299,17 @@ const ProfilePage = () => {
             </div>
           ))}
           {(formData.education || []).length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <span className="material-symbols-outlined text-4xl text-gray-300 mb-2">school</span>
-              <p>No education records added yet</p>
+            <div className="text-center py-6 sm:py-8 text-gray-500">
+              <span className={`material-symbols-outlined text-gray-300 mb-2 ${
+                isMobile ? "text-3xl sm:text-4xl" : "text-4xl"
+              }`}>
+                school
+              </span>
+              <p className={`${
+                isMobile ? "text-sm" : "text-base"
+              }`}>
+                No education records added yet
+              </p>
             </div>
           )}
         </div>
@@ -1119,46 +1317,86 @@ const ProfilePage = () => {
 
       {/* Certification Modal */}
       {showCertModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl p-6 max-w-md w-full"
+            className={`bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto ${
+              isMobile ? "p-4" : "p-5 sm:p-6"
+            }`}
           >
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Add Certification</h3>
-            <div className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`font-bold text-gray-900 ${
+                isMobile ? "text-base sm:text-lg" : "text-lg"
+              }`}>
+                Add Certification
+              </h3>
+              <button
+                onClick={() => {
+                  setShowCertModal(false);
+                  setNewCertification({ name: '', issuer: '', date: '', fileUrl: '' });
+                }}
+                className="text-gray-400 hover:text-gray-600 active:text-gray-700 rounded-full p-1 transition-colors"
+                aria-label="Close modal"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Certification Name</label>
+                <label className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}>
+                  Certification Name
+                </label>
                 <input
                   type="text"
                   value={newCertification.name}
                   onChange={(e) => setNewCertification({ ...newCertification, name: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400"
+                  className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400 ${
+                    isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                  }`}
                   placeholder="e.g., AWS Certified Solutions Architect"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Issuing Organization</label>
+                <label className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}>
+                  Issuing Organization
+                </label>
                 <input
                   type="text"
                   value={newCertification.issuer}
                   onChange={(e) => setNewCertification({ ...newCertification, issuer: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400"
+                  className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400 ${
+                    isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                  }`}
                   placeholder="e.g., Amazon Web Services"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Issue Date (Optional)</label>
+                <label className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}>
+                  Issue Date (Optional)
+                </label>
                 <input
                   type="text"
                   value={newCertification.date}
                   onChange={(e) => setNewCertification({ ...newCertification, date: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400"
+                  className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400 ${
+                    isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                  }`}
                   placeholder="e.g., January 2024"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Upload Certificate (PDF)</label>
+                <label className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}>
+                  Upload Certificate (PDF)
+                </label>
                 <input
                   type="file"
                   ref={certFileInputRef}
@@ -1169,41 +1407,49 @@ const ProfilePage = () => {
                 <button
                   onClick={() => certFileInputRef.current?.click()}
                   disabled={isUploadingCert}
-                  className="w-full px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg hover:border-emerald-500 transition-colors flex items-center justify-center gap-2"
+                  className={`w-full border-2 border-dashed border-gray-300 rounded-lg hover:border-emerald-500 active:border-emerald-600 transition-colors flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation ${
+                    isMobile ? "px-3 py-2.5 text-sm" : "px-4 py-2.5"
+                  }`}
                 >
                   {isUploadingCert ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-                      Uploading...
+                      <div className={`border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin ${
+                        isMobile ? "w-4 h-4" : "w-5 h-5"
+                      }`} />
+                      <span>Uploading...</span>
                     </>
                   ) : newCertification.fileUrl ? (
                     <>
-                      <span className="material-symbols-outlined text-emerald-600">check_circle</span>
-                      File Uploaded
+                      <span className="material-symbols-outlined text-emerald-600 text-lg">check_circle</span>
+                      <span>File Uploaded</span>
                     </>
                   ) : (
                     <>
-                      <span className="material-symbols-outlined">upload_file</span>
-                      Click to Upload PDF
+                      <span className="material-symbols-outlined text-lg">upload_file</span>
+                      <span>Click to Upload PDF</span>
                     </>
                   )}
                 </button>
               </div>
             </div>
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-2 sm:gap-3 mt-5 sm:mt-6">
               <button
                 onClick={() => {
                   setShowCertModal(false);
                   setNewCertification({ name: '', issuer: '', date: '', fileUrl: '' });
                 }}
-                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className={`flex-1 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation ${
+                  isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                }`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddCertification}
                 disabled={!newCertification.name || !newCertification.issuer || !newCertification.fileUrl}
-                className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`flex-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                }`}
               >
                 Add
               </button>
@@ -1214,81 +1460,133 @@ const ProfilePage = () => {
 
       {/* Education Modal */}
       {showEduModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl p-6 max-w-md w-full"
+            className={`bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto ${
+              isMobile ? "p-4" : "p-5 sm:p-6"
+            }`}
           >
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Add Education</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Institution</label>
-                <input
-                  type="text"
-                  value={newEducation.institution}
-                  onChange={(e) => setNewEducation({ ...newEducation, institution: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400"
-                  placeholder="e.g., University of Nairobi"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Degree</label>
-                <input
-                  type="text"
-                  value={newEducation.degree}
-                  onChange={(e) => setNewEducation({ ...newEducation, degree: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400"
-                  placeholder="e.g., Bachelor's, Master's"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Field of Study</label>
-                <input
-                  type="text"
-                  value={newEducation.field}
-                  onChange={(e) => setNewEducation({ ...newEducation, field: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400"
-                  placeholder="e.g., Computer Science"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Year</label>
-                  <input
-                    type="text"
-                    value={newEducation.startYear}
-                    onChange={(e) => setNewEducation({ ...newEducation, startYear: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400"
-                    placeholder="2018"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Year</label>
-                  <input
-                    type="text"
-                    value={newEducation.endYear}
-                    onChange={(e) => setNewEducation({ ...newEducation, endYear: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400"
-                    placeholder="2022 or leave blank"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`font-bold text-gray-900 ${
+                isMobile ? "text-base sm:text-lg" : "text-lg"
+              }`}>
+                Add Education
+              </h3>
               <button
                 onClick={() => {
                   setShowEduModal(false);
                   setNewEducation({ institution: '', degree: '', field: '', startYear: '', endYear: '' });
                 }}
-                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="text-gray-400 hover:text-gray-600 active:text-gray-700 rounded-full p-1 transition-colors"
+                aria-label="Close modal"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+            <div className="space-y-3 sm:space-y-4">
+              <div>
+                <label className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}>
+                  Institution
+                </label>
+                <input
+                  type="text"
+                  value={newEducation.institution}
+                  onChange={(e) => setNewEducation({ ...newEducation, institution: e.target.value })}
+                  className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400 ${
+                    isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                  }`}
+                  placeholder="e.g., University of Nairobi"
+                />
+              </div>
+              <div>
+                <label className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}>
+                  Degree
+                </label>
+                <input
+                  type="text"
+                  value={newEducation.degree}
+                  onChange={(e) => setNewEducation({ ...newEducation, degree: e.target.value })}
+                  className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400 ${
+                    isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                  }`}
+                  placeholder="e.g., Bachelor's, Master's"
+                />
+              </div>
+              <div>
+                <label className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                  isMobile ? "text-xs sm:text-sm" : "text-sm"
+                }`}>
+                  Field of Study
+                </label>
+                <input
+                  type="text"
+                  value={newEducation.field}
+                  onChange={(e) => setNewEducation({ ...newEducation, field: e.target.value })}
+                  className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400 ${
+                    isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                  }`}
+                  placeholder="e.g., Computer Science"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                    isMobile ? "text-xs sm:text-sm" : "text-sm"
+                  }`}>
+                    Start Year
+                  </label>
+                  <input
+                    type="text"
+                    value={newEducation.startYear}
+                    onChange={(e) => setNewEducation({ ...newEducation, startYear: e.target.value })}
+                    className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400 ${
+                      isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                    }`}
+                    placeholder="2018"
+                  />
+                </div>
+                <div>
+                  <label className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                    isMobile ? "text-xs sm:text-sm" : "text-sm"
+                  }`}>
+                    End Year
+                  </label>
+                  <input
+                    type="text"
+                    value={newEducation.endYear}
+                    onChange={(e) => setNewEducation({ ...newEducation, endYear: e.target.value })}
+                    className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400 ${
+                      isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                    }`}
+                    placeholder="2022 or leave blank"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 sm:gap-3 mt-5 sm:mt-6">
+              <button
+                onClick={() => {
+                  setShowEduModal(false);
+                  setNewEducation({ institution: '', degree: '', field: '', startYear: '', endYear: '' });
+                }}
+                className={`flex-1 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation ${
+                  isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                }`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddEducation}
                 disabled={!newEducation.institution || !newEducation.degree || !newEducation.field}
-                className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`flex-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                }`}
               >
                 Add
               </button>

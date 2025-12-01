@@ -1,26 +1,30 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { useSession } from 'next-auth/react';
+import { motion } from "framer-motion";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 
 const navItems = [
-  { name: 'Dashboard', href: '/client/dashboard', icon: 'dashboard' },
-  { name: 'Analytics', href: '/client/analytics', icon: 'analytics' },
-  { name: 'Post a Job', href: '/client/post-job', icon: 'add_circle' },
-  { name: 'My Proposals', href: '/client/proposals', icon: 'description' },
-  { name: 'Bookings', href: '/client/bookings', icon: 'calendar_month' },
-  { name: 'Messages', href: '/client/messages', icon: 'chat' },
-  { name: 'Wallet', href: '/client/wallet', icon: 'account_balance_wallet' },
-  { name: 'Profile', href: '/client/profile', icon: 'person' },
+  { name: "Dashboard", href: "/client/dashboard", icon: "dashboard" },
+  { name: "Analytics", href: "/client/analytics", icon: "analytics" },
+  { name: "Post a Job", href: "/client/post-job", icon: "add_circle" },
+  { name: "My Proposals", href: "/client/proposals", icon: "description" },
+  { name: "Bookings", href: "/client/bookings", icon: "calendar_month" },
+  { name: "Messages", href: "/client/messages", icon: "chat" },
+  { name: "Wallet", href: "/client/wallet", icon: "account_balance_wallet" },
+  { name: "Profile", href: "/client/profile", icon: "person" },
 ];
 
 const secondaryItems = [
-  { name: 'Notifications', href: '/client/notifications', icon: 'notifications' },
-  { name: 'Referral', href: '/client/referral', icon: 'card_giftcard' },
-  { name: 'Settings', href: '/client/settings', icon: 'settings' },
+  {
+    name: "Notifications",
+    href: "/client/notifications",
+    icon: "notifications",
+  },
+  { name: "Referral", href: "/client/referral", icon: "card_giftcard" },
+  { name: "Settings", href: "/client/settings", icon: "settings" },
 ];
 
 interface ClientSidebarProps {
@@ -31,105 +35,278 @@ interface ClientSidebarProps {
 const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Close sidebar on mobile when clicking outside
+  useEffect(() => {
+    if (isOpen && isMobile && onClose) {
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === "Escape") onClose();
+      };
+
+      document.addEventListener("keydown", handleEscape);
+      return () => document.removeEventListener("keydown", handleEscape);
+    }
+  }, [isOpen, isMobile, onClose]);
 
   return (
     <>
       {/* Mobile Backdrop */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm"
           onClick={onClose}
         />
       )}
-      
-      <aside 
-        className={`fixed lg:sticky top-0 left-0 z-50 h-screen w-64 bg-white border-r border-gray-100 p-4 transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        } flex flex-col justify-between`}
-        role="complementary"
-        aria-label="Client navigation"
+
+      <aside
+        className={`
+          fixed lg:sticky top-0 left-0 z-50 h-screen 
+          ${isMobile ? "w-full max-w-xs" : "w-full max-w-64"}
+          bg-white border-r border-gray-100 
+          transition-all duration-300 ease-in-out 
+          lg:translate-x-0 
+          flex flex-col justify-between
+          ${isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"}
+          overflow-y-auto
+        `}
+        role="navigation"
+        aria-label="Main navigation"
       >
-      <div className="flex flex-col gap-8">
-        {/* Logo/Brand */}
-        <div className="flex items-center gap-3 px-2 py-2">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 flex items-center justify-center">
-              <img src="/images/JustinTimeLogo.png" alt="JustInTime Logo" className="w-full h-full object-contain" />
+        {/* Mobile Header with Close Button */}
+        <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 flex items-center justify-center">
+              <img
+                src="/images/JustinTimeLogo.png"
+                alt="JustInTime Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
-            <span className="font-bold text-xl text-gray-900">JustInTime</span>
-          </Link>
+            <span className="font-bold text-lg text-gray-900">JustInTime</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Close menu"
+          >
+            <span className="material-symbols-outlined text-xl">close</span>
+          </button>
         </div>
 
-        {/* Navigation */}
-        <nav aria-label="Primary navigation">
-          <ul className="flex flex-col gap-1.5" role="list">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
-              
-              return (
-                <li key={item.name}>
-                  <Link 
-                    href={item.href}
-                    onClick={onClose}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
-                      isActive 
-                        ? 'bg-emerald-50 text-emerald-700 font-medium shadow-sm' 
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                  >
-                    <span 
-                      className={`material-symbols-outlined text-[22px] transition-colors ${
-                        isActive ? 'text-emerald-600' : 'text-gray-400 group-hover:text-gray-600'
-                      }`}
-                      aria-hidden="true"
-                    >
-                      {item.icon}
-                    </span>
-                    <span className="text-sm">{item.name}</span>
-                    {isActive && (
-                      <motion.div
-                        layoutId="activeIndicator"
-                        className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500"
-                      />
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-          
-          {/* Secondary Navigation */}
-          <div className="pt-2 mt-2 border-t border-gray-100">
-            <ul className="flex flex-col gap-1.5" role="list">
+        <div className="flex flex-col gap-4 p-4 lg:gap-6 lg:p-4">
+          {/* Logo/Brand - Hidden on mobile (shown in header) */}
+          <div className="hidden lg:flex items-center gap-3 px-2 py-2">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-10 h-10 flex items-center justify-center">
+                <img
+                  src="/images/JustinTimeLogo.png"
+                  alt="JustInTime Logo"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <span className="font-bold text-xl text-gray-900">
+                JustInTime
+              </span>
+            </Link>
+          </div>
+
+          {/* Two Column Layout for Desktop */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Main Navigation - Column 1 */}
+            <div className="lg:col-span-2">
+              <nav aria-label="Primary navigation" className="space-y-1">
+                <h3 className="text-[10px] lg:text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-2">
+                  Main Menu
+                </h3>
+                <ul className="flex flex-col gap-1" role="list">
+                  {navItems.slice(0, 4).map((item) => {
+                    const isActive =
+                      pathname === item.href ||
+                      pathname?.startsWith(`${item.href}/`);
+
+                    return (
+                      <li key={item.name}>
+                        <Link
+                          href={item.href}
+                          onClick={onClose}
+                          aria-current={isActive ? "page" : undefined}
+                          className={`
+                            flex items-center gap-2 lg:gap-3 
+                            px-3 py-2 lg:py-2.5 
+                            rounded-xl lg:rounded-xl 
+                            transition-all duration-200 
+                            group w-full
+                            ${
+                              isActive
+                                ? "bg-emerald-50 text-emerald-700 font-medium shadow-sm"
+                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                            }
+                          `}
+                        >
+                          <span
+                            className={`
+                              material-symbols-outlined 
+                              ${isMobile ? "text-[18px]" : "text-[20px]"}
+                              transition-colors flex-shrink-0
+                              ${
+                                isActive
+                                  ? "text-emerald-600"
+                                  : "text-gray-400 group-hover:text-gray-600"
+                              }
+                            `}
+                            aria-hidden="true"
+                          >
+                            {item.icon}
+                          </span>
+                          <span className="text-xs lg:text-sm truncate">
+                            {item.name}
+                          </span>
+                          {isActive && (
+                            <motion.div
+                              layoutId="activeIndicator"
+                              className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"
+                            />
+                          )}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </nav>
+            </div>
+
+            {/* Secondary Navigation - Column 2 */}
+            <div className="lg:col-span-2">
+              <nav aria-label="Secondary navigation" className="space-y-1">
+                <h3 className="text-[10px] lg:text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-2">
+                  More
+                </h3>
+                <ul className="flex flex-col gap-1" role="list">
+                  {navItems.slice(4).map((item) => {
+                    const isActive =
+                      pathname === item.href ||
+                      pathname?.startsWith(`${item.href}/`);
+
+                    return (
+                      <li key={item.name}>
+                        <Link
+                          href={item.href}
+                          onClick={onClose}
+                          aria-current={isActive ? "page" : undefined}
+                          className={`
+                            flex items-center gap-2 lg:gap-3 
+                            px-3 py-2 lg:py-2.5 
+                            rounded-xl lg:rounded-xl 
+                            transition-all duration-200 
+                            group w-full
+                            ${
+                              isActive
+                                ? "bg-emerald-50 text-emerald-700 font-medium shadow-sm"
+                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                            }
+                          `}
+                        >
+                          <span
+                            className={`
+                              material-symbols-outlined 
+                              ${isMobile ? "text-[18px]" : "text-[20px]"}
+                              transition-colors flex-shrink-0
+                              ${
+                                isActive
+                                  ? "text-emerald-600"
+                                  : "text-gray-400 group-hover:text-gray-600"
+                              }
+                            `}
+                            aria-hidden="true"
+                          >
+                            {item.icon}
+                          </span>
+                          <span className="text-xs lg:text-sm truncate">
+                            {item.name}
+                          </span>
+                          {isActive && (
+                            <motion.div
+                              layoutId="activeIndicator"
+                              className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"
+                            />
+                          )}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </nav>
+            </div>
+          </div>
+
+          {/* Utility Items */}
+          <div className="space-y-1">
+            <h3 className="text-[10px] lg:text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-2">
+              Utilities
+            </h3>
+            <ul className="flex flex-col gap-1" role="list">
               {secondaryItems.map((item) => {
-                const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
-                
+                const isActive =
+                  pathname === item.href ||
+                  pathname?.startsWith(`${item.href}/`);
+
                 return (
                   <li key={item.name}>
-                    <Link 
+                    <Link
                       href={item.href}
                       onClick={onClose}
-                      aria-current={isActive ? 'page' : undefined}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
-                        isActive 
-                          ? 'bg-emerald-50 text-emerald-700 font-medium shadow-sm' 
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                      }`}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`
+                        flex items-center gap-2 lg:gap-3 
+                        px-3 py-2 lg:py-2.5 
+                        rounded-xl lg:rounded-xl 
+                        transition-all duration-200 
+                        group w-full
+                        ${
+                          isActive
+                            ? "bg-emerald-50 text-emerald-700 font-medium shadow-sm"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        }
+                      `}
                     >
-                      <span 
-                        className={`material-symbols-outlined text-[22px] transition-colors ${
-                          isActive ? 'text-emerald-600' : 'text-gray-400 group-hover:text-gray-600'
-                        }`}
+                      <span
+                        className={`
+                          material-symbols-outlined 
+                          ${isMobile ? "text-[18px]" : "text-[20px]"}
+                          transition-colors flex-shrink-0
+                          ${
+                            isActive
+                              ? "text-emerald-600"
+                              : "text-gray-400 group-hover:text-gray-600"
+                          }
+                        `}
                         aria-hidden="true"
                       >
                         {item.icon}
                       </span>
-                      <span className="text-sm">{item.name}</span>
+                      <span className="text-xs lg:text-sm truncate">
+                        {item.name}
+                      </span>
                       {isActive && (
                         <motion.div
                           layoutId="activeIndicator"
-                          className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500"
+                          className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"
                         />
                       )}
                     </Link>
@@ -138,78 +315,86 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
               })}
             </ul>
           </div>
-        </nav>
-        
-        {/* Dashboard Switch - Role-based */}
-        <div className="pt-2 mt-2 border-t border-gray-100">
-          {session?.user?.role === "PROVIDER" ? (
-            <Link 
-              href="/dashboard"
-              onClick={onClose}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            >
-              <span 
-                className="material-symbols-outlined text-[22px] transition-colors text-gray-400 group-hover:text-gray-600"
-                aria-hidden="true"
-              >
-                swap_horiz
-              </span>
-              <span className="text-sm">Provider Dashboard</span>
-            </Link>
-          ) : (
-            <Link 
-              href="/onboarding?upgrade=true"
-              onClick={onClose}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-            >
-              <span 
-                className="material-symbols-outlined text-[22px] transition-colors text-emerald-600"
-                aria-hidden="true"
-              >
-                work
-              </span>
-              <span className="text-sm font-medium">Become a Provider</span>
-            </Link>
-          )}
-        </div>
-      </div>
 
-      {/* User Profile */}
-      <div 
-        className="flex items-center gap-3 border-t border-gray-100 pt-4 mt-auto"
-        role="region"
-        aria-label="User profile"
-      >
-        <div 
-          className="bg-gray-100 rounded-full w-10 h-10 flex items-center justify-center overflow-hidden flex-shrink-0 border border-gray-200"
-        >
-          {session?.user?.image ? (
-            <img 
-              src={session.user.image} 
-              alt={session.user.name || 'User'} 
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <span className="material-symbols-outlined text-gray-400">person</span>
-          )}
+          {/* Dashboard Switch - Role-based */}
+          <div className="pt-2 mt-2 border-t border-gray-100">
+            {session?.user?.role === "PROVIDER" ? (
+              <Link
+                href="/dashboard"
+                onClick={onClose}
+                className="flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-xl transition-all duration-200 group text-gray-600 hover:bg-gray-50 hover:text-gray-900 w-full"
+              >
+                <span
+                  className="material-symbols-outlined text-[18px] lg:text-[20px] transition-colors text-gray-400 group-hover:text-gray-600 flex-shrink-0"
+                  aria-hidden="true"
+                >
+                  swap_horiz
+                </span>
+                <span className="text-xs lg:text-sm truncate">
+                  Provider Dashboard
+                </span>
+              </Link>
+            ) : (
+              <Link
+                href="/onboarding?upgrade=true"
+                onClick={onClose}
+                className="flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-xl transition-all duration-200 group bg-emerald-50 text-emerald-700 hover:bg-emerald-100 w-full"
+              >
+                <span
+                  className="material-symbols-outlined text-[18px] lg:text-[20px] transition-colors text-emerald-600 flex-shrink-0"
+                  aria-hidden="true"
+                >
+                  work
+                </span>
+                <span className="text-xs lg:text-sm font-medium truncate">
+                  Become a Provider
+                </span>
+              </Link>
+            )}
+          </div>
         </div>
-        <div className="flex flex-col min-w-0">
-          <h2 className="text-gray-900 text-sm font-semibold truncate">
-            {session?.user?.name || 'Client'}
-          </h2>
-          <p className="text-gray-500 text-xs truncate">
-            {session?.user?.email || 'client@example.com'}
-          </p>
-        </div>
-        <Link 
-          href="/api/auth/signout" 
-          className="ml-auto text-gray-400 hover:text-red-500 transition-colors p-1.5 hover:bg-red-50 rounded-lg"
-          title="Sign out"
+
+        {/* User Profile - Fixed at bottom */}
+        <div
+          className="sticky bottom-0 bg-white border-t border-gray-100 p-4"
+          role="region"
+          aria-label="User profile"
         >
-          <span className="material-symbols-outlined text-xl">logout</span>
-        </Link>
-      </div>
-    </aside>
+          <div className="flex items-center gap-2 lg:gap-3">
+            <div className="bg-gray-100 rounded-full w-8 h-8 lg:w-10 lg:h-10 flex items-center justify-center overflow-hidden flex-shrink-0 border border-gray-200">
+              {session?.user?.image ? (
+                <img
+                  src={session.user.image}
+                  alt={session.user.name || "User"}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="material-symbols-outlined text-gray-400 text-sm lg:text-base">
+                  person
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col min-w-0 flex-1">
+              <h2 className="text-gray-900 text-xs lg:text-sm font-semibold truncate">
+                {session?.user?.name || "Client"}
+              </h2>
+              <p className="text-gray-500 text-[10px] lg:text-xs truncate">
+                {session?.user?.email || "client@example.com"}
+              </p>
+            </div>
+            <Link
+              href="/api/auth/signout"
+              className="ml-auto text-gray-400 hover:text-red-500 transition-colors p-1 lg:p-1.5 hover:bg-red-50 rounded-lg flex-shrink-0"
+              title="Sign out"
+              aria-label="Sign out"
+            >
+              <span className="material-symbols-outlined text-base lg:text-xl">
+                logout
+              </span>
+            </Link>
+          </div>
+        </div>
+      </aside>
     </>
   );
 };

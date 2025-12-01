@@ -23,7 +23,15 @@ interface Exception {
   reason?: string;
 }
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 export default function AvailabilityPage() {
   const { data: session, status } = useSession();
@@ -34,6 +42,7 @@ export default function AvailabilityPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [showExceptionModal, setShowExceptionModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // New slot form
   const [newSlot, setNewSlot] = useState({
@@ -49,6 +58,17 @@ export default function AvailabilityPage() {
     endTime: "",
     reason: "",
   });
+
+  // Check for mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     // Wait for session to load
@@ -110,9 +130,14 @@ export default function AvailabilityPage() {
 
       if (!response.ok) throw new Error("Failed to add slot");
 
-      toast.success("Availability added!");
+      toast.success("Time slot added!");
       fetchAvailability();
       setSelectedDay(null);
+      // Reset to default times
+      setNewSlot({
+        startTime: "09:00",
+        endTime: "17:00",
+      });
     } catch (error) {
       toast.error("Failed to add availability");
     } finally {
@@ -128,7 +153,7 @@ export default function AvailabilityPage() {
 
       if (!response.ok) throw new Error("Failed to delete");
 
-      toast.success("Availability removed");
+      toast.success("Time slot removed");
       fetchAvailability();
     } catch (error) {
       toast.error("Failed to remove availability");
@@ -141,7 +166,10 @@ export default function AvailabilityPage() {
       return;
     }
 
-    if (newException.isAvailable && (!newException.startTime || !newException.endTime)) {
+    if (
+      newException.isAvailable &&
+      (!newException.startTime || !newException.endTime)
+    ) {
       toast.error("Please set times for available exception");
       return;
     }
@@ -175,9 +203,12 @@ export default function AvailabilityPage() {
 
   const deleteException = async (id: string) => {
     try {
-      const response = await fetch(`/api/provider/availability/exceptions?id=${id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/provider/availability/exceptions?id=${id}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!response.ok) throw new Error("Failed to delete");
 
@@ -189,253 +220,442 @@ export default function AvailabilityPage() {
   };
 
   const getDaySlots = (day: number) => {
-    return availability.filter((slot) => slot.dayOfWeek === day && slot.isActive);
+    return availability.filter(
+      (slot) => slot.dayOfWeek === day && slot.isActive
+    );
+  };
+
+  const getUpcomingExceptions = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return exceptions
+      .filter((exp) => new Date(exp.date) >= today)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 3); // Show only 3 upcoming exceptions on mobile
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-12 h-12 sm:w-16 sm:h-16 border-3 sm:border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 py-8">
-      <div className="max-w-7xl mx-auto px-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 py-4 sm:py-6 lg:py-8">
+      <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8">
         {/* Header */}
         <motion.div
-          className="mb-8"
+          className="mb-6 sm:mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Availability Schedule</h1>
-          <p className="text-gray-600">Manage your weekly schedule and date exceptions</p>
+          <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 mb-3">
+            <div>
+              <h1 className="text-2xl xs:text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+                Availability
+              </h1>
+              <p className="text-xs xs:text-xs sm:text-sm text-gray-600">
+                Manage your weekly schedule and date exceptions
+              </p>
+            </div>
+            <button
+              onClick={() => setShowExceptionModal(true)}
+              className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-semibold text-sm transition-all shadow-sm sm:shadow-md flex items-center gap-1.5 sm:gap-2 self-start xs:self-center"
+            >
+              <span className="material-symbols-outlined text-sm sm:text-base">
+                event_busy
+              </span>
+              <span className="text-xs sm:text-sm">Add Exception</span>
+            </button>
+          </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Weekly Schedule */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">Weekly Schedule</h2>
-              <button
-                onClick={() => setShowExceptionModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined text-xl">event_busy</span>
-                Add Exception
-              </button>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+          {/* Weekly Schedule - Main Content */}
+          <div className="lg:col-span-2 space-y-3 sm:space-y-4">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-xs sm:shadow-lg border border-gray-200 p-4 sm:p-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">
+                Weekly Schedule
+              </h2>
 
-            {DAYS.map((day, index) => {
-              const daySlots = getDaySlots(index);
-              const isExpanded = selectedDay === index;
+              <div className="space-y-2 sm:space-y-3">
+                {DAYS.map((day, index) => {
+                  const daySlots = getDaySlots(index);
+                  const isExpanded = selectedDay === index;
+                  const hasSlots = daySlots.length > 0;
 
-              return (
-                <motion.div
-                  key={day}
-                  className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <div
-                    className="p-6 cursor-pointer hover:bg-gray-50 transition-colors"
-                    onClick={() => setSelectedDay(isExpanded ? null : index)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white font-bold">
-                          {day.substring(0, 3)}
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-gray-900">{day}</h3>
-                          <p className="text-sm text-gray-600">
-                            {daySlots.length === 0
-                              ? "Not available"
-                              : `${daySlots.length} slot${daySlots.length > 1 ? "s" : ""}`}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="material-symbols-outlined text-gray-400">
-                        {isExpanded ? "expand_less" : "expand_more"}
-                      </span>
-                    </div>
-
-                    {daySlots.length > 0 && !isExpanded && (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {daySlots.map((slot) => (
-                          <div
-                            key={slot.id}
-                            className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-semibold"
-                          >
-                            {slot.startTime} - {slot.endTime}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="border-t border-gray-100"
+                  return (
+                    <motion.div
+                      key={day}
+                      className="bg-gray-50 hover:bg-gray-100 rounded-lg sm:rounded-xl border border-gray-200 overflow-hidden transition-colors"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.03 }}
+                    >
+                      {/* Day Header - Clickable */}
+                      <div
+                        className="p-3 sm:p-4 cursor-pointer"
+                        onClick={() =>
+                          setSelectedDay(isExpanded ? null : index)
+                        }
                       >
-                        <div className="p-6 bg-gray-50 space-y-4">
-                          {/* Existing Slots */}
-                          {daySlots.map((slot) => (
-                            <div
-                              key={slot.id}
-                              className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200"
-                            >
-                              <div className="flex items-center gap-3">
-                                <span className="material-symbols-outlined text-emerald-600">
-                                  schedule
-                                </span>
-                                <span className="font-semibold text-gray-900">
-                                  {slot.startTime} - {slot.endTime}
-                                </span>
-                              </div>
-                              <button
-                                onClick={() => deleteSlot(slot.id!)}
-                                className="text-red-600 hover:text-red-700 transition-colors"
-                              >
-                                <span className="material-symbols-outlined">delete</span>
-                              </button>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white font-bold text-sm sm:text-base flex-shrink-0">
+                              {isMobile
+                                ? day.substring(0, 2)
+                                : day.substring(0, 3)}
                             </div>
-                          ))}
-
-                          {/* Add New Slot */}
-                          <div className="p-4 bg-white rounded-lg border-2 border-dashed border-gray-300">
-                            <h4 className="font-semibold text-gray-900 mb-3">Add New Time Slot</h4>
-                            <div className="grid grid-cols-2 gap-3 mb-3">
-                              <div>
-                                <label htmlFor={`start-time-${index}`} className="block text-sm font-medium text-gray-700 mb-1">
-                                  Start Time
-                                </label>
-                                <input
-                                  id={`start-time-${index}`}
-                                  type="time"
-                                  value={newSlot.startTime}
-                                  onChange={(e) =>
-                                    setNewSlot({ ...newSlot, startTime: e.target.value })
-                                  }
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
-                                />
-                              </div>
-                              <div>
-                                <label htmlFor={`end-time-${index}`} className="block text-sm font-medium text-gray-700 mb-1">
-                                  End Time
-                                </label>
-                                <input
-                                  id={`end-time-${index}`}
-                                  type="time"
-                                  value={newSlot.endTime}
-                                  onChange={(e) =>
-                                    setNewSlot({ ...newSlot, endTime: e.target.value })
-                                  }
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
-                                />
-                              </div>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="text-sm sm:text-base font-bold text-gray-900 truncate">
+                                {day}
+                              </h3>
+                              <p className="text-xs text-gray-600">
+                                {hasSlots
+                                  ? `${daySlots.length} slot${
+                                      daySlots.length > 1 ? "s" : ""
+                                    }`
+                                  : "Not available"}
+                              </p>
                             </div>
-                            <button
-                              onClick={() => addSlot(index)}
-                              disabled={isSaving}
-                              className="w-full py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold disabled:opacity-50"
-                            >
-                              {isSaving ? "Adding..." : "Add Slot"}
-                            </button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {hasSlots && !isExpanded && (
+                              <div className="hidden xs:flex flex-wrap gap-1 mr-2">
+                                {daySlots.slice(0, 2).map((slot, i) => (
+                                  <span
+                                    key={i}
+                                    className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] xs:text-xs font-semibold"
+                                  >
+                                    {slot.startTime} - {slot.endTime}
+                                  </span>
+                                ))}
+                                {daySlots.length > 2 && (
+                                  <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-[10px] xs:text-xs font-semibold">
+                                    +{daySlots.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            <span className="material-symbols-outlined text-gray-400 text-lg sm:text-xl transition-transform duration-200">
+                              {isExpanded ? "expand_less" : "expand_more"}
+                            </span>
                           </div>
                         </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              );
-            })}
+                      </div>
+
+                      {/* Expanded Content */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="border-t border-gray-200"
+                          >
+                            <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+                              {/* Existing Slots */}
+                              {daySlots.length > 0 ? (
+                                <div className="space-y-2">
+                                  <h4 className="text-xs sm:text-sm font-semibold text-gray-700">
+                                    Current Time Slots
+                                  </h4>
+                                  <div className="space-y-2">
+                                    {daySlots.map((slot) => (
+                                      <div
+                                        key={slot.id}
+                                        className="flex items-center justify-between p-2.5 sm:p-3 bg-white rounded-lg border border-gray-200"
+                                      >
+                                        <div className="flex items-center gap-2 sm:gap-3">
+                                          <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
+                                            schedule
+                                          </span>
+                                          <div>
+                                            <span className="font-semibold text-gray-900 text-sm sm:text-base">
+                                              {slot.startTime} - {slot.endTime}
+                                            </span>
+                                            {slot.id && (
+                                              <p className="text-[10px] xs:text-xs text-gray-500 mt-0.5">
+                                                Click to remove
+                                              </p>
+                                            )}
+                                          </div>
+                                        </div>
+                                        {slot.id && (
+                                          <button
+                                            onClick={() => deleteSlot(slot.id!)}
+                                            className="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Remove slot"
+                                          >
+                                            <span className="material-symbols-outlined text-sm sm:text-base">
+                                              delete
+                                            </span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-center py-4 text-gray-500">
+                                  <span className="material-symbols-outlined text-3xl mb-2">
+                                    schedule
+                                  </span>
+                                  <p className="text-sm">
+                                    No time slots added for {day}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Add New Slot Form */}
+                              <div className="p-3 sm:p-4 bg-white rounded-lg border-2 border-dashed border-gray-300">
+                                <h4 className="text-sm sm:text-base font-semibold text-gray-900 mb-2.5 sm:mb-3">
+                                  Add New Time Slot
+                                </h4>
+                                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 mb-3">
+                                  <div>
+                                    <label
+                                      htmlFor={`start-time-${index}`}
+                                      className="block text-xs sm:text-sm font-medium text-gray-700 mb-1"
+                                    >
+                                      Start Time
+                                    </label>
+                                    <input
+                                      id={`start-time-${index}`}
+                                      type="time"
+                                      value={newSlot.startTime}
+                                      onChange={(e) =>
+                                        setNewSlot({
+                                          ...newSlot,
+                                          startTime: e.target.value,
+                                        })
+                                      }
+                                      className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label
+                                      htmlFor={`end-time-${index}`}
+                                      className="block text-xs sm:text-sm font-medium text-gray-700 mb-1"
+                                    >
+                                      End Time
+                                    </label>
+                                    <input
+                                      id={`end-time-${index}`}
+                                      type="time"
+                                      value={newSlot.endTime}
+                                      onChange={(e) =>
+                                        setNewSlot({
+                                          ...newSlot,
+                                          endTime: e.target.value,
+                                        })
+                                      }
+                                      className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
+                                    />
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => addSlot(index)}
+                                  disabled={isSaving}
+                                  className="w-full py-2 sm:py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                >
+                                  {isSaving ? (
+                                    <span className="flex items-center justify-center gap-1.5">
+                                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                      Adding...
+                                    </span>
+                                  ) : (
+                                    `Add Slot to ${day}`
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
-          {/* Exceptions Sidebar */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Date Exceptions</h2>
-              <p className="text-sm text-gray-600 mb-4">
-                Block specific dates or set special hours
-              </p>
+          {/* Sidebar - Mobile: Below, Desktop: Right Side */}
+          <div className="space-y-4 sm:space-y-6">
+            {/* Quick Stats Card */}
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl shadow-lg p-4 sm:p-6 text-white">
+              <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4">
+                Quick Stats
+              </h3>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <div className="text-center">
+                  <div className="text-xl sm:text-2xl font-bold mb-1">
+                    {DAYS.filter((_, i) => getDaySlots(i).length > 0).length}
+                  </div>
+                  <div className="text-[10px] xs:text-xs opacity-90">
+                    Active Days
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl sm:text-2xl font-bold mb-1">
+                    {availability.length}
+                  </div>
+                  <div className="text-[10px] xs:text-xs opacity-90">
+                    Total Slots
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl sm:text-2xl font-bold mb-1">
+                    {exceptions.length}
+                  </div>
+                  <div className="text-[10px] xs:text-xs opacity-90">
+                    Exceptions
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Upcoming Exceptions Card */}
+            <div className="bg-white rounded-xl shadow-sm sm:shadow-lg border border-gray-200 p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <h3 className="text-base sm:text-lg font-bold text-gray-900">
+                  Upcoming Exceptions
+                </h3>
+                <button
+                  onClick={() => setShowExceptionModal(true)}
+                  className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1"
+                >
+                  <span className="material-symbols-outlined text-sm">add</span>
+                  Add
+                </button>
+              </div>
 
               {exceptions.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <span className="material-symbols-outlined text-5xl mb-2">event_busy</span>
-                  <p>No exceptions set</p>
+                <div className="text-center py-4 sm:py-6 text-gray-500">
+                  <span className="material-symbols-outlined text-3xl sm:text-4xl mb-2">
+                    event_busy
+                  </span>
+                  <p className="text-xs sm:text-sm">No exceptions set</p>
+                  <button
+                    onClick={() => setShowExceptionModal(true)}
+                    className="mt-3 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition-colors"
+                  >
+                    Create Your First Exception
+                  </button>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {exceptions.map((exception) => (
+                <div className="space-y-2.5 sm:space-y-3">
+                  {getUpcomingExceptions().map((exception) => (
                     <div
                       key={exception.id}
-                      className={`p-4 rounded-lg border-2 ${
+                      className={`p-3 rounded-lg border ${
                         exception.isAvailable
                           ? "bg-green-50 border-green-200"
                           : "bg-red-50 border-red-200"
                       }`}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2">
+                      <div className="flex justify-between items-start mb-1.5">
+                        <div className="flex items-center gap-2 min-w-0">
                           <span
-                            className={`material-symbols-outlined ${
-                              exception.isAvailable ? "text-green-600" : "text-red-600"
+                            className={`material-symbols-outlined text-sm sm:text-base flex-shrink-0 ${
+                              exception.isAvailable
+                                ? "text-green-600"
+                                : "text-red-600"
                             }`}
                           >
-                            {exception.isAvailable ? "event_available" : "event_busy"}
+                            {exception.isAvailable
+                              ? "event_available"
+                              : "event_busy"}
                           </span>
-                          <span className="font-semibold text-gray-900">
-                            {new Date(exception.date).toLocaleDateString()}
-                          </span>
+                          <div className="min-w-0">
+                            <span className="font-semibold text-gray-900 text-sm truncate">
+                              {new Date(exception.date).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                }
+                              )}
+                            </span>
+                            {exception.reason && (
+                              <p className="text-xs text-gray-600 truncate mt-0.5">
+                                {exception.reason}
+                              </p>
+                            )}
+                          </div>
                         </div>
                         <button
                           onClick={() => deleteException(exception.id!)}
-                          className="text-gray-500 hover:text-red-600"
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors flex-shrink-0 ml-1"
+                          title="Remove exception"
                         >
-                          <span className="material-symbols-outlined text-sm">close</span>
+                          <span className="material-symbols-outlined text-sm">
+                            close
+                          </span>
                         </button>
                       </div>
-                      {exception.reason && (
-                        <p className="text-sm text-gray-700">{exception.reason}</p>
-                      )}
                       {exception.isAvailable && exception.startTime && (
-                        <p className="text-sm text-green-700 font-medium mt-1">
-                          {exception.startTime} - {exception.endTime}
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <span className="material-symbols-outlined text-green-600 text-sm">
+                            schedule
+                          </span>
+                          <span className="text-xs text-green-700 font-medium">
+                            {exception.startTime} - {exception.endTime}
+                          </span>
+                        </div>
                       )}
                     </div>
                   ))}
+
+                  {exceptions.length > 3 && isMobile && (
+                    <button
+                      onClick={() => setShowExceptionModal(true)}
+                      className="w-full text-center text-xs text-gray-500 hover:text-gray-700 py-2"
+                    >
+                      View all {exceptions.length} exceptions
+                    </button>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Quick Stats */}
-            <div className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl shadow-lg p-6 text-white">
-              <h3 className="text-lg font-bold mb-4">Quick Stats</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span>Active Days</span>
-                  <span className="text-2xl font-bold">
-                    {DAYS.filter((_, i) => getDaySlots(i).length > 0).length}
+            {/* Mobile Tips Card */}
+            {isMobile && (
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-4">
+                <div className="flex items-start gap-2 mb-2">
+                  <span className="material-symbols-outlined text-blue-600 text-lg">
+                    tips_and_updates
                   </span>
+                  <h4 className="text-sm font-semibold text-blue-900">
+                    Quick Tips
+                  </h4>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span>Total Slots</span>
-                  <span className="text-2xl font-bold">{availability.length}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Exceptions</span>
-                  <span className="text-2xl font-bold">{exceptions.length}</span>
-                </div>
+                <ul className="space-y-1.5 text-xs text-blue-800">
+                  <li className="flex items-start gap-1.5">
+                    <span className="material-symbols-outlined text-blue-500 text-sm mt-0.5">
+                      check_circle
+                    </span>
+                    Tap any day to add/remove time slots
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="material-symbols-outlined text-blue-500 text-sm mt-0.5">
+                      check_circle
+                    </span>
+                    Create exceptions for holidays or special hours
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="material-symbols-outlined text-blue-500 text-sm mt-0.5">
+                      check_circle
+                    </span>
+                    Use two fingers to scroll table horizontally
+                  </li>
+                </ul>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -444,112 +664,167 @@ export default function AvailabilityPage() {
       <AnimatePresence>
         {showExceptionModal && (
           <motion.div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowExceptionModal(false)}
           >
             <motion.div
-              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+              className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Add Date Exception</h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="exception-date" className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                  <input
-                    id="exception-date"
-                    type="date"
-                    value={newException.date}
-                    onChange={(e) => setNewException({ ...newException, date: e.target.value })}
-                    min={new Date().toISOString().split("T")[0]}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
-                  />
+              <div className="p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                    Add Date Exception
+                  </h2>
+                  <button
+                    onClick={() => setShowExceptionModal(false)}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-lg">
+                      close
+                    </span>
+                  </button>
                 </div>
 
-                <div>
-                  <label htmlFor="exception-available" className="flex items-center gap-2 cursor-pointer">
+                <div className="space-y-3 sm:space-y-4">
+                  <div>
+                    <label
+                      htmlFor="exception-date"
+                      className="block text-sm font-medium text-gray-700 mb-1.5"
+                    >
+                      Date
+                    </label>
+                    <input
+                      id="exception-date"
+                      type="date"
+                      value={newException.date}
+                      onChange={(e) =>
+                        setNewException({
+                          ...newException,
+                          date: e.target.value,
+                        })
+                      }
+                      min={new Date().toISOString().split("T")[0]}
+                      className="w-full px-3 py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                     <input
                       id="exception-available"
                       type="checkbox"
                       checked={newException.isAvailable}
                       onChange={(e) =>
-                        setNewException({ ...newException, isAvailable: e.target.checked })
+                        setNewException({
+                          ...newException,
+                          isAvailable: e.target.checked,
+                        })
                       }
-                      className="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500"
+                      className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 rounded focus:ring-emerald-500"
                     />
-                    <span className="text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="exception-available"
+                      className="text-sm font-medium text-gray-700 cursor-pointer"
+                    >
                       Available on this date (with custom hours)
-                    </span>
-                  </label>
-                </div>
-
-                {newException.isAvailable && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label htmlFor="exception-start-time" className="block text-sm font-medium text-gray-700 mb-1">
-                        Start Time
-                      </label>
-                      <input
-                        id="exception-start-time"
-                        type="time"
-                        value={newException.startTime}
-                        onChange={(e) =>
-                          setNewException({ ...newException, startTime: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="exception-end-time" className="block text-sm font-medium text-gray-700 mb-1">
-                        End Time
-                      </label>
-                      <input
-                        id="exception-end-time"
-                        type="time"
-                        value={newException.endTime}
-                        onChange={(e) =>
-                          setNewException({ ...newException, endTime: e.target.value })
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
-                      />
-                    </div>
+                    </label>
                   </div>
-                )}
 
-                <div>
-                  <label htmlFor="exception-reason" className="block text-sm font-medium text-gray-700 mb-1">
-                    Reason (Optional)
-                  </label>
-                  <textarea
-                    id="exception-reason"
-                    value={newException.reason}
-                    onChange={(e) => setNewException({ ...newException, reason: e.target.value })}
-                    placeholder="e.g., Holiday, Personal event"
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none text-gray-900 placeholder:text-gray-500"
-                  />
-                </div>
+                  {newException.isAvailable && (
+                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                      <div>
+                        <label
+                          htmlFor="exception-start-time"
+                          className="block text-sm font-medium text-gray-700 mb-1.5"
+                        >
+                          Start Time
+                        </label>
+                        <input
+                          id="exception-start-time"
+                          type="time"
+                          value={newException.startTime}
+                          onChange={(e) =>
+                            setNewException({
+                              ...newException,
+                              startTime: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
+                        />
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="exception-end-time"
+                          className="block text-sm font-medium text-gray-700 mb-1.5"
+                        >
+                          End Time
+                        </label>
+                        <input
+                          id="exception-end-time"
+                          type="time"
+                          value={newException.endTime}
+                          onChange={(e) =>
+                            setNewException({
+                              ...newException,
+                              endTime: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
+                        />
+                      </div>
+                    </div>
+                  )}
 
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowExceptionModal(false)}
-                    className="flex-1 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={addException}
-                    disabled={isSaving}
-                    className="flex-1 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold disabled:opacity-50"
-                  >
-                    {isSaving ? "Adding..." : "Add Exception"}
-                  </button>
+                  <div>
+                    <label
+                      htmlFor="exception-reason"
+                      className="block text-sm font-medium text-gray-700 mb-1.5"
+                    >
+                      Reason (Optional)
+                    </label>
+                    <textarea
+                      id="exception-reason"
+                      value={newException.reason}
+                      onChange={(e) =>
+                        setNewException({
+                          ...newException,
+                          reason: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., Holiday, Personal event, Vacation"
+                      rows={3}
+                      className="w-full px-3 py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none text-gray-900 placeholder:text-gray-500"
+                    />
+                  </div>
+
+                  <div className="flex gap-2.5 sm:gap-3 pt-2">
+                    <button
+                      onClick={() => setShowExceptionModal(false)}
+                      className="flex-1 px-4 py-2.5 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold text-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={addException}
+                      disabled={isSaving}
+                      className="flex-1 px-4 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                    >
+                      {isSaving ? (
+                        <span className="flex items-center justify-center gap-1.5">
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Adding...
+                        </span>
+                      ) : (
+                        "Add Exception"
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>

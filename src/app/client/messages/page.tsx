@@ -44,17 +44,21 @@ export default function ClientMessagesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Fetch conversations on mount
   useEffect(() => {
     const fetchConversations = async () => {
       try {
+        setIsLoading(true);
         const { data } = await apiClient.get<{ conversations: Conversation[] }>(
           "/messages/conversations"
         );
         setConversations(data.conversations);
       } catch (error) {
         console.error("Failed to fetch conversations:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -163,7 +167,11 @@ export default function ClientMessagesPage() {
     fetchMessages();
   }, [selectedPartnerId]);
 
-  const handleSendMessage = async (content: string, fileUrl?: string, fileType?: string) => {
+  const handleSendMessage = async (
+    content: string,
+    fileUrl?: string,
+    fileType?: string
+  ) => {
     if (!selectedPartnerId || !session?.user) return;
 
     // Optimistic update
@@ -223,7 +231,9 @@ export default function ClientMessagesPage() {
     try {
       await apiClient.delete(`/messages/clear/${partnerId}`);
       // Remove conversation from list
-      setConversations((prev) => prev.filter((c) => c.partner.id !== partnerId));
+      setConversations((prev) =>
+        prev.filter((c) => c.partner.id !== partnerId)
+      );
       setSelectedPartnerId(null);
     } catch (error) {
       console.error("Failed to clear conversation:", error);
@@ -233,8 +243,8 @@ export default function ClientMessagesPage() {
 
   const handleSelectUser = (contact: any) => {
     // Check if conversation already exists
-    const existingConv = conversations.find(c => c.partner.id === contact.id);
-    
+    const existingConv = conversations.find((c) => c.partner.id === contact.id);
+
     if (existingConv) {
       setSelectedPartnerId(contact.id);
     } else {
@@ -242,22 +252,22 @@ export default function ClientMessagesPage() {
       const newConv: Conversation = {
         partner: {
           id: contact.id,
-          name: contact.name || 'Unknown',
+          name: contact.name || "Unknown",
           image: contact.image,
         },
         lastMessage: {
-          content: '',
+          content: "",
           createdAt: new Date().toISOString(),
           isRead: true,
           isOwn: true,
         },
         unreadCount: 0,
       };
-      
-      setConversations(prev => [newConv, ...prev]);
+
+      setConversations((prev) => [newConv, ...prev]);
       setSelectedPartnerId(contact.id);
     }
-    
+
     setIsNewConversationOpen(false);
   };
 
@@ -266,34 +276,60 @@ export default function ClientMessagesPage() {
     null;
 
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-gray-100 rounded-2xl overflow-hidden shadow-sm border border-gray-200 m-4">
-      <div className={`${selectedPartnerId ? 'hidden md:block' : 'block'} w-full md:w-1/3 h-full`}>
-        <ConversationsList
-          conversations={conversations}
-          selectedPartnerId={selectedPartnerId}
-          onSelect={setSelectedPartnerId}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onNewMessage={() => setIsNewConversationOpen(true)}
-          onlineUsers={new Set()}
-        />
+    <div className="h-[calc(100vh-64px)] sm:h-[calc(100vh-80px)] bg-gray-50">
+      <div className="max-w-7xl mx-auto h-full px-0 sm:px-3 md:px-4">
+        <div className="flex h-full bg-white rounded-none sm:rounded-xl md:rounded-2xl overflow-hidden shadow-none sm:shadow-sm border-0 sm:border border-gray-200 mt-0 sm:mt-2 md:mt-4">
+          {/* Conversations List */}
+          <div
+            className={`h-full transition-all duration-200 ${
+              selectedPartnerId
+                ? "hidden sm:block sm:w-1/3 lg:w-1/4 xl:w-1/3"
+                : "w-full sm:w-1/3 lg:w-1/4 xl:w-1/3"
+            }`}
+          >
+            <ConversationsList
+              conversations={conversations}
+              selectedPartnerId={selectedPartnerId}
+              onSelect={setSelectedPartnerId}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onNewMessage={() => setIsNewConversationOpen(true)}
+              onlineUsers={new Set()}
+              isLoading={isLoading}
+            />
+          </div>
+
+          {/* Chat Window */}
+          <div
+            className={`h-full transition-all duration-200 ${
+              selectedPartnerId
+                ? "w-full sm:w-2/3 lg:w-3/4 xl:w-2/3"
+                : "hidden sm:block sm:w-2/3 lg:w-3/4 xl:w-2/3"
+            }`}
+          >
+            <ChatWindow
+              partner={selectedPartner}
+              messages={messages}
+              currentUserId={session?.user?.id || ""}
+              onSendMessage={handleSendMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onClearConversation={handleClearConversation}
+              isTyping={isTyping}
+              onBack={() => setSelectedPartnerId(null)}
+              isMobile={
+                typeof window !== "undefined" && window.innerWidth < 640
+              }
+            />
+          </div>
+        </div>
       </div>
-      <div className={`${!selectedPartnerId ? 'hidden md:block' : 'block'} w-full md:w-2/3 h-full`}>
-        <ChatWindow
-          partner={selectedPartner}
-          messages={messages}
-          currentUserId={session?.user?.id || ""}
-          onSendMessage={handleSendMessage}
-          onDeleteMessage={handleDeleteMessage}
-          onClearConversation={handleClearConversation}
-          isTyping={isTyping}
-          onBack={() => setSelectedPartnerId(null)}
-        />
-      </div>
+
+      {/* New Conversation Modal */}
       <NewConversationModal
         isOpen={isNewConversationOpen}
         onClose={() => setIsNewConversationOpen(false)}
         onSelectUser={handleSelectUser}
+        isMobile={typeof window !== "undefined" && window.innerWidth < 640}
       />
     </div>
   );

@@ -20,6 +20,7 @@ interface ImageCropperProps {
   onCropComplete: (croppedImage: Blob) => void;
   onCancel: () => void;
   aspectRatio?: number;
+  isMobile?: boolean;
 }
 
 const ImageCropper = ({
@@ -27,22 +28,25 @@ const ImageCropper = ({
   onCropComplete,
   onCancel,
   aspectRatio = 1,
+  isMobile = false,
 }: ImageCropperProps) => {
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [deviceIsMobile, setDeviceIsMobile] = useState(false);
 
   // Detect mobile device
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+      setDeviceIsMobile(window.innerWidth < 768);
     };
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  const finalIsMobile = isMobile || deviceIsMobile;
 
   const onCropChange = (crop: Point) => {
     setCrop(crop);
@@ -85,7 +89,7 @@ const ImageCropper = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isProcessing, onCancel, handleCropImage]);
+  }, [isProcessing, onCancel]);
 
   // Prevent body scroll
   useEffect(() => {
@@ -95,28 +99,64 @@ const ImageCropper = ({
     };
   }, []);
 
+  // Helper function for quick zoom
+  const handleQuickZoom = (level: number) => {
+    setZoom(level);
+  };
+
+  // Helper function for quick reset
+  const handleReset = () => {
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-2 xs:p-3 sm:p-4">
-      <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl w-full max-w-xs xs:max-w-sm sm:max-w-md md:max-w-2xl max-h-[90dvh] overflow-hidden flex flex-col">
+    <div
+      className={`fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center ${
+        finalIsMobile ? "p-0" : "p-2 sm:p-3 md:p-4"
+      }`}
+    >
+      {/* Backdrop click handler */}
+      <div className="absolute inset-0" onClick={onCancel} aria-hidden="true" />
+
+      <div
+        className={`bg-white rounded-none sm:rounded-xl md:rounded-2xl w-full ${
+          finalIsMobile
+            ? "h-full max-h-full rounded-none"
+            : "max-w-xs xs:max-w-sm sm:max-w-md md:max-w-2xl max-h-[90dvh]"
+        } overflow-hidden flex flex-col relative z-10`}
+      >
         {/* Header */}
-        <div className="p-3 sm:p-4 md:p-6 border-b border-gray-200 flex-shrink-0">
+        <div
+          className={`border-b border-gray-200 flex-shrink-0 ${
+            finalIsMobile ? "p-4" : "p-3 sm:p-4 md:p-6"
+          }`}
+        >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900 truncate">
+              <h2
+                className={`font-semibold text-gray-900 truncate ${
+                  finalIsMobile ? "text-lg" : "text-base sm:text-lg md:text-xl"
+                }`}
+              >
                 Crop Profile Picture
               </h2>
-              <p className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1">
+              <p
+                className={`text-gray-600 mt-0.5 sm:mt-1 ${
+                  finalIsMobile ? "text-sm" : "text-xs sm:text-sm"
+                }`}
+              >
                 Adjust the image position and zoom to your liking
               </p>
             </div>
             <button
               onClick={onCancel}
-              className="p-1.5 sm:p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors flex-shrink-0"
+              className={`text-gray-600 hover:text-gray-800 transition-colors flex-shrink-0 ${
+                finalIsMobile ? "p-2" : "p-1.5 sm:p-2"
+              }`}
               aria-label="Close cropper"
             >
-              <span className="material-symbols-outlined text-sm sm:text-base">
-                close
-              </span>
+              <span className="material-symbols-outlined text-xl">close</span>
             </button>
           </div>
         </div>
@@ -134,8 +174,9 @@ const ImageCropper = ({
                 onZoomChange={onZoomChange}
                 onCropComplete={onCropCompleteCallback}
                 cropShape="round"
-                showGrid={!isMobile} // Hide grid on mobile for cleaner view
+                showGrid={!finalIsMobile}
                 objectFit="contain"
+                restrictPosition={!finalIsMobile}
                 style={{
                   containerStyle: {
                     position: "absolute",
@@ -158,20 +199,40 @@ const ImageCropper = ({
         </div>
 
         {/* Controls */}
-        <div className="p-3 sm:p-4 md:p-6 border-t border-gray-200 flex-shrink-0">
-          {/* Two-column layout for controls on larger screens */}
+        <div
+          className={`border-t border-gray-200 flex-shrink-0 ${
+            finalIsMobile ? "p-4" : "p-3 sm:p-4 md:p-6"
+          }`}
+        >
           <div className="space-y-3 sm:space-y-4">
-            {/* Zoom Controls - Two columns on desktop */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            {/* Two-column layout for desktop, single column for mobile */}
+            <div
+              className={`${
+                finalIsMobile
+                  ? "space-y-3"
+                  : "grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4"
+              }`}
+            >
+              {/* Zoom Controls */}
               <div className="space-y-1.5 sm:space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs sm:text-sm font-medium text-gray-900 flex items-center gap-1.5 sm:gap-2">
+                  <label className="block font-medium text-gray-900 flex items-center gap-1.5 sm:gap-2">
                     <span className="material-symbols-outlined text-base sm:text-lg">
                       zoom_in
                     </span>
-                    <span>Zoom Level</span>
+                    <span
+                      className={
+                        finalIsMobile ? "text-sm" : "text-xs sm:text-sm"
+                      }
+                    >
+                      Zoom Level
+                    </span>
                   </label>
-                  <span className="text-xs sm:text-sm font-mono bg-gray-100 px-2 py-0.5 rounded">
+                  <span
+                    className={`font-mono bg-gray-100 px-2 py-0.5 rounded ${
+                      finalIsMobile ? "text-sm" : "text-xs sm:text-sm"
+                    }`}
+                  >
                     {zoom.toFixed(1)}x
                   </span>
                 </div>
@@ -185,7 +246,11 @@ const ImageCropper = ({
                   className="w-full h-1.5 sm:h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
                   aria-label="Zoom slider"
                 />
-                <div className="flex justify-between text-[10px] sm:text-xs text-gray-500 mt-0.5">
+                <div
+                  className={`flex justify-between text-gray-500 mt-0.5 ${
+                    finalIsMobile ? "text-xs" : "text-[10px] sm:text-xs"
+                  }`}
+                >
                   <span>1x</span>
                   <span>1.5x</span>
                   <span>2x</span>
@@ -194,103 +259,159 @@ const ImageCropper = ({
                 </div>
               </div>
 
-              {/* Position Controls - Second column on desktop */}
-              <div className="space-y-1.5 sm:space-y-2">
-                <label className="block text-xs sm:text-sm font-medium text-gray-900 flex items-center gap-1.5 sm:gap-2">
-                  <span className="material-symbols-outlined text-base sm:text-lg">
-                    crop
-                  </span>
-                  <span>Manual Position</span>
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <span className="text-[10px] sm:text-xs text-gray-500">
-                      Horizontal (X)
+              {/* Position Controls - Hidden on mobile if too cramped */}
+              {!finalIsMobile && (
+                <div className="space-y-1.5 sm:space-y-2">
+                  <label className="block font-medium text-gray-900 flex items-center gap-1.5 sm:gap-2">
+                    <span className="material-symbols-outlined text-base sm:text-lg">
+                      crop
                     </span>
-                    <input
-                      type="range"
-                      min={-50}
-                      max={50}
-                      step={1}
-                      value={crop.x}
-                      onChange={(e) =>
-                        setCrop((prev) => ({
-                          ...prev,
-                          x: parseFloat(e.target.value),
-                        }))
-                      }
-                      className="w-full h-1.5 sm:h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                      aria-label="Horizontal position"
-                    />
+                    <span className="text-xs sm:text-sm">Manual Position</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <span className="text-[10px] sm:text-xs text-gray-500">
+                        Horizontal (X)
+                      </span>
+                      <input
+                        type="range"
+                        min={-50}
+                        max={50}
+                        step={1}
+                        value={crop.x}
+                        onChange={(e) =>
+                          setCrop((prev) => ({
+                            ...prev,
+                            x: parseFloat(e.target.value),
+                          }))
+                        }
+                        className="w-full h-1.5 sm:h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        aria-label="Horizontal position"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] sm:text-xs text-gray-500">
+                        Vertical (Y)
+                      </span>
+                      <input
+                        type="range"
+                        min={-50}
+                        max={50}
+                        step={1}
+                        value={crop.y}
+                        onChange={(e) =>
+                          setCrop((prev) => ({
+                            ...prev,
+                            y: parseFloat(e.target.value),
+                          }))
+                        }
+                        className="w-full h-1.5 sm:h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        aria-label="Vertical position"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] sm:text-xs text-gray-500">
-                      Vertical (Y)
-                    </span>
-                    <input
-                      type="range"
-                      min={-50}
-                      max={50}
-                      step={1}
-                      value={crop.y}
-                      onChange={(e) =>
-                        setCrop((prev) => ({
-                          ...prev,
-                          y: parseFloat(e.target.value),
-                        }))
-                      }
-                      className="w-full h-1.5 sm:h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                      aria-label="Vertical position"
-                    />
+                  <div className="flex justify-between text-[10px] sm:text-xs text-gray-500">
+                    <span>Left</span>
+                    <span>Center</span>
+                    <span>Right</span>
                   </div>
                 </div>
-                <div className="flex justify-between text-[10px] sm:text-xs text-gray-500">
-                  <span>Left</span>
-                  <span>Center</span>
-                  <span>Right</span>
-                </div>
-              </div>
+              )}
             </div>
 
-            {/* Quick Zoom Buttons - For mobile touch */}
-            {isMobile && (
-              <div className="flex items-center justify-center gap-2 pt-1">
-                <button
-                  onClick={() => setZoom((prev) => Math.max(1, prev - 0.5))}
-                  className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors active:scale-95"
-                  aria-label="Zoom out"
-                >
-                  <span className="material-symbols-outlined text-sm">
-                    remove
-                  </span>
-                </button>
-                <button
-                  onClick={() => setZoom(1.5)}
-                  className="px-3 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg text-xs font-medium transition-colors active:scale-95"
-                >
-                  1.5x
-                </button>
-                <button
-                  onClick={() => setZoom(2)}
-                  className="px-3 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg text-xs font-medium transition-colors active:scale-95"
-                >
-                  2x
-                </button>
-                <button
-                  onClick={() => setZoom((prev) => Math.min(3, prev + 0.5))}
-                  className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors active:scale-95"
-                  aria-label="Zoom in"
-                >
-                  <span className="material-symbols-outlined text-sm">add</span>
-                </button>
+            {/* Quick Action Buttons - For mobile touch */}
+            {finalIsMobile && (
+              <div className="space-y-3 pt-1">
+                {/* Quick Zoom Buttons */}
+                <div className="flex items-center justify-between gap-1">
+                  <button
+                    onClick={() => handleQuickZoom(1)}
+                    className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors active:scale-95 ${
+                      zoom === 1
+                        ? "bg-emerald-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    1x
+                  </button>
+                  <button
+                    onClick={() => handleQuickZoom(1.5)}
+                    className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors active:scale-95 ${
+                      zoom === 1.5
+                        ? "bg-emerald-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    1.5x
+                  </button>
+                  <button
+                    onClick={() => handleQuickZoom(2)}
+                    className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors active:scale-95 ${
+                      zoom === 2
+                        ? "bg-emerald-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    2x
+                  </button>
+                  <button
+                    onClick={() => handleQuickZoom(2.5)}
+                    className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors active:scale-95 ${
+                      zoom === 2.5
+                        ? "bg-emerald-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    2.5x
+                  </button>
+                </div>
+
+                {/* Quick Position Buttons */}
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={handleReset}
+                    className="py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition-colors active:scale-95 flex items-center justify-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      restart_alt
+                    </span>
+                    Reset
+                  </button>
+                  <button
+                    onClick={() => setCrop((prev) => ({ ...prev, x: -20 }))}
+                    className="py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition-colors active:scale-95 flex items-center justify-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      arrow_left
+                    </span>
+                    Left
+                  </button>
+                  <button
+                    onClick={() => setCrop((prev) => ({ ...prev, x: 20 }))}
+                    className="py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition-colors active:scale-95 flex items-center justify-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      arrow_right
+                    </span>
+                    Right
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* Action Buttons - Stacked on mobile, side by side on larger */}
-            <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3 pt-1 sm:pt-2">
+            {/* Action Buttons */}
+            <div
+              className={`flex flex-col xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3 ${
+                finalIsMobile ? "pt-2" : "pt-1 sm:pt-2"
+              }`}
+            >
               <button
                 onClick={onCancel}
-                className="flex-1 xs:flex-none px-4 py-2.5 sm:py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors active:scale-[0.98] text-sm sm:text-base min-h-[44px]"
+                className={`bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors active:scale-[0.98] disabled:opacity-50 ${
+                  finalIsMobile
+                    ? "flex-1 px-4 py-3 text-base min-h-[48px]"
+                    : "flex-1 xs:flex-none px-4 py-2.5 sm:py-3 text-sm sm:text-base min-h-[44px]"
+                }`}
                 disabled={isProcessing}
               >
                 Cancel
@@ -298,36 +419,51 @@ const ImageCropper = ({
               <button
                 onClick={handleCropImage}
                 disabled={isProcessing || !croppedAreaPixels}
-                className="flex-1 xs:flex-none px-4 py-2.5 sm:py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base min-h-[44px]"
+                className={`bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                  finalIsMobile
+                    ? "flex-1 px-4 py-3 text-base min-h-[48px]"
+                    : "flex-1 xs:flex-none px-4 py-2.5 sm:py-3 text-sm sm:text-base min-h-[44px]"
+                }`}
               >
                 {isProcessing ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span className="hidden xs:inline">Processing...</span>
-                    <span className="inline xs:hidden">Processing</span>
+                    <div
+                      className={`border-2 border-white/30 border-t-white rounded-full animate-spin ${
+                        finalIsMobile ? "w-5 h-5" : "w-4 h-4"
+                      }`}
+                    />
+                    <span>Processing...</span>
                   </>
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-sm sm:text-base">
                       check_circle
                     </span>
-                    <span className="hidden xs:inline">Apply & Upload</span>
-                    <span className="inline xs:hidden">Apply</span>
+                    <span>
+                      {finalIsMobile ? "Apply & Save" : "Apply & Upload"}
+                    </span>
                   </>
                 )}
               </button>
             </div>
 
-            {/* Tips for mobile users */}
-            {isMobile && (
-              <div className="text-center pt-1">
-                <p className="text-[10px] sm:text-xs text-gray-500">
+            {/* Mobile Tips */}
+            {finalIsMobile && (
+              <div className="text-center pt-2">
+                <p className="text-xs text-gray-500">
                   💡 Pinch to zoom, drag to move the image
                 </p>
               </div>
             )}
           </div>
         </div>
+
+        {/* Mobile-only swipe indicator */}
+        {finalIsMobile && (
+          <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-white/70 animate-bounce">
+            <span className="material-symbols-outlined text-3xl">swipe_up</span>
+          </div>
+        )}
       </div>
     </div>
   );

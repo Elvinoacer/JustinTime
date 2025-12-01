@@ -46,9 +46,22 @@ export default function ProviderMessagesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
-  
+  const [isMobile, setIsMobile] = useState(false);
+
   // Track recently sent message IDs to prevent duplicates from socket
   const recentlySentIds = useRef<Set<string>>(new Set());
+
+  // Check if mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Fetch conversations on mount
   useEffect(() => {
@@ -70,7 +83,7 @@ export default function ProviderMessagesPage() {
 
   // Track selected partner ID in a ref to use in socket listener without re-binding
   const selectedPartnerIdRef = useRef<string | null>(selectedPartnerId);
-  
+
   useEffect(() => {
     selectedPartnerIdRef.current = selectedPartnerId;
   }, [selectedPartnerId]);
@@ -81,11 +94,11 @@ export default function ProviderMessagesPage() {
       console.log("Initializing socket connection for user:", session.user.id);
       socket.connect();
       socket.emit("join", session.user.id);
-      
+
       socket.on("connect", () => {
         console.log("Socket connected:", socket.id);
       });
-      
+
       socket.on("disconnect", () => {
         console.log("Socket disconnected");
       });
@@ -105,27 +118,27 @@ export default function ProviderMessagesPage() {
 
     const handleReceiveMessage = (message: any) => {
       console.log("Received socket message:", message);
-      
+
       const currentPartnerId = selectedPartnerIdRef.current;
-      
+
       // Emit delivered status if we are the receiver
       if (message.receiverId === session.user.id) {
         socket.emit("message_delivered", {
           messageId: message.id,
           senderId: message.senderId,
-          receiverId: session.user.id
+          receiverId: session.user.id,
         });
-        
+
         // If we are looking at this conversation, emit read status too
         if (currentPartnerId === message.senderId) {
           socket.emit("message_read", {
             messageId: message.id,
             senderId: message.senderId,
-            receiverId: session.user.id
+            receiverId: session.user.id,
           });
         }
       }
-      
+
       // Update messages if looking at this conversation
       if (
         currentPartnerId &&
@@ -137,11 +150,11 @@ export default function ProviderMessagesPage() {
           if (recentlySentIds.current.has(message.id)) {
             return prev;
           }
-          
+
           // Check for existing message by ID
-          const exists = prev.some(m => m.id === message.id);
+          const exists = prev.some((m) => m.id === message.id);
           if (exists) return prev;
-          
+
           return [...prev, message];
         });
       }
@@ -193,7 +206,7 @@ export default function ProviderMessagesPage() {
 
     const handleUserOnline = ({ userId }: { userId: string }) => {
       console.log(`User ${userId} came online`);
-      setOnlineUsers(prev => {
+      setOnlineUsers((prev) => {
         const newSet = new Set(prev);
         newSet.add(userId);
         return newSet;
@@ -202,12 +215,14 @@ export default function ProviderMessagesPage() {
 
     const handleUserOffline = ({ userId }: { userId: string }) => {
       if (userId === selectedPartnerIdRef.current) {
-        const partner = conversations.find(c => c.partner.id === userId)?.partner;
+        const partner = conversations.find(
+          (c) => c.partner.id === userId
+        )?.partner;
         if (partner) {
           console.log(`${partner.name} went offline`);
         }
       }
-      setOnlineUsers(prev => {
+      setOnlineUsers((prev) => {
         const newSet = new Set(prev);
         newSet.delete(userId);
         return newSet;
@@ -219,16 +234,28 @@ export default function ProviderMessagesPage() {
       setOnlineUsers(new Set(userIds));
     };
 
-    const handleMessageRead = ({ messageId, receiverId }: { messageId: string, receiverId: string }) => {
-      setMessages(prev => prev.map(m => 
-        m.id === messageId ? { ...m, isRead: true } : m
-      ));
+    const handleMessageRead = ({
+      messageId,
+      receiverId,
+    }: {
+      messageId: string;
+      receiverId: string;
+    }) => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, isRead: true } : m))
+      );
     };
 
-    const handleMessageDelivered = ({ messageId, receiverId }: { messageId: string, receiverId: string }) => {
-      setMessages(prev => prev.map(m => 
-        m.id === messageId ? { ...m, isDelivered: true } : m
-      ));
+    const handleMessageDelivered = ({
+      messageId,
+      receiverId,
+    }: {
+      messageId: string;
+      receiverId: string;
+    }) => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, isDelivered: true } : m))
+      );
     };
 
     socket.on("receive_message", handleReceiveMessage);
@@ -279,7 +306,11 @@ export default function ProviderMessagesPage() {
     fetchMessages();
   }, [selectedPartnerId]);
 
-  const handleSendMessage = async (content: string, fileUrl?: string, fileType?: string) => {
+  const handleSendMessage = async (
+    content: string,
+    fileUrl?: string,
+    fileType?: string
+  ) => {
     if (!selectedPartnerId || !session?.user) return;
 
     // Optimistic update
@@ -304,14 +335,16 @@ export default function ProviderMessagesPage() {
     // Update conversations list immediately
     setConversations((prev) => {
       const newConvs = [...prev];
-      const convIndex = newConvs.findIndex((c) => c.partner.id === selectedPartnerId);
+      const convIndex = newConvs.findIndex(
+        (c) => c.partner.id === selectedPartnerId
+      );
 
       if (convIndex >= 0) {
         // Update existing conversation
         newConvs[convIndex] = {
           ...newConvs[convIndex],
           lastMessage: {
-            content: content || (fileUrl ? 'Sent a file' : ''),
+            content: content || (fileUrl ? "Sent a file" : ""),
             createdAt: newMessage.createdAt,
             isRead: false,
             isOwn: true,
@@ -342,15 +375,15 @@ export default function ProviderMessagesPage() {
       // Update the temporary message with the real ID from the server
       if (response.data?.message?.id) {
         const realId = response.data.message.id;
-        
+
         setMessages((prev) =>
           prev.map((m) => (m.id === tempId ? { ...m, id: realId } : m))
         );
-        
+
         // Add real ID to tracking and remove temp ID after a delay
         recentlySentIds.current.add(realId);
         recentlySentIds.current.delete(tempId);
-        
+
         // Clean up tracking after 5 seconds
         setTimeout(() => {
           recentlySentIds.current.delete(realId);
@@ -385,7 +418,9 @@ export default function ProviderMessagesPage() {
     try {
       await apiClient.delete(`/messages/clear/${partnerId}`);
       // Remove conversation from list
-      setConversations((prev) => prev.filter((c) => c.partner.id !== partnerId));
+      setConversations((prev) =>
+        prev.filter((c) => c.partner.id !== partnerId)
+      );
       setSelectedPartnerId(null);
     } catch (error) {
       console.error("Failed to clear conversation:", error);
@@ -395,8 +430,8 @@ export default function ProviderMessagesPage() {
 
   const handleSelectUser = (contact: any) => {
     // Check if conversation already exists
-    const existingConv = conversations.find(c => c.partner.id === contact.id);
-    
+    const existingConv = conversations.find((c) => c.partner.id === contact.id);
+
     if (existingConv) {
       setSelectedPartnerId(contact.id);
     } else {
@@ -404,32 +439,36 @@ export default function ProviderMessagesPage() {
       const newConv: Conversation = {
         partner: {
           id: contact.id,
-          name: contact.name || 'Unknown',
+          name: contact.name || "Unknown",
           image: contact.image,
           role: contact.role,
           phone: contact.phone,
         },
         lastMessage: {
-          content: '',
+          content: "",
           createdAt: new Date().toISOString(),
           isRead: true,
           isOwn: true,
         },
         unreadCount: 0,
       };
-      
-      setConversations(prev => [newConv, ...prev]);
+
+      setConversations((prev) => [newConv, ...prev]);
       setSelectedPartnerId(contact.id);
     }
-    
+
     setIsNewConversationOpen(false);
   };
 
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
 
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-gray-50 rounded-2xl overflow-hidden shadow-sm border border-gray-200 m-4">
-      <div className={`${selectedPartnerId ? 'hidden md:block' : 'block'} w-full md:w-1/3 h-full`}>
+    <div className="flex h-[calc(100dvh-64px)] sm:h-[calc(100vh-64px)] bg-gray-50 rounded-none sm:rounded-lg md:rounded-xl lg:rounded-2xl overflow-hidden shadow-xs sm:shadow-sm border-0 sm:border border-gray-200 m-0 sm:m-2 md:m-4">
+      <div
+        className={`${
+          selectedPartnerId ? "hidden md:block" : "block"
+        } w-full md:w-1/3 h-full`}
+      >
         <ConversationsList
           conversations={conversations}
           selectedPartnerId={selectedPartnerId}
@@ -438,9 +477,14 @@ export default function ProviderMessagesPage() {
           onSearchChange={setSearchQuery}
           onNewMessage={() => setIsNewConversationOpen(true)}
           onlineUsers={onlineUsers}
+          isMobile={isMobile}
         />
       </div>
-      <div className={`${!selectedPartnerId ? 'hidden md:block' : 'block'} w-full md:w-2/3 h-full`}>
+      <div
+        className={`${
+          !selectedPartnerId ? "hidden md:block" : "block"
+        } w-full md:w-2/3 h-full`}
+      >
         <ChatWindow
           partner={
             selectedPartnerId
@@ -454,14 +498,18 @@ export default function ProviderMessagesPage() {
           onDeleteMessage={handleDeleteMessage}
           onClearConversation={handleClearConversation}
           isTyping={isTyping}
-          isOnline={selectedPartnerId ? onlineUsers.has(selectedPartnerId) : false}
+          isOnline={
+            selectedPartnerId ? onlineUsers.has(selectedPartnerId) : false
+          }
           onBack={() => setSelectedPartnerId(null)}
+          isMobile={isMobile}
         />
       </div>
       <NewConversationModal
         isOpen={isNewConversationOpen}
         onClose={() => setIsNewConversationOpen(false)}
         onSelectUser={handleSelectUser}
+        isMobile={isMobile}
       />
     </div>
   );
