@@ -23,7 +23,11 @@ const ServicesPage = () => {
   const deleteServiceMutation = useDeleteService();
   const updateServiceMutation = useUpdateService();
 
-  const servicesList = servicesData?.data || [];
+  const servicesList = Array.isArray(servicesData?.data) 
+    ? servicesData.data 
+    : Array.isArray(servicesData?.services) 
+    ? servicesData.services 
+    : [];
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
