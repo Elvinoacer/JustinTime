@@ -1,0 +1,39 @@
+# robots.txt for JustInTime
+# Allow all search engines to crawl the site
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://justintime.com/sitemap.xml
+
+# Crawl-delay (optional, helps prevent server overload)
+Crawl-delay: 1
+
+# Public pages - explicitly allowed
+Allow: /services
+Allow: /professionals
+Allow: /jobs
+Allow: /about
+Allow: /contact
+
+# API routes - disallow
+Disallow: /api/
+
+# Protected dashboard pages - disallow (require auth)
+Disallow: /dashboard/
+Disallow: /client/
+Disallow: /admin/
+
+# Auth pages - disallow (no SEO value)
+Disallow: /auth/
+
+# Specific bots configuration
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /images/
+
+User-agent: Bingbot
+Allow: /
