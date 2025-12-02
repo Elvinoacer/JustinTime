@@ -123,7 +123,7 @@ const ImageCropper = ({
       <div
         className={`bg-white rounded-none sm:rounded-xl md:rounded-2xl w-full ${
           finalIsMobile
-            ? "h-full max-h-full rounded-none"
+            ? "h-[100dvh] max-h-[100dvh] rounded-none"
             : "max-w-xs xs:max-w-sm sm:max-w-md md:max-w-2xl max-h-[90dvh]"
         } overflow-hidden flex flex-col relative z-10`}
       >
@@ -163,7 +163,7 @@ const ImageCropper = ({
         </div>
 
         {/* Cropper Area */}
-        <div className="relative flex-1 min-h-[300px] sm:min-h-[400px] bg-black w-full overflow-hidden">
+        <div className="relative flex-1 min-h-[250px] sm:min-h-[400px] bg-black w-full overflow-hidden">
           {image ? (
             <div className="absolute inset-0">
               <Cropper
@@ -484,7 +484,12 @@ const ImageCropper = ({
 };
 
 // Helper function to crop the image
-async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
+async function getCroppedImg(
+  imageSrc: string,
+  pixelCrop: Area,
+  rotation = 0,
+  flip = { horizontal: false, vertical: false }
+): Promise<Blob> {
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -493,22 +498,43 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
     throw new Error("Failed to get canvas context");
   }
 
-  // Set canvas size to match the cropped area
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
+  const rotRad = getRadianAngle(rotation);
 
-  // Draw the cropped image
-  ctx.drawImage(
-    image,
+  // calculate bounding box of the rotated image
+  const { width: bBoxWidth, height: bBoxHeight } = rotateSize(
+    image.width,
+    image.height,
+    rotation
+  );
+
+  // set canvas size to match the bounding box
+  canvas.width = bBoxWidth;
+  canvas.height = bBoxHeight;
+
+  // translate canvas context to a central location to allow rotating and flipping around the center
+  ctx.translate(bBoxWidth / 2, bBoxHeight / 2);
+  ctx.rotate(rotRad);
+  ctx.scale(flip.horizontal ? -1 : 1, flip.vertical ? -1 : 1);
+  ctx.translate(-image.width / 2, -image.height / 2);
+
+  // draw rotated image
+  ctx.drawImage(image, 0, 0);
+
+  // croppedAreaPixels values are bounding box relative
+  // extract the cropped image using these values
+  const data = ctx.getImageData(
     pixelCrop.x,
     pixelCrop.y,
     pixelCrop.width,
-    pixelCrop.height,
-    0,
-    0,
-    pixelCrop.width,
     pixelCrop.height
   );
+
+  // set canvas width to final desired crop size - this will clear existing context
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+
+  // paste generated rotate image at the top left corner
+  ctx.putImageData(data, 0, 0);
 
   // Convert canvas to blob
   return new Promise((resolve, reject) => {
@@ -524,6 +550,24 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
       0.95
     );
   });
+}
+
+function getRadianAngle(degreeValue: number) {
+  return (degreeValue * Math.PI) / 180;
+}
+
+/**
+ * Returns the new bounding area of a rotated rectangle.
+ */
+function rotateSize(width: number, height: number, rotation: number) {
+  const rotRad = getRadianAngle(rotation);
+
+  return {
+    width:
+      Math.abs(Math.cos(rotRad) * width) + Math.abs(Math.sin(rotRad) * height),
+    height:
+      Math.abs(Math.sin(rotRad) * width) + Math.abs(Math.cos(rotRad) * height),
+  };
 }
 
 // Helper function to create an image element from a source
