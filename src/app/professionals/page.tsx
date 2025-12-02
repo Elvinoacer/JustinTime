@@ -41,7 +41,7 @@ export default function ProfessionalsPage() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-emerald-600 to-teal-500 text-white py-10 sm:py-12 md:py-16 px-3 xs:px-4">
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-7xl mx-auto mt-6 sm:mt-8 md:mt-10">
             <motion.h1
               className="text-2xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 sm:mb-3 md:mb-4"
               initial={{ opacity: 0, y: 20 }}

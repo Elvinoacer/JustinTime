@@ -6,6 +6,7 @@ import { useState } from "react";
 interface FiltersProps {
   filters: ServicesFilters;
   onFilterChange: (filters: Partial<ServicesFilters>) => void;
+  onClose?: () => void;
 }
 
 const Filters = ({ filters, onFilterChange }: FiltersProps) => {
