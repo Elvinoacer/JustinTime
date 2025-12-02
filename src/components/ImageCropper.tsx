@@ -35,6 +35,7 @@ const ImageCropper = ({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [deviceIsMobile, setDeviceIsMobile] = useState(false);
+  const [objectFit, setObjectFit] = useState<"contain" | "cover" | "horizontal-cover" | "vertical-cover">("contain");
 
   // Detect mobile device
   useEffect(() => {
@@ -175,8 +176,8 @@ const ImageCropper = ({
                 onCropComplete={onCropCompleteCallback}
                 cropShape="round"
                 showGrid={!finalIsMobile}
-                objectFit="contain"
-                restrictPosition={!finalIsMobile}
+                objectFit={objectFit}
+                restrictPosition={false}
                 style={{
                   containerStyle: {
                     position: "absolute",
@@ -238,7 +239,7 @@ const ImageCropper = ({
                 </div>
                 <input
                   type="range"
-                  min={1}
+                  min={0.1}
                   max={3}
                   step={0.1}
                   value={zoom}
@@ -251,10 +252,9 @@ const ImageCropper = ({
                     finalIsMobile ? "text-xs" : "text-[10px] sm:text-xs"
                   }`}
                 >
+                  <span>0.1x</span>
                   <span>1x</span>
-                  <span>1.5x</span>
                   <span>2x</span>
-                  <span>2.5x</span>
                   <span>3x</span>
                 </div>
               </div>
@@ -275,8 +275,8 @@ const ImageCropper = ({
                       </span>
                       <input
                         type="range"
-                        min={-50}
-                        max={50}
+                        min={-100}
+                        max={100}
                         step={1}
                         value={crop.x}
                         onChange={(e) =>
@@ -295,8 +295,8 @@ const ImageCropper = ({
                       </span>
                       <input
                         type="range"
-                        min={-50}
-                        max={50}
+                        min={-100}
+                        max={100}
                         step={1}
                         value={crop.y}
                         onChange={(e) =>
@@ -416,6 +416,21 @@ const ImageCropper = ({
               >
                 Cancel
               </button>
+              
+               <button
+                onClick={() => setObjectFit(prev => prev === "contain" ? "cover" : "contain")}
+                className={`bg-blue-50 text-blue-700 border border-blue-200 rounded-lg font-medium hover:bg-blue-100 transition-colors active:scale-[0.98] flex items-center justify-center gap-2 ${
+                  finalIsMobile
+                    ? "flex-1 px-4 py-3 text-base min-h-[48px]"
+                    : "flex-1 xs:flex-none px-4 py-2.5 sm:py-3 text-sm sm:text-base min-h-[44px]"
+                }`}
+              >
+                 <span className="material-symbols-outlined text-sm sm:text-base">
+                   {objectFit === "contain" ? "zoom_out_map" : "fit_screen"}
+                 </span>
+                 {objectFit === "contain" ? "Fill Frame" : "Fit Image"}
+              </button>
+
               <button
                 onClick={handleCropImage}
                 disabled={isProcessing || !croppedAreaPixels}
