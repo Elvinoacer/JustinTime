@@ -29,6 +29,12 @@ export async function GET(
                 isVerified: true,
               },
             },
+            subscription: {
+              select: {
+                plan: true,
+                isActive: true,
+              },
+            },
             receivedReviews: {
               select: {
                 id: true,
@@ -84,6 +90,10 @@ export async function GET(
         profile: {
           ...service.provider.profile,
           hourlyRate: service.provider.profile?.hourlyRate ? Number(service.provider.profile.hourlyRate) : null,
+        },
+        subscription: {
+          plan: service.provider.subscription?.plan || "FREE",
+          isActive: service.provider.subscription?.isActive || false,
         },
         rating: averageRating,
         reviewCount: reviews.length,

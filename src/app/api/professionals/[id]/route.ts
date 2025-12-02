@@ -32,6 +32,12 @@ export async function GET(
           },
           take: 20,
         },
+        subscription: {
+          select: {
+            plan: true,
+            isActive: true,
+          },
+        },
       },
     });
 
@@ -105,6 +111,10 @@ export async function GET(
       certifications: provider.profile?.certifications || [],
       education: provider.profile?.education || [],
       memberSince: provider.createdAt,
+      subscription: {
+        plan: provider.subscription?.plan || "FREE",
+        isActive: provider.subscription?.isActive || false,
+      },
       completedJobs,
       totalEarnings: Number(totalEarnings._sum?.totalAmount || 0),
       averageRating: avgRating._avg.rating || 0,
