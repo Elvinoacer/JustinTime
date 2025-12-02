@@ -163,7 +163,7 @@ const ImageCropper = ({
         </div>
 
         {/* Cropper Area */}
-        <div className="relative flex-1 min-h-0 bg-black w-full overflow-hidden">
+        <div className="relative flex-1 min-h-[300px] sm:min-h-[400px] bg-black w-full overflow-hidden">
           {image ? (
             <div className="absolute inset-0">
               <Cropper
@@ -177,7 +177,7 @@ const ImageCropper = ({
                 cropShape="round"
                 showGrid={!finalIsMobile}
                 objectFit={objectFit}
-                restrictPosition={false}
+                restrictPosition={!finalIsMobile}
                 style={{
                   containerStyle: {
                     position: "absolute",
@@ -187,7 +187,6 @@ const ImageCropper = ({
                   },
                 }}
                 classes={{
-                  containerClassName: "!relative",
                   mediaClassName: "!max-w-none !max-h-none",
                 }}
               />
