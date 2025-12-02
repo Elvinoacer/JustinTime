@@ -16,7 +16,7 @@ const createMockSocket = (): Socket =>
 // Only initialize on the client side to avoid SSR issues
 export const socket: Socket =
   typeof window !== "undefined"
-    ? io(process.env.SOCKET_ENPOINT, {
+    ? io(process.env.NEXT_PUBLIC_SOCKET_ENDPOINT || "http://localhost:4000", {
         autoConnect: false,
         transports: ["websocket"],
       })

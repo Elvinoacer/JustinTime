@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import { sendComprehensiveNotification } from "@/lib/notifications/adminNotifications";
 
 export async function POST(req: Request) {
   try {
@@ -53,6 +54,32 @@ export async function POST(req: Request) {
         comment,
       },
     });
+
+    // Send notification to provider
+    try {
+      await sendComprehensiveNotification({
+        userId: booking.providerId,
+        title: `New Review from ${session.user.name}`,
+        message: `You received a ${rating}-star review: "${comment ? (comment.length > 50 ? comment.substring(0, 50) + "..." : comment) : "No comment"}"`,
+        type: "REVIEW",
+        emailSubject: `New Review Received - JustInTime`,
+        emailHtml: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #10b981;">New Review!</h2>
+            <p><strong>${session.user.name}</strong> left you a review for a completed booking.</p>
+            <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+              <div style="font-size: 24px; color: #fbbf24; margin-bottom: 10px;">
+                ${"★".repeat(parseInt(rating))}${"☆".repeat(5 - parseInt(rating))}
+              </div>
+              <p style="font-style: italic; color: #4b5563;">"${comment || "No comment provided"}"</p>
+            </div>
+            <a href="${process.env.NEXTAUTH_URL}/dashboard/reviews" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">View All Reviews</a>
+          </div>
+        `
+      });
+    } catch (notifError) {
+      console.error("Failed to send review notification:", notifError);
+    }
 
     return NextResponse.json(review);
   } catch (error) {

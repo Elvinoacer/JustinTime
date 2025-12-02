@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createJobSchema } from "@/lib/validations/schemas";
+import { sendComprehensiveNotification } from "@/lib/notifications/adminNotifications";
 
 // Haversine formula to calculate distance between two coordinates in kilometers
 function calculateDistance(
@@ -267,6 +268,57 @@ export async function POST(request: Request) {
         maxApplicants: validatedData.maxApplicants,
       },
     });
+
+    // Send job alerts to matching providers
+    // Run in background (don't await) to avoid blocking response
+    (async () => {
+      try {
+        // Find providers interested in this category
+        const matchingProviders = await prisma.user.findMany({
+          where: {
+            role: "PROVIDER",
+            profile: {
+              skills: {
+                has: category.id
+              }
+            }
+          },
+          select: { id: true }
+        });
+
+        console.log(`[JobAlert] Found ${matchingProviders.length} matching providers for category ${category.name}`);
+
+        // Send notifications
+        for (const provider of matchingProviders) {
+          await sendComprehensiveNotification({
+            userId: provider.id,
+            title: `New Job: ${validatedData.title}`,
+            message: `A new job matching your skills has been posted: ${validatedData.title} - Budget: Kes ${validatedData.budget || 'Negotiable'}`,
+            type: "JOB_ALERT",
+            emailSubject: `New Job Alert: ${validatedData.title} - JustInTime`,
+            emailHtml: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #10b981;">New Job Opportunity!</h2>
+                <p>A new job matching your skills has been posted.</p>
+                
+                <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="margin-top: 0;">${validatedData.title}</h3>
+                  <p><strong>Category:</strong> ${category.name}</p>
+                  <p><strong>Budget:</strong> Kes ${validatedData.budget || 'Negotiable'}</p>
+                  <p><strong>Location:</strong> ${validatedData.location || 'Remote/Not specified'}</p>
+                  <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 15px 0;" />
+                  <p style="color: #4b5563;">${validatedData.description ? (validatedData.description.length > 150 ? validatedData.description.substring(0, 150) + "..." : validatedData.description) : "No description"}</p>
+                </div>
+                
+                <a href="${process.env.NEXTAUTH_URL}/dashboard/jobs/${job.id}" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">View Job Details</a>
+              </div>
+            `
+          });
+        }
+      } catch (error) {
+        console.error("Failed to send job alerts:", error);
+      }
+    })();
 
     return NextResponse.json(job);
   } catch (error) {

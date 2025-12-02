@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
+import { sendComprehensiveNotification } from "@/lib/notifications/adminNotifications";
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,6 +58,30 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Send notification to receiver
+    try {
+      await sendComprehensiveNotification({
+        userId: receiverId,
+        title: `New Message from ${session.user.name}`,
+        message: content ? (content.length > 50 ? content.substring(0, 50) + "..." : content) : "Sent a file",
+        type: "MESSAGE",
+        emailSubject: `New Message from ${session.user.name} - JustInTime`,
+        emailHtml: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #10b981;">New Message</h2>
+            <p><strong>${session.user.name}</strong> sent you a message:</p>
+            <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              ${content || "<i>Sent a file</i>"}
+            </div>
+            <a href="${process.env.NEXTAUTH_URL}/dashboard/messages?conversation=${session.user.id}" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Reply Now</a>
+          </div>
+        `
+      });
+    } catch (notifError) {
+      console.error("Failed to send message notification:", notifError);
+      // Don't fail the request if notification fails
+    }
 
     return NextResponse.json({ message });
   } catch (error) {
