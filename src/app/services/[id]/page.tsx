@@ -208,10 +208,22 @@ const ServiceDetailsPage = ({
                       )}
                     </div>
                     {profile?.isVerified && (
-                      <div className="absolute -bottom-1 -right-1 sm:bottom-0 sm:right-0 md:-bottom-2 md:-right-2 bg-emerald-500 text-white p-0.5 sm:p-1 rounded-full border-2 border-white">
-                        <span className="material-symbols-outlined text-xs sm:text-sm">
+                      <div 
+                        className={`absolute -bottom-1 -right-1 sm:bottom-0 sm:right-0 md:-bottom-2 md:-right-2 text-white p-0.5 sm:p-1 rounded-full border-2 border-white flex items-center gap-0.5 px-1.5 text-[10px] font-bold shadow-md ${ provider.subscription?.plan &&
+                        ["PRO", "BUSINESS"].includes(provider.subscription.plan) &&
+                        provider.subscription.isActive
+                          ? "bg-gradient-to-r from-amber-500 to-amber-600"
+                          : "bg-emerald-500"
+                      }`}
+                      >
+                        <span className="material-symbols-outlined text-xs sm:text-sm fill-current">
                           verified
                         </span>
+                        {provider.subscription?.plan &&
+                         ["PRO", "BUSINESS"].includes(provider.subscription.plan) &&
+                         provider.subscription.isActive && (
+                          <span className="hidden sm:inline">PRO</span>
+                        )}
                       </div>
                     )}
                   </div>

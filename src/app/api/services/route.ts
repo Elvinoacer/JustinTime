@@ -104,6 +104,12 @@ export async function GET(request: NextRequest) {
                   location: true,
                 },
               },
+              subscription: {
+                select: {
+                  plan: true,
+                  isActive: true,
+                },
+              },
             },
           },
           category: {
@@ -168,6 +174,10 @@ export async function GET(request: NextRequest) {
           image: service.provider.image,
           isVerified: service.provider.profile?.isVerified || false,
           location: service.provider.profile?.location,
+          subscription: {
+            plan: service.provider.subscription?.plan || "FREE",
+            isActive: service.provider.subscription?.isActive || false,
+          },
         },
         rating: averageRating,
         reviews: ratings.length,
@@ -175,18 +185,49 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // Helper function to check if provider has premium plan
+    const isPremiumProvider = (service: any) => 
+      ["PRO", "BUSINESS"].includes(service.provider?.subscription?.plan) && 
+      service.provider?.subscription?.isActive === true;
+
     // Sort by distance if requested
     if (isDistanceSort) {
       servicesWithData = servicesWithData
         .filter(s => s.distance !== undefined)
-        .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+        .sort((a, b) => {
+          // Prioritize premium providers first
+          const aPremium = isPremiumProvider(a);
+          const bPremium = isPremiumProvider(b);
+          if (aPremium && !bPremium) return -1;
+          if (!aPremium && bPremium) return 1;
+          // Then sort by distance
+          return (a.distance || 0) - (b.distance || 0);
+        });
       
       // Apply pagination after sorting
       servicesWithData = servicesWithData.slice(skip, skip + limit);
     } 
     // Handle rating sort in memory since we computed it
     else if (sort === "rating") {
-       servicesWithData.sort((a, b) => b.rating - a.rating);
+       servicesWithData.sort((a, b) => {
+         // Prioritize premium providers first
+         const aPremium = isPremiumProvider(a);
+         const bPremium = isPremiumProvider(b);
+         if (aPremium && !bPremium) return -1;
+         if (!aPremium && bPremium) return 1;
+         // Then sort by rating
+         return b.rating - a.rating;
+       });
+    }
+    // For other sorts, prioritize premium providers
+    else {
+      servicesWithData.sort((a, b) => {
+        const aPremium = isPremiumProvider(a);
+        const bPremium = isPremiumProvider(b);
+        if (aPremium && !bPremium) return -1;
+        if (!aPremium && bPremium) return 1;
+        return 0;
+      });
     }
 
     return successResponse({

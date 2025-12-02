@@ -252,6 +252,7 @@ const ServicesList = ({
               provider: {
                 name: service.provider?.name || "Unknown Provider",
                 image: service.provider?.image,
+                subscription: service.provider?.subscription,
               },
             }}
             index={index}

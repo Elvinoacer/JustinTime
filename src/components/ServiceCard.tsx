@@ -20,6 +20,10 @@ interface ServiceCardProps {
     provider?: {
       name: string;
       image?: string | null;
+      subscription?: {
+        plan: string;
+        isActive: boolean;
+      };
     };
   };
   index?: number;
@@ -59,10 +63,23 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, index = 0 }) => {
                 {service.category}
               </span>
 
+              {/* Verified/PRO Badge */}
               {service.isVerified && (
-                <span className="px-3 py-1.5 bg-emerald-500/90 backdrop-blur-md rounded-full text-xs font-bold text-white shadow-sm flex items-center gap-1">
+                <span 
+                  className={`px-3 py-1.5 backdrop-blur-md rounded-full text-xs font-bold shadow-sm flex items-center gap-1 ${
+                    service.provider?.subscription?.plan && 
+                    ["PRO", "BUSINESS"].includes(service.provider.subscription.plan) &&
+                    service.provider.subscription.isActive
+                      ? "bg-amber-500/90 text-white"
+                      : "bg-emerald-500/90 text-white"
+                  }`}
+                >
                   <span className="material-symbols-outlined text-[16px] fill-current">verified</span>
-                  Verified
+                  {service.provider?.subscription?.plan && 
+                   ["PRO", "BUSINESS"].includes(service.provider.subscription.plan) &&
+                   service.provider.subscription.isActive
+                    ? "PRO"
+                    : "Verified"}
                 </span>
               )}
             </div>
