@@ -74,8 +74,16 @@ export async function POST(req: Request) {
     // Since the schema doesn't have a specific client profile, we'll just ensure phone is saved above
 
     return NextResponse.json(updatedUser);
-  } catch (error) {
-    console.error("[ONBOARDING_ERROR]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+  } catch (error: any) {
+    console.error("[ONBOARDING_ERROR]", {
+      message: error?.message,
+      code: error?.code,
+      meta: error?.meta,
+      stack: error?.stack,
+    });
+    
+    // Return more specific error message
+    const errorMessage = error?.message || "Internal Error";
+    return new NextResponse(errorMessage, { status: 500 });
   }
 }

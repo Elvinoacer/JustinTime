@@ -434,15 +434,24 @@ export default function OnboardingPage() {
         image: selfieUrl, // Send avatar URL
         ...(selectedRole === "PROVIDER"
           ? {
-              ...providerData,
+              skills: providerData.skills,
+              location: providerData.location,
+              latitude: providerData.latitude,
+              longitude: providerData.longitude,
+              bio: providerData.bio,
+              phone: providerData.phone,
               hourlyRate: providerData.hourlyRate
                 ? Number(providerData.hourlyRate)
                 : undefined,
-              verificationStatus: verificationStatus || "PENDING",
+              verificationStatus: "PENDING", // Always set to PENDING on registration
               idDocument: idDocumentUrl,
             }
           : {
-              ...clientData,
+              phone: clientData.phone,
+              address: clientData.address,
+              location: clientData.location,
+              latitude: clientData.latitude,
+              longitude: clientData.longitude,
               clientInterests,
             }),
       };

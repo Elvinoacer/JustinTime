@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 import {
   User,
@@ -67,6 +68,14 @@ export default function SignupPage() {
     if (score <= 2) return "bg-red-500";
     if (score <= 4) return "bg-amber-500";
     return "bg-emerald-500";
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signIn("google", { callbackUrl: "/dashboard" });
+    } catch (error) {
+      toast.error("Failed to sign in with Google");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -426,9 +435,10 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="mt-6">
               <button
                 type="button"
+                onClick={handleGoogleSignIn}
                 disabled={isLoading}
                 className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-300 rounded-lg sm:rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
@@ -450,21 +460,7 @@ export default function SignupPage() {
                     fill="#EA4335"
                   />
                 </svg>
-                Google
-              </button>
-              <button
-                type="button"
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-300 rounded-lg sm:rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                <svg
-                  className="h-5 w-5"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
-                </svg>
-                Facebook
+                Sign up with Google
               </button>
             </div>
           </div>
