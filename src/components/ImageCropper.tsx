@@ -35,7 +35,7 @@ const ImageCropper = ({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [deviceIsMobile, setDeviceIsMobile] = useState(false);
-  const [objectFit, setObjectFit] = useState<"contain" | "cover" | "horizontal-cover" | "vertical-cover">("contain");
+  const [objectFit, setObjectFit] = useState<"contain" | "cover" | "horizontal-cover" | "vertical-cover">("vertical-cover");
 
   // Detect mobile device
   useEffect(() => {
@@ -177,7 +177,7 @@ const ImageCropper = ({
                 cropShape="round"
                 showGrid={!finalIsMobile}
                 objectFit={objectFit}
-                restrictPosition={!finalIsMobile}
+                restrictPosition={true}
                 style={{
                   containerStyle: {
                     position: "absolute",
@@ -185,9 +185,6 @@ const ImageCropper = ({
                     height: "100%",
                     backgroundColor: "black",
                   },
-                }}
-                classes={{
-                  mediaClassName: "!max-w-none !max-h-none",
                 }}
               />
             </div>
@@ -498,23 +495,41 @@ async function getCroppedImg(
     throw new Error("Failed to get canvas context");
   }
 
+  // Ensure pixel crop values are properly rounded and bounded
+  const cropX = Math.max(0, Math.round(pixelCrop.x));
+  const cropY = Math.max(0, Math.round(pixelCrop.y));
+  const cropWidth = Math.min(
+    Math.round(pixelCrop.width),
+    image.width - cropX
+  );
+  const cropHeight = Math.min(
+    Math.round(pixelCrop.height),
+    image.height - cropY
+  );
+
+  console.log('Crop Debug Info:', {
+    imageDimensions: { width: image.width, height: image.height },
+    requestedCrop: pixelCrop,
+    actualCrop: { x: cropX, y: cropY, width: cropWidth, height: cropHeight }
+  });
+
   // Set canvas size to the desired crop size
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
+  canvas.width = cropWidth;
+  canvas.height = cropHeight;
 
   // If no rotation, we can use a simpler approach
   if (rotation === 0 && !flip.horizontal && !flip.vertical) {
     // Draw the cropped portion of the image directly
     ctx.drawImage(
       image,
-      pixelCrop.x,
-      pixelCrop.y,
-      pixelCrop.width,
-      pixelCrop.height,
+      cropX,
+      cropY,
+      cropWidth,
+      cropHeight,
       0,
       0,
-      pixelCrop.width,
-      pixelCrop.height
+      cropWidth,
+      cropHeight
     );
   } else {
     // Handle rotation and flipping
@@ -546,10 +561,10 @@ async function getCroppedImg(
 
     // extract the cropped image from the rotated image
     const data = tempCtx.getImageData(
-      pixelCrop.x,
-      pixelCrop.y,
-      pixelCrop.width,
-      pixelCrop.height
+      cropX,
+      cropY,
+      cropWidth,
+      cropHeight
     );
 
     // paste cropped data to final canvas
@@ -561,6 +576,7 @@ async function getCroppedImg(
     canvas.toBlob(
       (blob) => {
         if (blob) {
+          console.log('Cropped blob created:', { size: blob.size, type: blob.type });
           resolve(blob);
         } else {
           reject(new Error("Canvas is empty"));
