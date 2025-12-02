@@ -3,7 +3,6 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  trustHost: true,
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
@@ -32,7 +31,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           // Call internal API route for verification (avoids Prisma in Edge)
           const response = await fetch(
-            `${process.env.NEXTAUTH_URL||"https://justintimeservices.vercel.app"}/api/auth/verify-credentials`,
+            `${process.env.NEXTAUTH_URL || "https://justintimeservices.vercel.app"}/api/auth/verify-credentials`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -64,7 +63,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           // Call API route to handle user creation/update (avoids Prisma in Edge)
           const response = await fetch(
-            `${process.env.NEXTAUTH_URL||"https://justintimeservices.vercel.app"}/api/auth/google-signin`,
+            `${process.env.NEXTAUTH_URL || "https://justintimeservices.vercel.app"}/api/auth/google-signin`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -97,7 +96,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           try {
             // Fetch user data from API (avoids Prisma in Edge)
             const response = await fetch(
-              `${process.env.NEXTAUTH_URL||"https://justintimeservices.vercel.app"}/api/users/me?email=${encodeURIComponent(user.email!)}`,
+              `${process.env.NEXTAUTH_URL || "https://justintimeservices.vercel.app"}/api/users/me?email=${encodeURIComponent(user.email!)}`,
               {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
