@@ -65,8 +65,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // For Google sign-in, ensure the user is created/updated with verified email
       if (account?.provider === "google") {
         try {
-          // The adapter will have created/updated the user
-          // We just need to make sure emailVerified is set (adapter should do this)
+          // Explicitly update user with verified email and Google avatar
+          await prisma.user.update({
+            where: { email: user.email! },
+            data: {
+              emailVerified: new Date(), // Set email as verified
+              image: user.image, // Save Google avatar
+            },
+          });
           return true;
         } catch (error) {
           console.error("[Google Sign-In Error]", error);
