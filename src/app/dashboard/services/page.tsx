@@ -421,6 +421,22 @@ const ServicesPage = () => {
                   </div>
                 </div>
 
+                {/* Stats */}
+                <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4 pt-3 border-t border-gray-50">
+                  <div className="flex items-center gap-1.5 text-gray-500" title="Total Views">
+                    <span className={`material-symbols-outlined ${isMobile ? "text-base" : "text-lg"}`}>visibility</span>
+                    <span className={`${isMobile ? "text-xs" : "text-sm"} font-medium`}>
+                      {service.views?.toLocaleString() || 0}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-gray-500" title="Favorites">
+                    <span className={`material-symbols-outlined ${isMobile ? "text-base" : "text-lg"}`}>favorite</span>
+                    <span className={`${isMobile ? "text-xs" : "text-sm"} font-medium`}>
+                      {service.favorites?.toLocaleString() || 0}
+                    </span>
+                  </div>
+                </div>
+
                 {/* Actions - Mobile Optimized */}
                 <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   <button

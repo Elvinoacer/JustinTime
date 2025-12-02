@@ -947,6 +947,16 @@ const ProfilePage = () => {
                 value: formData.responseTime || "N/A", 
                 icon: "schedule" 
               },
+              {
+                label: "Total Views",
+                value: formData.views?.toLocaleString() || "0",
+                icon: "visibility",
+              },
+              {
+                label: "Favorites",
+                value: formData.favorites?.toLocaleString() || "0",
+                icon: "favorite",
+              },
             ].map((stat) => (
               <div
                 key={stat.label}

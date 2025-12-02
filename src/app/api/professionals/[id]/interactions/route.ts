@@ -39,21 +39,35 @@ export async function POST(
     if (type === "view") {
         // Optional: Don't notify for every view to avoid spam, or implement throttling
         // For now, we'll notify as requested
-        await sendComprehensiveNotification(
-            provider.id,
-            "New Profile View",
-            "Someone just viewed your profile!",
-            "VIEW_ALERT",
-            `/dashboard/profile`
-        );
+        await sendComprehensiveNotification({
+            userId: provider.id,
+            title: "New Profile View",
+            message: "Someone just viewed your profile!",
+            type: "VIEW_ALERT",
+            emailSubject: "New Profile View - JustInTime",
+            emailHtml: `
+              <div style="font-family: sans-serif; padding: 20px;">
+                <h2>New Profile View</h2>
+                <p>Someone just viewed your profile on JustInTime.</p>
+                <a href="${process.env.NEXTAUTH_URL}/dashboard/profile" style="display: inline-block; padding: 10px 20px; background-color: #000; color: #fff; text-decoration: none; border-radius: 5px;">View Profile Stats</a>
+              </div>
+            `
+        });
     } else if (type === "favorite") {
-        await sendComprehensiveNotification(
-            provider.id,
-            "New Profile Favorite",
-            "Someone just favorited your profile!",
-            "FAVORITE_ALERT",
-            `/dashboard/profile`
-        );
+        await sendComprehensiveNotification({
+            userId: provider.id,
+            title: "New Profile Favorite",
+            message: "Someone just favorited your profile!",
+            type: "FAVORITE_ALERT",
+            emailSubject: "New Profile Favorite - JustInTime",
+            emailHtml: `
+              <div style="font-family: sans-serif; padding: 20px;">
+                <h2>New Profile Favorite</h2>
+                <p>Someone just favorited your profile on JustInTime!</p>
+                <a href="${process.env.NEXTAUTH_URL}/dashboard/profile" style="display: inline-block; padding: 10px 20px; background-color: #000; color: #fff; text-decoration: none; border-radius: 5px;">View Profile Stats</a>
+              </div>
+            `
+        });
     }
 
     return successResponse({ 

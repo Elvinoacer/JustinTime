@@ -46,6 +46,8 @@ export async function GET(request: NextRequest) {
       isActive: service.isActive,
       images: service.images,
       video: service.video,
+      views: service.views || 0,
+      favorites: service.favorites || 0,
     }));
 
     return successResponse(formattedServices);

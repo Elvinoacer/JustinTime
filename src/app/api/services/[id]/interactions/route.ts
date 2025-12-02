@@ -37,21 +37,35 @@ export async function POST(
 
     // Send notification
     if (type === "view") {
-        await sendComprehensiveNotification(
-            service.providerId,
-            "New Service View",
-            `Someone just viewed your service: ${service.title}`,
-            "VIEW_ALERT",
-            `/dashboard/services`
-        );
+        await sendComprehensiveNotification({
+            userId: service.providerId,
+            title: "New Service View",
+            message: `Someone just viewed your service: ${service.title}`,
+            type: "VIEW_ALERT",
+            emailSubject: `New Service View: ${service.title}`,
+            emailHtml: `
+              <div style="font-family: sans-serif; padding: 20px;">
+                <h2>New Service View</h2>
+                <p>Someone just viewed your service <strong>${service.title}</strong> on JustInTime.</p>
+                <a href="${process.env.NEXTAUTH_URL}/dashboard/services" style="display: inline-block; padding: 10px 20px; background-color: #000; color: #fff; text-decoration: none; border-radius: 5px;">View Service Stats</a>
+              </div>
+            `
+        });
     } else if (type === "favorite") {
-        await sendComprehensiveNotification(
-            service.providerId,
-            "New Service Favorite",
-            `Someone just favorited your service: ${service.title}`,
-            "FAVORITE_ALERT",
-            `/dashboard/services`
-        );
+        await sendComprehensiveNotification({
+            userId: service.providerId,
+            title: "New Service Favorite",
+            message: `Someone just favorited your service: ${service.title}`,
+            type: "FAVORITE_ALERT",
+            emailSubject: `New Service Favorite: ${service.title}`,
+            emailHtml: `
+              <div style="font-family: sans-serif; padding: 20px;">
+                <h2>New Service Favorite</h2>
+                <p>Someone just favorited your service <strong>${service.title}</strong> on JustInTime!</p>
+                <a href="${process.env.NEXTAUTH_URL}/dashboard/services" style="display: inline-block; padding: 10px 20px; background-color: #000; color: #fff; text-decoration: none; border-radius: 5px;">View Service Stats</a>
+              </div>
+            `
+        });
     }
 
     return successResponse({ 

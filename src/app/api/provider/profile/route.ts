@@ -83,6 +83,8 @@ export async function GET(request: NextRequest) {
       }).then(res => res._avg.rating || 0),
       // Placeholder for response time as it requires complex message analysis
       responseTime: "< 2 hours",
+      views: user.profile?.views || 0,
+      favorites: user.profile?.favorites || 0,
     };
 
     return successResponse(profileData);
