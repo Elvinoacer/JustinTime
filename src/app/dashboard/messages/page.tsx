@@ -96,21 +96,53 @@ export default function ProviderMessagesPage() {
       socket.emit("join", session.user.id);
 
       socket.on("connect", () => {
-        console.log("Socket connected:", socket.id);
+        console.log("✅ Socket connected:", socket.id);
+        // Re-join room on reconnection
+        socket.emit("join", session.user.id);
       });
 
       socket.on("connect_error", (err) => {
-        console.error("Socket connection error:", err);
+        console.error("❌ Socket connection error:", err.message);
       });
 
-      socket.on("disconnect", () => {
-        console.log("Socket disconnected");
+      socket.on("reconnect_attempt", (attemptNumber) => {
+        console.log(`🔄 Reconnection attempt #${attemptNumber}...`);
       });
+
+      socket.on("reconnect", (attemptNumber) => {
+        console.log(`✅ Reconnected after ${attemptNumber} attempts`);
+        // Re-join room after reconnection
+        socket.emit("join", session.user.id);
+      });
+
+      socket.on("reconnect_failed", () => {
+        console.error("❌ Reconnection failed");
+      });
+
+      socket.on("disconnect", (reason) => {
+        console.log("🔌 Socket disconnected:", reason);
+        if (reason === "io server disconnect") {
+          // Server disconnected, manually reconnect
+          socket.connect();
+        }
+      });
+
+      // Keep-alive ping every 25 seconds to prevent Render sleep
+      const pingInterval = setInterval(() => {
+        if (socket.connected) {
+          socket.emit("ping");
+        }
+      }, 25000);
 
       return () => {
         console.log("Cleaning up socket connection");
+        clearInterval(pingInterval);
         socket.disconnect();
         socket.off("connect");
+        socket.off("connect_error");
+        socket.off("reconnect_attempt");
+        socket.off("reconnect");
+        socket.off("reconnect_failed");
         socket.off("disconnect");
       };
     }

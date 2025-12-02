@@ -18,6 +18,11 @@ export const socket: Socket =
   typeof window !== "undefined"
     ? io(process.env.NEXT_PUBLIC_SOCKET_ENDPOINT || "http://localhost:4000", {
         autoConnect: false,
-        transports: ["websocket"],
+        transports: ["websocket", "polling"], // Try websocket first, fallback to polling
+        reconnection: true, // Enable automatic reconnection
+        reconnectionAttempts: Infinity, // Keep trying
+        reconnectionDelay: 1000, // Start with 1 second
+        reconnectionDelayMax: 5000, // Max 5 seconds between attempts
+        timeout: 20000, // 20 second connection timeout
       })
     : createMockSocket();
