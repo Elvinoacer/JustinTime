@@ -1,11 +1,8 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
   trustHost: true,
   secret: process.env.NEXTAUTH_SECRET,
   session: {
@@ -62,17 +59,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      // For Google sign-in, ensure the user is created/updated with verified email
+      // For Google sign-in, create/update user with verified email
       if (account?.provider === "google") {
         try {
-          // Explicitly update user with verified email and Google avatar
-          await prisma.user.update({
-            where: { email: user.email! },
-            data: {
-              emailVerified: new Date(), // Set email as verified
-              image: user.image, // Save Google avatar
-            },
-          });
+          // Call API route to handle user creation/update (avoids Prisma in Edge)
+          const response = await fetch(
+            `${process.env.NEXTAUTH_URL||"https://justintimeservices.vercel.app"}/api/auth/google-signin`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: user.email,
+                name: user.name,
+                image: user.image,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            console.error("[Google Sign-In API Error]", await response.text());
+            return false;
+          }
+
           return true;
         } catch (error) {
           console.error("[Google Sign-In Error]", error);
@@ -84,14 +92,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, trigger, session, account }) {
       // On initial sign-in, user object is available
       if (user) {
-        // For Google sign-in, fetch complete user data from database
+        // For Google sign-in, fetch complete user data from API
         if (account?.provider === "google") {
           try {
-            const dbUser = await prisma.user.findUnique({
-              where: { email: user.email! },
-            });
-            
-            if (dbUser) {
+            // Fetch user data from API (avoids Prisma in Edge)
+            const response = await fetch(
+              `${process.env.NEXTAUTH_URL||"https://justintimeservices.vercel.app"}/api/users/me?email=${encodeURIComponent(user.email!)}`,
+              {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+              }
+            );
+
+            if (response.ok) {
+              const dbUser = await response.json();
               token.role = dbUser.role;
               token.id = dbUser.id;
               token.onboardingCompleted = dbUser.onboardingCompleted;
