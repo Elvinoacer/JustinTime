@@ -207,7 +207,7 @@ const ServiceDetailsPage = ({
                         </div>
                       )}
                     </div>
-                    {profile?.isVerified && (
+                    {(profile?.isVerified || (provider.subscription?.plan && ["PRO", "BUSINESS"].includes(provider.subscription.plan) && provider.subscription.isActive)) && (
                       <div 
                         className={`absolute -bottom-1 -right-1 sm:bottom-0 sm:right-0 md:-bottom-2 md:-right-2 text-white p-0.5 sm:p-1 rounded-full border-2 border-white flex items-center gap-0.5 px-1.5 text-[10px] font-bold shadow-md ${ provider.subscription?.plan &&
                         ["PRO", "BUSINESS"].includes(provider.subscription.plan) &&

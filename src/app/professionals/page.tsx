@@ -403,8 +403,8 @@ export default function ProfessionalsPage() {
                             </div>
                           )}
 
-                          {/* Verified Badge */}
-                          {professional.verified && (
+                          {/* Verified/PRO Badge */}
+                          {(professional.verified || (["PRO", "BUSINESS"].includes(professional.subscription?.plan) && professional.subscription?.isActive === true)) && (
                             <div className="absolute top-3 right-3">
                               <div className="bg-white rounded-full p-1 shadow-md">
                                 <span

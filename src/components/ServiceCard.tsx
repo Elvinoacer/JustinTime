@@ -64,7 +64,8 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, index = 0 }) => {
               </span>
 
               {/* Verified/PRO Badge */}
-              {service.isVerified && (
+              {/* Verified/PRO Badge */}
+              {(service.isVerified || (service.provider?.subscription?.plan && ["PRO", "BUSINESS"].includes(service.provider.subscription.plan) && service.provider.subscription.isActive)) && (
                 <span 
                   className={`px-3 py-1.5 backdrop-blur-md rounded-full text-xs font-bold shadow-sm flex items-center gap-1 ${
                     service.provider?.subscription?.plan && 
