@@ -150,8 +150,8 @@ const ServiceFormModal = ({
         toast.error("Only 1 video allowed");
         return;
       }
-      if (files[0].size > 10 * 1024 * 1024) {
-        toast.error("Video exceeds 10MB limit");
+      if (files[0].size > 30 * 1024 * 1024) {
+        toast.error("Video exceeds 30MB limit");
         return;
       }
     }
@@ -561,7 +561,7 @@ const ServiceFormModal = ({
                       <label className="block text-xs font-semibold text-gray-700 truncate">
                         Video (Optional)
                       </label>
-                      <span className="text-xs text-gray-500">Max 10MB</span>
+                      <span className="text-xs text-gray-500">Max 30MB</span>
                     </div>
 
                     {formData.video ? (
@@ -926,7 +926,7 @@ const ServiceFormModal = ({
                     <label className="block text-sm font-semibold text-gray-700 truncate">
                       Service Video (Optional)
                     </label>
-                    <span className="text-sm text-gray-500">Max 10MB</span>
+                    <span className="text-sm text-gray-500">Max 30MB</span>
                   </div>
 
                   {formData.video ? (
