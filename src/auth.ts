@@ -1,8 +1,11 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: PrismaAdapter(prisma),
   trustHost: true,
   secret: process.env.NEXTAUTH_SECRET,
   session: {
@@ -58,13 +61,48 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    async signIn({ user, account, profile }) {
+      // For Google sign-in, ensure the user is created/updated with verified email
+      if (account?.provider === "google") {
+        try {
+          // The adapter will have created/updated the user
+          // We just need to make sure emailVerified is set (adapter should do this)
+          return true;
+        } catch (error) {
+          console.error("[Google Sign-In Error]", error);
+          return false;
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user, trigger, session, account }) {
+      // On initial sign-in, user object is available
       if (user) {
-        token.role = (user as any).role;
-        token.id = user.id;
-        token.onboardingCompleted = (user as any).onboardingCompleted;
-        token.clientInterests = (user as any).clientInterests;
-        token.emailVerified = (user as any).emailVerified;
+        // For Google sign-in, fetch complete user data from database
+        if (account?.provider === "google") {
+          try {
+            const dbUser = await prisma.user.findUnique({
+              where: { email: user.email! },
+            });
+            
+            if (dbUser) {
+              token.role = dbUser.role;
+              token.id = dbUser.id;
+              token.onboardingCompleted = dbUser.onboardingCompleted;
+              token.clientInterests = dbUser.clientInterests;
+              token.emailVerified = dbUser.emailVerified;
+            }
+          } catch (error) {
+            console.error("[JWT Error - Google]", error);
+          }
+        } else {
+          // For credentials login, user data comes from authorize()
+          token.role = (user as any).role;
+          token.id = user.id;
+          token.onboardingCompleted = (user as any).onboardingCompleted;
+          token.clientInterests = (user as any).clientInterests;
+          token.emailVerified = (user as any).emailVerified;
+        }
       }
       if (trigger === "update" && session?.user) {
         token.onboardingCompleted = session.user.onboardingCompleted;

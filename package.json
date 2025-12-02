@@ -12,6 +12,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@auth/core": "^0.34.3",
     "@auth/prisma-adapter": "^2.11.1",
     "@aws-sdk/client-s3": "^3.940.0",
     "@headlessui/react": "^2.2.8",
@@ -40,7 +41,7 @@
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.554.0",
     "next": "^16.0.3",
-    "next-auth": "^5.0.0-beta.30",
+    "next-auth": "^4.24.13",
     "prisma": "^5.22.0",
     "react": "^19.2.0",
     "react-day-picker": "^9.11.2",
