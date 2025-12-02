@@ -51,6 +51,54 @@ export async function POST(request: Request) {
       return new NextResponse("You have already submitted a proposal for this job", { status: 400 });
     }
 
+    // Check subscription plan and weekly proposal limit for FREE users
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        subscription: {
+          select: {
+            plan: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    const userPlan = user?.subscription?.plan || "FREE";
+    const isActiveSubscription = user?.subscription?.status === "ACTIVE";
+
+    // Only apply limits to FREE plan users
+    if (userPlan === "FREE" || !isActiveSubscription) {
+      // Calculate date 7 days ago (start of the week)
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+      // Count proposals submitted in the last 7 days
+      const weeklyProposalCount = await prisma.proposal.count({
+        where: {
+          providerId: session.user.id,
+          createdAt: {
+            gte: oneWeekAgo,
+          },
+        },
+      });
+
+      // Free plan limit: 14 proposals per week (2 per day)
+      const WEEKLY_LIMIT = 14;
+
+      if (weeklyProposalCount >= WEEKLY_LIMIT) {
+        return NextResponse.json(
+          {
+            error: "Weekly application limit reached",
+            message: `Free plan users can apply to a maximum of ${WEEKLY_LIMIT} jobs per week (2 per day). Upgrade to Pro for unlimited applications.`,
+            limit: WEEKLY_LIMIT,
+            current: weeklyProposalCount,
+          },
+          { status: 429 } // 429 Too Many Requests
+        );
+      }
+    }
+
     // Create proposal
     const proposal = await prisma.proposal.create({
       data: {

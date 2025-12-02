@@ -41,6 +41,12 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         profile: true,
+        subscription: {
+          select: {
+            plan: true,
+            status: true,
+          },
+        },
         _count: {
           select: {
             bookings: { where: { status: "COMPLETED" } },
@@ -79,6 +85,11 @@ export async function GET(request: NextRequest) {
           reviews: provider._count.receivedReviews,
           completedJobs: provider._count.bookings,
           memberSince: provider.createdAt,
+          verified: provider.profile?.isVerified || false,
+          subscription: {
+            plan: provider.subscription?.plan || "FREE",
+            status: provider.subscription?.status || "INACTIVE",
+          },
         };
       })
     );
@@ -101,17 +112,36 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Sort results
+    // Sort results - Prioritize Pro/Business members first
     let sortedProviders = [...filteredProviders];
-    if (sortBy === "rating") {
-      sortedProviders.sort((a, b) => b.rating - a.rating);
-    } else if (sortBy === "price_asc") {
-      sortedProviders.sort((a, b) => Number(a.hourlyRate) - Number(b.hourlyRate));
-    } else if (sortBy === "price_desc") {
-      sortedProviders.sort((a, b) => Number(b.hourlyRate) - Number(a.hourlyRate));
-    } else if (sortBy === "newest") {
-      sortedProviders.sort((a, b) => new Date(b.memberSince).getTime() - new Date(a.memberSince).getTime());
-    }
+    
+    // Helper function to check if user has premium plan
+    const isPremium = (provider: any) => 
+      ["PRO", "BUSINESS"].includes(provider.subscription?.plan) && 
+      provider.subscription?.status === "ACTIVE";
+    
+    // First sort by premium status, then by selected criteria
+    sortedProviders.sort((a, b) => {
+      // Prioritize premium members
+      const aPremium = isPremium(a);
+      const bPremium = isPremium(b);
+      
+      if (aPremium && !bPremium) return -1;
+      if (!aPremium && bPremium) return 1;
+      
+      // Then apply selected sorting criteria
+      if (sortBy === "rating") {
+        return b.rating - a.rating;
+      } else if (sortBy === "price_asc") {
+        return Number(a.hourlyRate) - Number(b.hourlyRate);
+      } else if (sortBy === "price_desc") {
+        return Number(b.hourlyRate) - Number(a.hourlyRate);
+      } else if (sortBy === "newest") {
+        return new Date(b.memberSince).getTime() - new Date(a.memberSince).getTime();
+      }
+      
+      return 0;
+    });
 
     // Limit final results
     const limitedResults = sortedProviders.slice(0, 50);

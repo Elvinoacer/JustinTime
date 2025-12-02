@@ -407,7 +407,15 @@ export default function ProfessionalsPage() {
                           {professional.verified && (
                             <div className="absolute top-3 right-3">
                               <div className="bg-white rounded-full p-1 shadow-md">
-                                <span className="material-symbols-outlined text-emerald-600 text-sm">
+                                <span
+                                  className={`material-symbols-outlined text-sm ${
+                                    ["PRO", "BUSINESS"].includes(
+                                      professional.subscription?.plan
+                                    ) && professional.subscription?.status === "ACTIVE"
+                                      ? "text-amber-600"
+                                      : "text-emerald-600"
+                                  }`}
+                                >
                                   verified
                                 </span>
                               </div>
