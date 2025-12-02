@@ -135,7 +135,7 @@ export default function ProfessionalDetailPage() {
                   <div
                     className={`absolute -bottom-1 -right-1 sm:bottom-0 sm:right-0 md:bottom-2 md:-right-2 z-20 p-1 sm:p-1.5 md:p-2 rounded-full border-2 sm:border-3 md:border-4 border-white shadow-md md:shadow-lg ${
                       ["PRO", "BUSINESS"].includes(professional.subscription?.plan) &&
-                      professional.subscription?.status === "ACTIVE"
+                      professional.subscription?.isActive === true
                         ? "bg-amber-500 text-white"
                         : "bg-blue-500 text-white"
                     }`}

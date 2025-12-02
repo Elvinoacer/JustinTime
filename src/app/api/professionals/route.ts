@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         subscription: {
           select: {
             plan: true,
-            status: true,
+            isActive: true,
           },
         },
         _count: {
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
           verified: provider.profile?.isVerified || false,
           subscription: {
             plan: provider.subscription?.plan || "FREE",
-            status: provider.subscription?.status || "INACTIVE",
+            isActive: provider.subscription?.isActive || false,
           },
         };
       })
@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
     // Helper function to check if user has premium plan
     const isPremium = (provider: any) => 
       ["PRO", "BUSINESS"].includes(provider.subscription?.plan) && 
-      provider.subscription?.status === "ACTIVE";
+      provider.subscription?.isActive === true;
     
     // First sort by premium status, then by selected criteria
     sortedProviders.sort((a, b) => {

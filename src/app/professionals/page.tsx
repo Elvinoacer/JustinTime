@@ -411,7 +411,7 @@ export default function ProfessionalsPage() {
                                   className={`material-symbols-outlined text-sm ${
                                     ["PRO", "BUSINESS"].includes(
                                       professional.subscription?.plan
-                                    ) && professional.subscription?.status === "ACTIVE"
+                                    ) && professional.subscription?.isActive === true
                                       ? "text-amber-600"
                                       : "text-emerald-600"
                                   }`}
