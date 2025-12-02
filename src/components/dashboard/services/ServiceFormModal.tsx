@@ -553,6 +553,40 @@ const ServiceFormModal = ({
                         </label>
                       )}
                     </div>
+
+                    {/* Image Upload Progress */}
+                    {uploadingFiles.filter(f => f.type === "image").length > 0 && (
+                      <div className="space-y-1.5 mt-3">
+                        {uploadingFiles.filter(f => f.type === "image").map((file, idx) => (
+                          <div
+                            key={idx}
+                            className="bg-gray-50 rounded-md p-2 flex items-center gap-2"
+                          >
+                            <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
+                              <span className="material-symbols-outlined text-gray-500 text-xs">
+                                image
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between text-xs mb-0.5">
+                                <span className="font-medium text-gray-700 truncate">
+                                  {file.file.name}
+                                </span>
+                                <span className="text-emerald-600 whitespace-nowrap">
+                                  {file.progress}%
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-1">
+                                <div
+                                  className="bg-emerald-500 h-1 rounded-full transition-all duration-300"
+                                  style={{ width: `${file.progress}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Video Upload */}
@@ -597,41 +631,41 @@ const ServiceFormModal = ({
                         </span>
                       </label>
                     )}
-                  </div>
 
-                  {/* Upload Progress */}
-                  {uploadingFiles.length > 0 && (
-                    <div className="space-y-1.5">
-                      {uploadingFiles.map((file, idx) => (
-                        <div
-                          key={idx}
-                          className="bg-gray-50 rounded-md p-2 flex items-center gap-2"
-                        >
-                          <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
-                            <span className="material-symbols-outlined text-gray-500 text-xs">
-                              {file.type === "image" ? "image" : "videocam"}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between text-xs mb-0.5">
-                              <span className="font-medium text-gray-700 truncate">
-                                {file.file.name}
-                              </span>
-                              <span className="text-emerald-600 whitespace-nowrap">
-                                {file.progress}%
+                    {/* Video Upload Progress */}
+                    {uploadingFiles.filter(f => f.type === "video").length > 0 && (
+                      <div className="space-y-1.5 mt-3">
+                        {uploadingFiles.filter(f => f.type === "video").map((file, idx) => (
+                          <div
+                            key={idx}
+                            className="bg-gray-50 rounded-md p-2 flex items-center gap-2"
+                          >
+                            <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
+                              <span className="material-symbols-outlined text-gray-500 text-xs">
+                                videocam
                               </span>
                             </div>
-                            <div className="w-full bg-gray-200 rounded-full h-1">
-                              <div
-                                className="bg-emerald-500 h-1 rounded-full transition-all duration-300"
-                                style={{ width: `${file.progress}%` }}
-                              />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between text-xs mb-0.5">
+                                <span className="font-medium text-gray-700 truncate">
+                                  {file.file.name}
+                                </span>
+                                <span className="text-emerald-600 whitespace-nowrap">
+                                  {file.progress}%
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-1">
+                                <div
+                                  className="bg-emerald-500 h-1 rounded-full transition-all duration-300"
+                                  style={{ width: `${file.progress}%` }}
+                                />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
