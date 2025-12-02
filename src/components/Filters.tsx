@@ -9,7 +9,7 @@ interface FiltersProps {
   onClose?: () => void;
 }
 
-const Filters = ({ filters, onFilterChange }: FiltersProps) => {
+const Filters = ({ filters, onFilterChange, onClose }: FiltersProps) => {
   const [isExpanded, setIsExpanded] = useState({
     price: true,
     verification: true,
@@ -450,7 +450,7 @@ const Filters = ({ filters, onFilterChange }: FiltersProps) => {
         <div className="lg:hidden p-4 border-t border-gray-100 bg-gray-50">
           <button
             onClick={() => {
-              /* Close mobile filters */
+              onClose?.();
             }}
             className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors text-sm shadow-sm"
           >

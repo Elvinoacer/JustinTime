@@ -390,6 +390,7 @@ function ServicesPageContent() {
                   <Filters
                     filters={filters}
                     onFilterChange={handleFilterChange}
+                    onClose={() => setShowMobileFilters(false)}
                   />
                 </div>
                 <div className="border-t border-gray-200 p-4 bg-gray-50">
