@@ -24,6 +24,7 @@ export interface Service {
     image: string | null;
     email: string;
     phone: string | null;
+    createdAt: string;
     profile: {
       bio: string | null;
       location: string | null;

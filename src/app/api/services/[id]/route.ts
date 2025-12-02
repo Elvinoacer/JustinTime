@@ -20,6 +20,7 @@ export async function GET(
             image: true,
             email: true,
             phone: true,
+            createdAt: true,
             profile: {
               select: {
                 bio: true,
