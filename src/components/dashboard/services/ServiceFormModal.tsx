@@ -2,12 +2,10 @@
 
 import CategorySelector from "@/components/CategorySelector";
 import apiClient from "@/lib/api/client";
-import {
-  useCreateService,
-  useUpdateService,
-} from "@/lib/api/hooks/useProvider";
+import { useCreateService, useUpdateService } from "@/lib/api/hooks/useProvider";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -58,6 +56,7 @@ const ServiceFormModal = ({
   const isEditMode = !!service;
   const createServiceMutation = useCreateService();
   const updateServiceMutation = useUpdateService();
+  const router = useRouter();
 
   // Fetch categories
   const { data: categoriesData = [], isLoading: isLoadingCategories } =
@@ -354,6 +353,34 @@ const ServiceFormModal = ({
 
               {step === 1 && (
                 <div className="space-y-3">
+                  {/* Location Info Banner */}
+                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 sm:p-4 flex items-start gap-3">
+                    <div className="bg-blue-100 rounded-full p-1.5 flex-shrink-0">
+                      <span className="material-symbols-outlined text-blue-600 text-sm sm:text-base">
+                        location_on
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs sm:text-sm text-blue-800 font-medium mb-1">
+                        Service Location
+                      </p>
+                      <p className="text-xs text-blue-600 leading-relaxed mb-2">
+                        This service will be listed based on your profile location. To change where your services appear, please update your profile location.
+                      </p>
+                      <button
+                        onClick={() => {
+                          onClose();
+                          router.push("/dashboard/profile");
+                        }}
+                        className="text-xs font-bold text-blue-700 hover:text-blue-800 hover:underline flex items-center gap-1"
+                      >
+                        Update Profile Location
+                        <span className="material-symbols-outlined text-xs">arrow_forward</span>
+                      </button>
+                    </div>
+                  </div>
+
+
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                       Service Name <span className="text-red-500">*</span>
