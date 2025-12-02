@@ -125,7 +125,7 @@ const ImageCropper = ({
           finalIsMobile
             ? "h-[100dvh] max-h-[100dvh] rounded-none"
             : "max-w-xs xs:max-w-sm sm:max-w-md md:max-w-2xl max-h-[90dvh]"
-        } overflow-hidden flex flex-col relative z-10`}
+        } overflow-y-auto flex flex-col relative z-10`}
       >
         {/* Header */}
         <div
@@ -163,7 +163,7 @@ const ImageCropper = ({
         </div>
 
         {/* Cropper Area */}
-        <div className="relative flex-1 min-h-[250px] sm:min-h-[400px] bg-black w-full overflow-hidden">
+        <div className="relative flex-shrink-0 w-full bg-black overflow-hidden" style={{ height: finalIsMobile ? '50vh' : '60vh', maxHeight: finalIsMobile ? '400px' : '500px', minHeight: finalIsMobile ? '200px' : '300px' }}>
           {image ? (
             <div className="absolute inset-0">
               <Cropper
@@ -498,43 +498,63 @@ async function getCroppedImg(
     throw new Error("Failed to get canvas context");
   }
 
-  const rotRad = getRadianAngle(rotation);
-
-  // calculate bounding box of the rotated image
-  const { width: bBoxWidth, height: bBoxHeight } = rotateSize(
-    image.width,
-    image.height,
-    rotation
-  );
-
-  // set canvas size to match the bounding box
-  canvas.width = bBoxWidth;
-  canvas.height = bBoxHeight;
-
-  // translate canvas context to a central location to allow rotating and flipping around the center
-  ctx.translate(bBoxWidth / 2, bBoxHeight / 2);
-  ctx.rotate(rotRad);
-  ctx.scale(flip.horizontal ? -1 : 1, flip.vertical ? -1 : 1);
-  ctx.translate(-image.width / 2, -image.height / 2);
-
-  // draw rotated image
-  ctx.drawImage(image, 0, 0);
-
-  // croppedAreaPixels values are bounding box relative
-  // extract the cropped image using these values
-  const data = ctx.getImageData(
-    pixelCrop.x,
-    pixelCrop.y,
-    pixelCrop.width,
-    pixelCrop.height
-  );
-
-  // set canvas width to final desired crop size - this will clear existing context
+  // Set canvas size to the desired crop size
   canvas.width = pixelCrop.width;
   canvas.height = pixelCrop.height;
 
-  // paste generated rotate image at the top left corner
-  ctx.putImageData(data, 0, 0);
+  // If no rotation, we can use a simpler approach
+  if (rotation === 0 && !flip.horizontal && !flip.vertical) {
+    // Draw the cropped portion of the image directly
+    ctx.drawImage(
+      image,
+      pixelCrop.x,
+      pixelCrop.y,
+      pixelCrop.width,
+      pixelCrop.height,
+      0,
+      0,
+      pixelCrop.width,
+      pixelCrop.height
+    );
+  } else {
+    // Handle rotation and flipping
+    const rotRad = getRadianAngle(rotation);
+
+    // calculate bounding box of the rotated image
+    const { width: bBoxWidth, height: bBoxHeight } = rotateSize(
+      image.width,
+      image.height,
+      rotation
+    );
+
+    // Temporarily set canvas to full image size for rotation
+    const tempCanvas = document.createElement("canvas");
+    const tempCtx = tempCanvas.getContext("2d");
+    if (!tempCtx) throw new Error("Failed to get temp canvas context");
+
+    tempCanvas.width = bBoxWidth;
+    tempCanvas.height = bBoxHeight;
+
+    // translate canvas context to a central location to allow rotating and flipping around the center
+    tempCtx.translate(bBoxWidth / 2, bBoxHeight / 2);
+    tempCtx.rotate(rotRad);
+    tempCtx.scale(flip.horizontal ? -1 : 1, flip.vertical ? -1 : 1);
+    tempCtx.translate(-image.width / 2, -image.height / 2);
+
+    // draw rotated image
+    tempCtx.drawImage(image, 0, 0);
+
+    // extract the cropped image from the rotated image
+    const data = tempCtx.getImageData(
+      pixelCrop.x,
+      pixelCrop.y,
+      pixelCrop.width,
+      pixelCrop.height
+    );
+
+    // paste cropped data to final canvas
+    ctx.putImageData(data, 0, 0);
+  }
 
   // Convert canvas to blob
   return new Promise((resolve, reject) => {
