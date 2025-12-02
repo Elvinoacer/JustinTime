@@ -110,7 +110,10 @@ export async function GET(
       isVerified: provider.profile?.isVerified || false,
       certifications: provider.profile?.certifications || [],
       education: provider.profile?.education || [],
+      education: provider.profile?.education || [],
       memberSince: provider.createdAt,
+      views: provider.profile?.views || 0,
+      favorites: provider.profile?.favorites || 0,
       subscription: {
         plan: provider.subscription?.plan || "FREE",
         isActive: provider.subscription?.isActive || false,

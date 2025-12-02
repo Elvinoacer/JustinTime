@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useService } from "@/lib/api/hooks/useServices";
 import Link from "next/link";
+import InteractionBar from "@/components/InteractionBar";
 
 const ServiceDetailsPage = ({
   params,
@@ -250,6 +251,15 @@ const ServiceDetailsPage = ({
                         </span>
                       </div>
                     )}
+
+                    <div className="mb-6">
+                      <InteractionBar 
+                        id={service.id} 
+                        type="service" 
+                        initialViews={service.views || 0} 
+                        initialFavorites={service.favorites || 0} 
+                      />
+                    </div>
 
                     {/* Rating */}
                     <div className="flex items-center gap-2 mt-2">

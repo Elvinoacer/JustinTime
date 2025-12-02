@@ -1,7 +1,9 @@
+
 "use client";
 
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import InteractionBar from "@/components/InteractionBar"; // Added import
 import { useProfessional } from "@/lib/api/hooks/useProfessional";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
@@ -197,6 +199,15 @@ export default function ProfessionalDetailPage() {
                         </span>
                       </div>
                     </motion.div>
+                    {/* Added InteractionBar here */}
+                    <div className="mt-4">
+                      <InteractionBar
+                        id={professional.id}
+                        type="professional"
+                        initialViews={professional.views || 0}
+                        initialFavorites={professional.favorites || 0}
+                      />
+                    </div>
                   </div>
 
                   {/* Desktop Action Buttons */}
@@ -297,7 +308,7 @@ export default function ProfessionalDetailPage() {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 py-6 sm:py-8 md:py-12">
+        <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 lg:px-8 py-6 sm:py-8 md:py-12">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
             {/* Left Column - Main Content */}
             <div className="lg:col-span-2 space-y-4 sm:space-y-6 md:space-y-8">

@@ -149,6 +149,8 @@ model Profile {
   longitude   Float?
   certifications Json? @default("[]") // Array of {name, issuer, date, fileUrl}
   education   Json? @default("[]") // Array of {institution, degree, field, startYear, endYear}
+  views       Int      @default(0)
+  favorites   Int      @default(0)
   
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -184,6 +186,8 @@ model Service {
   defaultDuration Int?  // Duration in minutes
   locationType String  @default("PROVIDER_LOCATION") // PROVIDER_LOCATION, CLIENT_LOCATION, NEGOTIABLE, REMOTE
   location    String?  // Default location for service
+  views       Int      @default(0)
+  favorites   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

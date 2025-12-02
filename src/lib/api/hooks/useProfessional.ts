@@ -20,6 +20,8 @@ export interface ProfessionalDetail {
   totalEarnings: number;
   averageRating: number;
   totalReviews: number;
+  views: number;
+  favorites: number;
   ratingDistribution: {
     stars: number;
     count: number;
