@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { sendSubscriptionActivationEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
@@ -11,21 +11,41 @@ export async function POST(req: NextRequest) {
     
     // Log webhook for debugging
     console.log("=== IntaSend Webhook Received ===");
-    console.log("Signature:", signature);
     console.log("Payload:", JSON.stringify(body, null, 2));
-    
-    // TODO: Implement signature verification for production
-    // For now, we'll verify the payload structure
     
     const {
       state,
       checkout_id,
+      invoice_id,
       api_ref,
       value,
       account,
       failed_reason,
       meta,
+      challenge,
     } = body;
+
+    // CRITICAL: Validate challenge token
+    const expectedChallenge = process.env.INTASEND_WEBHOOK_CHALLENGE;
+    
+    if (!expectedChallenge) {
+      console.error("INTASEND_WEBHOOK_CHALLENGE not configured in environment");
+      return NextResponse.json(
+        { error: "Webhook not properly configured" },
+        { status: 500 }
+      );
+    }
+
+    if (challenge !== expectedChallenge) {
+      console.error("Invalid challenge token received");
+      console.error(`Expected: ${expectedChallenge}, Received: ${challenge}`);
+      return NextResponse.json(
+        { error: "Invalid challenge token" },
+        { status: 401 }
+      );
+    }
+
+    console.log("✅ Challenge token validated successfully");
 
     // Only process completed payments
     if (state !== "COMPLETE") {
@@ -71,6 +91,19 @@ export async function POST(req: NextRequest) {
     endDate.setDate(endDate.getDate() + 30); // 1 month = 30 days
 
     console.log(`Subscription period: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+
+    // Check if subscription already exists and is active to prevent duplicate processing
+    const existingSubscription = await prisma.subscription.findUnique({
+      where: { userId },
+    });
+
+    if (existingSubscription?.plan === plan && existingSubscription?.isActive) {
+      console.log(`⚠️  Subscription already active for user ${userId} with plan ${plan}. Skipping duplicate webhook.`);
+      return NextResponse.json({
+        message: "Subscription already active - webhook already processed",
+        subscription: existingSubscription,
+      });
+    }
 
     // Update or create subscription
     const subscription = await prisma.subscription.upsert({

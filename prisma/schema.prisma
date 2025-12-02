@@ -78,6 +78,14 @@ model User {
   initiatedNegotiations BookingNegotiation[] @relation("InitiatedNegotiations")
   receivedNegotiations BookingNegotiation[]  @relation("ReceivedNegotiations")
   fcmTokens     UserToken[]
+  
+  // Referral system
+  referralCode  String?   @unique
+  referredById  String?
+  referredBy    User?     @relation("Referrals", fields: [referredById], references: [id])
+  referrals     User[]    @relation("Referrals")
+  sentReferrals Referral[] @relation("ReferrerReferrals")
+  receivedReferral Referral? @relation("ReferredUserReferral")
 }
 
 // NextAuth Models
@@ -579,4 +587,33 @@ model UserToken {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+// Referral System
+enum ReferralStatus {
+  PENDING
+  COMPLETED
+}
+
+enum ReferralType {
+  SIGNUP      // Points when referred user signs up
+  FIRST_BOOKING // Points when referred user completes first booking
+}
+
+model Referral {
+  id              String         @id @default(cuid())
+  referrerId      String
+  referredUserId  String         @unique
+  status          ReferralStatus @default(PENDING)
+  type            ReferralType
+  points          Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  completedAt     DateTime?
+  
+  referrer        User           @relation("ReferrerReferrals", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredUser    User           @relation("ReferredUserReferral", fields: [referredUserId], references: [id], onDelete: Cascade)
+  
+  @@index([referrerId])
+  @@index([status])
 }

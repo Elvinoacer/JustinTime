@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
       first_name: session.user.name?.split(" ")[0] || "User",
       last_name: session.user.name?.split(" ").slice(1).join(" ") || "",
       phone_number: "", // Optional
-      redirect_url: `${process.env.NEXTAUTH_URL}/dashboard/profile?subscription=success`,
+      redirect_url: `${process.env.NEXTAUTH_URL}/dashboard/profile`,
       api_ref: `SUB_${session.user.id}_${plan}_${Date.now()}`, // Unique reference
       meta: {
         userId: session.user.id,

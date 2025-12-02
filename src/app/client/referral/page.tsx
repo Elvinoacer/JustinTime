@@ -14,12 +14,12 @@ import {
   GiftIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useReferralData } from "@/lib/api/hooks/useReferral";
 
 export default function ReferralPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [copied, setCopied] = useState(false);
-  const referralCode = "JIT-12345";
-  const referralLink = `https://justintime.com/join?ref=${referralCode}`;
+  const { data: referralData, isLoading } = useReferralData();
 
   // Check for mobile
   useEffect(() => {
@@ -57,18 +57,41 @@ export default function ReferralPage() {
     }
   };
 
+  // Use data from API or show loading
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 border-3 sm:border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!referralData) {
+    return (
+      <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="text-center py-8">
+          <p className="text-gray-500">Failed to load referral data</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { referralCode, referralLink, stats, recentReferrals, tiers } = referralData;
+
   const rewards = [
     {
       title: "Total Points",
-      value: "500",
+      value: stats.totalPoints.toString(),
       icon: <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />,
-      change: "+25 this week",
+      change: `${stats.completedReferrals} completed`,
       color: "from-emerald-50 to-emerald-100",
       border: "border-emerald-200",
     },
     {
       title: "Redeemable Value",
-      value: "$5.00",
+      value: `$${stats.redeemableValue}`,
       icon: <Gift className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />,
       change: "Available now",
       color: "from-blue-50 to-blue-100",
@@ -76,15 +99,15 @@ export default function ReferralPage() {
     },
     {
       title: "Friends Referred",
-      value: "8",
+      value: stats.totalReferrals.toString(),
       icon: <Users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />,
-      change: "2 this month",
+      change: `${stats.pendingRewards} pending`,
       color: "from-purple-50 to-purple-100",
       border: "border-purple-200",
     },
     {
       title: "Pending Rewards",
-      value: "2",
+      value: stats.pendingRewards.toString(),
       icon: <Award className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />,
       change: "Processing",
       color: "from-amber-50 to-amber-100",
@@ -92,20 +115,7 @@ export default function ReferralPage() {
     },
   ];
 
-  const referralTiers = [
-    { referrals: 5, reward: "$5 credit", completed: true },
-    { referrals: 10, reward: "$15 credit + premium badge", completed: true },
-    {
-      referrals: 25,
-      reward: "$50 credit + priority support",
-      completed: false,
-    },
-    {
-      referrals: 50,
-      reward: "$150 credit + featured listing",
-      completed: false,
-    },
-  ];
+  const referralTiers = tiers;
 
   const shareMethods = [
     { platform: "WhatsApp", icon: "💬", color: "bg-green-100 text-green-700" },
@@ -315,7 +325,7 @@ export default function ReferralPage() {
                 Your Progress
               </h3>
               <span className="text-xs sm:text-sm font-medium text-emerald-600">
-                8 of 25 referrals
+                {stats.totalReferrals} of 25 referrals
               </span>
             </div>
 
@@ -324,7 +334,7 @@ export default function ReferralPage() {
               <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3 mb-2">
                 <div
                   className="bg-gradient-to-r from-emerald-400 to-teal-500 h-2 sm:h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${(8 / 25) * 100}%` }}
+                  style={{ width: `${Math.min((stats.totalReferrals / 25) * 100, 100)}%` }}
                 ></div>
               </div>
               <div className="flex justify-between text-xs text-gray-500">
@@ -379,7 +389,7 @@ export default function ReferralPage() {
                     </span>
                   ) : (
                     <span className="text-xs text-gray-500">
-                      {tier.referrals - 8} to go
+                      {Math.max(tier.referrals - stats.totalReferrals, 0)} to go
                     </span>
                   )}
                 </div>
@@ -415,33 +425,35 @@ export default function ReferralPage() {
                 Recent Rewards
               </h3>
               <div className="space-y-2">
-                {[
-                  { friend: "John Doe", date: "Today", points: 50 },
-                  { friend: "Sarah Smith", date: "2 days ago", points: 50 },
-                  { friend: "Mike Johnson", date: "1 week ago", points: 50 },
-                ].map((reward, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                        {reward.friend.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {reward.friend}
+                {recentReferrals.length > 0 ? (
+                  recentReferrals.map((referral, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                          {referral.name.charAt(0)}
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {reward.date}
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {referral.name}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(referral.date).toLocaleDateString()}
+                          </div>
                         </div>
                       </div>
+                      <div className="text-sm font-bold text-emerald-600">
+                        +{referral.points} pts
+                      </div>
                     </div>
-                    <div className="text-sm font-bold text-emerald-600">
-                      +{reward.points} pts
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-gray-500 text-sm">
+                    No referrals yet
                   </div>
-                ))}
+                )}
               </div>
             </div>
           ) : (
