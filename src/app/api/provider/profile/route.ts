@@ -27,6 +27,10 @@ const updateProfileSchema = z.object({
     startYear: z.string(),
     endYear: z.string().optional(),
   })).optional(),
+  socialLinks: z.array(z.object({
+    platform: z.string(),
+    url: z.string().url(),
+  })).optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -70,6 +74,7 @@ export async function GET(request: NextRequest) {
       isVerified: user.profile?.isVerified || false,
       certifications: user.profile?.certifications || [],
       education: user.profile?.education || [],
+      socialLinks: user.profile?.socialLinks || [],
       memberSince: user.createdAt,
       completedJobs: await prisma.booking.count({
         where: {
@@ -129,6 +134,7 @@ export async function PUT(request: NextRequest) {
     if (validatedData.hourlyRate) profileData.hourlyRate = validatedData.hourlyRate;
     if (validatedData.certifications !== undefined) profileData.certifications = validatedData.certifications;
     if (validatedData.education !== undefined) profileData.education = validatedData.education;
+    if (validatedData.socialLinks !== undefined) profileData.socialLinks = validatedData.socialLinks;
 
     // If critical fields are updated, reset verification status
     if (validatedData.name || validatedData.location || validatedData.bio || validatedData.certifications) {

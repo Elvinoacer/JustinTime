@@ -8,6 +8,7 @@ import { useSubscriptionStatus } from "@/lib/api/hooks/useSubscription";
 import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 import ImageCropper from "@/components/ImageCropper";
+import SocialLinksSection from "@/components/dashboard/SocialLinksSection";
 
 const ProfilePage = () => {
   const router = useRouter();
@@ -56,6 +57,7 @@ const ProfilePage = () => {
         ...profileData.data,
         certifications: profileData.data.certifications || [],
         education: profileData.data.education || [],
+        socialLinks: profileData.data.socialLinks || [],
       });
     }
   }, [profileData]);
@@ -1324,6 +1326,21 @@ const ProfilePage = () => {
           )}
         </div>
       </motion.div>
+
+      {/* Social Links Section */}
+      <SocialLinksSection
+        socialLinks={formData.socialLinks || []}
+        isEditing={isEditing}
+        isMobile={isMobile}
+        onAdd={(link) => {
+          const socialLinks = formData.socialLinks || [];
+          setFormData({ ...formData, socialLinks: [...socialLinks, link] });
+        }}
+        onRemove={(index) => {
+          const socialLinks = formData.socialLinks || [];
+          setFormData({ ...formData, socialLinks: socialLinks.filter((_: any, i: number) => i !== index) });
+        }}
+      />
 
       {/* Certification Modal */}
       {showCertModal && (

@@ -157,6 +157,7 @@ model Profile {
   longitude   Float?
   certifications Json? @default("[]") // Array of {name, issuer, date, fileUrl}
   education   Json? @default("[]") // Array of {institution, degree, field, startYear, endYear}
+  socialLinks Json? @default("[]") // Array of {platform, url} - social media and website links
   views       Int      @default(0)
   favorites   Int      @default(0)
   

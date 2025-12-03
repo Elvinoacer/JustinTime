@@ -727,6 +727,50 @@ export default function ProfessionalDetailPage() {
                 </div>
               </div>
 
+              {/* Social Links & Portfolio */}
+              {professional.socialLinks && professional.socialLinks.length > 0 && (
+                <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-emerald-600">
+                      link
+                    </span>
+                    Portfolio & Socials
+                  </h3>
+                  <div className="flex flex-wrap gap-3">
+                    {professional.socialLinks.map((link: any, idx: number) => {
+                      const icons: Record<string, string> = {
+                        'Website': 'language',
+                        'LinkedIn': 'work',
+                        'Twitter': 'tag',
+                        'Facebook': 'thumb_up',
+                        'Instagram': 'photo_camera',
+                        'GitHub': 'code',
+                        'YouTube': 'play_circle',
+                        'TikTok': 'music_note',
+                        'Behance': 'palette',
+                        'Dribbble': 'sports_basketball',
+                      };
+                      const icon = icons[link.platform] || 'link';
+                      
+                      return (
+                        <a
+                          key={idx}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-emerald-50 text-gray-700 hover:text-emerald-700 rounded-lg border border-gray-200 hover:border-emerald-200 transition-all text-sm font-medium group"
+                        >
+                          <span className="material-symbols-outlined text-lg group-hover:scale-110 transition-transform">
+                            {icon}
+                          </span>
+                          {link.platform}
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Rating Distribution */}
               <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
