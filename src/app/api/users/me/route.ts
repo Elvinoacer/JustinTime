@@ -4,6 +4,44 @@ import prisma from "@/lib/prisma";
 
 export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const emailParam = searchParams.get('email');
+    
+    // If email parameter is provided (used during Google Sign-In flow)
+    if (emailParam) {
+      const user = await prisma.user.findUnique({
+        where: { email: emailParam },
+        include: {
+          profile: true,
+        },
+      });
+
+      if (!user) {
+        return new NextResponse("User not found", { status: 404 });
+      }
+
+      // Return user data with emailVerified included
+      const userData = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        image: user.image,
+        onboardingCompleted: user.onboardingCompleted,
+        clientInterests: user.clientInterests,
+        emailVerified: user.emailVerified,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        location: user.profile?.location || null,
+        bio: user.profile?.bio || null,
+        profile: user.profile,
+      };
+
+      return NextResponse.json(userData);
+    }
+    
+    // Otherwise, use session-based authentication
     const session = await auth();
     if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
@@ -30,6 +68,8 @@ export async function GET(request: Request) {
       phone: user.phone,
       image: user.image,
       onboardingCompleted: user.onboardingCompleted,
+      clientInterests: user.clientInterests,
+      emailVerified: user.emailVerified,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       location: user.profile?.location || null,

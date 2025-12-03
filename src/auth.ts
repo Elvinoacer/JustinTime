@@ -60,34 +60,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user, account, profile }) {
       // For Google sign-in, create/update user with verified email
       if (account?.provider === "google") {
-        // Only run during runtime, not during build
-        if (typeof window === "undefined" && process.env.NEXTAUTH_URL) {
-          try {
-            // Call API route to handle user creation/update (avoids Prisma in Edge)
-            const response = await fetch(
-              `${process.env.NEXTAUTH_URL}/api/auth/google-signin`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  email: user.email,
-                  name: user.name,
-                  image: user.image,
-                }),
-              }
-            );
-
-            if (!response.ok) {
-              console.error(
-                "[Google Sign-In API Error]",
-                await response.text()
-              );
-              return false;
+        try {
+          // Call API route to handle user creation/update (avoids Prisma in Edge)
+          const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}` 
+            : 'https://justintimeservices.vercel.app';
+          
+          const response = await fetch(
+            `${baseUrl}/api/auth/google-signin`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: user.email,
+                name: user.name,
+                image: user.image,
+              }),
             }
-          } catch (error) {
-            console.error("[Google Sign-In Error]", error);
-            // Don't fail sign-in if API call fails
+          );
+
+          if (!response.ok) {
+            console.error(
+              "[Google Sign-In API Error]",
+              await response.text()
+            );
+            return false;
           }
+        } catch (error) {
+          console.error("[Google Sign-In Error]", error);
+          // Don't fail sign-in if API call fails
         }
         return true;
       }
@@ -98,29 +99,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         // For Google sign-in, fetch complete user data from API
         if (account?.provider === "google") {
-          // Only run during runtime, not during build
-          if (typeof window === "undefined" && process.env.NEXTAUTH_URL) {
-            try {
-              // Fetch user data from API (avoids Prisma in Edge)
-              const response = await fetch(
-                `${process.env.NEXTAUTH_URL}/api/users/me?email=${encodeURIComponent(user.email!)}`,
-                {
-                  method: "GET",
-                  headers: { "Content-Type": "application/json" },
-                }
-              );
-
-              if (response.ok) {
-                const dbUser = await response.json();
-                token.role = dbUser.role;
-                token.id = dbUser.id;
-                token.onboardingCompleted = dbUser.onboardingCompleted;
-                token.clientInterests = dbUser.clientInterests;
-                token.emailVerified = dbUser.emailVerified;
+          try {
+            // Fetch user data from API (avoids Prisma in Edge)
+            const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL 
+              ? `https://${process.env.VERCEL_URL}` 
+              : 'https://justintimeservices.vercel.app';
+            
+            const response = await fetch(
+              `${baseUrl}/api/users/me?email=${encodeURIComponent(user.email!)}`,
+              {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
               }
-            } catch (error) {
-              console.error("[JWT Error - Google]", error);
+            );
+
+            if (response.ok) {
+              const dbUser = await response.json();
+              token.role = dbUser.role;
+              token.id = dbUser.id;
+              token.onboardingCompleted = dbUser.onboardingCompleted;
+              token.clientInterests = dbUser.clientInterests;
+              token.emailVerified = dbUser.emailVerified;
             }
+          } catch (error) {
+            console.error("[JWT Error - Google]", error);
           }
         } else {
           // For credentials login, user data comes from authorize()
