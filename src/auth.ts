@@ -3,7 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 
 const authResult = NextAuth({
-  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "fallback-secret-for-build",
+  secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-build",
   session: {
     strategy: "jwt",
     maxAge: 3 * 24 * 60 * 60, // 3 days in seconds (259,200)
@@ -61,7 +61,7 @@ const authResult = NextAuth({
       // For Google sign-in, create/update user with verified email
       if (account?.provider === "google") {
         // Only run during runtime, not during build
-        if (typeof window === 'undefined' && process.env.NEXTAUTH_URL) {
+        if (typeof window === "undefined" && process.env.NEXTAUTH_URL) {
           try {
             // Call API route to handle user creation/update (avoids Prisma in Edge)
             const response = await fetch(
@@ -78,7 +78,10 @@ const authResult = NextAuth({
             );
 
             if (!response.ok) {
-              console.error("[Google Sign-In API Error]", await response.text());
+              console.error(
+                "[Google Sign-In API Error]",
+                await response.text()
+              );
               return false;
             }
           } catch (error) {
@@ -96,7 +99,7 @@ const authResult = NextAuth({
         // For Google sign-in, fetch complete user data from API
         if (account?.provider === "google") {
           // Only run during runtime, not during build
-          if (typeof window === 'undefined' && process.env.NEXTAUTH_URL) {
+          if (typeof window === "undefined" && process.env.NEXTAUTH_URL) {
             try {
               // Fetch user data from API (avoids Prisma in Edge)
               const response = await fetch(
@@ -153,11 +156,26 @@ const authResult = NextAuth({
 if (!authResult) {
   console.error("NextAuth returned undefined!");
 } else {
-  console.log("NextAuth initialized successfully. Keys:", Object.keys(authResult));
+  console.log(
+    "NextAuth initialized successfully. Keys:",
+    Object.keys(authResult)
+  );
 }
 
 // Safe exports to prevent build failures
-export const handlers = authResult?.handlers || { GET: () => {}, POST: () => {} };
-export const auth = authResult?.auth || (() => Promise.resolve(null));
+export const handlers = authResult?.handlers || {
+  GET: () => new Response("NextAuth not initialized", { status: 500 }),
+  POST: () => new Response("NextAuth not initialized", { status: 500 }),
+};
+export const auth =
+  authResult?.auth ||
+  ((...args: any[]) => {
+    if (typeof args[0] === "function") {
+      // Middleware wrapper mode: return the middleware function
+      return args[0];
+    }
+    // Session mode: return null session
+    return Promise.resolve(null);
+  });
 export const signIn = authResult?.signIn || (() => {});
 export const signOut = authResult?.signOut || (() => {});
