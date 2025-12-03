@@ -15,6 +15,7 @@ export interface ProfessionalDetail {
   isVerified: boolean;
   certifications: any[];
   education: any[];
+  socialLinks: { platform: string; url: string }[];
   memberSince: string;
   completedJobs: number;
   totalEarnings: number;

@@ -18,6 +18,9 @@ export default function ProfessionalDetailPage() {
 
   const { data, isLoading, error } = useProfessional(id);
   const professional = data?.data;
+  
+  console.log('Professional Data:', professional);
+  console.log('Social Links:', professional?.socialLinks);
 
   const [activeTab, setActiveTab] = useState<"about" | "services" | "reviews">(
     "about"
