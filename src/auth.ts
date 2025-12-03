@@ -62,9 +62,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (account?.provider === "google") {
         try {
           // Call API route to handle user creation/update (avoids Prisma in Edge)
-          const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
-            : 'https://justintimeservices.vercel.app';
+          const baseUrl = process.env.NEXTAUTH_URL 
+            || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+            || 'https://justintimeservices.vercel.app';
+          
+          console.log('[Google Sign-In] Using baseUrl:', baseUrl);
           
           const response = await fetch(
             `${baseUrl}/api/auth/google-signin`,
@@ -80,11 +82,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           );
 
           if (!response.ok) {
+            const errorText = await response.text();
             console.error(
               "[Google Sign-In API Error]",
-              await response.text()
+              response.status,
+              errorText
             );
-            return false;
+            // Don't fail sign-in, just log the error
+            // return false;
           }
         } catch (error) {
           console.error("[Google Sign-In Error]", error);
@@ -101,9 +106,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (account?.provider === "google") {
           try {
             // Fetch user data from API (avoids Prisma in Edge)
-            const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL 
-              ? `https://${process.env.VERCEL_URL}` 
-              : 'https://justintimeservices.vercel.app';
+            const baseUrl = process.env.NEXTAUTH_URL 
+              || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+              || 'https://justintimeservices.vercel.app';
+            
+            console.log('[JWT Callback] Using baseUrl:', baseUrl);
             
             const response = await fetch(
               `${baseUrl}/api/users/me?email=${encodeURIComponent(user.email!)}`,
@@ -120,6 +127,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               token.onboardingCompleted = dbUser.onboardingCompleted;
               token.clientInterests = dbUser.clientInterests;
               token.emailVerified = dbUser.emailVerified;
+            } else {
+              console.error('[JWT Error] Failed to fetch user:', response.status);
             }
           } catch (error) {
             console.error("[JWT Error - Google]", error);
