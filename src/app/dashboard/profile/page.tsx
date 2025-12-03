@@ -6,12 +6,14 @@ import { motion } from "framer-motion";
 import { useProviderProfile, useUpdateProviderProfile } from "@/lib/api/hooks/useProvider";
 import { useSubscriptionStatus } from "@/lib/api/hooks/useSubscription";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import jsPDF from "jspdf";
 import ImageCropper from "@/components/ImageCropper";
 import SocialLinksSection from "@/components/dashboard/SocialLinksSection";
 
 const ProfilePage = () => {
   const router = useRouter();
+  const { data: session } = useSession();
   const { data: profileData, isLoading } = useProviderProfile();
   const { data: subscriptionData, isLoading: isLoadingSubscription } = useSubscriptionStatus();
   const updateProfileMutation = useUpdateProviderProfile();
@@ -188,8 +190,8 @@ const ProfilePage = () => {
 
   // Quick Actions handlers
   const handleViewPublicProfile = () => {
-    if (formData?.id) {
-      router.push(`/professionals/${formData.id}`);
+    if (session?.user?.id) {
+      router.push(`/professionals/${session.user.id}`);
     }
   };
 
