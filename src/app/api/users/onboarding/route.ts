@@ -84,6 +84,18 @@ export async function POST(req: Request) {
     
     // Return more specific error message
     const errorMessage = error?.message || "Internal Error";
-    return new NextResponse(errorMessage, { status: 500 });
+    
+    // Check for specific Prisma errors (e.g., unique constraint)
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { message: `A user with this ${error.meta?.target?.join(', ') || 'field'} already exists.` },
+        { status: 409 }
+      );
+    }
+
+    return NextResponse.json(
+      { message: errorMessage }, 
+      { status: 500 }
+    );
   }
 }

@@ -474,9 +474,11 @@ export default function OnboardingPage() {
           selectedRole === "PROVIDER" ? "/dashboard" : "/client/dashboard"
         );
       }, 2000);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Onboarding failed:", error);
-      toast.error("Onboarding failed. Please try again.");
+      // Extract specific error message from API response
+      const errorMessage = error?.message || error?.response?.data?.message || "Onboarding failed. Please try again.";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

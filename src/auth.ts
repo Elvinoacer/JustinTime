@@ -2,58 +2,8 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 
-console.log("NextAuth type:", typeof NextAuth);
-console.log("GoogleProvider type:", typeof GoogleProvider);
-console.log("CredentialsProvider type:", typeof CredentialsProvider);
-
-const googleProvider = GoogleProvider({
-  clientId: process.env.GOOGLE_CLIENT_ID!,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-});
-console.log("Google Provider created:", !!googleProvider);
-
-const credentialsProvider = CredentialsProvider({
-  name: "credentials",
-  credentials: {
-    email: { label: "Email", type: "email" },
-    password: { label: "Password", type: "password" },
-  },
-  async authorize(credentials) {
-    if (!credentials?.email || !credentials?.password) {
-      return null;
-    }
-
-    try {
-      // Call internal API route for verification (avoids Prisma in Edge)
-      const response = await fetch(
-        `${process.env.NEXTAUTH_URL || "https://justintimeservices.vercel.app"}/api/auth/verify-credentials`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: credentials.email,
-            password: credentials.password,
-            code: credentials.code,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        return null;
-      }
-
-      const user = await response.json();
-      return user;
-    } catch (error) {
-      console.error("[Auth Error]", error);
-      return null;
-    }
-  },
-});
-console.log("Credentials Provider created:", !!credentialsProvider);
-
-const authResult = NextAuth({
-  secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-build",
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
     maxAge: 3 * 24 * 60 * 60, // 3 days in seconds (259,200)
@@ -63,8 +13,48 @@ const authResult = NextAuth({
     error: "/auth/error",
   },
   providers: [
-    googleProvider,
-    credentialsProvider,
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    CredentialsProvider({
+      name: "credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          return null;
+        }
+
+        try {
+          // Call internal API route for verification (avoids Prisma in Edge)
+          const response = await fetch(
+            `${process.env.NEXTAUTH_URL || "https://justintimeservices.vercel.app"}/api/auth/verify-credentials`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: credentials.email,
+                password: credentials.password,
+                code: credentials.code,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            return null;
+          }
+
+          const user = await response.json();
+          return user;
+        } catch (error) {
+          console.error("[Auth Error]", error);
+          return null;
+        }
+      },
+    }),
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
@@ -161,31 +151,3 @@ const authResult = NextAuth({
     },
   },
 });
-
-// Debug logging
-if (!authResult) {
-  console.error("NextAuth returned undefined!");
-} else {
-  console.log(
-    "NextAuth initialized successfully. Keys:",
-    Object.keys(authResult)
-  );
-}
-
-// Safe exports to prevent build failures
-export const handlers = authResult?.handlers || {
-  GET: () => new Response("NextAuth not initialized", { status: 500 }),
-  POST: () => new Response("NextAuth not initialized", { status: 500 }),
-};
-export const auth =
-  authResult?.auth ||
-  ((...args: any[]) => {
-    if (typeof args[0] === "function") {
-      // Middleware wrapper mode: return the middleware function
-      return args[0];
-    }
-    // Session mode: return null session
-    return Promise.resolve(null);
-  });
-export const signIn = authResult?.signIn || (() => {});
-export const signOut = authResult?.signOut || (() => {});
