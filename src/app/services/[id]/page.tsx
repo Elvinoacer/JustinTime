@@ -6,9 +6,9 @@ import ServiceDetailClient from "./ServiceDetailClient";
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id } = params;
+  const { id } = await params;
 
   try {
     const service = await getServiceById(id);
@@ -42,6 +42,6 @@ export async function generateMetadata({
   }
 }
 
-export default function ServicePage({ params }: { params: { id: string } }) {
-  return <ServiceDetailClient params={Promise.resolve(params)} />;
+export default function ServicePage({ params }: { params: Promise<{ id: string }> }) {
+  return <ServiceDetailClient params={params} />;
 }

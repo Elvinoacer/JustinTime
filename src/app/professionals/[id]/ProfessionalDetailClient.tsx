@@ -7,14 +7,17 @@ import InteractionBar from "@/components/InteractionBar"; // Added import
 import { useProfessional } from "@/lib/api/hooks/useProfessional";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { use, useState } from "react";
 import { toast } from "sonner";
 
-export default function ProfessionalDetailPage() {
-  const params = useParams();
+export default function ProfessionalDetailPage({ 
+  params 
+}: { 
+  params: Promise<{ id: string }>
+}) {
+  const { id } = use(params);
   const router = useRouter();
-  const id = params.id as string;
 
   const { data, isLoading, error } = useProfessional(id);
   const professional = data?.data;

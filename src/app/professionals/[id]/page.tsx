@@ -6,9 +6,9 @@ import ProfessionalDetailClient from "./ProfessionalDetailClient";
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id } = params;
+  const { id } = await params;
 
   try {
     const professional = await getProfessionalById(id);
@@ -46,7 +46,7 @@ export async function generateMetadata({
 export default function ProfessionalPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  return <ProfessionalDetailClient />;
+  return <ProfessionalDetailClient params={params} />;
 }
