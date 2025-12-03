@@ -20,8 +20,9 @@ export async function POST(req: Request) {
         where: { email },
         data: {
           emailVerified: new Date(), // Verify email
-          image, // Update avatar
           name, // Update name if changed
+          // Only update image if user doesn't have one (preserve custom uploads)
+          ...(!existingUser.image && { image }),
         },
       });
       return NextResponse.json(updatedUser);
