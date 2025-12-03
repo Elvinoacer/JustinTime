@@ -187,6 +187,12 @@ const ProfilePage = () => {
   })();
 
   // Quick Actions handlers
+  const handleViewPublicProfile = () => {
+    if (formData?.id) {
+      router.push(`/professionals/${formData.id}`);
+    }
+  };
+
   const handleChangePassword = () => {
     router.push('/dashboard/settings?tab=security');
   };
@@ -1001,6 +1007,7 @@ const ProfilePage = () => {
           </h3>
           <div className="space-y-2 sm:space-y-3">
             {[
+              { label: "View Public Profile", icon: "visibility", action: handleViewPublicProfile },
               { label: "Change Password", icon: "lock", action: handleChangePassword },
               { label: "Notification Settings", icon: "notifications", action: handleNotificationSettings },
               { label: "Privacy Settings", icon: "shield", action: handlePrivacySettings },
