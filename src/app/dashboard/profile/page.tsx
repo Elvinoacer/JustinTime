@@ -10,18 +10,20 @@ import { useSession } from "next-auth/react";
 import jsPDF from "jspdf";
 import ImageCropper from "@/components/ImageCropper";
 import SocialLinksSection from "@/components/dashboard/SocialLinksSection";
+import CategorySelector from "@/components/CategorySelector";
+import { useCategories } from "@/lib/api/hooks/useServices";
 
 const ProfilePage = () => {
   const router = useRouter();
   const { data: session } = useSession();
   const { data: profileData, isLoading } = useProviderProfile();
   const { data: subscriptionData, isLoading: isLoadingSubscription } = useSubscriptionStatus();
+  const { data: categoriesData = [], isLoading: isLoadingCategories } = useCategories();
   const updateProfileMutation = useUpdateProviderProfile();
   const [isMobile, setIsMobile] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<any>(null);
-  const [newSkill, setNewSkill] = useState("");
   const [showNotification, setShowNotification] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -150,20 +152,12 @@ const ProfilePage = () => {
     setIsEditing(false);
   };
 
-  const handleAddSkill = () => {
-    if (newSkill.trim() && !formData.skills.includes(newSkill.trim())) {
-      setFormData({
-        ...formData,
-        skills: [...formData.skills, newSkill.trim()],
-      });
-      setNewSkill("");
-    }
-  };
-
-  const handleRemoveSkill = (skillToRemove: string) => {
+  const handleSkillToggle = (skillId: string) => {
     setFormData({
       ...formData,
-      skills: formData.skills.filter((skill: string) => skill !== skillToRemove),
+      skills: formData.skills.includes(skillId)
+        ? formData.skills.filter((id: string) => id !== skillId)
+        : [...formData.skills, skillId],
     });
   };
 
@@ -861,58 +855,40 @@ const ProfilePage = () => {
             Skills & Expertise
           </h3>
 
-          {/* Skills Display */}
-          <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-3 sm:mb-4">
-            {formData.skills.map((skill: string) => (
-              <motion.span
-                key={skill}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className={`bg-emerald-100 text-emerald-700 rounded-full font-medium flex items-center gap-1.5 ${
-                  isMobile ? "px-3 py-1 text-xs" : "px-4 py-2 text-sm"
-                }`}
-              >
-                {skill}
-                {isEditing && (
-                  <button
-                    onClick={() => handleRemoveSkill(skill)}
-                    className="hover:bg-emerald-200 rounded-full p-0.5 transition-colors touch-manipulation"
-                    aria-label={`Remove ${skill} skill`}
+          {isEditing ? (
+            <CategorySelector
+              categories={categoriesData}
+              selectedIds={formData.skills.filter((s: string) => categoriesData.some(c => c.id === s))}
+              onToggle={handleSkillToggle}
+              multiSelect={true}
+              isLoading={isLoadingCategories}
+              label="What services do you offer?"
+            />
+          ) : (
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              {formData.skills.map((skill: string) => {
+                // Check if skill is a category ID or legacy text
+                const category = categoriesData.find(c => c.id === skill);
+                const displayName = category ? category.name : skill;
+                const icon = category?.icon || "star";
+                
+                return (
+                  <motion.span
+                    key={skill}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className={`bg-emerald-100 text-emerald-700 rounded-full font-medium flex items-center gap-1.5 ${
+                      isMobile ? "px-3 py-1 text-xs" : "px-4 py-2 text-sm"
+                    }`}
                   >
-                    <span className="material-symbols-outlined text-xs">
-                      close
+                    <span className="material-symbols-outlined text-xs sm:text-sm">
+                      {icon}
                     </span>
-                  </button>
-                )}
-              </motion.span>
-            ))}
-          </div>
-
-          {/* Add Skill Input */}
-          {isEditing && (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newSkill}
-                onChange={(e) => setNewSkill(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleAddSkill()}
-                placeholder="Add a new skill..."
-                className={`flex-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 ${
-                  isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
-                }`}
-                aria-label="New skill"
-              />
-              <button
-                onClick={handleAddSkill}
-                className={`bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex items-center gap-1.5 sm:gap-2 touch-manipulation ${
-                  isMobile ? "px-3 py-2 text-xs sm:text-sm" : "px-4 py-2.5 text-sm"
-                }`}
-                aria-label="Add skill"
-              >
-                <span className="material-symbols-outlined text-sm">add</span>
-                <span>Add Skill</span>
-              </button>
+                    {displayName}
+                  </motion.span>
+                );
+              })}
             </div>
           )}
         </div>
