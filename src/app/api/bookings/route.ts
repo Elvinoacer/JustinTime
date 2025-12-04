@@ -252,45 +252,92 @@ export async function POST(request: Request) {
 
     // Send notifications and emails
     try {
+      // Validate required fields before attempting to send emails
+      const providerName = service.provider.name || 'Professional';
+      const providerEmail = service.provider.email;
+      const clientName = booking.client.name || 'Client';
+      const clientEmail = booking.client.email;
+
+      // Log warning if critical data is missing
+      if (!service.provider.name) {
+        console.warn(`[BOOKING ${booking.id}] Provider name is missing for user ${professionalId}`);
+      }
+      if (!service.provider.email) {
+        console.error(`[BOOKING ${booking.id}] Provider email is missing for user ${professionalId} - cannot send provider notification`);
+      }
+      if (!booking.client.name) {
+        console.warn(`[BOOKING ${booking.id}] Client name is missing for user ${session.user.id}`);
+      }
+      if (!booking.client.email) {
+        console.error(`[BOOKING ${booking.id}] Client email is missing for user ${session.user.id} - cannot send client confirmation`);
+      }
+
       // 1. Send comprehensive notification to provider (Push + Email + DB)
-      const bookingTemplate = emailTemplates.newBooking(
-        service.provider.name!,
-        booking.client.name!,
-        service.title,
-        firstSlot.date,
-        firstSlot.startTime,
-        firstSlot.endTime,
-        bookingLocation,
-        totalAmount,
-        notes || '',
-        booking.id
-      );
+      if (providerEmail) {
+        try {
+          const bookingTemplate = emailTemplates.newBooking(
+            providerName,
+            clientName,
+            service.title,
+            firstSlot.date,
+            firstSlot.startTime,
+            firstSlot.endTime,
+            bookingLocation,
+            totalAmount,
+            notes || '',
+            booking.id
+          );
 
-      await sendComprehensiveNotification({
-        userId: professionalId,
-        title: `New Booking: ${service.title}`,
-        message: `${booking.client.name} has booked your service for ${firstSlot.date.toLocaleDateString()}`,
-        type: 'BOOKING_CREATED',
-        emailSubject: bookingTemplate.subject,
-        emailHtml: bookingTemplate.html
-      });
+          await sendComprehensiveNotification({
+            userId: professionalId,
+            title: `New Booking: ${service.title}`,
+            message: `${clientName} has booked your service for ${firstSlot.date.toLocaleDateString()}`,
+            type: 'BOOKING_CREATED',
+            emailSubject: bookingTemplate.subject,
+            emailHtml: bookingTemplate.html
+          });
+          
+          console.log(`[BOOKING ${booking.id}] Provider notification sent successfully to ${providerEmail}`);
+        } catch (providerNotifError) {
+          console.error(`[BOOKING ${booking.id}] Failed to send provider notification:`, {
+            error: providerNotifError instanceof Error ? providerNotifError.message : String(providerNotifError),
+            providerId: professionalId,
+            providerEmail,
+            providerName
+          });
+        }
+      }
 
-      // 2. Send email confirm ation to client
-      await sendBookingConfirmationEmail(
-        booking.client.email!,
-        booking.client.name!,
-        service.provider.name!,
-        service.provider.email!,
-        service.title,
-        firstSlot.date,
-        firstSlot.startTime,
-        firstSlot.endTime,
-        bookingLocation,
-        totalAmount,
-        booking.id
-      );
+      // 2. Send email confirmation to client
+      if (clientEmail && providerEmail) {
+        try {
+          await sendBookingConfirmationEmail(
+            clientEmail,
+            clientName,
+            providerName,
+            providerEmail,
+            service.title,
+            firstSlot.date,
+            firstSlot.startTime,
+            firstSlot.endTime,
+            bookingLocation,
+            totalAmount,
+            booking.id
+          );
+          
+          console.log(`[BOOKING ${booking.id}] Client confirmation sent successfully to ${clientEmail}`);
+        } catch (clientEmailError) {
+          console.error(`[BOOKING ${booking.id}] Failed to send client confirmation:`, {
+            error: clientEmailError instanceof Error ? clientEmailError.message : String(clientEmailError),
+            clientEmail,
+            clientName,
+            providerEmail,
+            providerName
+          });
+        }
+      }
     } catch (emailError) {
-      console.error("Error sending booking notifications:", emailError);
+      console.error(`[BOOKING ${booking.id}] Unexpected error in notification block:`, emailError);
       // Don't fail the booking if notifications fail
     }
 

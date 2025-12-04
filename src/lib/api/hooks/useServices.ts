@@ -10,7 +10,6 @@ export interface Service {
   price: number;
   pricingUnit: string;
   images: string[];
-  images: string[];
   video?: string | null;
   views: number;
   favorites: number;
