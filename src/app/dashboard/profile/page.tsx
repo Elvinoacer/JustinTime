@@ -856,14 +856,58 @@ const ProfilePage = () => {
           </h3>
 
           {isEditing ? (
-            <CategorySelector
-              categories={categoriesData}
-              selectedIds={formData.skills.filter((s: string) => categoriesData.some(c => c.id === s))}
-              onToggle={handleSkillToggle}
-              multiSelect={true}
-              isLoading={isLoadingCategories}
-              label="What services do you offer?"
-            />
+            <>
+              {/* Selected Skills Display */}
+              {formData.skills.filter((s: string) => categoriesData.some(c => c.id === s)).length > 0 && (
+                <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-lg sm:rounded-xl">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
+                      verified
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold text-gray-700">
+                      Selected Services ({formData.skills.filter((s: string) => categoriesData.some(c => c.id === s)).length})
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                    {formData.skills.filter((s: string) => categoriesData.some(c => c.id === s)).map((skillId) => {
+                      const category = categoriesData.find(c => c.id === skillId);
+                      if (!category) return null;
+                      return (
+                        <div
+                          key={skillId}
+                          className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-white border border-emerald-200 rounded-md sm:rounded-lg shadow-sm group hover:shadow-md transition-all duration-200"
+                        >
+                          <span className="material-symbols-outlined text-emerald-600 text-xs sm:text-sm">
+                            {category.icon}
+                          </span>
+                          <span className="text-xs sm:text-sm font-medium text-gray-700">
+                            {category.name}
+                          </span>
+                          <button
+                            onClick={() => handleSkillToggle(skillId)}
+                            className="ml-1 p-0.5 hover:bg-red-50 rounded-full transition-colors"
+                            aria-label={`Remove ${category.name}`}
+                          >
+                            <span className="material-symbols-outlined text-gray-400 hover:text-red-500 text-xs sm:text-sm">
+                              close
+                            </span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <CategorySelector
+                categories={categoriesData}
+                selectedIds={formData.skills.filter((s: string) => categoriesData.some(c => c.id === s))}
+                onToggle={handleSkillToggle}
+                multiSelect={true}
+                isLoading={isLoadingCategories}
+                label="What services do you offer?"
+              />
+            </>
           ) : (
             <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {formData.skills.map((skill: string) => {
