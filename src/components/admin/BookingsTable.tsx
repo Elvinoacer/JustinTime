@@ -20,7 +20,9 @@ import {
   Briefcase,
   ArrowUpDown,
   Filter,
+  Banknote,
 } from "lucide-react";
+import RefundModal from "./RefundModal";
 
 interface Booking {
   id: string;
@@ -55,6 +57,7 @@ export default function EnhancedBookingsTable({
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [sortField, setSortField] = useState<string>("date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [showRefundModal, setShowRefundModal] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -709,11 +712,38 @@ export default function EnhancedBookingsTable({
                     })()}
                   </div>
                 </div>
+
+                {/* Admin Actions */}
+                {selectedBooking.status !== "CANCELLED" && selectedBooking.status !== "REFUNDED" && (
+                  <div className="pt-4 border-t border-slate-100">
+                    <button
+                      onClick={() => setShowRefundModal(true)}
+                      className="w-full py-3 px-4 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Banknote className="w-4 h-4" />
+                      Process Manual Refund
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showRefundModal && selectedBooking && (
+        <RefundModal
+          booking={{
+            id: selectedBooking.id,
+            totalAmount: Number(selectedBooking.totalAmount),
+            client: selectedBooking.client,
+          }}
+          onClose={() => {
+            setShowRefundModal(false);
+            setSelectedBooking(null);
+          }}
+        />
+      )}
     </>
   );
 }

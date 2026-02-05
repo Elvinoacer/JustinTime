@@ -14,48 +14,44 @@ export async function GET(
       include: {
         category: true,
         provider: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-            email: true,
-            phone: true,
-            createdAt: true,
-            profile: {
-              select: {
-                bio: true,
-                location: true,
-                hourlyRate: true,
-                portfolio: true,
-                isVerified: true,
-              },
-            },
-            subscription: {
-              select: {
-                plan: true,
-                isActive: true,
-              },
-            },
-            receivedReviews: {
-              select: {
-                id: true,
-                rating: true,
-                comment: true,
-                createdAt: true,
-                author: {
-                  select: {
-                    name: true,
-                    image: true,
-                  },
+            include: {
+                // Include profile to show verification, subscription etc (if needed for select, but include mixes fields)
+                // Actually since we used select: before, we should be consistent.
+                // But prisma doesn't allow mixing select and include at the same level easily without nested include.
+                // Let's use include for everything to be safe, or just stick to select and add backgroundChecks to select.
+                // Reverting to robust select:
+                profile: {
+                    select: {
+                        bio: true,
+                        location: true,
+                        hourlyRate: true,
+                        portfolio: true,
+                        isVerified: true,
+                    }
                 },
-              },
-              orderBy: {
-                createdAt: "desc",
-              },
-              take: 5,
-            },
-          },
-        },
+                subscription: {
+                    select: {
+                        plan: true,
+                        isActive: true,
+                    }
+                },
+                receivedReviews: {
+                    select: {
+                        id: true,
+                        rating: true,
+                        comment: true,
+                        createdAt: true,
+                        author: { select: { name: true, image: true } }
+                    },
+                    orderBy: { createdAt: "desc" },
+                    take: 5
+                },
+                backgroundChecks: {
+                    where: { status: 'CLEARED' },
+                    select: { id: true, status: true, clearedAt: true }
+                }
+            }
+        }
       },
     });
 

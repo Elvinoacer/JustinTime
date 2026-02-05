@@ -8,6 +8,10 @@ import {
   sendProviderBookingNotificationEmail,
 } from "@/lib/email";
 import { sendComprehensiveNotification, emailTemplates } from "@/lib/notifications/adminNotifications";
+import { calculateBookingBreakdown } from "@/lib/financials";
+import { createInvoiceForBooking } from "@/app/actions/invoice";
+import { validatePromoCode } from "@/lib/promo";
+import { getDynamicPrice } from "@/lib/pricing-engine";
 
 export async function GET(request: Request) {
   try {
@@ -54,6 +58,9 @@ export async function GET(request: Request) {
             },
           },
           slots: true,
+          invoice: {
+            select: { id: true }
+          }
         },
         orderBy: { createdAt: "desc" },
       }),
@@ -93,6 +100,7 @@ export async function POST(request: Request) {
       notes,
       clientPhone,
       clientAddress,
+      promoCode, 
     } = body;
 
     // Validate required fields
@@ -196,49 +204,92 @@ export async function POST(request: Request) {
       }
     }
 
-    // Calculate total amount
+    // Calculate total amount and tax breakdown
     // If price is per session/hour, multiply by number of slots?
     // Assuming price is per slot for now based on previous logic
-    const totalAmount = Number(service.price) * bookingSlots.length;
+    // Calculate total amount and tax breakdown
+    const baseAmount = Number(service.price) * bookingSlots.length;
 
-    // Create booking and slots
+    let discountAmount = 0;
+    let validPromoCodeId = undefined;
+
+    if (promoCode) {
+      const promoValidation = await validatePromoCode(promoCode, session.user.id, baseAmount);
+      if (!promoValidation.isValid) {
+        return NextResponse.json(
+            { error: promoValidation.error || "Invalid promo code" },
+            { status: 400 }
+        );
+      }
+      discountAmount = promoValidation.discountAmount;
+      validPromoCodeId = promoValidation.promoCodeId;
+    }
+
+    // Prepare slot references for pricing and booking
     const firstSlot = bookingSlots[0];
     const lastSlot = bookingSlots[bookingSlots.length - 1];
 
-    const booking = await prisma.booking.create({
-      data: {
-        clientId: session.user.id,
-        providerId: professionalId,
-        serviceId,
-        date: firstSlot.date, // Primary date (start)
-        startTime: firstSlot.startTime,
-        endTime: lastSlot.endTime, // End time of last slot? Or just keep it as is?
-        // Let's use first slot's start and last slot's end if on same day, or just first slot's info
-        // Actually, for multi-day, date/startTime/endTime on Booking might be misleading.
-        // But we need them for sorting/filtering. Let's use the first slot.
-        totalAmount: totalAmount,
-        location: bookingLocation,
-        notes,
-        clientPhone,
-        clientAddress,
-        status: "PENDING",
-        slots: {
-          create: bookingSlots.map(slot => ({
-            date: slot.date,
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-          })),
-        },
-      },
-      include: {
-        client: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-        slots: true,
-      },
+    // Calculate dynamic pricing (surge pricing)
+    const pricingResult = await getDynamicPrice(serviceId, firstSlot.date);
+    const basePrice = Number(service.price) * bookingSlots.length;
+    const finalPrice = basePrice * pricingResult.multiplier;
+    
+    const { exciseDuty, trustFee, totalAmount, netAmount } = calculateBookingBreakdown(finalPrice, discountAmount);
+
+    // Create booking and slots
+
+    const booking = await prisma.$transaction(async (tx) => {
+        const newBooking = await tx.booking.create({
+            data: {
+                clientId: session.user.id,
+                providerId: professionalId,
+                serviceId,
+                date: firstSlot.date,
+                startTime: firstSlot.startTime,
+                endTime: lastSlot.endTime, 
+                totalAmount: totalAmount,
+                exciseDutyAmount: exciseDuty,
+                insuranceFee: trustFee,
+                netAmount: netAmount, 
+                totalTaxAmount: exciseDuty,
+                discountAmount: discountAmount > 0 ? discountAmount : undefined,
+                promoCodeId: validPromoCodeId,
+                location: bookingLocation,
+                notes,
+                clientPhone,
+                clientAddress,
+                basePrice: basePrice,
+                surgeMultiplier: pricingResult.multiplier,
+                finalPrice: finalPrice,
+                surgeReason: pricingResult.reason,
+                status: "PENDING",
+                slots: {
+                create: bookingSlots.map(slot => ({
+                    date: slot.date,
+                    startTime: slot.startTime,
+                    endTime: slot.endTime,
+                })),
+                },
+            },
+            include: {
+                client: {
+                select: {
+                    name: true,
+                    email: true,
+                },
+                },
+                slots: true,
+            },
+        });
+
+        if (validPromoCodeId) {
+            await tx.promoCode.update({
+                where: { id: validPromoCodeId },
+                data: { usageCount: { increment: 1 } }
+            });
+        }
+
+        return newBooking;
     });
 
     // Create notifications for both parties
@@ -339,6 +390,15 @@ export async function POST(request: Request) {
     } catch (emailError) {
       console.error(`[BOOKING ${booking.id}] Unexpected error in notification block:`, emailError);
       // Don't fail the booking if notifications fail
+    }
+
+    // Generate eTIMS Invoice
+    try {
+        await createInvoiceForBooking(booking.id);
+    } catch (invoiceError) {
+        console.error("Failed to auto-generate invoice:", invoiceError);
+        // We don't fail the request, but we should log it.
+        // In a real system, we'd have a retry queue.
     }
 
     return NextResponse.json(booking, { status: 201 });

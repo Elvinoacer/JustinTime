@@ -2,6 +2,8 @@
 
 import { motion } from "framer-motion";
 import React, { useEffect, useRef, useState } from "react";
+import { toggleCall } from "@/components/communication/CallOverlay";
+import { Phone, Video as VideoIcon } from "lucide-react";
 
 interface Message {
   id: string;
@@ -245,8 +247,25 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               )}
             </div>
           </div>
+          </div>
         </div>
-        <div className="relative">
+        <div className="flex items-center gap-1 sm:gap-2">
+           <button
+             onClick={() => partner && toggleCall(partner.id, partner.name, partner.image, 'AUDIO')}
+             className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors touch-manipulation"
+             title="Voice Call"
+           >
+             <Phone className="w-5 h-5 sm:w-6 sm:h-6" />
+           </button>
+           <button
+             onClick={() => partner && toggleCall(partner.id, partner.name, partner.image, 'VIDEO')}
+             className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors touch-manipulation"
+             title="Video Call"
+           >
+             <VideoIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+           </button>
+           
+           <div className="relative">
           <button
             onClick={() => setShowMenu(!showMenu)}
             className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"

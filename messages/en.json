@@ -1,0 +1,27 @@
+{
+  "Common": {
+    "dashboard": "Dashboard",
+    "jobs": "Jobs",
+    "services": "Services",
+    "bookings": "Bookings",
+    "expenses": "Expenses",
+    "wallet": "Wallet",
+    "profile": "Profile",
+    "logout": "Logout",
+    "login": "Login",
+    "signup": "Sign Up",
+    "team": "Team / Agency"
+  },
+  "Landing": {
+    "title": "Find Trusted Professionals Near You",
+    "subtitle": "Connect with verified local service providers for all your needs.",
+    "searchPlaceholder": "What service do you need?",
+    "searchButton": "Search"
+  },
+  "Dashboard": {
+    "welcome": "Welcome back",
+    "stats": "Your Stats",
+    "activeJobs": "Active Jobs",
+    "totalEarnings": "Total Earnings"
+  }
+}

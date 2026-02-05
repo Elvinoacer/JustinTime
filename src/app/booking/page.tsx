@@ -28,7 +28,10 @@ import {
   DollarSign,
   X,
   AlertCircle,
+  Tag,
 } from "lucide-react";
+import { calculateBookingBreakdown, formatCurrency } from "@/lib/financials";
+import { validatePromoCodeAction } from "@/app/actions/promo";
 
 function BookingPageContent() {
   const searchParams = useSearchParams();
@@ -67,6 +70,13 @@ function BookingPageContent() {
     message: "",
   });
   const [showMobileDatePicker, setShowMobileDatePicker] = useState(false);
+  
+  // Promo Code State
+  const [promoCode, setPromoCode] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState("");
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+  const [promoError, setPromoError] = useState("");
 
   // Fetch available slots when dates change
   useEffect(() => {
@@ -206,6 +216,7 @@ function BookingPageContent() {
         notes,
         clientPhone: clientPhone || undefined,
         clientAddress: clientAddress || undefined,
+        promoCode: appliedPromo || undefined,
       };
 
       const response = await fetch("/api/bookings", {
@@ -280,12 +291,43 @@ function BookingPageContent() {
     (s: any) => s.id === selectedService
   );
 
-  // Calculate total price
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) return;
+    setIsApplyingPromo(true);
+    setPromoError("");
+    setAppliedPromo("");
+    setPromoDiscount(0);
+
+    try {
+        // Calculate base price first to send for validation (min order check)
+        const totalSlotsCheck = Object.values(selectedTimeSlots).reduce((s, sl) => s + sl.length, 0);
+        const basePriceCheck = totalSlotsCheck * (selectedServiceData?.price || 0);
+
+        const result = await validatePromoCodeAction(promoCode, basePriceCheck);
+        
+        if (result.isValid) {
+            setAppliedPromo(promoCode);
+            setPromoDiscount(result.discountAmount);
+            toast.success("Promo code applied!");
+        } else {
+            setPromoError(result.error || "Invalid promo code");
+            toast.error(result.error || "Invalid promo code");
+        }
+    } catch (err) {
+        setPromoError("Failed to apply promo");
+        toast.error("Failed to apply promo code");
+    } finally {
+        setIsApplyingPromo(false);
+    }
+  };
+
+  // Re-calculate price
   const totalSlots = Object.values(selectedTimeSlots).reduce(
     (sum, slots) => sum + slots.length,
     0
   );
-  const totalPrice = totalSlots * (selectedServiceData?.price || 0);
+  const basePrice = totalSlots * (selectedServiceData?.price || 0);
+  const { exciseDuty, totalAmount, trustFee, discountAmount, netAmount } = calculateBookingBreakdown(basePrice, promoDiscount);
 
   return (
     <>
@@ -1007,12 +1049,81 @@ function BookingPageContent() {
                     </div>
 
                     <div className="pt-2.5 sm:pt-3 border-t-2 border-emerald-200">
-                      <div className="text-xs sm:text-sm text-gray-600">
-                        Total ({totalSlots} session{totalSlots !== 1 ? "s" : ""}
-                        )
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs sm:text-sm text-gray-600">
+                          <span>Subtotal ({totalSlots} session{totalSlots !== 1 ? "s" : ""})</span>
+                          <span>{formatCurrency(basePrice)}</span>
+                        </div>
+
+                        {/* Promo Input */}
+                        <div className="py-2">
+                           <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <Tag className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+                                    <input 
+                                        type="text" 
+                                        value={promoCode}
+                                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                                        placeholder="Promo Code"
+                                        disabled={!!appliedPromo}
+                                        className="w-full pl-8 pr-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:border-emerald-500 uppercase disabled:bg-gray-100 disabled:text-gray-500"
+                                    />
+                                </div>
+                                {appliedPromo ? (
+                                    <button
+                                        onClick={() => {
+                                            setAppliedPromo("");
+                                            setPromoCode("");
+                                            setPromoDiscount(0);
+                                            toast.info("Promo removed");
+                                        }}
+                                        className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
+                                    >
+                                        Remove
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleApplyPromo}
+                                        disabled={!promoCode || isApplyingPromo}
+                                        className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                                    >
+                                        {isApplyingPromo ? "..." : "Apply"}
+                                    </button>
+                                )}
+                           </div>
+                           {appliedPromo && (
+                               <p className="text-xs text-emerald-600 mt-1 font-medium flex items-center gap-1">
+                                   <CheckCircle className="w-3 h-3" /> Code applied successfully!
+                               </p>
+                           )}
+                           {promoError && (
+                               <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
+                                   <AlertCircle className="w-3 h-3" /> {promoError}
+                               </p>
+                           )}
+                        </div>
+
+                        {appliedPromo && (
+                            <div className="flex justify-between text-xs sm:text-sm text-emerald-600 font-medium">
+                                <span>Discount ({appliedPromo})</span>
+                                <span>-{formatCurrency(discountAmount)}</span>
+                            </div>
+                        )}
+
+                        <div className="flex justify-between text-xs sm:text-sm text-emerald-700">
+                          <span>Excise Duty (20%)</span>
+                          <span>{formatCurrency(exciseDuty)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs sm:text-sm text-blue-700 font-medium">
+                          <span>Happiness Pledge (Insurance)</span>
+                          <span>{formatCurrency(trustFee)}</span>
+                        </div>
                       </div>
-                      <div className="text-xl sm:text-2xl font-bold text-emerald-600">
-                        Kes {totalPrice.toLocaleString()}
+                      <div className="pt-2 mt-2 border-t border-emerald-200 flex justify-between items-center">
+                        <div className="text-sm sm:text-base font-bold text-gray-900">Total</div>
+                        <div className="text-xl sm:text-2xl font-bold text-emerald-600">
+                          {formatCurrency(totalAmount)}
+                        </div>
                       </div>
                     </div>
                   </div>

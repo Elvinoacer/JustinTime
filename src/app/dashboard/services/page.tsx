@@ -9,6 +9,7 @@ import {
 } from "@/lib/api/hooks/useProvider";
 import { useSubscriptionStatus } from "@/lib/api/hooks/useSubscription";
 import ServiceFormModal from "@/components/dashboard/services/ServiceFormModal";
+import { PromoteServiceModal } from "@/components/revenue/PromoteServiceModal";
 import { toast } from "sonner";
 
 const PLAN_LIMITS = {
@@ -32,6 +33,8 @@ const ServicesPage = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<any | null>(null);
+  const [promotingService, setPromotingService] = useState<any | null>(null);
+  const [showPromoteModal, setShowPromoteModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   // Detect mobile screen size
@@ -437,55 +440,74 @@ const ServicesPage = () => {
                   </div>
                 </div>
 
-                {/* Actions - Mobile Optimized */}
-                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  {/* Promote Action */}
                   <button
-                    onClick={() => openEditModal(service)}
-                    className={`${
+                    onClick={() => {
+                        setPromotingService(service);
+                        setShowPromoteModal(true);
+                    }}
+                    className={`w-full mb-2 sm:mb-3 ${
                       isMobile
                         ? "px-2 py-1.5 text-xs"
                         : "px-3 sm:px-4 py-2 text-sm"
-                    } bg-gray-50 text-gray-700 ${
+                    } bg-gradient-to-r from-purple-600 to-indigo-600 text-white ${
                       isMobile ? "rounded" : "rounded-lg sm:rounded-xl"
-                    } font-semibold hover:bg-gray-100 transition-colors flex items-center justify-center gap-1 sm:gap-2 active:scale-95`}
+                    } font-bold hover:shadow-lg transition-all shadow-md flex items-center justify-center gap-1 sm:gap-2 active:scale-95`}
                   >
-                    <span
-                      className={`material-symbols-outlined ${
-                        isMobile ? "text-xs" : "text-sm"
+                     <span className={`material-symbols-outlined ${isMobile ? "text-xs" : "text-sm"}`}>rocket_launch</span>
+                     <span>Boost Visibility</span>
+                  </button>
+
+                  {/* Actions - Mobile Optimized */}
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    <button
+                      onClick={() => openEditModal(service)}
+                      className={`${
+                        isMobile
+                          ? "px-2 py-1.5 text-xs"
+                          : "px-3 sm:px-4 py-2 text-sm"
+                      } bg-gray-50 text-gray-700 ${
+                        isMobile ? "rounded" : "rounded-lg sm:rounded-xl"
+                      } font-semibold hover:bg-gray-100 transition-colors flex items-center justify-center gap-1 sm:gap-2 active:scale-95`}
+                    >
+                      <span
+                        className={`material-symbols-outlined ${
+                          isMobile ? "text-xs" : "text-sm"
+                        }`}
+                      >
+                        edit
+                      </span>
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleToggleStatus(service.id, service.isActive)
+                      }
+                      className={`${
+                        isMobile
+                          ? "px-2 py-1.5 text-xs"
+                          : "px-3 sm:px-4 py-2 text-sm"
+                      } ${
+                        isMobile ? "rounded" : "rounded-lg sm:rounded-xl"
+                      } font-semibold transition-colors flex items-center justify-center gap-1 sm:gap-2 active:scale-95 ${
+                        service.isActive
+                          ? "bg-orange-50 text-orange-700 hover:bg-orange-100"
+                          : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                       }`}
                     >
-                      edit
-                    </span>
-                    <span>Edit</span>
-                  </button>
-                  <button
-                    onClick={() =>
-                      handleToggleStatus(service.id, service.isActive)
-                    }
-                    className={`${
-                      isMobile
-                        ? "px-2 py-1.5 text-xs"
-                        : "px-3 sm:px-4 py-2 text-sm"
-                    } ${
-                      isMobile ? "rounded" : "rounded-lg sm:rounded-xl"
-                    } font-semibold transition-colors flex items-center justify-center gap-1 sm:gap-2 active:scale-95 ${
-                      service.isActive
-                        ? "bg-orange-50 text-orange-700 hover:bg-orange-100"
-                        : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                    }`}
-                  >
-                    <span
-                      className={`material-symbols-outlined ${
-                        isMobile ? "text-xs" : "text-sm"
-                      }`}
-                    >
-                      {service.isActive ? "pause" : "play_arrow"}
-                    </span>
-                    <span className="truncate">
-                      {service.isActive ? "Pause" : "Activate"}
-                    </span>
-                  </button>
-                </div>
+                      <span
+                        className={`material-symbols-outlined ${
+                          isMobile ? "text-xs" : "text-sm"
+                        }`}
+                      >
+                        {service.isActive ? "pause" : "play_arrow"}
+                      </span>
+                      <span className="truncate">
+                        {service.isActive ? "Pause" : "Activate"}
+                      </span>
+                    </button>
+                  </div>
+
 
                 <button
                   onClick={() => setDeleteConfirm(service.id)}
@@ -676,6 +698,14 @@ const ServicesPage = () => {
         onClose={() => setShowAddModal(false)}
         service={editingService}
         isMobile={isMobile}
+      />
+
+      {/* Promote Service Modal */}
+      <PromoteServiceModal
+        isOpen={showPromoteModal}
+        onClose={() => setShowPromoteModal(false)}
+        serviceId={promotingService?.id || ""}
+        serviceTitle={promotingService?.title || promotingService?.name || ""}
       />
     </div>
   );

@@ -2,7 +2,7 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client
 
 const s3Client = new S3Client({
   endpoint: process.env.DO_SPACES_ENDPOINT || 'https://sfo3.digitaloceanspaces.com',
-  region: 'sfo3',
+  region: process.env.DO_SPACES_REGION || 'sfo3',
   forcePathStyle: false,
   credentials: {
     accessKeyId: process.env.DO_SPACES_ACCESS_KEY || '',
@@ -11,7 +11,7 @@ const s3Client = new S3Client({
 });
 
 export const uploadFile = async (file: Buffer | Uint8Array | Blob | string, fileName: string, contentType: string) => {
-  const bucket = process.env.DO_SPACES_BUCKET || 'justintime';
+  const bucket = process.env.DO_SPACES_BUCKET || 'gvs-file-store';
   const key = `justintime/${fileName}`;
 
   const command = new PutObjectCommand({
@@ -46,7 +46,7 @@ export const uploadFile = async (file: Buffer | Uint8Array | Blob | string, file
 };
 
 export const deleteFile = async (fileUrl: string) => {
-  const bucket = process.env.DO_SPACES_BUCKET || 'justintime';
+  const bucket = process.env.DO_SPACES_BUCKET || 'gvs-file-store';
   
   try {
     const urlObj = new URL(fileUrl);

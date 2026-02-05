@@ -52,79 +52,110 @@ export async function POST(request: Request) {
     }
 
     // Check subscription plan and weekly proposal limit for FREE users
+    // Check subscription, wallet, and limits
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
         subscription: {
-          select: {
-            plan: true,
-            status: true,
-          },
+          select: { plan: true, isActive: true },
+        },
+        wallet: {
+          select: { id: true, creditBalance: true },
         },
       },
     });
 
     const userPlan = user?.subscription?.plan || "FREE";
-    const isActiveSubscription = user?.subscription?.status === "ACTIVE";
+    const isActiveSubscription = user?.subscription?.isActive === true;
+    let creditCost = 0;
 
-    // Only apply limits to FREE plan users
+    // Logic for FREE plan limits vs Credits
     if (userPlan === "FREE" || !isActiveSubscription) {
-      // Calculate date 7 days ago (start of the week)
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-      // Count proposals submitted in the last 7 days
       const weeklyProposalCount = await prisma.proposal.count({
         where: {
           providerId: session.user.id,
-          createdAt: {
-            gte: oneWeekAgo,
-          },
+          createdAt: { gte: oneWeekAgo },
         },
       });
 
-      // Free plan limit: 14 proposals per week (2 per day)
       const WEEKLY_LIMIT = 14;
 
       if (weeklyProposalCount >= WEEKLY_LIMIT) {
-        return NextResponse.json(
-          {
-            error: "Weekly application limit reached",
-            message: `Free plan users can apply to a maximum of ${WEEKLY_LIMIT} jobs per week (2 per day). Upgrade to Pro for unlimited applications.`,
-            limit: WEEKLY_LIMIT,
-            current: weeklyProposalCount,
-          },
-          { status: 429 } // 429 Too Many Requests
-        );
+        // Limit reached, check if they can pay with credits
+        const PROPOSAL_CREDIT_COST = 2; // Cost: 2 Credits per extra proposal
+        
+        if (!user?.wallet || user.wallet.creditBalance < PROPOSAL_CREDIT_COST) {
+          return NextResponse.json(
+            {
+              error: "Weekly limit reached & Insufficient Credits",
+              message: `You reached the weekly limit of ${WEEKLY_LIMIT} proposals. You can continue by purchasing Lead Credits (Cost: ${PROPOSAL_CREDIT_COST} credits/proposal).`,
+              limit: WEEKLY_LIMIT,
+              current: weeklyProposalCount,
+              credits: user?.wallet?.creditBalance || 0,
+            },
+            { status: 429 }
+          );
+        }
+        
+        // User has enough credits, proceed with deduction
+        creditCost = PROPOSAL_CREDIT_COST;
       }
     }
 
     // Create proposal
-    const proposal = await prisma.proposal.create({
-      data: {
-        jobId: validatedData.jobId,
-        providerId: session.user.id,
-        coverLetter: validatedData.coverLetter,
-        price: validatedData.price,
-        estimatedDays: validatedData.estimatedDays,
-        attachments: validatedData.attachments,
-      },
-      include: {
-        job: {
-          select: {
-            id: true,
-            title: true,
-            client: { select: { id: true, name: true } },
+    // Create proposal (and deduct credits if applicable)
+    const proposal = await prisma.$transaction(async (tx) => {
+      // Deduct credits if cost > 0
+      if (creditCost > 0 && user?.wallet) {
+        await tx.wallet.update({
+          where: { id: user.wallet.id },
+          data: { creditBalance: { decrement: creditCost } },
+        });
+
+        // Record usage (using PAYMENT type for now or specific if available)
+        await tx.transaction.create({
+          data: {
+            walletId: user.wallet.id,
+            amount: 0, // It's credits, not cash value directly tracked here visually? Or track implicit value?
+            // Actually schema amount is Decimal(10,2). Credits are Int. 
+            // We shouldn't mix them in 'amount' unless we convert.
+            // Let's store 0 for 'amount' and describe in text, or add 'creditAmount' field later. 
+            // For now, keep amount 0.
+            type: "PAYMENT", // Using PAYMENT as placeholder for Credit Spend
+            description: `Used ${creditCost} Lead Credits for proposal on Job ${validatedData.jobId}`,
+          },
+        });
+      }
+
+      return await tx.proposal.create({
+        data: {
+          jobId: validatedData.jobId,
+          providerId: session.user.id,
+          coverLetter: validatedData.coverLetter,
+          price: validatedData.price,
+          estimatedDays: validatedData.estimatedDays,
+          attachments: validatedData.attachments,
+        },
+        include: {
+          job: {
+            select: {
+              id: true,
+              title: true,
+              client: { select: { id: true, name: true } },
+            },
+          },
+          provider: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
           },
         },
-        provider: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-          },
-        },
-      },
+      });
     });
 
     // TODO: Create notification for client about new proposal

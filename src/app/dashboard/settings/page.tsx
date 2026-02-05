@@ -8,7 +8,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-type Tab = "account" | "security" | "notifications" | "privacy";
+type Tab = "account" | "security" | "notifications" | "privacy" | "verification" | "tax";
+import BackgroundCheckForm from "@/components/provider/BackgroundCheckForm";
+import { getProviderBackgroundCheck } from "@/app/actions/verification";
+import TaxSettings from "@/components/dashboard/TaxSettings";
+import { getTaxProfile, getTaxFilings } from "@/app/actions/tax";
 
 import { useFcmToken } from "@/lib/hooks/useFcmToken";
 
@@ -170,13 +174,60 @@ const SettingsPage = () => {
     }
   }, [settingsData]);
 
+  // Background Check State
+  const [backgroundCheck, setBackgroundCheck] = useState<any>(null);
+  const [loadingCheck, setLoadingCheck] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'verification' && settingsData?.settings?.account?.role === 'PROVIDER') {
+        const fetchCheck = async () => {
+            setLoadingCheck(true);
+            try {
+                const result = await getProviderBackgroundCheck();
+                setBackgroundCheck(result);
+            } catch (error) {
+                console.error("Failed to fetch background check:", error);
+            } finally {
+                setLoadingCheck(false);
+            }
+        };
+        fetchCheck();
+    }
+  }, [activeTab, settingsData]);
+
+  // Tax Profile State
+  const [taxProfile, setTaxProfile] = useState<any>(null);
+  const [taxFilings, setTaxFilings] = useState<any[]>([]);
+  const [loadingTax, setLoadingTax] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'tax' && settingsData?.settings?.account?.role === 'PROVIDER') {
+        const fetchTaxData = async () => {
+            setLoadingTax(true);
+            try {
+                const [profile, filings] = await Promise.all([
+                    getTaxProfile(),
+                    getTaxFilings()
+                ]);
+                setTaxProfile(profile || { kraVerified: false });
+                setTaxFilings(filings || []);
+            } catch (error) {
+                console.error("Failed to fetch tax data:", error);
+            } finally {
+                setLoadingTax(false);
+            }
+        };
+        fetchTaxData();
+    }
+  }, [activeTab, settingsData]);
+
   // Check for tab parameter in URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get("tab");
     if (
       tab &&
-      ["account", "security", "notifications", "privacy"].includes(tab)
+      ["account", "security", "notifications", "privacy", "verification"].includes(tab)
     ) {
       setActiveTab(tab as Tab);
     }
@@ -223,6 +274,10 @@ const SettingsPage = () => {
       icon: "notifications",
     },
     { id: "privacy" as Tab, name: "Privacy", icon: "shield" },
+    ...(settingsData?.settings?.account?.role === 'PROVIDER' ? [
+        { id: "verification" as Tab, name: "Verification", icon: "verified" },
+        { id: "tax" as Tab, name: "Tax Center", icon: "account_balance" }
+    ] : []),
   ];
 
   const showSuccessNotification = (message: string) => {
@@ -488,6 +543,31 @@ const SettingsPage = () => {
 
         <div className="p-3 sm:p-4 md:p-6 lg:p-8">
           <AnimatePresence mode="wait">
+            {/* Verification Tab (Provider Only) */}
+            {activeTab === "verification" && settings.account.role === 'PROVIDER' && (
+                <motion.div
+                    key="verification"
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2 }}
+                >
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">
+                        Provider Verification
+                    </h2>
+                    {loadingCheck ? (
+                        <div className="flex justify-center p-8">
+                            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    ) : (
+                        <BackgroundCheckForm 
+                            initialStatus={backgroundCheck?.status} 
+                            expiresAt={backgroundCheck?.expiresAt}
+                        />
+                    )}
+                </motion.div>
+            )}
+
             {/* Account Tab */}
             {activeTab === "account" && (
               <motion.div
@@ -1092,6 +1172,27 @@ const SettingsPage = () => {
                       : "Save Privacy Settings"}
                   </button>
                 </div>
+              </motion.div>
+            )}
+            {/* Tax Tab (Providers Only) */}
+            {activeTab === "tax" && settingsData?.settings?.account?.role === 'PROVIDER' && (
+              <motion.div
+                key="tax"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                  {loadingTax ? (
+                      <div className="flex justify-center p-12">
+                          <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                  ) : (
+                      <TaxSettings 
+                        initialData={taxProfile || { kraVerified: false }} 
+                        filings={taxFilings} 
+                      />
+                  )}
               </motion.div>
             )}
           </AnimatePresence>

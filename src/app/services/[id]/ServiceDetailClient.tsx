@@ -227,6 +227,14 @@ const ServiceDetailsPage = ({
                         )}
                       </div>
                     )}
+                    {(provider.backgroundChecks && provider.backgroundChecks.length > 0) && (
+                         <div className="absolute -bottom-1 left-1 sm:bottom-0 sm:left-0 md:-bottom-2 md:-left-2 z-10 bg-slate-900 text-white p-0.5 sm:p-1 rounded-full border-2 border-white flex items-center gap-0.5 px-1.5 text-[10px] font-bold shadow-md" title="Background Check Cleared">
+                            <span className="material-symbols-outlined text-xs sm:text-sm fill-current text-emerald-400">
+                                shield_lock
+                            </span>
+                            <span className="hidden sm:inline">CLEARED</span>
+                        </div>
+                    )}
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -687,10 +695,10 @@ const ServiceDetailsPage = ({
                             </div>
                             <div className="flex-1">
                               <p className="font-bold text-gray-900 text-sm">
-                                Phone
+                                Secure Contact
                               </p>
-                              <p className="text-gray-600 text-sm">
-                                {provider.phone}
+                              <p className="text-gray-500 text-xs italic">
+                                Book to view phone number
                               </p>
                             </div>
                           </div>

@@ -5,6 +5,8 @@ import AdvancedAnalytics from "@/components/dashboard/analytics/AdvancedAnalytic
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
+export const dynamic = 'force-dynamic';
+
 export const metadata = {
   title: "Analytics | JustInTime",
   description: "Track your performance and earnings",

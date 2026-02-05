@@ -26,11 +26,8 @@ interface User {
   createdAt: Date;
   profile?: {
     bio: string | null;
-    phone: string | null;
     location: string | null;
     verificationStatus: string | null;
-    businessName: string | null;
-    address: string | null;
   } | null;
 }
 
@@ -106,11 +103,6 @@ export default function VerificationsGrid({
                   <h3 className="font-bold text-slate-900 text-base sm:text-lg truncate">
                     {user.name || "No Name"}
                   </h3>
-                  {user.profile?.businessName && (
-                    <p className="text-sm text-purple-700 font-medium truncate">
-                      {user.profile.businessName}
-                    </p>
-                  )}
                   <p className="text-xs text-slate-600 mt-1 truncate">
                     {user.email}
                   </p>
@@ -143,17 +135,6 @@ export default function VerificationsGrid({
               )}
 
               <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 sm:gap-3">
-                {user.profile?.phone && (
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                      Phone
-                    </p>
-                    <p className="text-sm text-slate-900 font-medium flex items-center gap-1">
-                      <Phone className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span className="truncate">{user.profile.phone}</span>
-                    </p>
-                  </div>
-                )}
 
                 {user.profile?.location && (
                   <div>
@@ -168,16 +149,6 @@ export default function VerificationsGrid({
                 )}
               </div>
 
-              {user.profile?.address && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase mb-1">
-                    Address
-                  </p>
-                  <p className="text-sm text-slate-700 line-clamp-2">
-                    {user.profile.address}
-                  </p>
-                </div>
-              )}
 
               <div className="pt-2 border-t border-slate-100">
                 <p className="text-xs text-slate-400 flex items-center gap-1">

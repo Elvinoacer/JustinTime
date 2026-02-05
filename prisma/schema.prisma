@@ -31,6 +31,7 @@ model User {
   password      String?   // For credentials authentication
   image         String?
   phone         String?   @unique
+  whatsappNumber String?
   role          UserRole  @default(CLIENT)
   createdAt     DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
@@ -78,6 +79,10 @@ model User {
   initiatedNegotiations BookingNegotiation[] @relation("InitiatedNegotiations")
   receivedNegotiations BookingNegotiation[]  @relation("ReceivedNegotiations")
   fcmTokens     UserToken[]
+  trustedContacts TrustedContact[]
+  sosAlerts       SOSAlert[]
+  backgroundChecks BackgroundCheck[]
+  taxFilings    TaxFiling[]
   
   // Referral system
   referralCode  String?   @unique
@@ -86,6 +91,56 @@ model User {
   referrals     User[]    @relation("Referrals")
   sentReferrals Referral[] @relation("ReferrerReferrals")
   receivedReferral Referral? @relation("ReferredUserReferral")
+  
+  // Team / Agency
+  ownedTeam     Team?     @relation("OwnedTeam")
+  teamMemberships TeamMember[]
+  callsMade     Call[]    @relation("CallsMade")
+  callsReceived Call[]    @relation("CallsReceived")
+  insuranceClaims InsuranceClaim[]
+  expenses      Expense[]
+  earnedBadges  UserBadge[]
+  churnScores   ChurnScore[]
+  churnInterventions ChurnIntervention[]
+  loyalty       UserLoyalty?
+  taxSettings   TaxSettings?
+  
+  // TaaS Premium Verification
+  verificationBadges VerificationBadge[]
+  trustScore    TrustScore?
+  
+  // Solar & Green Tech Verticals
+  verticalCertifications VerticalCertification[]
+  verticalSpecialties    VerticalSpecialist[]
+  clientProjects         VerticalProject[] @relation("ClientProjects")
+  providerProjects       VerticalProject[] @relation("ProviderProjects")
+  equipment              EquipmentRegistry[]
+}
+
+// Promo Codes / Vouchers
+enum PromoType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+model PromoCode {
+  id                String    @id @default(cuid())
+  code              String    @unique
+  description       String?
+  type              PromoType
+  value             Decimal   @db.Decimal(10, 2) // % (e.g., 20) or Base Amount (e.g., 500)
+  minOrderAmount    Decimal?  @db.Decimal(10, 2)
+  maxDiscountAmount Decimal?  @db.Decimal(10, 2)
+  startDate         DateTime  @default(now())
+  endDate           DateTime?
+  usageLimit        Int?      // Max total usages (e.g., first 100 people)
+  perUserLimit      Int       @default(1) // Max usages per user
+  usageCount        Int       @default(0)
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  bookings          Booking[]
 }
 
 // NextAuth Models
@@ -151,6 +206,7 @@ model Profile {
   portfolio   String[] // URLs to images/videos
   isVerified  Boolean  @default(false)
   verificationStatus String? @default("PENDING") // PENDING, VERIFIED, REJECTED
+  hasPaidOnboardingFee Boolean @default(false) // Revenue Feature: Onboarding Fee
   idDocument  String?  // URL to ID document
   location    String?
   latitude    Float?
@@ -161,7 +217,49 @@ model Profile {
   views       Int      @default(0)
   favorites   Int      @default(0)
   
+  // KRA / Tax Information
+  kraPin      String? // KRA Personal Identification Number
+  tccNumber   String? // Tax Compliance Certificate Number
+  tccExpiry   DateTime?
+  kraVerified Boolean @default(false)
+  
+  // TaaS Premium Pricing
+  premiumPricingEnabled Boolean @default(false)
+  premiumMultiplier     Float   @default(1.0) // 1.0 = no premium, 1.3 = +30%
+  
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Services offered by Providers
+model Service {
+  id          String   @id @default(cuid())
+  providerId  String
+  categoryId  String
+  title       String
+  description String   @db.Text
+  price       Decimal  @db.Decimal(10, 2)
+  pricingUnit String   // e.g., "per hour", "fixed"
+  cancellationPolicy CancellationPolicy @default(FLEXIBLE)
+  images      String[]
+  video       String?  // URL to service video
+  isActive    Boolean  @default(true)
+  requiresAvailability Boolean @default(true) // Whether service needs availability scheduling
+  defaultDuration Int?  // Duration in minutes
+  locationType String  @default("PROVIDER_LOCATION") // PROVIDER_LOCATION, CLIENT_LOCATION, NEGOTIABLE, REMOTE
+  location    String?  // Default location for service
+  
+  // Revenue Feature: Promoted Listings
+  promotedUntil DateTime?
+  promotionPlan String?   // STANDARD, PREMIUM
+
+  views       Int      @default(0)
+  favorites   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  provider    User     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  category    Category @relation(fields: [categoryId], references: [id])
+  bookings    Booking[]
 }
 
 // Service Categories
@@ -177,32 +275,6 @@ model Category {
   children    Category[] @relation("SubCategories")
   services    Service[]
   jobs        Job[]
-}
-
-// Services offered by Providers
-model Service {
-  id          String   @id @default(cuid())
-  providerId  String
-  categoryId  String
-  title       String
-  description String   @db.Text
-  price       Decimal  @db.Decimal(10, 2)
-  pricingUnit String   // e.g., "per hour", "fixed"
-  images      String[]
-  video       String?  // URL to service video
-  isActive    Boolean  @default(true)
-  requiresAvailability Boolean @default(true) // Whether service needs availability scheduling
-  defaultDuration Int?  // Duration in minutes
-  locationType String  @default("PROVIDER_LOCATION") // PROVIDER_LOCATION, CLIENT_LOCATION, NEGOTIABLE, REMOTE
-  location    String?  // Default location for service
-  views       Int      @default(0)
-  favorites   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  provider    User     @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  category    Category @relation(fields: [categoryId], references: [id])
-  bookings    Booking[]
 }
 
 // Jobs posted by Clients
@@ -234,6 +306,7 @@ model Job {
   category    Category  @relation(fields: [categoryId], references: [id])
   proposals   Proposal[]
   bookings    Booking[]
+  expenses    Expense[]
 }
 
 // Proposals/Bids on Jobs
@@ -241,6 +314,12 @@ enum ProposalStatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+enum CancellationPolicy {
+  FLEXIBLE
+  MODERATE
+  STRICT
 }
 
 model Proposal {
@@ -269,6 +348,12 @@ enum BookingStatus {
   DISPUTED
 }
 
+enum BookingChannel {
+  WEB
+  APP
+  WHATSAPP
+}
+
 model Booking {
   id          String        @id @default(cuid())
   clientId    String
@@ -276,6 +361,7 @@ model Booking {
   serviceId   String?
   jobId       String?
   date        DateTime
+  bookedVia   BookingChannel @default(WEB)
   startTime   String?       // e.g., "09:00"
   endTime     String?       // e.g., "10:00"
   status      BookingStatus @default(PENDING)
@@ -286,6 +372,26 @@ model Booking {
   notes       String?       @db.Text // Additional notes from client
   clientPhone String?       // Client contact phone for this booking
   clientAddress String?     @db.Text // Client address for this booking
+  
+  // Dynamic Pricing Fields
+  basePrice       Decimal?       @db.Decimal(10, 2)
+  surgeMultiplier Float?         @default(1.0)
+  finalPrice      Decimal?       @db.Decimal(10, 2)
+  surgeReason     String?
+  
+  // Financial Breakdowns
+  exciseDutyAmount Decimal? @db.Decimal(10, 2)
+  insuranceFee    Decimal? @db.Decimal(10, 2)
+  netAmount       Decimal? @db.Decimal(10, 2)
+  totalTaxAmount   Decimal? @db.Decimal(10, 2)
+  
+  // Cancellation Logic
+  cancelledAt      DateTime?
+  cancelledBy      String?   // User ID
+  cancellationReason String?
+  refundAmount     Decimal?  @db.Decimal(10, 2)
+  penaltyAmount    Decimal?  @db.Decimal(10, 2)
+
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -293,11 +399,51 @@ model Booking {
   provider    User      @relation("ProviderBookings", fields: [providerId], references: [id])
   service     Service?  @relation(fields: [serviceId], references: [id])
   job         Job?      @relation(fields: [jobId], references: [id])
-  payment     Payment?
-  review      Review?
-  dispute     Dispute?
+  payment       Payment?
+  review        Review?   @relation("BookingReview")
+  dispute       Dispute?
+  invoice       Invoice?
+  insuranceClaim InsuranceClaim?
+  promoCodeId   String?
+  promoCode     PromoCode? @relation(fields: [promoCodeId], references: [id])
+  discountAmount Decimal? @db.Decimal(10, 2)
+
   negotiations BookingNegotiation[]
   slots       BookingSlot[]
+  teamJobs    TeamJob[]
+  verticalProject VerticalProject?
+
+  @@index([clientId])
+  @@index([providerId])
+}
+
+// Insurance Claims (Happiness Pledge)
+enum ClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+model InsuranceClaim {
+  id          String      @id @default(cuid())
+  bookingId   String      @unique
+  claimantId  String
+  amount      Decimal     @db.Decimal(10, 2)
+  description String      @db.Text
+  evidence    String[]    // URLs to images/videos
+  status      ClaimStatus @default(PENDING)
+  approvedAmount Decimal? @db.Decimal(10, 2)
+  adminNotes  String?     @db.Text
+  resolvedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  booking     Booking     @relation(fields: [bookingId], references: [id])
+  claimant    User        @relation(fields: [claimantId], references: [id])
+
+  @@index([claimantId])
+  @@index([status])
 }
 
 model BookingSlot {
@@ -322,7 +468,7 @@ model Review {
   comment     String?  @db.Text
   createdAt   DateTime @default(now())
 
-  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking     Booking  @relation("BookingReview", fields: [bookingId], references: [id], onDelete: Cascade)
   author      User     @relation("WrittenReviews", fields: [authorId], references: [id])
   target      User     @relation("ReceivedReviews", fields: [targetId], references: [id])
 }
@@ -349,17 +495,94 @@ model Payment {
   method        PaymentMethod
   status        PaymentStatus @default(PENDING)
   transactionId String?       // External transaction ID (e.g., M-Pesa code)
+  exciseDutyAmount Decimal?   @db.Decimal(10, 2)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   booking       Booking       @relation(fields: [bookingId], references: [id])
 }
 
+// Tax Filings (Nil Returns)
+model TaxFiling {
+  id          String   @id @default(cuid())
+  providerId  String
+  provider    User     @relation(fields: [providerId], references: [id])
+  period      String   // e.g., "2025-01"
+  type        String   // "NIL" or "STANDARD"
+  status      String   // "FILED", "FAILED"
+  ackNumber   String?  // GavaConnect Acknowledgement
+  createdAt   DateTime @default(now())
+}
+
+// Invoices (eTIMS)
+enum InvoiceStatus {
+  GENERATED
+  SUBMITTED
+  CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  bookingId   String   @unique
+  booking     Booking  @relation(fields: [bookingId], references: [id])
+  number      String   @unique // Internal Invoice Number e.g., INV-2025-00001
+  
+  // eTIMS Specifics
+  etimsCuNumber   String? // Control Unit Invoice Number
+  etimsQrUrl      String? // URL to QR Code image
+  etimsSignature  String? // Digital signature from KRA
+  
+  // Tax Breakdown
+  subtotal        Decimal  @db.Decimal(10, 2) // Before tax
+  vatAmount       Decimal  @default(0) @db.Decimal(10, 2) // 16% VAT
+  exciseDuty      Decimal  @default(0) @db.Decimal(10, 2) // Digital service excise
+  withholdingTax  Decimal  @default(0) @db.Decimal(10, 2) // 5% withholding
+  totalAmount     Decimal  @db.Decimal(10, 2) // Final total
+  
+  // Status Tracking
+  status          InvoiceStatus @default(GENERATED)
+  pdfUrl          String?       // Stored PDF path
+  
+  // Buyer/Seller Info
+  sellerPin       String?       // Provider's KRA PIN
+  buyerPin        String?       // Client's KRA PIN (if corporate)
+  buyerName       String?       // Client name for invoice
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  submissions ETIMSSubmission[]
+  
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ETIMSSubmission {
+  id              String   @id @default(cuid())
+  invoiceId       String
+  submissionType  String   // INITIAL, RETRY, CORRECTION
+  requestPayload  Json
+  responsePayload Json?
+  success         Boolean  @default(false)
+  errorMessage    String?
+  submittedAt     DateTime @default(now())
+  
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  @@index([invoiceId])
+  @@index([submittedAt])
+  @@index([success])
+}
+
+
 // Wallet
 model Wallet {
   id          String   @id @default(cuid())
   userId      String   @unique
   balance     Decimal  @default(0) @db.Decimal(10, 2)
+  creditBalance Int    @default(0) // Revenue Feature: Lead Gen Credits
   updatedAt   DateTime @updatedAt
 
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -372,6 +595,9 @@ enum TransactionType {
   PAYMENT
   REFUND
   EARNING
+  CREDIT_PURCHASE   // Revenue Feature
+  PROMOTION_PAYMENT // Revenue Feature
+  ONBOARDING_FEE    // Revenue Feature
 }
 
 model Transaction {
@@ -617,4 +843,980 @@ model Referral {
   
   @@index([referrerId])
   @@index([status])
+}
+
+// Safety & Emergency Features
+
+model TrustedContact {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  phone     String
+  relation  String?  // e.g., "Parent", "Spouse"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum SOSStatus {
+  ACTIVE
+  RESOLVED
+  CANCELLED
+}
+
+model SOSAlert {
+  id        String    @id @default(cuid())
+  userId    String
+  latitude  Float
+  longitude Float
+  status    SOSStatus @default(ACTIVE)
+  triggeredAt DateTime @default(now())
+  resolvedAt  DateTime?
+  
+  // Snapshot of location addressing/context if available
+  locationDetails String?
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+// Background Checks
+enum BackgroundCheckStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model BackgroundCheck {
+  id          String                @id @default(cuid())
+  userId      String
+  status      BackgroundCheckStatus @default(PENDING)
+  documents   String[]              // URLs to uploaded documents
+  reportUrl   String?
+  expiresAt   DateTime?
+  renewalStatus String?             // e.g., "DUE", "OVERDUE"
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// VoIP Calls
+enum CallStatus {
+  INITIATED
+  MISSED
+  ACCEPTED
+  REJECTED
+  ENDED
+}
+
+model Call {
+  id          String     @id @default(cuid())
+  callerId    String
+  receiverId  String
+  status      CallStatus @default(INITIATED)
+  startedAt   DateTime?
+  endedAt     DateTime?
+  duration    Int?       // in seconds
+  createdAt   DateTime   @default(now())
+
+  caller      User       @relation("CallsMade", fields: [callerId], references: [id])
+  receiver    User       @relation("CallsReceived", fields: [receiverId], references: [id])
+
+  @@index([callerId])
+  @@index([receiverId])
+}
+// Team / Agency Accounts
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum MemberStatus {
+  ONLINE
+  BUSY
+  OFFLINE
+  ON_JOB
+}
+
+enum TeamJobStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AssignmentStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum PayrollStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Team {
+  id          String       @id @default(cuid())
+  name        String
+  ownerId     String       @unique
+  description String?
+  logo        String?
+  
+  // Settings
+  defaultSplit    Float    @default(70) // Owner gets %, worker gets rest
+  payrollCycle    String   @default("WEEKLY") // WEEKLY, BIWEEKLY, MONTHLY
+  isActive        Boolean  @default(true)
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  owner       User         @relation("OwnedTeam", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     TeamMember[]
+  jobs        TeamJob[]
+  payrolls    TeamPayroll[]
+  announcements TeamAnnouncement[]
+  
+  @@index([ownerId])
+  @@index([isActive])
+}
+
+model TeamMember {
+  id          String   @id @default(cuid())
+  teamId      String
+  userId      String
+  role        TeamRole @default(MEMBER)
+  permissions String[] // e.g., ["MANAGE_SERVICES", "VIEW_BOOKINGS"]
+  
+  // Status & Location
+  status          MemberStatus @default(OFFLINE)
+  lastLocation    Json?        // {lat, lng, address, timestamp}
+  lastLocationAt  DateTime?
+  
+  // Performance metrics
+  totalJobsCompleted Int     @default(0)
+  totalEarnings      Decimal @default(0) @db.Decimal(10, 2)
+  rating             Float   @default(5.0)
+  
+  joinedAt    DateTime @default(now())
+
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  assignments TeamJobAssignment[]
+  earnings    TeamEarning[]
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+  @@index([status])
+}
+
+model TeamJob {
+  id          String   @id @default(cuid())
+  teamId      String
+  bookingId   String?  // Link to platform booking (optional)
+  
+  title       String
+  description String?  @db.Text
+  location    Json?    // {address, lat, lng}
+  scheduledAt DateTime
+  estimatedDuration Int? // minutes
+  status      TeamJobStatus @default(PENDING)
+  
+  // Financials
+  amount      Decimal  @db.Decimal(10, 2)
+  collected   Boolean  @default(false)
+  collectedAt DateTime?
+  collectedBy String?  // Member ID who collected
+  paymentMethod String? // CASH, MPESA, CARD
+  
+  // Client Info
+  clientName  String?
+  clientPhone String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+  
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  booking     Booking? @relation(fields: [bookingId], references: [id])
+  assignments TeamJobAssignment[]
+  
+  @@index([teamId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([bookingId])
+}
+
+model TeamJobAssignment {
+  id          String   @id @default(cuid())
+  jobId       String
+  memberId    String
+  role        String   @default("WORKER") // LEAD, WORKER, HELPER
+  
+  status      AssignmentStatus @default(PENDING)
+  acceptedAt  DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  
+  notes       String?  @db.Text
+  rating      Int?     // 1-5 performance rating from owner
+  
+  createdAt   DateTime @default(now())
+  
+  job         TeamJob    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  member      TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  
+  @@unique([jobId, memberId])
+  @@index([jobId])
+  @@index([memberId])
+  @@index([status])
+}
+
+model TeamEarning {
+  id          String   @id @default(cuid())
+  teamId      String
+  memberId    String
+  jobId       String?
+  
+  amount      Decimal  @db.Decimal(10, 2)
+  splitPercent Float   // e.g., 30 for 30% worker share
+  reason      String   // "Job: Plumbing Fix", "Bonus", "Tip"
+  
+  isPaid      Boolean  @default(false)
+  paidAt      DateTime?
+  payrollId   String?
+  
+  createdAt   DateTime @default(now())
+  
+  member      TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  payroll     TeamPayroll? @relation(fields: [payrollId], references: [id])
+  
+  @@index([teamId])
+  @@index([memberId])
+  @@index([isPaid])
+  @@index([payrollId])
+}
+
+model TeamPayroll {
+  id          String   @id @default(cuid())
+  teamId      String
+  periodStart DateTime
+  periodEnd   DateTime
+  
+  totalAmount Decimal  @db.Decimal(10, 2)
+  memberCount Int      @default(0)
+  status      PayrollStatus @default(PENDING)
+  processedAt DateTime?
+  processedBy String?  // User ID who processed
+  
+  notes       String?  @db.Text
+  
+  createdAt   DateTime @default(now())
+  
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  earnings    TeamEarning[]
+  
+  @@index([teamId])
+  @@index([status])
+  @@index([periodStart])
+}
+
+model TeamAnnouncement {
+  id          String   @id @default(cuid())
+  teamId      String
+  authorId    String
+  
+  title       String
+  content     String   @db.Text
+  priority    String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  
+  createdAt   DateTime @default(now())
+  
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  @@index([teamId])
+  @@index([createdAt])
+}
+
+
+// Expense Management
+enum ExpenseStatus {
+  PENDING_SCAN
+  SCANNED
+  VERIFIED
+  REJECTED
+}
+
+model Expense {
+  id          String        @id @default(cuid())
+  userId      String
+  jobId       String?
+  amount      Decimal       @db.Decimal(10, 2)
+  date        DateTime      @default(now())
+  merchant    String?
+  category    String        @default("Uncategorized") // Travel, Materials, Equipment, Food, Other
+  receiptUrl  String?
+  description String?
+  status      ExpenseStatus @default(VERIFIED)
+  rawScanData Json?         // Raw output from AI scan for debugging/correction
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job         Job?          @relation(fields: [jobId], references: [id])
+
+  @@index([userId])
+  @@index([jobId])
+  @@index([date])
+}
+
+// Gamification: Badges & Achievements
+enum BadgeCategory {
+  MILESTONE      // Job counts, revenue milestones
+  PERFORMANCE    // Speed, quality ratings
+  ENGAGEMENT     // Profile completeness, activity
+  SPECIAL        // Seasonal, promotional
+}
+
+model Badge {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  slug        String        @unique
+  description String
+  category    BadgeCategory
+  icon        String        // Emoji or icon name
+  color       String        // Hex color for badge display
+  requirement Json          // Flexible requirements: { type: "JOB_COUNT", value: 100 }
+  points      Int           @default(0)
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  
+  userBadges  UserBadge[]
+  
+  @@index([slug])
+  @@index([category])
+}
+
+model UserBadge {
+  id          String   @id @default(cuid())
+  userId      String
+  badgeId     String
+  awardedAt   DateTime @default(now())
+  progress    Int      @default(0) // For tracking progress toward badge
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge       Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+}
+
+// Predictive Churn Modeling
+enum ChurnRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model ChurnScore {
+  id              String         @id @default(cuid())
+  userId          String
+  riskLevel       ChurnRiskLevel
+  score           Float          // 0.0 to 1.0 (1.0 = highest risk)
+  factors         Json           // Contributing factors breakdown
+  lastActivityDays Int           // Days since last activity
+  bookingDecline  Float?         // % decline in bookings
+  engagementScore Float?         // Overall engagement metric
+  calculatedAt    DateTime       @default(now())
+  
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interventions   ChurnIntervention[]
+  
+  @@index([userId])
+  @@index([riskLevel])
+  @@index([calculatedAt])
+}
+
+model ChurnIntervention {
+  id              String   @id @default(cuid())
+  churnScoreId    String
+  userId          String
+  type            String   // EMAIL, NOTIFICATION, DISCOUNT, CALL
+  message         String   @db.Text
+  executed        Boolean  @default(false)
+  executedAt      DateTime?
+  successful      Boolean?
+  response        String?  @db.Text
+  createdAt       DateTime @default(now())
+  
+  churnScore      ChurnScore @relation(fields: [churnScoreId], references: [id], onDelete: Cascade)
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([executed])
+  @@index([createdAt])
+}
+
+// Loyalty & Reward Tiers
+enum LoyaltyTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  DIAMOND
+}
+
+model UserLoyalty {
+  id            String      @id @default(cuid())
+  userId        String      @unique
+  currentTier   LoyaltyTier @default(BRONZE)
+  points        Int         @default(0)
+  lifetimePoints Int        @default(0)
+  tierProgress  Float       @default(0) // % to next tier
+  lastTierUpdate DateTime   @default(now())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pointHistory  LoyaltyPointTransaction[]
+  redemptions   RewardRedemption[]
+  
+  @@index([userId])
+  @@index([currentTier])
+}
+
+model LoyaltyPointTransaction {
+  id          String   @id @default(cuid())
+  loyaltyId   String
+  points      Int      // Can be positive (earned) or negative (spent)
+  reason      String   // "Job Completion", "5-Star Review", "Tier Bonus", etc.
+  metadata    Json?    // Additional context
+  createdAt   DateTime @default(now())
+  
+  loyalty     UserLoyalty @relation(fields: [loyaltyId], references: [id], onDelete: Cascade)
+  
+  @@index([loyaltyId])
+  @@index([createdAt])
+}
+
+enum PartnerCategory {
+  HARDWARE_TOOLS
+  AUTOMOTIVE
+  INSURANCE
+  EQUIPMENT_RENTAL
+  SUPPLIES
+  SOFTWARE
+  TRAINING
+  OTHER
+}
+
+model Partner {
+  id          String          @id @default(cuid())
+  name        String
+  category    PartnerCategory
+  logo        String?
+  description String          @db.Text
+  website     String?
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  
+  rewards     PartnerReward[]
+  
+  @@index([category])
+}
+
+model PartnerReward {
+  id              String      @id @default(cuid())
+  partnerId       String
+  title           String
+  description     String      @db.Text
+  discountType    String      // PERCENTAGE, FIXED_AMOUNT, FREE_ITEM
+  discountValue   Float
+  minTierRequired LoyaltyTier
+  maxRedemptions  Int?        // Null = unlimited
+  expiryDate      DateTime?
+  termsConditions String?     @db.Text
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  
+  partner         Partner     @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  redemptions     RewardRedemption[]
+  
+  @@index([partnerId])
+  @@index([minTierRequired])
+  @@index([isActive])
+}
+
+model RewardRedemption {
+  id          String    @id @default(cuid())
+  loyaltyId   String
+  rewardId    String
+  code        String    @unique // Unique redemption code
+  redeemedAt  DateTime  @default(now())
+  usedAt      DateTime? // When actually used at partner
+  expiresAt   DateTime
+  status      String    @default("ACTIVE") // ACTIVE, USED, EXPIRED
+  
+  loyalty     UserLoyalty   @relation(fields: [loyaltyId], references: [id], onDelete: Cascade)
+  reward      PartnerReward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+  
+  @@index([loyaltyId])
+  @@index([rewardId])
+  @@index([status])
+  @@index([code])
+}
+
+// Tax Settings for eTIMS Compliance
+model TaxSettings {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  kraPin          String?  // Provider's KRA PIN (e.g., A001234567B)
+  kraPinVerified  Boolean  @default(false)
+  tccNumber       String?  // Tax Compliance Certificate Number
+  tccExpiry       DateTime?
+  vatRegistered   Boolean  @default(false)
+  preferredMethod String   @default("STANDARD") // STANDARD, REVERSE, EXEMPT
+  businessName    String?  // Trading name for invoices
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([kraPinVerified])
+}
+
+// ==========================================
+// TRUST-AS-A-SERVICE (TaaS) PREMIUM VERIFICATION
+// ==========================================
+
+enum BadgeType {
+  KRA_VERIFIED      // KRA PIN is verified
+  GOOD_CONDUCT      // Police clearance certificate
+  SOS_ENABLED       // Has active SOS/emergency contacts
+  IDENTITY_VERIFIED // Government ID verified
+  SKILLS_CERTIFIED  // Professional certification
+  INSURANCE_ACTIVE  // Has active insurance
+  TOP_RATED         // 4.8+ rating with 50+ reviews
+  PREMIUM_MEMBER    // Paid subscription active
+}
+
+enum BadgeStatus {
+  PENDING
+  VERIFIED
+  EXPIRED
+  REVOKED
+}
+
+model VerificationBadge {
+  id          String      @id @default(cuid())
+  userId      String
+  type        BadgeType
+  status      BadgeStatus @default(PENDING)
+  
+  // Verification details
+  documentUrl String?     // Supporting document
+  verifiedAt  DateTime?
+  verifiedBy  String?     // Admin who verified
+  expiresAt   DateTime?   // When badge expires
+  
+  // Audit trail
+  notes       String?     @db.Text
+  metadata    Json?       // Additional verification data
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, type])
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+}
+
+model TrustScore {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  
+  // Score components (0-100 each)
+  identityScore   Int      @default(0)  // ID verification
+  conductScore    Int      @default(0)  // Background check
+  performanceScore Int     @default(0)  // Ratings & reviews
+  reliabilityScore Int     @default(0)  // Completion rate
+  complianceScore Int      @default(0)  // Tax & legal
+  
+  // Overall composite score
+  overallScore    Int      @default(0)  // Weighted average
+  tier            String   @default("UNVERIFIED") // UNVERIFIED, BASIC, VERIFIED, PREMIUM, ELITE
+  
+  // Premium pricing eligibility
+  premiumEligible Boolean  @default(false)
+  premiumMultiplier Float  @default(1.0) // 1.0 = no premium, 1.3 = +30%
+  
+  // Calculated at
+  lastCalculated  DateTime @default(now())
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([overallScore])
+  @@index([tier])
+}
+
+model VerificationAudit {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String   // BADGE_GRANTED, BADGE_REVOKED, SCORE_UPDATED, DOCUMENT_UPLOADED
+  badgeType   String?  // If badge-related
+  previousValue String? // Previous state
+  newValue    String?  // New state
+  performedBy String?  // Admin or SYSTEM
+  reason      String?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ==========================================
+// HYPER-NICHE VERTICAL: SOLAR & GREEN TECH
+// ==========================================
+
+enum VerticalType {
+  SOLAR          // Solar panel installation & maintenance
+  HVAC           // Heating, ventilation, air conditioning
+  SECURITY       // Security systems, CCTV
+  SMART_HOME     // Home automation
+  EV_CHARGING    // Electric vehicle charging stations
+  WATER_SYSTEMS  // Rainwater harvesting, water heating
+}
+
+model VerticalCategory {
+  id          String       @id @default(cuid())
+  type        VerticalType @unique
+  name        String       // "Solar Installation"
+  description String?      @db.Text
+  icon        String?      // Icon name or URL
+  isActive    Boolean      @default(true)
+  
+  // Vertical-specific settings
+  requiresCertification Boolean @default(true)
+  minExperienceYears    Int     @default(2)
+  insuranceRequired     Boolean @default(true)
+  
+  // Premium pricing for this vertical
+  baseMarkup    Float      @default(1.0) // 1.0 = no markup
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  certifications VerticalCertification[]
+  specialists    VerticalSpecialist[]
+  projects       VerticalProject[]
+  templates      ProjectTemplate[]
+}
+
+enum CertificationStatus {
+  PENDING
+  VERIFIED
+  EXPIRED
+  REJECTED
+}
+
+model VerticalCertification {
+  id              String             @id @default(cuid())
+  verticalId      String
+  userId          String
+  
+  // Certification details
+  name            String             // "EPRA Licensed Electrician"
+  issuingBody     String             // "Energy and Petroleum Regulatory Authority"
+  licenseNumber   String?
+  issueDate       DateTime?
+  expiryDate      DateTime?
+  documentUrl     String?            // Uploaded certificate
+  
+  status          CertificationStatus @default(PENDING)
+  verifiedAt      DateTime?
+  verifiedBy      String?            // Admin who verified
+  notes           String?            @db.Text
+  
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  
+  vertical        VerticalCategory   @relation(fields: [verticalId], references: [id], onDelete: Cascade)
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([verticalId, userId, name])
+  @@index([userId])
+  @@index([verticalId])
+  @@index([status])
+}
+
+model VerticalSpecialist {
+  id              String           @id @default(cuid())
+  verticalId      String
+  userId          String
+  
+  // Specialist profile
+  experienceYears Int              @default(0)
+  portfolioUrls   String[]         // Project photos
+  specializations String[]         // e.g., ["Residential", "Commercial", "Off-grid"]
+  equipmentOwned  String[]         // Tools they own
+  serviceRadius   Int?             // km radius they serve
+  
+  // Performance in this vertical
+  projectsCompleted Int            @default(0)
+  averageRating   Float            @default(0)
+  totalRevenue    Decimal          @default(0) @db.Decimal(12, 2)
+  
+  // Featured/verified status
+  isFeatured      Boolean          @default(false)
+  isVerified      Boolean          @default(false)
+  featuredUntil   DateTime?
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  vertical        VerticalCategory @relation(fields: [verticalId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([verticalId, userId])
+  @@index([userId])
+  @@index([verticalId])
+  @@index([isVerified])
+  @@index([isFeatured])
+}
+
+// Equipment/Inventory Registry
+model EquipmentRegistry {
+  id              String   @id @default(cuid())
+  userId          String
+  
+  // Equipment details
+  name            String   // "Fluke Multimeter 87V"
+  category        String   // "Testing Equipment", "Safety Gear", "Power Tools"
+  brand           String?
+  model           String?
+  serialNumber    String?
+  
+  // Status
+  condition       String   @default("GOOD") // EXCELLENT, GOOD, FAIR, POOR
+  lastServiceDate DateTime?
+  nextServiceDue  DateTime?
+  
+  // Value
+  purchasePrice   Decimal? @db.Decimal(10, 2)
+  currentValue    Decimal? @db.Decimal(10, 2)
+  purchaseDate    DateTime?
+  
+  // For inventory
+  quantity        Int      @default(1)
+  location        String?  // Storage location
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([category])
+}
+
+// Project Templates (Solar-specific workflows)
+model ProjectTemplate {
+  id              String           @id @default(cuid())
+  verticalId      String
+  
+  name            String           // "Residential Solar 5kW System"
+  description     String?          @db.Text
+  
+  // Estimation parameters
+  basePriceMin    Decimal          @db.Decimal(10, 2) // KES 350,000
+  basePriceMax    Decimal          @db.Decimal(10, 2) // KES 500,000
+  estimatedDays   Int              @default(3)
+  teamSizeMin     Int              @default(2)
+  teamSizeMax     Int              @default(4)
+  
+  // Workflow steps
+  phases          Json             // [{name, duration, tasks, checklistItems}]
+  requiredEquipment String[]       // Equipment needed
+  requiredCertifications String[]  // Certs needed
+  
+  // Materials/parts estimate
+  materialsTemplate Json?          // [{name, quantity, unitPrice, supplier}]
+  
+  isActive        Boolean          @default(true)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  vertical        VerticalCategory @relation(fields: [verticalId], references: [id], onDelete: Cascade)
+  projects        VerticalProject[]
+  
+  @@index([verticalId])
+  @@index([isActive])
+}
+
+enum ProjectStatus {
+  QUOTE_REQUESTED
+  SITE_ASSESSMENT
+  PROPOSAL_SENT
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  WARRANTY
+  CANCELLED
+}
+
+model VerticalProject {
+  id              String           @id @default(cuid())
+  verticalId      String
+  templateId      String?
+  clientId        String
+  providerId      String
+  bookingId       String?          @unique // Link to booking if applicable
+  
+  // Project details
+  title           String
+  description     String?          @db.Text
+  status          ProjectStatus    @default(QUOTE_REQUESTED)
+  
+  // Site information (solar-specific)
+  siteAddress     String
+  siteCoordinates Json?            // {lat, lng}
+  propertyType    String?          // "Residential", "Commercial", "Industrial"
+  roofType        String?          // "Flat", "Pitched", "Metal Sheet"
+  roofArea        Float?           // m²
+  monthlyBill     Decimal?         @db.Decimal(10, 2) // Average electricity bill
+  
+  // System specification (solar)
+  systemSize      Float?           // kW
+  panelCount      Int?
+  panelType       String?          // "Monocrystalline", "Polycrystalline"
+  inverterType    String?
+  batteryCapacity Float?           // kWh
+  isOffGrid       Boolean          @default(false)
+  
+  // Financials
+  quotedAmount    Decimal?         @db.Decimal(12, 2)
+  agreedAmount    Decimal?         @db.Decimal(12, 2)
+  depositAmount   Decimal?         @db.Decimal(10, 2)
+  depositPaid     Boolean          @default(false)
+  
+  // Timeline
+  siteAssessmentDate DateTime?
+  proposalDate    DateTime?
+  approvalDate    DateTime?
+  startDate       DateTime?
+  completionDate  DateTime?
+  
+  // Warranty
+  warrantyYears   Int?             @default(5)
+  warrantyEnds    DateTime?
+  
+  // Documents
+  proposalUrl     String?
+  contractUrl     String?
+  photos          String[]         // Before/during/after photos
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  vertical        VerticalCategory @relation(fields: [verticalId], references: [id])
+  template        ProjectTemplate? @relation(fields: [templateId], references: [id])
+  client          User             @relation("ClientProjects", fields: [clientId], references: [id])
+  provider        User             @relation("ProviderProjects", fields: [providerId], references: [id])
+  booking         Booking?         @relation(fields: [bookingId], references: [id])
+  milestones      ProjectMilestone[]
+  
+  @@index([verticalId])
+  @@index([clientId])
+  @@index([providerId])
+  @@index([status])
+}
+
+model ProjectMilestone {
+  id          String          @id @default(cuid())
+  projectId   String
+  
+  name        String          // "Site Assessment", "Installation Day 1"
+  description String?
+  sequence    Int             @default(0)
+  
+  // Status
+  isCompleted Boolean         @default(false)
+  completedAt DateTime?
+  completedBy String?
+  
+  // Payment milestone?
+  paymentRequired Boolean     @default(false)
+  paymentAmount   Decimal?    @db.Decimal(10, 2)
+  paymentPaid     Boolean     @default(false)
+  
+  // Checklist
+  checklistItems Json?        // [{task, completed, completedAt}]
+  notes          String?      @db.Text
+  photos         String[]
+  
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  project     VerticalProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@index([projectId])
+  @@index([sequence])
+}
+
+// Solar-specific estimation calculator data
+model SolarEstimationConfig {
+  id                String   @id @default(cuid())
+  
+  // Panel pricing (per watt)
+  monocrystallinePerWatt  Decimal @db.Decimal(6, 2) // KES per watt
+  polycrystallinePerWatt  Decimal @db.Decimal(6, 2)
+  
+  // Inverter pricing
+  inverterPricePerKw      Decimal @db.Decimal(8, 2)
+  hybridInverterMarkup    Float   @default(1.3) // 30% more
+  
+  // Battery pricing (per kWh)
+  leadAcidPerKwh          Decimal @db.Decimal(8, 2)
+  lithiumPerKwh           Decimal @db.Decimal(8, 2)
+  
+  // Labor
+  laborPerKw              Decimal @db.Decimal(8, 2) // Installation labor per kW
+  
+  // Sundries (wiring, mounting, etc.) as % of equipment
+  sundriesPercent         Float   @default(0.15) // 15%
+  
+  // Profit margin
+  defaultMargin           Float   @default(0.25) // 25%
+  
+  // Location multipliers (JSON: {county: multiplier})
+  locationMultipliers     Json?
+  
+  isActive                Boolean @default(true)
+  updatedAt               DateTime @updatedAt
 }

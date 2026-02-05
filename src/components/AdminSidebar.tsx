@@ -16,6 +16,7 @@ import {
   Settings,
   LogOut,
   Menu,
+  History,
   X,
   User,
   ChevronRight,
@@ -29,6 +30,7 @@ const navItems = [
   { name: "Disputes", href: "/admin/disputes", icon: Gavel },
   { name: "Support", href: "/admin/support", icon: Headphones },
   { name: "Finance", href: "/admin/finance", icon: CreditCard },
+  { name: "Audit Logs", href: "/admin/logs", icon: History },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 

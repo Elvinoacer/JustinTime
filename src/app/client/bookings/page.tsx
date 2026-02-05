@@ -5,12 +5,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import SecureCallButton from "@/components/communication/SecureCallButton"; // Imported
 
 interface Booking {
   id: string;
   date: string;
   status: string;
   totalAmount: number;
+  insuranceFee?: number;
+  exciseDutyAmount?: number;
+  insuranceFee?: number;
+  exciseDutyAmount?: number;
   notes?: string;
   location?: string;
   clientPhone?: string;
@@ -39,6 +44,9 @@ interface Booking {
     startTime: string;
     endTime: string;
   }[];
+  invoice?: {
+    id: string;
+  };
 }
 
 const statusColors: Record<string, string> = {
@@ -65,10 +73,18 @@ export default function ClientBookingsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  
+  // Cancellation State
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const handleInitiateCancel = (booking: Booking) => {
+      setSelectedBooking(booking);
+      setIsViewModalOpen(false);
+      setIsCancelModalOpen(true);
+  };
+
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["client-bookings"],
     queryFn: async () => {
       const response = await apiClient.get("/bookings");
@@ -460,7 +476,6 @@ export default function ClientBookingsPage() {
         </div>
       )}
 
-      {/* View Details Modal */}
       <Modal
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
@@ -471,26 +486,33 @@ export default function ClientBookingsPage() {
         {selectedBooking && (
           <div className="space-y-4 md:space-y-6">
             {/* Provider Info */}
-            <div className="flex items-center gap-3 md:gap-4 p-3 md:p-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg md:rounded-xl border border-emerald-200">
-              <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-md md:shadow-lg flex-shrink-0">
-                {selectedBooking.provider.image ? (
-                  <img
-                    src={selectedBooking.provider.image}
-                    alt={selectedBooking.provider.name}
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                ) : (
-                  selectedBooking.provider.name.charAt(0).toUpperCase()
-                )}
+            <div className="flex items-center justify-between gap-3 md:gap-4 p-3 md:p-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg md:rounded-xl border border-emerald-200">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-md md:shadow-lg flex-shrink-0">
+                    {selectedBooking.provider.image ? (
+                    <img
+                        src={selectedBooking.provider.image}
+                        alt={selectedBooking.provider.name}
+                        className="w-full h-full rounded-full object-cover"
+                    />
+                    ) : (
+                    selectedBooking.provider.name.charAt(0).toUpperCase()
+                    )}
+                </div>
+                <div className="min-w-0">
+                    <h4 className="font-bold text-gray-900 text-base md:text-lg truncate">
+                    {selectedBooking.provider.name}
+                    </h4>
+                    <p className="text-xs md:text-sm text-gray-600">
+                    Service Provider
+                    </p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <h4 className="font-bold text-gray-900 text-base md:text-lg truncate">
-                  {selectedBooking.provider.name}
-                </h4>
-                <p className="text-xs md:text-sm text-gray-600">
-                  Service Provider
-                </p>
-              </div>
+              
+              {/* Secure Call Button - Only for confirmed/in-progress */}
+              {['CONFIRMED', 'IN_PROGRESS'].includes(selectedBooking.status) && (
+                  <SecureCallButton bookingId={selectedBooking.id} />
+              )}
             </div>
 
             {/* Details Grid - 2 columns on mobile */}
@@ -515,12 +537,37 @@ export default function ClientBookingsPage() {
                     payments
                   </span>
                   <p className="text-[10px] md:text-xs text-gray-500 uppercase font-bold tracking-wide truncate">
-                    Amount
+                    Payment Breakdown
                   </p>
                 </div>
-                <p className="font-semibold text-emerald-600 text-lg md:text-xl">
-                  KES {selectedBooking.totalAmount.toLocaleString()}
-                </p>
+                <div className="space-y-1">
+                    {selectedBooking.exciseDutyAmount ? (
+                        <>
+                             <div className="flex justify-between text-xs text-gray-600">
+                                <span>Service Cost</span>
+                                <span>KES {(selectedBooking.totalAmount - (selectedBooking.exciseDutyAmount || 0) - (selectedBooking.insuranceFee || 0)).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-gray-600">
+                                <span>Excise Duty (20%)</span>
+                                <span>KES {selectedBooking.exciseDutyAmount.toLocaleString()}</span>
+                            </div>
+                             {selectedBooking.insuranceFee && (
+                                <div className="flex justify-between text-xs text-emerald-700 font-medium">
+                                    <span>Happiness Pledge</span>
+                                    <span>KES {selectedBooking.insuranceFee.toLocaleString()}</span>
+                                </div>
+                            )}
+                             <div className="flex justify-between font-bold text-emerald-600 pt-1 border-t border-gray-200 mt-1">
+                                <span>Total</span>
+                                <span>KES {selectedBooking.totalAmount.toLocaleString()}</span>
+                            </div>
+                        </>
+                    ) : (
+                         <p className="font-semibold text-emerald-600 text-lg md:text-xl">
+                            KES {selectedBooking.totalAmount.toLocaleString()}
+                        </p>
+                    )}
+                </div>
               </div>
 
               <div className="p-3 md:p-4 bg-gray-50 rounded-lg md:rounded-xl border border-gray-200 sm:col-span-2">
@@ -623,69 +670,32 @@ export default function ClientBookingsPage() {
               >
                 Close
               </button>
+              
+              {["PENDING", "CONFIRMED"].includes(selectedBooking.status) && (
+                  <button
+                    onClick={() => handleInitiateCancel(selectedBooking)}
+                    className="px-4 py-2 md:px-6 md:py-2.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-medium transition-colors text-sm md:text-base touch-manipulation"
+                  >
+                    Cancel Booking
+                  </button>
+              )}
+
+              {selectedBooking.invoice && (
+                <a
+                    href={`/bookings/${selectedBooking.id}/invoice`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 md:px-6 md:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors text-sm md:text-base touch-manipulation flex items-center gap-2"
+                >
+                    <span className="material-symbols-outlined text-sm">receipt_long</span>
+                    View Invoice
+                </a>
+              )}
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Cancel Confirmation Modal */}
-      <Modal
-        isOpen={isCancelModalOpen}
-        onClose={() =>
-          !cancelBookingMutation.isPending && setIsCancelModalOpen(false)
-        }
-        title="Cancel Booking"
-        icon="warning"
-        size="sm"
-      >
-        <div className="space-y-3 md:space-y-4">
-          <p className="text-sm md:text-base text-gray-700">
-            Are you sure you want to cancel this booking? This action cannot be
-            undone.
-          </p>
-          {selectedBooking && (
-            <div className="p-3 md:p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="font-semibold text-gray-900 text-sm md:text-base truncate">
-                {selectedBooking.job?.title || selectedBooking.service?.title}
-              </p>
-              <p className="text-xs md:text-sm text-gray-600 mt-1 truncate">
-                Provider: {selectedBooking.provider.name}
-              </p>
-              <p className="text-xs md:text-sm text-gray-600">
-                Amount: KES {selectedBooking.totalAmount.toLocaleString()}
-              </p>
-            </div>
-          )}
-          <div className="flex flex-col xs:flex-row justify-end gap-2 md:gap-3 pt-3 md:pt-4">
-            <button
-              onClick={() => setIsCancelModalOpen(false)}
-              disabled={cancelBookingMutation.isPending}
-              className="order-2 xs:order-1 px-4 py-2 md:px-6 md:py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors disabled:opacity-50 text-sm md:text-base touch-manipulation"
-            >
-              Keep Booking
-            </button>
-            <button
-              onClick={handleCancelBooking}
-              disabled={cancelBookingMutation.isPending}
-              className="order-1 xs:order-2 px-4 py-2 md:px-6 md:py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 text-sm md:text-base touch-manipulation"
-            >
-              {cancelBookingMutation.isPending ? (
-                <>
-                  <div className="w-3 h-3 md:w-4 md:h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                  <span>Cancelling...</span>
-                </>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined text-sm md:text-base">
-                    cancel
-                  </span>
-                  <span>Yes, Cancel</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </Modal>
 
       {/* Delete Confirmation Modal */}
       <Modal

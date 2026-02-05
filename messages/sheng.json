@@ -1,0 +1,27 @@
+{
+  "Common": {
+    "dashboard": "Base",
+    "jobs": "Wera / Janta",
+    "services": "Rada",
+    "bookings": "Mipango",
+    "expenses": "Expenses / Ma-cost",
+    "wallet": "Mfuko / Chapaa",
+    "profile": "Surwa",
+    "logout": "Jitoa",
+    "login": "Ingia",
+    "signup": "Jiunge",
+    "team": "Genge / Squad"
+  },
+  "Landing": {
+    "title": "Pata Mafundi Wa Nguvu Mtaani",
+    "subtitle": "Shikana na wasee wako legit kwa biashara zako zote.",
+    "searchPlaceholder": "Unasaka wera gani?",
+    "searchButton": "Saka"
+  },
+  "Dashboard": {
+    "welcome": "Niaje",
+    "stats": "Rada Zako",
+    "activeJobs": "Wera Iko",
+    "totalEarnings": "Chapaa Yote"
+  }
+}

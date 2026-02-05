@@ -46,12 +46,7 @@ export async function getUsers(page = 1, limit = 10, search = '', role = '', ver
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          profile: {
-            select: {
-              verificationStatus: true,
-              isVerified: true,
-            }
-          }
+          profile: true
         }
       }),
       prisma.user.count({ where })
@@ -721,6 +716,32 @@ export async function getBookings(
     console.error('Error fetching bookings:', error);
     throw new Error('Failed to fetch bookings');
   }
+}
+
+export async function getBackgroundChecks(status?: string) {
+    try {
+        await checkAdmin();
+        const where: any = {};
+        if (status && status !== 'ALL') {
+             where.status = status;
+        }
+
+        const checks = await prisma.backgroundCheck.findMany({
+            where,
+            include: {
+                provider: {
+                    include: {
+                        profile: true
+                    }
+                }
+            },
+            orderBy: { submittedAt: 'desc' }
+        });
+        return checks;
+    } catch (error) {
+        console.error("Error fetching background checks:", error);
+        return [];
+    }
 }
 
 
@@ -1436,5 +1457,115 @@ export async function updateSystemSetting(key: string, value: any, description?:
   } catch (error) {
     console.error('Error updating system setting:', error);
     return { success: false, error: 'Failed to update system setting' };
+  }
+}
+
+// Moderation & Audit Logs
+export async function getAdminLogs(page = 1, limit = 20) {
+  try {
+    await checkAdmin();
+    const skip = (page - 1) * limit;
+
+    const [logs, total] = await Promise.all([
+      prisma.adminLog.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          admin: { select: { name: true, email: true, image: true } }
+        }
+      }),
+      prisma.adminLog.count()
+    ]);
+
+    return {
+      logs,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page
+    };
+  } catch (error) {
+    console.error('Error fetching admin logs:', error);
+    throw new Error('Failed to fetch admin logs');
+  }
+}
+
+export async function processManualRefund(bookingId: string, amount: number, reason: string) {
+  try {
+    const admin = await checkAdmin();
+    
+    // 1. Get booking and related payment
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        payment: true,
+        client: {
+          include: { wallet: true }
+        }
+      }
+    });
+
+    if (!booking) return { success: false, error: 'Booking not found' };
+    
+    // 2. Perform transaction in a multi-step update (Prisma transaction)
+    await prisma.$transaction(async (tx) => {
+      // Update Booking status
+      await tx.booking.update({
+        where: { id: bookingId },
+        data: {
+          status: 'CANCELLED',
+          refundAmount: amount,
+          cancellationReason: `[Admin Manual Refund] ${reason}`,
+          cancelledAt: new Date(),
+          cancelledBy: admin.id
+        }
+      });
+
+      // Update Payment status if exists
+      if (booking.payment) {
+        await tx.payment.update({
+          where: { id: booking.payment.id },
+          data: { status: 'REFUNDED' }
+        });
+      }
+
+      // Update Wallet
+      if (booking.client.wallet) {
+        await tx.wallet.update({
+          where: { id: booking.client.wallet.id },
+          data: {
+            balance: { increment: amount }
+          }
+        });
+
+        // Record Wallet Transaction
+        await tx.transaction.create({
+          data: {
+            walletId: booking.client.wallet.id,
+            amount: amount,
+            type: 'REFUND',
+            description: `Manual refund for booking ${bookingId}: ${reason}`
+          }
+        });
+      }
+
+      // Create Admin Log
+      await tx.adminLog.create({
+        data: {
+          adminId: admin.id,
+          action: 'MANUAL_REFUND_PROCESSED',
+          targetId: bookingId,
+          details: { amount, reason, clientId: booking.clientId }
+        }
+      });
+    });
+
+    revalidatePath('/admin/bookings');
+    revalidatePath(`/admin/users/${booking.clientId}`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error processing manual refund:', error);
+    return { success: false, error: 'Failed to process manual refund' };
   }
 }

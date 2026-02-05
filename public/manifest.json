@@ -1,66 +1,21 @@
 {
-  "name": "JustInTime - Professional Services Marketplace",
+  "name": "JustInTime",
   "short_name": "JustInTime",
-  "description": "Connect with verified local service providers for all your needs. Find trusted professionals for cleaning, plumbing, electrical work, repairs, and more across Kenya.",
-  "start_url": "/",
+  "description": "Find Trusted Professionals Near You",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#10b981",
-  "orientation": "portrait-primary",
+  "theme_color": "#059669",
   "icons": [
     {
-      "src": "/images/JustinTimeLogo.png",
+      "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "/images/JustinTimeLogo.png",
+      "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
-  ],
-  "categories": ["business", "productivity", "utilities"],
-  "shortcuts": [
-    {
-      "name": "Find Services",
-      "short_name": "Services",
-      "description": "Browse available services",
-      "url": "/services",
-      "icons": [
-        {
-          "src": "/images/JustinTimeLogo.png",
-          "sizes": "96x96"
-        }
-      ]
-    },
-    {
-      "name": "Find Professionals",
-      "short_name": "Professionals",
-      "description": "Browse professionals",
-      "url": "/professionals",
-      "icons": [
-        {
-          "src": "/images/JustinTimeLogo.png",
-          "sizes": "96x96"
-        }
-      ]
-    },
-    {
-      "name": "Post a Job",
-      "short_name": "Jobs",
-      "description": "Post a new job",
-      "url": "/jobs",
-      "icons": [
-        {
-          "src": "/images/JustinTimeLogo.png",
-          "sizes": "96x96"
-        }
-      ]
-    }
-  ],
-  "screenshots": [],
-  "related_applications": [],
-  "prefer_related_applications": false
+  ]
 }

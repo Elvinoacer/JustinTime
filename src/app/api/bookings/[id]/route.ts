@@ -123,6 +123,16 @@ export async function PATCH(
                 booking.id
               );
               console.log(`[BOOKING_PATCH] Review request email sent to ${recipientEmail}`);
+              
+              // Check and award badges for the provider
+              try {
+                const { checkAndAwardBadges } = await import("@/lib/gamification/badge-checker");
+                await checkAndAwardBadges(booking.providerId);
+                console.log(`[BOOKING_PATCH] Badge check completed for provider ${booking.providerId}`);
+              } catch (badgeError) {
+                console.error("[BOOKING_PATCH] Error checking badges:", badgeError);
+                // Don't fail the request if badge check fails
+              }
             }
           } catch (emailError) {
             console.error("[BOOKING_PATCH] Error sending email:", emailError);

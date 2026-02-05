@@ -1,0 +1,27 @@
+{
+  "Common": {
+    "dashboard": "Dashbodi",
+    "jobs": "Kazi",
+    "services": "Huduma",
+    "bookings": "Miadi",
+    "expenses": "Matumizi",
+    "wallet": "Mkoba / Pochi",
+    "profile": "Wasifu",
+    "logout": "Toka",
+    "login": "Ingia",
+    "signup": "Jisajili",
+    "team": "Timu / Wakala"
+  },
+  "Landing": {
+    "title": "Pata Wataalamu Wa Kuaminika Karibu Nawe",
+    "subtitle": "Ungana na watoa huduma waliothibitishwa kwa mahitaji yako yote.",
+    "searchPlaceholder": "Unahitaji huduma gani?",
+    "searchButton": "Tafuta"
+  },
+  "Dashboard": {
+    "welcome": "Karibu tena",
+    "stats": "Takwimu Zako",
+    "activeJobs": "Kazi Zinazoendelea",
+    "totalEarnings": "Jumla ya Mapato"
+  }
+}

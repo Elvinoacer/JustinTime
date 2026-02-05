@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JustInTime Platform Analysis & Gap Report</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #fdfbf7; color: #1f2937; }
+        .chart-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto; height: 350px; max-height: 400px; }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .tab-active { border-bottom: 2px solid #ea580c; color: #ea580c; font-weight: 600; }
+        .tab-inactive { color: #6b7280; }
+        .tab-inactive:hover { color: #374151; }
+        /* Custom scrollbar for better UX in lists */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+    </style>
+    <!-- Chosen Palette: Warm Neutrals (Background #fdfbf7) with Orange Accent (#ea580c) for energy/action and Slate (#475569) for tech/structure. -->
+    <!-- Application Structure Plan: 
+         1. Executive Summary: High-level view of current vs. missing count.
+         2. Feature Ecosystem Explorer: The core interactive component. Users select a domain (Core, Financial, Trust, etc.) and see existing features side-by-side with identified GAPS.
+         3. Prioritization Matrix: A Bubble chart helping stakeholders decide WHICH missing feature to build first (Impact vs Effort).
+         4. Maturity Radar: Visualizing the platform's balance across 5 key dimensions compared to market standards.
+         5. Technical Implications: A text-based drill-down on how missing features impact the stated tech stack.
+    -->
+    <!-- Visualization & Content Choices:
+         1. Feature Counts -> Goal: Inform -> Simple Stat Cards -> Immediate quantitative overview.
+         2. Prioritization Matrix -> Goal: Strategy -> Bubble Chart (Chart.js) -> Shows 3 dimensions (Impact, Effort, Urgency) to guide roadmap.
+         3. Maturity Radar -> Goal: Compare -> Radar Chart (Chart.js) -> Compares 'JustInTime' current state vs 'Market Leader' ideal state.
+         4. Ecosystem Explorer -> Goal: Organize -> Interactive Grid -> Allows deep dive into text content without clutter.
+         CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <span class="text-2xl font-bold text-gray-900 tracking-tight">JustInTime<span class="text-orange-600">.GapAnalysis</span></span>
+                </div>
+                <nav class="hidden md:flex space-x-8">
+                    <button onclick="scrollToSection('dashboard')" class="text-gray-600 hover:text-orange-600 px-3 py-2 text-sm font-medium">Dashboard</button>
+                    <button onclick="scrollToSection('explorer')" class="text-gray-600 hover:text-orange-600 px-3 py-2 text-sm font-medium">Feature Explorer</button>
+                    <button onclick="scrollToSection('roadmap')" class="text-gray-600 hover:text-orange-600 px-3 py-2 text-sm font-medium">Roadmap Strategy</button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow">
+        
+        <!-- Hero / Dashboard Section -->
+        <section id="dashboard" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div class="mb-8 text-center sm:text-left">
+                <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2">Platform Maturity Assessment</h1>
+                <p class="text-lg text-gray-600 max-w-3xl">
+                    Analyzing the <b>JustInTime</b> feature set against gig-economy market standards. 
+                    The platform has a strong technical foundation and core loop, but lacks critical features in safety, operations, and retention loops.
+                </p>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+                <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover">
+                    <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Current Features</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2" id="stat-current">18</p>
+                    <p class="text-sm text-green-600 mt-1 flex items-center">
+                        <span>● Strong Core Foundation</span>
+                    </p>
+                </div>
+                <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover">
+                    <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Missing Critical</p>
+                    <p class="text-3xl font-bold text-orange-600 mt-2" id="stat-critical">5</p>
+                    <p class="text-sm text-gray-500 mt-1">Safety & Compliance Gaps</p>
+                </div>
+                <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover">
+                    <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Missing Enhancements</p>
+                    <p class="text-3xl font-bold text-blue-600 mt-2" id="stat-enhancement">7</p>
+                    <p class="text-sm text-gray-500 mt-1">Growth & Retention Ops</p>
+                </div>
+                <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100 card-hover">
+                    <p class="text-sm font-medium text-gray-500 uppercase tracking-wider">Overall Maturity</p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2">72%</p>
+                    <p class="text-sm text-gray-500 mt-1">Ready for Beta / MVP+</p>
+                </div>
+            </div>
+
+            <!-- Dashboard Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Maturity Radar -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-gray-900">Competitive Landscape</h3>
+                        <p class="text-sm text-gray-500">JustInTime (Blue) vs. Market Standard (Gray). The gaps indicate areas requiring investment.</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="maturityRadar"></canvas>
+                    </div>
+                </div>
+
+                <!-- Missing Features Breakdown -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-gray-900">Missing Feature Distribution</h3>
+                        <p class="text-sm text-gray-500">Breakdown of identified gaps by functional category.</p>
+                    </div>
+                    <div class="chart-container flex-grow flex items-center justify-center">
+                        <canvas id="gapsDoughnut"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Feature Explorer Section -->
+        <section id="explorer" class="bg-gray-50 py-12 border-t border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-900">Feature Ecosystem Explorer</h2>
+                    <p class="text-gray-600 mt-2">
+                        Explore the existing architecture alongside identified gaps. Use the tabs to filter by domain.
+                        <br><span class="text-sm text-orange-600 font-medium">Tip: Click on any "MISSING" card to see implementation details.</span>
+                    </p>
+                </div>
+
+                <!-- Tabs -->
+                <div class="flex space-x-6 overflow-x-auto border-b border-gray-200 mb-8 pb-1 custom-scroll">
+                    <button onclick="filterFeatures('all')" id="tab-all" class="tab-btn tab-active px-1 py-2 text-sm font-medium whitespace-nowrap transition-colors">All Domains</button>
+                    <button onclick="filterFeatures('Core')" id="tab-Core" class="tab-btn tab-inactive px-1 py-2 text-sm font-medium whitespace-nowrap transition-colors">Core Platform</button>
+                    <button onclick="filterFeatures('Financial')" id="tab-Financial" class="tab-btn tab-inactive px-1 py-2 text-sm font-medium whitespace-nowrap transition-colors">Financial</button>
+                    <button onclick="filterFeatures('Trust')" id="tab-Trust" class="tab-btn tab-inactive px-1 py-2 text-sm font-medium whitespace-nowrap transition-colors">Trust & Safety</button>
+                    <button onclick="filterFeatures('Smart')" id="tab-Smart" class="tab-btn tab-inactive px-1 py-2 text-sm font-medium whitespace-nowrap transition-colors">Smart & Tech</button>
+                    <button onclick="filterFeatures('Operations')" id="tab-Operations" class="tab-btn tab-inactive px-1 py-2 text-sm font-medium whitespace-nowrap transition-colors">Operations (New)</button>
+                </div>
+
+                <!-- Grid -->
+                <div id="feature-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Cards will be injected here via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Prioritization Section -->
+        <section id="roadmap" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-900">Strategic Roadmap: Prioritizing the Missing</h2>
+                <p class="text-gray-600 mt-2">
+                    Not all missing features should be built immediately. This matrix plots <b>Business Impact</b> (Y-axis) against <b>Dev Effort</b> (X-axis).
+                    <br>Top-Left quadrant (High Impact, Low Effort) are Quick Wins.
+                </p>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+                <div class="chart-container" style="height: 500px; max-height: 500px; width: 100%; max-width: 900px;">
+                    <canvas id="prioritizationBubble"></canvas>
+                </div>
+            </div>
+
+            <!-- Tech Stack Implications -->
+            <div class="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-slate-800 text-white rounded-xl p-8 shadow-md">
+                    <h3 class="text-xl font-bold mb-4 text-orange-400">Technical Implications</h3>
+                    <p class="text-gray-300 mb-6">Implementing the identified gaps requires specific upgrades to the existing stack (Socket.io, Tensorflow, Firebase).</p>
+                    
+                    <ul class="space-y-4">
+                        <li class="flex items-start">
+                            <span class="text-orange-500 mr-2">➜</span>
+                            <div>
+                                <strong class="text-white">For Video Calling:</strong>
+                                <p class="text-sm text-gray-400">Upgrade Socket.io to handle WebRTC signaling or integrate a service like Agora/Twilio. Peer-to-peer data usage concerns.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-orange-500 mr-2">➜</span>
+                            <div>
+                                <strong class="text-white">For Panic Button:</strong>
+                                <p class="text-sm text-gray-400">Requires background geolocation permissions and SMS gateway integration (Twilio/Africa's Talking) for emergency contacts.</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="text-orange-500 mr-2">➜</span>
+                            <div>
+                                <strong class="text-white">For Dynamic Pricing:</strong>
+                                <p class="text-sm text-gray-400">Complex backend logic needed. Will strain the current matching engine. Needs caching layers (Redis) for real-time price updates.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="bg-orange-50 rounded-xl p-8 border border-orange-100">
+                    <h3 class="text-xl font-bold mb-4 text-orange-800">Recommendation Summary</h3>
+                    <div class="space-y-4">
+                        <div class="bg-white p-4 rounded-lg shadow-sm">
+                            <h4 class="font-bold text-gray-900">1. Immediate Priority: Safety</h4>
+                            <p class="text-sm text-gray-600">Implement <b>SOS/Panic Button</b> and <b>Insurance Coverage</b> info. Trust is the currency of the gig economy.</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-sm">
+                            <h4 class="font-bold text-gray-900">2. Operational Fix: Cancellations</h4>
+                            <p class="text-sm text-gray-600">Build a <b>Cancellation Policy Engine</b>. Without strict rules, revenue leakage and user frustration will occur.</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-sm">
+                            <h4 class="font-bold text-gray-900">3. Growth: Marketing Tools</h4>
+                            <p class="text-sm text-gray-600">Add <b>Promo Codes & Vouchers</b>. Referrals are good, but direct acquisition campaigns need coupon logic.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-12 py-8">
+        <div class="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
+            <p>&copy; 2026 JustInTime Analysis. Generated for Product Roadmap Planning.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- DATA ---
+        
+        // 1. Existing Features (From Source)
+        const existingFeatures = [
+            { title: "Hyperlocal Matching", category: "Core", desc: "Advanced location-based search.", status: "Existing" },
+            { title: "Real-time Messaging", category: "Core", desc: "Socket.io chat with file sharing.", status: "Existing" },
+            { title: "Identity Verification", category: "Core", desc: "Face detection and doc upload.", status: "Existing" },
+            { title: "Booking & Scheduling", category: "Core", desc: "Calendar management & recurring slots.", status: "Existing" },
+            { title: "Price Negotiation", category: "Core", desc: "Bidding system for fair terms.", status: "Existing" },
+            { title: "Secure Payments", category: "Core", desc: "IntaSend integration (M-Pesa/Cards).", status: "Existing" },
+            { title: "Integrated Wallet", category: "Financial", desc: "Deposit, withdraw, hold balance.", status: "Existing" },
+            { title: "Referral Program", category: "Financial", desc: "Invite & Earn system.", status: "Existing" },
+            { title: "Subscription Tiers", category: "Financial", desc: "Free, Pro, Business levels.", status: "Existing" },
+            { title: "Enhanced Security (2FA)", category: "Trust", desc: "Two-Factor Auth protection.", status: "Existing" },
+            { title: "Dispute Resolution", category: "Trust", desc: "Mediation system for conflicts.", status: "Existing" },
+            { title: "Reviews & Ratings", category: "Trust", desc: "Quality assurance system.", status: "Existing" },
+            { title: "AI Matching", category: "Smart", desc: "TensorFlow recommendations.", status: "Existing" },
+            { title: "Smart Analytics", category: "Smart", desc: "Dashboards for performance.", status: "Existing" },
+            { title: "Push Notifications", category: "Smart", desc: "Firebase Cloud Messaging.", status: "Existing" },
+            { title: "Community Blog", category: "Smart", desc: "Platform news and tips.", status: "Existing" },
+            { title: "Socket.io Server", category: "Smart", desc: "Real-time technical enabler.", status: "Existing" },
+            { title: "NextAuth.js", category: "Smart", desc: "Secure authentication.", status: "Existing" }
+        ];
+
+        // 2. Missing Features (Analysis)
+        const missingFeatures = [
+            { 
+                title: "SOS / Panic Button", 
+                category: "Trust", 
+                desc: "Emergency trigger sharing live location with trusted contacts/police. Critical for in-home services.", 
+                status: "Missing", 
+                impact: 95, effort: 40, urgency: "Critical" 
+            },
+            { 
+                title: "In-App Voice/Video Call", 
+                category: "Core", 
+                desc: "Privacy-preserving calls without sharing phone numbers (VoIP). Faster than chat.", 
+                status: "Missing", 
+                impact: 80, effort: 75, urgency: "High" 
+            },
+            { 
+                title: "Cancellation Policy Engine", 
+                category: "Operations", 
+                desc: "Automated refund rules (e.g., free cancel up to 24h, 50% charge after). Prevents time-wasting.", 
+                status: "Missing", 
+                impact: 85, effort: 50, urgency: "High" 
+            },
+            { 
+                title: "Promo Code Engine", 
+                category: "Financial", 
+                desc: "Admin tools to create discount vouchers (% off, fixed amount) for marketing campaigns.", 
+                status: "Missing", 
+                impact: 70, effort: 30, urgency: "Medium" 
+            },
+            { 
+                title: "Provider Background Checks", 
+                category: "Trust", 
+                desc: "Deep criminal record checks beyond just ID verification. Essential for 'Trust' tier.", 
+                status: "Missing", 
+                impact: 90, effort: 60, urgency: "Critical" 
+            },
+            { 
+                title: "Service Guarantee / Insurance", 
+                category: "Financial", 
+                desc: "Liability protection for damages during a job. Increases client conversion significantly.", 
+                status: "Missing", 
+                impact: 88, effort: 80, urgency: "Medium" 
+            },
+            { 
+                title: "Team/Agency Accounts", 
+                category: "Operations", 
+                desc: "Allowing a business to manage multiple service providers under one main account.", 
+                status: "Missing", 
+                impact: 60, effort: 90, urgency: "Low" 
+            },
+            { 
+                title: "Dynamic/Surge Pricing", 
+                category: "Financial", 
+                desc: "Algorithm increasing rates during high demand or bad weather.", 
+                status: "Missing", 
+                impact: 65, effort: 85, urgency: "Low" 
+            },
+            { 
+                title: "Multi-Language Support", 
+                category: "Core", 
+                desc: "Localization for diverse hyperlocal communities.", 
+                status: "Missing", 
+                impact: 75, effort: 55, urgency: "Medium" 
+            },
+             { 
+                title: "Offline Mode", 
+                category: "Smart", 
+                desc: "Basic functionality (view bookings) when connection drops.", 
+                status: "Missing", 
+                impact: 50, effort: 70, urgency: "Low" 
+            },
+            { 
+                title: "Gamification Badges", 
+                category: "Smart", 
+                desc: "Achievements beyond ratings (e.g., 'Super Fast', '100 Jobs').", 
+                status: "Missing", 
+                impact: 40, effort: 35, urgency: "Low" 
+            },
+             { 
+                title: "Admin Moderation Tools", 
+                category: "Operations", 
+                desc: "Back-office tools to ban users, manual refund, view logs. (Implied but not listed).", 
+                status: "Missing", 
+                impact: 99, effort: 60, urgency: "Critical" 
+            }
+        ];
+
+        const allFeatures = [...existingFeatures, ...missingFeatures];
+
+        // --- CHART INITIALIZATION ---
+
+        function initCharts() {
+            // 1. Maturity Radar Chart
+            const ctxRadar = document.getElementById('maturityRadar').getContext('2d');
+            new Chart(ctxRadar, {
+                type: 'radar',
+                data: {
+                    labels: ['Trust & Safety', 'Financial Depth', 'Technical Smarts', 'User Operations', 'Core Matching'],
+                    datasets: [{
+                        label: 'JustInTime (Current)',
+                        data: [70, 60, 85, 40, 90], // High tech/core, Low Ops/Financial
+                        fill: true,
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderColor: 'rgb(59, 130, 246)',
+                        pointBackgroundColor: 'rgb(59, 130, 246)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(59, 130, 246)'
+                    }, {
+                        label: 'Market Leader (Target)',
+                        data: [95, 90, 90, 90, 95],
+                        fill: true,
+                        backgroundColor: 'rgba(203, 213, 225, 0.2)',
+                        borderColor: 'rgb(203, 213, 225)',
+                        pointBackgroundColor: 'rgb(203, 213, 225)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(203, 213, 225)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { display: true },
+                            suggestedMin: 0,
+                            suggestedMax: 100
+                        }
+                    }
+                }
+            });
+
+            // 2. Gaps Doughnut
+            const gapCounts = missingFeatures.reduce((acc, curr) => {
+                acc[curr.category] = (acc[curr.category] || 0) + 1;
+                return acc;
+            }, {});
+            
+            const ctxDoughnut = document.getElementById('gapsDoughnut').getContext('2d');
+            new Chart(ctxDoughnut, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(gapCounts),
+                    datasets: [{
+                        data: Object.values(gapCounts),
+                        backgroundColor: [
+                            '#ef4444', // Trust (Red)
+                            '#f97316', // Core (Orange)
+                            '#eab308', // Ops (Yellow)
+                            '#22c55e', // Financial (Green)
+                            '#3b82f6', // Smart (Blue)
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right' }
+                    }
+                }
+            });
+
+            // 3. Prioritization Bubble Chart
+            const bubbleData = missingFeatures.map(f => ({
+                x: f.effort,
+                y: f.impact,
+                r: f.urgency === 'Critical' ? 15 : (f.urgency === 'High' ? 10 : 5),
+                feature: f.title,
+                category: f.category
+            }));
+
+            const ctxBubble = document.getElementById('prioritizationBubble').getContext('2d');
+            new Chart(ctxBubble, {
+                type: 'bubble',
+                data: {
+                    datasets: [{
+                        label: 'Missing Features (Size = Urgency)',
+                        data: bubbleData,
+                        backgroundColor: bubbleData.map(d => d.r > 12 ? 'rgba(239, 68, 68, 0.7)' : 'rgba(59, 130, 246, 0.6)'),
+                        borderColor: bubbleData.map(d => d.r > 12 ? '#ef4444' : '#3b82f6')
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Implementation Effort (Low -> High)' },
+                            min: 0, max: 100
+                        },
+                        y: {
+                            title: { display: true, text: 'Business Impact (Low -> High)' },
+                            min: 0, max: 100
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.raw.feature + ' (Impact: ' + context.raw.y + ')';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- DOM MANIPULATION ---
+
+        function renderFeatureCards(filter = 'all') {
+            const grid = document.getElementById('feature-grid');
+            grid.innerHTML = '';
+
+            const filtered = allFeatures.filter(f => {
+                if (filter === 'all') return true;
+                if (filter === 'Operations' && (f.category === 'Operations')) return true;
+                return f.category === filter;
+            });
+
+            filtered.forEach(feature => {
+                const isMissing = feature.status === 'Missing';
+                const borderColor = isMissing ? 'border-orange-200' : 'border-gray-200';
+                const bgColor = isMissing ? 'bg-orange-50' : 'bg-white';
+                const badgeClass = isMissing ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800';
+                const icon = isMissing ? '⚠' : '✓';
+
+                const card = document.createElement('div');
+                card.className = `${bgColor} border ${borderColor} rounded-xl p-5 shadow-sm card-hover flex flex-col`;
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}">
+                            ${icon} ${feature.status}
+                        </span>
+                        <span class="text-xs text-gray-400 font-mono">${feature.category}</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-2">${feature.title}</h3>
+                    <p class="text-sm text-gray-600 mb-4 flex-grow">${feature.desc}</p>
+                    ${isMissing ? `
+                        <div class="mt-2 pt-3 border-t border-orange-200 text-xs flex justify-between text-orange-700 font-medium">
+                            <span>Impact: ${feature.impact}/100</span>
+                            <span>Effort: ${feature.effort}/100</span>
+                        </div>
+                    ` : ''}
+                `;
+                
+                // Add click event for details (optional enhancement)
+                if(isMissing) {
+                    card.style.cursor = 'help';
+                    card.title = "Click to see tech implications";
+                    card.onclick = () => {
+                       // Scroll to tech implications
+                       document.getElementById('roadmap').scrollIntoView({behavior: 'smooth'});
+                    };
+                }
+
+                grid.appendChild(card);
+            });
+        }
+
+        function filterFeatures(category) {
+            // Update Tab UI
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('tab-active');
+                btn.classList.add('tab-inactive');
+            });
+            document.getElementById(`tab-${category}`).classList.add('tab-active');
+            document.getElementById(`tab-${category}`).classList.remove('tab-inactive');
+            
+            // Render
+            renderFeatureCards(category);
+        }
+
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = function() {
+            initCharts();
+            renderFeatureCards('all');
+        };
+
+    </script>
+</body>
+</html>

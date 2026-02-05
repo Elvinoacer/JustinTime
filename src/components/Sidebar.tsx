@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { motion } from 'framer-motion';
+import LanguageSwitcher from './common/LanguageSwitcher';
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: 'dashboard', description: 'Overview' },
@@ -11,9 +12,13 @@ const navItems = [
   { name: 'Analytics', href: '/dashboard/analytics', icon: 'bar_chart', description: 'Performance stats' },
   { name: 'Jobs', href: '/dashboard/jobs', icon: 'work', description: 'Job applications' },
   { name: 'Services', href: '/dashboard/services', icon: 'construction', description: 'Manage services' },
+  { name: 'Expenses', href: '/dashboard/expenses', icon: 'receipt_long', description: 'Receipts & Costs' },
   { name: 'Bookings', href: '/dashboard/bookings', icon: 'calendar_month', description: 'View bookings' },
   { name: 'Earnings', href: '/dashboard/earnings', icon: 'payments', description: 'Track income' },
   { name: 'Profile', href: '/dashboard/profile', icon: 'person', description: 'Edit profile' },
+  { name: 'Team', href: '/dashboard/team', icon: 'groups', description: 'Agency & Crew' },
+  { name: 'Surge Pricing', href: '/dashboard/surge-pricing-demo', icon: 'bolt', description: 'Dynamic Pricing' },
+  { name: 'Achievements', href: '/dashboard/achievements', icon: 'emoji_events', description: 'Badges & Points' },
   { name: 'Reviews', href: '/dashboard/reviews', icon: 'grade', description: 'Customer feedback' },
 ];
 
@@ -250,6 +255,11 @@ const Sidebar = ({ onClose, isCollapsed = false, toggleCollapse }: SidebarProps)
 
       {/* Fixed Footer - User Profile */}
       <div className="flex-shrink-0 border-t border-gray-700/50 p-4 bg-gray-900/50 backdrop-blur-sm">
+        {!isCollapsed && (
+          <div className="mb-4">
+             <LanguageSwitcher />
+          </div>
+        )}
         <div className={`flex items-center gap-3 mb-3 ${isCollapsed ? 'justify-center' : ''}`}>
           <div 
             className="relative bg-center bg-no-repeat bg-cover rounded-full size-11 ring-2 ring-emerald-500/30 flex-shrink-0 overflow-hidden"
