@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   Lock,
   LockOpen,
+  Gift,
 } from "lucide-react";
 
 interface UserAdminActionsProps {
@@ -44,6 +45,37 @@ export default function UserAdminActions({ user }: UserAdminActionsProps) {
     user.subscription?.plan || "FREE"
   );
   const [deleteReason, setDeleteReason] = useState("");
+  const [isWaiving, setIsWaiving] = useState(false);
+
+  const handleFeeWaiver = async () => {
+    const currentlyWaived = user.profile?.onboardingFeeWaived;
+    const action = currentlyWaived ? "revoke the fee waiver for" : "waive the onboarding fee for";
+    
+    if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+
+    setIsWaiving(true);
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}/waive-fee`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ waive: !currentlyWaived }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update waiver status");
+      }
+
+      toast.success(data.message);
+      router.refresh();
+    } catch (error: any) {
+      toast.error(error.message || "Something went wrong");
+    } finally {
+      setIsWaiving(false);
+      setShowMenu(false);
+    }
+  };
 
   const handleBanToggle = () => {
     if (
@@ -273,6 +305,53 @@ export default function UserAdminActions({ user }: UserAdminActionsProps) {
                   Send Password Reset
                 </span>
               </button>
+
+              {/* Fee Waiver - Only for Providers */}
+              {user.role === "PROVIDER" && (
+                <button
+                  onClick={handleFeeWaiver}
+                  disabled={isWaiving}
+                  className={`w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg flex items-center gap-2 sm:gap-3 text-sm font-medium text-slate-700 transition-all duration-200 group ${
+                    user.profile?.onboardingFeeWaived
+                      ? "hover:bg-gradient-to-r hover:from-amber-50 hover:to-amber-100"
+                      : "hover:bg-gradient-to-r hover:from-emerald-50 hover:to-emerald-100"
+                  }`}
+                >
+                  <div
+                    className={`p-1.5 sm:p-2 rounded-lg group-hover:scale-110 transition-all duration-200 ${
+                      user.profile?.onboardingFeeWaived
+                        ? "bg-amber-100 group-hover:bg-amber-500"
+                        : "bg-emerald-100 group-hover:bg-emerald-500"
+                    }`}
+                  >
+                    <Gift
+                      className={`w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:text-white ${
+                        user.profile?.onboardingFeeWaived
+                          ? "text-amber-600"
+                          : "text-emerald-600"
+                      }`}
+                    />
+                  </div>
+                  <span
+                    className={`text-xs sm:text-sm ${
+                      user.profile?.onboardingFeeWaived
+                        ? "group-hover:text-amber-700"
+                        : "group-hover:text-emerald-700"
+                    }`}
+                  >
+                    {isWaiving
+                      ? "Processing..."
+                      : user.profile?.onboardingFeeWaived
+                      ? "Revoke Fee Waiver"
+                      : "Waive Onboarding Fee"}
+                  </span>
+                  {user.profile?.onboardingFeeWaived && (
+                    <span className="ml-auto text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-semibold">
+                      Waived
+                    </span>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </>

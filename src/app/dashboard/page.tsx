@@ -171,7 +171,8 @@ const DashboardPage = () => {
   const showOnboardingModal = 
     isProvider && 
     profileData?.data && 
-    !profileData.data.hasPaidOnboardingFee;
+    !profileData.data.hasPaidOnboardingFee &&
+    !profileData.data.onboardingFeeWaived; // Skip modal if fee is waived by admin
 
   // Determine which jobs to display based on sort
   const jobs = sortBy === "recommended" ? recommendations : rawJobs;

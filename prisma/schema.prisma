@@ -207,6 +207,9 @@ model Profile {
   isVerified  Boolean  @default(false)
   verificationStatus String? @default("PENDING") // PENDING, VERIFIED, REJECTED
   hasPaidOnboardingFee Boolean @default(false) // Revenue Feature: Onboarding Fee
+  onboardingFeeWaived     Boolean   @default(false) // Admin can waive the fee
+  onboardingFeeWaivedBy   String?   // Admin user ID who approved waiver
+  onboardingFeeWaivedAt   DateTime? // When waiver was approved
   idDocument  String?  // URL to ID document
   location    String?
   latitude    Float?

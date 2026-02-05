@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
       hourlyRate: user.profile?.hourlyRate,
       isVerified: user.profile?.isVerified || false,
       hasPaidOnboardingFee: user.profile?.hasPaidOnboardingFee || false,
+      onboardingFeeWaived: user.profile?.onboardingFeeWaived || false,
       certifications: user.profile?.certifications || [],
       education: user.profile?.education || [],
       socialLinks: user.profile?.socialLinks || [],
