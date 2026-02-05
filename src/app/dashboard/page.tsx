@@ -14,9 +14,12 @@ import { toast } from "sonner";
 import NotificationPermissionOverlay from "@/components/NotificationPermissionOverlay";
 import { useProviderProfile } from "@/lib/api/hooks/useProvider";
 import { OnboardingFeeModal } from "@/components/revenue/OnboardingFeeModal";
+import { useSearchParams, useRouter } from "next/navigation";
 
 const DashboardPage = () => {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
 
   // Geolocation state
@@ -53,6 +56,20 @@ const DashboardPage = () => {
 
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  // Handle payment callback from Intasend
+  useEffect(() => {
+    const paymentStatus = searchParams.get("payment_status");
+    const paymentType = searchParams.get("payment_type");
+
+    if (paymentStatus === "success" && paymentType === "onboarding") {
+      toast.success("🎉 Payment successful! Your account is now activated.", {
+        duration: 5000,
+      });
+      // Clean up URL params
+      router.replace("/dashboard", { scroll: false });
+    }
+  }, [searchParams, router]);
 
   // Get user's location on mount
   useEffect(() => {

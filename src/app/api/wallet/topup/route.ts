@@ -1,5 +1,11 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
+import { 
+  getCollectionService, 
+  getBaseUrl, 
+  generateApiRef,
+  PAYMENT_AMOUNTS 
+} from "@/lib/intasend";
 
 export async function POST(req: Request) {
   try {
@@ -11,80 +17,53 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { amount } = body;
 
-    if (!amount || amount < 10) {
+    if (!amount || amount < PAYMENT_AMOUNTS.MIN_TOPUP) {
       return NextResponse.json(
-        { error: "Invalid amount. Minimum top-up is KES 10." },
+        { error: `Invalid amount. Minimum top-up is KES ${PAYMENT_AMOUNTS.MIN_TOPUP}.` },
         { status: 400 }
       );
     }
 
-    // IntaSend API configuration
-    const intasendPublishableKey = process.env.INTASEND_PUBLISHABLE_KEY;
-    const isTestMode = process.env.INTASEND_TEST_MODE === "true";
-
-    if (!intasendPublishableKey) {
-      console.error("IntaSend API keys not configured");
-      return NextResponse.json(
-        { error: "Payment system not configured" },
-        { status: 500 }
-      );
-    }
-
-    const apiUrl = isTestMode
-      ? "https://sandbox.intasend.com/api/v1/checkout/"
-      : "https://payment.intasend.com/api/v1/checkout/";
-
-    const apiRef = `TOPUP_${session.user.id}_${Date.now()}`;
-
-    const baseUrl = process.env.NEXTAUTH_URL || "https://justintimeservices.vercel.app";
-    const url = new URL("/client/wallet", baseUrl);
-    url.searchParams.append("payment_status", "success");
-    url.searchParams.append("ref", apiRef);
-    const redirect_url = url.toString();
+    // Generate API reference (alphanumeric + hyphens only)
+    const apiRef = generateApiRef("TOPUP", session.user.id);
     
-    console.log("Generated Redirect URL:", redirect_url); // Debug log
+    // Simple redirect URL without query params (IntaSend is strict about URL format)
+    const baseUrl = getBaseUrl();
+    const redirectUrl = `${baseUrl}/dashboard/wallet/topup-complete`;
+    
+    console.log("Initiating wallet topup:", {
+      apiRef,
+      redirectUrl,
+      amount,
+    });
 
-    const checkoutData = {
-      public_key: intasendPublishableKey,
-      amount: amount,
-      currency: "KES",
-      email: session.user.email,
+    // Use IntaSend SDK collection service
+    const collection = getCollectionService();
+    
+    // Create checkout session using SDK
+    const response = await collection.charge({
       first_name: session.user.name?.split(" ")[0] || "User",
       last_name: session.user.name?.split(" ").slice(1).join(" ") || "",
-      redirect_url: redirect_url,
+      email: session.user.email || "",
+      amount: amount,
+      currency: "KES",
       api_ref: apiRef,
-      meta: {
-        userId: session.user.id,
-        type: "wallet_topup",
-      },
-    };
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(checkoutData),
+      redirect_url: redirectUrl,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("IntaSend API error:", errorData);
-      return NextResponse.json(
-        { error: "Failed to create payment session" },
-        { status: 500 }
-      );
-    }
-
-    const checkoutSession = await response.json();
+    console.log("IntaSend topup checkout response:", response);
 
     return NextResponse.json({
-      checkoutUrl: checkoutSession.url,
-      sessionId: checkoutSession.id,
+      checkoutUrl: response.url,
+      sessionId: response.id,
       apiRef: apiRef,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[WALLET_TOPUP_INITIATE]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Failed to initiate topup" },
+      { status: 500 }
+    );
   }
 }
+

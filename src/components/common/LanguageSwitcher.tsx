@@ -1,23 +1,33 @@
 "use client";
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useLocale } from 'next-intl';
 import { Globe } from 'lucide-react';
+
+const SUPPORTED_LOCALES = ['en', 'sw', 'sheng'];
 
 export default function LanguageSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
-  const currentLocale = useLocale();
+  
+  // Extract locale from pathname (e.g., /en/dashboard -> 'en')
+  // If no locale in path or unsupported, default to 'en'
+  const pathSegments = pathname.split('/').filter(Boolean);
+  const currentLocale = SUPPORTED_LOCALES.includes(pathSegments[0]) 
+    ? pathSegments[0] 
+    : 'en';
 
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newLocale = e.target.value;
     
-    // Replace the current locale in the pathname with the new one
-    // e.g. /en/dashboard -> /sw/dashboard
-    const segments = pathname.split('/');
-    segments[1] = newLocale;
-    const newPath = segments.join('/');
-
+    // If current path has a locale prefix, replace it
+    if (SUPPORTED_LOCALES.includes(pathSegments[0])) {
+      pathSegments[0] = newLocale;
+    } else {
+      // If no locale prefix, add one at the beginning
+      pathSegments.unshift(newLocale);
+    }
+    
+    const newPath = '/' + pathSegments.join('/');
     router.push(newPath);
   };
 
@@ -36,3 +46,4 @@ export default function LanguageSwitcher() {
     </div>
   );
 }
+

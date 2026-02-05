@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Loader2, ShieldCheck, CheckCircle2, CreditCard, Smartphone } from "lucide-react";
 import { toast } from "sonner";
-import { payOnboardingFee } from "@/app/actions/revenue";
-import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface OnboardingFeeModalProps {
@@ -14,23 +12,35 @@ interface OnboardingFeeModalProps {
 
 export function OnboardingFeeModal({ isOpen, userName }: OnboardingFeeModalProps) {
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handlePayFee = async () => {
     setLoading(true);
     try {
-        const result = await payOnboardingFee();
-        if (result.success) {
-            toast.success("Onboarding fee paid successfully! Welcome aboard.");
-            router.refresh(); 
-            // The parent component should handle closing or the refresh will update the data causing the modal to disappear logic
-        } else {
-            toast.error(result.error || "Payment failed");
-        }
-    } catch (err) {
-        toast.error("Something went wrong");
-    } finally {
-        setLoading(false);
+      // Call API to initiate Intasend payment
+      const response = await fetch("/api/onboarding-fee/initiate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to initiate payment");
+      }
+
+      if (data.checkoutUrl) {
+        // Redirect to Intasend checkout page
+        toast.info("Redirecting to payment page...");
+        window.location.href = data.checkoutUrl;
+      } else {
+        throw new Error("No checkout URL received");
+      }
+    } catch (err: any) {
+      console.error("Payment initiation failed:", err);
+      toast.error(err.message || "Something went wrong. Please try again.");
+      setLoading(false);
     }
   };
 
@@ -79,22 +89,42 @@ export function OnboardingFeeModal({ isOpen, userName }: OnboardingFeeModalProps
                     </div>
                 </div>
 
-                <div className="bg-gray-50 py-3 rounded-lg mb-6 border border-gray-100">
+                <div className="bg-gray-50 py-3 rounded-lg mb-4 border border-gray-100">
                     <span className="text-sm text-gray-500">One-time Fee</span>
                     <div className="text-3xl font-bold text-emerald-700">KES 500</div>
+                </div>
+
+                {/* Payment methods indicator */}
+                <div className="flex items-center justify-center gap-4 mb-4 text-gray-500">
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <Smartphone className="h-4 w-4" />
+                    <span>M-Pesa</span>
+                  </div>
+                  <div className="w-px h-4 bg-gray-300" />
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <CreditCard className="h-4 w-4" />
+                    <span>Card</span>
+                  </div>
                 </div>
 
                 <button
                   onClick={handlePayFee}
                   disabled={loading}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-emerald-200 active:scale-[0.98] flex items-center justify-center gap-2"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-emerald-200 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {loading ? (
-                     <Loader2 className="h-5 w-5 animate-spin" />
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Processing...</span>
+                    </>
                   ) : (
                     "Pay & Activate Now"
                   )}
                 </button>
+
+                <p className="text-xs text-gray-400 mt-3">
+                  Secure payment powered by IntaSend
+                </p>
              </div>
           </div>
           <div className="h-6"></div>
@@ -103,3 +133,4 @@ export function OnboardingFeeModal({ isOpen, userName }: OnboardingFeeModalProps
     </AnimatePresence>
   );
 }
+
