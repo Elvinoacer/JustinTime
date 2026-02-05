@@ -12,15 +12,18 @@ export function useProviderStats() {
   });
 }
 // Provider Profile Hook
-export function useProviderProfile() {
+export function useProviderProfile(enabled: boolean = true) {
   return useQuery({
     queryKey: ['provider', 'profile'],
     queryFn: async () => {
       const response = await apiClient.get('/provider/profile');
       return response.data;
     },
+    enabled,
+    retry: false, // Don't retry on 401/403 errors
   });
 }
+
 
 // Update Provider Profile Hook
 export function useUpdateProviderProfile() {

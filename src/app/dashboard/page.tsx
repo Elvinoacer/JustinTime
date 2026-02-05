@@ -149,9 +149,10 @@ const DashboardPage = () => {
   });
 
   // Check onboarding fee status for Providers
-  const { data: profileData } = useProviderProfile();
+  const isProvider = session?.user?.role === "PROVIDER";
+  const { data: profileData } = useProviderProfile(isProvider);
   const showOnboardingModal = 
-    session?.user?.role === "PROVIDER" && 
+    isProvider && 
     profileData?.data && 
     !profileData.data.hasPaidOnboardingFee;
 
