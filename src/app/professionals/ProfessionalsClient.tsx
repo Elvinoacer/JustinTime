@@ -2,9 +2,10 @@
 
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import ProfessionalCard from "@/components/ProfessionalCard";
+import LocationPicker from "@/components/LocationPicker";
 import { useProfessionals } from "@/lib/api/hooks/useProfessionals";
 import { motion } from "framer-motion";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function ProfessionalsPage() {
@@ -15,6 +16,11 @@ export default function ProfessionalsPage() {
   const [sortBy, setSortBy] = useState("rating");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    address?: string;
+  } | null>(null);
 
   // Debounce search input
   useEffect(() => {
@@ -25,12 +31,21 @@ export default function ProfessionalsPage() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
+  // Auto-switch to distance sort when location is set
+  useEffect(() => {
+    if (userLocation && sortBy === "rating") {
+      setSortBy("distance");
+    }
+  }, [userLocation]);
+
   const { data, isLoading, error } = useProfessionals({
     search,
     minPrice,
     maxPrice,
     sortBy,
     verifiedOnly,
+    latitude: userLocation?.latitude,
+    longitude: userLocation?.longitude,
   });
 
   const professionals = data?.data || [];
@@ -38,26 +53,46 @@ export default function ProfessionalsPage() {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50/30">
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-500 text-white py-10 sm:py-12 md:py-16 px-3 xs:px-4">
-          <div className="max-w-7xl mx-auto mt-6 sm:mt-8 md:mt-10">
-            <motion.h1
-              className="text-2xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 sm:mb-3 md:mb-4"
+        <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 text-white py-12 sm:py-16 md:py-20 px-3 xs:px-4 relative overflow-hidden">
+          {/* Background Pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-white rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl" />
+          </div>
+          
+          <div className="max-w-7xl mx-auto relative z-10">
+            <motion.div
+              className="text-center"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              Find Top Professionals
-            </motion.h1>
-            <motion.p
-              className="text-base sm:text-lg md:text-xl text-emerald-100"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-            >
-              Connect with verified experts ready to help you succeed
-            </motion.p>
+              <h1 className="text-3xl xs:text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">
+                Find Top{" "}
+                <span className="text-emerald-200">Professionals</span>
+              </h1>
+              <p className="text-base sm:text-lg md:text-xl text-emerald-100 mb-6 sm:mb-8 max-w-2xl mx-auto">
+                Connect with verified experts ready to help you succeed
+              </p>
+              
+              {/* Location Picker - Prominent */}
+              <div className="flex justify-center">
+                <LocationPicker onLocationChange={setUserLocation} />
+              </div>
+
+              {userLocation && (
+                <motion.p
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 text-sm text-emerald-200 flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-base">location_on</span>
+                  Showing professionals near {userLocation.address || 'your location'}
+                </motion.p>
+              )}
+            </motion.div>
           </div>
         </div>
 
@@ -66,13 +101,13 @@ export default function ProfessionalsPage() {
           <div className="lg:hidden mb-4">
             <button
               onClick={() => setShowMobileFilters(!showMobileFilters)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors shadow-sm"
             >
               <span className="material-symbols-outlined text-lg">
                 filter_list
               </span>
               {showMobileFilters ? "Hide Filters" : "Show Filters"}
-              <span className="ml-auto px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+              <span className="ml-auto px-2 py-1 bg-emerald-100 text-emerald-700 text-xs rounded-full font-bold">
                 {professionals.length} found
               </span>
             </button>
@@ -88,10 +123,13 @@ export default function ProfessionalsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100 sticky top-24">
+              <div className="bg-white rounded-2xl shadow-lg p-5 sm:p-6 border border-gray-100 sticky top-24">
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-bold text-gray-900">Filters</h2>
+                    <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-emerald-600">tune</span>
+                      Filters
+                    </h2>
                     <button
                       onClick={() => setShowMobileFilters(false)}
                       className="lg:hidden p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -103,8 +141,8 @@ export default function ProfessionalsPage() {
                   </div>
 
                   {/* Search */}
-                  <div className="mb-4">
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                  <div className="mb-5">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Search
                     </label>
                     <div className="relative">
@@ -113,31 +151,28 @@ export default function ProfessionalsPage() {
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
                         placeholder="Name, skills..."
-                        className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900"
+                        className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900"
                       />
-                      <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">
                         search
                       </span>
                       {searchInput && searchInput !== search && (
-                        <span className="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-500 animate-spin text-sm">
+                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 animate-spin text-lg">
                           progress_activity
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Try searching by skills
-                    </p>
                   </div>
 
                   {/* Price Range - Two Columns */}
-                  <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="grid grid-cols-2 gap-3 mb-5">
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         Min Price
                       </label>
                       <div className="relative">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
-                          Kes
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-medium">
+                          KES
                         </span>
                         <input
                           type="number"
@@ -150,18 +185,18 @@ export default function ProfessionalsPage() {
                             )
                           }
                           placeholder="0"
-                          className="w-full pl-12 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900"
+                          className="w-full pl-12 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         Max Price
                       </label>
                       <div className="relative">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
-                          Kes
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-medium">
+                          KES
                         </span>
                         <input
                           type="number"
@@ -174,38 +209,50 @@ export default function ProfessionalsPage() {
                             )
                           }
                           placeholder="10000"
-                          className="w-full pl-12 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900"
+                          className="w-full pl-12 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Sort By */}
-                  <div className="mb-6">
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5">
+                  <div className="mb-5">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Sort By
                     </label>
                     <div className="space-y-1.5">
                       {[
-                        { value: "rating", label: "Highest Rated" },
-                        { value: "price_asc", label: "Price: Low to High" },
-                        { value: "price_desc", label: "Price: High to Low" },
-                        { value: "newest", label: "Newest First" },
+                        { value: "rating", label: "Highest Rated", icon: "star" },
+                        { value: "distance", label: "Nearest First", icon: "near_me", disabled: !userLocation },
+                        { value: "price_asc", label: "Price: Low to High", icon: "trending_up" },
+                        { value: "price_desc", label: "Price: High to Low", icon: "trending_down" },
+                        { value: "newest", label: "Newest First", icon: "schedule" },
                       ].map((option) => (
                         <button
                           key={option.value}
                           onClick={() => setSortBy(option.value)}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
+                          disabled={option.disabled}
+                          className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left transition-colors ${
                             sortBy === option.value
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                              ? "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 border border-emerald-200"
+                              : option.disabled
+                              ? "text-gray-300 cursor-not-allowed"
                               : "text-gray-600 hover:bg-gray-50"
                           }`}
                         >
-                          <span className="text-xs sm:text-sm">
+                          <span className={`material-symbols-outlined text-sm ${
+                            sortBy === option.value ? "text-emerald-600" : ""
+                          }`}>
+                            {option.icon}
+                          </span>
+                          <span className="text-sm font-medium">
                             {option.label}
                           </span>
+                          {option.disabled && (
+                            <span className="ml-auto text-xs text-gray-400">Set location</span>
+                          )}
                           {sortBy === option.value && (
-                            <span className="material-symbols-outlined text-emerald-600 text-sm">
+                            <span className="material-symbols-outlined text-emerald-600 text-sm ml-auto">
                               check_circle
                             </span>
                           )}
@@ -215,16 +262,16 @@ export default function ProfessionalsPage() {
                   </div>
 
                   {/* Verified Toggle */}
-                  <div className="flex items-center justify-between p-3 bg-gradient-to-r from-emerald-50 to-green-50 rounded-lg border border-emerald-200">
-                    <div className="flex items-center gap-2.5">
-                      <span className="material-symbols-outlined text-emerald-600 text-lg">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-200">
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-emerald-600 text-xl">
                         verified
                       </span>
                       <div className="min-w-0">
-                        <p className="font-semibold text-gray-900 text-xs sm:text-sm truncate">
+                        <p className="font-semibold text-gray-900 text-sm">
                           Verified Only
                         </p>
-                        <p className="text-gray-600 text-xs truncate">
+                        <p className="text-gray-600 text-xs">
                           Show verified profiles
                         </p>
                       </div>
@@ -241,7 +288,7 @@ export default function ProfessionalsPage() {
                       }
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${
                           verifiedOnly ? "translate-x-6" : "translate-x-1"
                         }`}
                       />
@@ -257,7 +304,7 @@ export default function ProfessionalsPage() {
                       setSortBy("rating");
                       setVerifiedOnly(false);
                     }}
-                    className="w-full mt-4 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                    className="w-full mt-4 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-medium text-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
                   >
                     <span className="material-symbols-outlined text-sm">
                       refresh
@@ -271,7 +318,7 @@ export default function ProfessionalsPage() {
             {/* Main Content Area */}
             <div className="lg:col-span-3">
               {/* Results Count and Sort - Desktop */}
-              <div className="hidden lg:flex items-center justify-between mb-4">
+              <div className="hidden lg:flex items-center justify-between mb-6 bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
                 <p className="text-gray-600 text-sm">
                   Showing{" "}
                   <span className="font-bold text-gray-900">
@@ -284,6 +331,12 @@ export default function ProfessionalsPage() {
                       (verified only)
                     </span>
                   )}
+                  {userLocation && (
+                    <span className="text-emerald-600">
+                      {" "}
+                      near you
+                    </span>
+                  )}
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="text-gray-600 text-sm">Sort:</span>
@@ -293,6 +346,9 @@ export default function ProfessionalsPage() {
                     className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900 bg-white"
                   >
                     <option value="rating">Highest Rated</option>
+                    <option value="distance" disabled={!userLocation}>
+                      {userLocation ? "Nearest First" : "Nearest First (set location)"}
+                    </option>
                     <option value="price_asc">Price: Low to High</option>
                     <option value="price_desc">Price: High to Low</option>
                     <option value="newest">Newest First</option>
@@ -302,9 +358,9 @@ export default function ProfessionalsPage() {
 
               {/* Loading State */}
               {isLoading && (
-                <div className="flex flex-col items-center justify-center py-10 sm:py-16 md:py-20">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 border-3 sm:border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-4" />
-                  <p className="text-gray-600 text-sm sm:text-base">
+                <div className="flex flex-col items-center justify-center py-16 md:py-20">
+                  <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-4" />
+                  <p className="text-gray-600 text-base">
                     Loading professionals...
                   </p>
                 </div>
@@ -312,14 +368,14 @@ export default function ProfessionalsPage() {
 
               {/* Error State */}
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-6 sm:p-8 text-center">
-                  <span className="material-symbols-outlined text-red-500 text-3xl sm:text-4xl md:text-5xl mb-3 sm:mb-4">
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+                  <span className="material-symbols-outlined text-red-500 text-5xl mb-4">
                     error
                   </span>
-                  <p className="text-red-700 font-medium text-sm sm:text-base">
+                  <p className="text-red-700 font-medium text-base">
                     Failed to load professionals
                   </p>
-                  <p className="text-red-600 text-xs sm:text-sm mt-1 sm:mt-2">
+                  <p className="text-red-600 text-sm mt-2">
                     Please try again later
                   </p>
                   <button
@@ -333,14 +389,16 @@ export default function ProfessionalsPage() {
 
               {/* No Results */}
               {!isLoading && !error && professionals.length === 0 && (
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 sm:p-8 md:p-12 text-center">
-                  <span className="material-symbols-outlined text-gray-400 text-4xl sm:text-5xl md:text-6xl mb-3 sm:mb-4">
-                    search_off
-                  </span>
-                  <p className="text-gray-600 font-medium text-base sm:text-lg">
+                <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center shadow-sm">
+                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="material-symbols-outlined text-gray-400 text-4xl">
+                      search_off
+                    </span>
+                  </div>
+                  <p className="text-gray-900 font-semibold text-lg">
                     No professionals found
                   </p>
-                  <p className="text-gray-500 text-sm mt-1 sm:mt-2 max-w-md mx-auto">
+                  <p className="text-gray-500 text-sm mt-2 max-w-md mx-auto">
                     Try adjusting your filters or search terms to find what
                     you're looking for
                   </p>
@@ -352,7 +410,7 @@ export default function ProfessionalsPage() {
                 <>
                   {/* Results Count - Mobile */}
                   <div className="lg:hidden mb-4">
-                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
                       <p className="text-gray-600 text-sm">
                         <span className="font-bold text-gray-900">
                           {professionals.length}
@@ -367,6 +425,7 @@ export default function ProfessionalsPage() {
                           className="px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-gray-900 bg-white"
                         >
                           <option value="rating">Top Rated</option>
+                          <option value="distance" disabled={!userLocation}>Nearest</option>
                           <option value="price_asc">Price ↑</option>
                           <option value="price_desc">Price ↓</option>
                           <option value="newest">Newest</option>
@@ -377,174 +436,11 @@ export default function ProfessionalsPage() {
 
                   <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                     {professionals.map((professional, index) => (
-                      <motion.div
+                      <ProfessionalCard
                         key={professional.id}
-                        className="bg-white rounded-lg sm:rounded-xl hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.4, delay: index * 0.03 }}
-                        whileHover={{ y: -2 }}
-                      >
-                        {/* Card Header with Image */}
-                        <div className="relative">
-                          {professional.image ? (
-                            <div className="h-32 sm:h-40 overflow-hidden">
-                              <img
-                                src={professional.image}
-                                alt={professional.name}
-                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                              />
-                            </div>
-                          ) : (
-                            <div className="h-32 sm:h-40 bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
-                              <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-2xl">
-                                {professional.name.charAt(0)}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Verified/PRO Badge */}
-                          {(professional.verified || (["PRO", "BUSINESS"].includes(professional.subscription?.plan) && professional.subscription?.isActive === true)) && (
-                            <div className="absolute top-3 right-3">
-                              <div className="bg-white rounded-full p-1 shadow-md">
-                                <span
-                                  className={`material-symbols-outlined text-sm ${
-                                    ["PRO", "BUSINESS"].includes(
-                                      professional.subscription?.plan
-                                    ) && professional.subscription?.isActive === true
-                                      ? "text-amber-600"
-                                      : "text-emerald-600"
-                                  }`}
-                                >
-                                  verified
-                                </span>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Price Badge */}
-                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
-                            <div className="flex items-center justify-between">
-                              <div className="text-white">
-                                <p className="text-xs opacity-90">
-                                  Starting at
-                                </p>
-                                <p className="font-bold text-base sm:text-lg">
-                                  Kes {professional.hourlyRate.toLocaleString()}
-                                  <span className="text-xs font-normal">
-                                    /hr
-                                  </span>
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Card Body */}
-                        <div className="p-3 sm:p-4 flex-1 flex flex-col">
-                          {/* Name & Title */}
-                          <div className="mb-2">
-                            <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate mb-0.5">
-                              {professional.name}
-                            </h3>
-                            <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 min-h-[2.5em]">
-                              {professional.title}
-                            </p>
-                          </div>
-
-                          {/* Rating */}
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <div className="flex items-center">
-                              {[...Array(5)].map((_, i) => (
-                                <span
-                                  key={i}
-                                  className="material-symbols-outlined text-xs sm:text-sm"
-                                  style={{
-                                    color:
-                                      i < Math.floor(professional.rating)
-                                        ? "#F59E0B"
-                                        : "#E5E7EB",
-                                  }}
-                                >
-                                  {i < professional.rating
-                                    ? i === Math.floor(professional.rating) &&
-                                      professional.rating % 1 >= 0.5
-                                      ? "star_half"
-                                      : "star"
-                                    : "star"}
-                                </span>
-                              ))}
-                            </div>
-                            <span className="text-gray-900 font-semibold text-xs sm:text-sm">
-                              {professional.rating.toFixed(1)}
-                            </span>
-                            <span className="text-gray-500 text-xs">
-                              ({professional.reviews})
-                            </span>
-                          </div>
-
-                          {/* Location */}
-                          {professional.location && (
-                            <div className="flex items-center gap-1 text-gray-600 text-xs sm:text-sm mb-3">
-                              <span className="material-symbols-outlined text-xs">
-                                location_on
-                              </span>
-                              <span className="truncate">
-                                {professional.location}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Skills */}
-                          {professional.skills.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mb-3">
-                              {professional.skills
-                                .slice(0, 2)
-                                .map((skill, idx) => (
-                                  <span
-                                    key={idx}
-                                    className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs"
-                                  >
-                                    {skill}
-                                  </span>
-                                ))}
-                              {professional.skills.length > 2 && (
-                                <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs">
-                                  +{professional.skills.length - 2}
-                                </span>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Stats */}
-                          <div className="flex items-center justify-between text-xs text-gray-600 mb-4 pt-3 border-t border-gray-100">
-                            <div className="flex items-center gap-1">
-                              <span className="material-symbols-outlined text-xs">
-                                work
-                              </span>
-                              <span>{professional.completedJobs} jobs</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <span className="material-symbols-outlined text-xs">
-                                schedule
-                              </span>
-                              <span>
-                                {new Date(
-                                  professional.memberSince
-                                ).getFullYear()}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Action Button */}
-                          <Link
-                            href={`/professionals/${professional.id}`}
-                            className="block w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-2 sm:py-2.5 px-4 rounded-lg font-medium text-sm text-center hover:from-emerald-600 hover:to-green-700 transition-all duration-300 active:scale-[0.98] shadow-sm"
-                          >
-                            View Profile
-                          </Link>
-                        </div>
-                      </motion.div>
+                        professional={professional}
+                        index={index}
+                      />
                     ))}
                   </div>
                 </>

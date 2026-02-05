@@ -13,6 +13,12 @@ export interface Professional {
   reviews: number;
   completedJobs: number;
   memberSince: string;
+  verified?: boolean;
+  distance?: number;
+  subscription?: {
+    plan: string;
+    isActive: boolean;
+  };
 }
 
 interface UseProfessionalsParams {
@@ -21,6 +27,8 @@ interface UseProfessionalsParams {
   maxPrice?: number;
   sortBy?: string;
   verifiedOnly?: boolean;
+  latitude?: number;
+  longitude?: number;
 }
 
 export const useProfessionals = (params?: UseProfessionalsParams) => {
@@ -30,6 +38,8 @@ export const useProfessionals = (params?: UseProfessionalsParams) => {
   if (params?.maxPrice) queryParams.append("maxPrice", params.maxPrice.toString());
   if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
   if (params?.verifiedOnly) queryParams.append("verifiedOnly", "true");
+  if (params?.latitude) queryParams.append("latitude", params.latitude.toString());
+  if (params?.longitude) queryParams.append("longitude", params.longitude.toString());
 
   return useQuery<{ data: Professional[] }>({
     queryKey: ["professionals", params],
