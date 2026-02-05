@@ -68,8 +68,10 @@ export async function getSolarVertical() {
           where: { isVerified: true },
           include: {
             user: {
-              select: { id: true, name: true, image: true },
-              include: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
                 profile: { select: { location: true, hourlyRate: true } }
               }
             }
