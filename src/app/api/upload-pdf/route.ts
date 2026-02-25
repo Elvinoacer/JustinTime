@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { uploadFile, deleteFile } from '@/lib/s3';
+import { uploadBlob, deleteBlob } from '@/lib/blob';
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File size must be less than 10MB' }, { status: 400 });
     }
 
-    // Upload to DO Spaces
+    // Upload to Vercel Blob
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const fileName = `certifications/${session.user.id}/${timestamp}-${safeName}`;
 
-    const url = await uploadFile(buffer, fileName, file.type);
+    const url = await uploadBlob(buffer, fileName, file.type);
 
     return NextResponse.json({
       url,
@@ -69,8 +69,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'No URL provided' }, { status: 400 });
     }
 
-    // Delete from DO Spaces
-    await deleteFile(url);
+    // Delete from Vercel Blob
+    await deleteBlob(url);
 
     return NextResponse.json({ success: true });
   } catch (error) {

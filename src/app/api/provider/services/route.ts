@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import { z } from "zod";
-import { deleteFile } from "@/lib/s3";
+import { uploadFile, deleteFile } from '@/lib/cloudinary';
 
 // Schema for service creation/update
 const serviceSchema = z.object({
