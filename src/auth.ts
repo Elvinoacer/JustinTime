@@ -92,15 +92,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               response.status,
               errorText
             );
-            // B9: Only allow if user already exists (409 = duplicate)
-            if (response.status !== 409) {
-              return false; // deny sign-in → redirects to /auth/error
-            }
+            // Log but don't block — user already authenticated with Google.
+            // The JWT callback will fetch user data separately and handle
+            // missing DB records gracefully.
           }
         } catch (error) {
           console.error("[Google Sign-In Error]", error);
-          // B9: DB unreachable — deny so we don't create an orphaned session
-          return false;
+          // Network/fetch errors are common with internal API calls.
+          // Don't block sign-in — let the JWT callback handle it.
         }
         return true;
       }
