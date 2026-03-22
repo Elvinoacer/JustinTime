@@ -2,6 +2,9 @@
 
 import Sidebar from "@/components/Sidebar";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
+import { useProviderProfile } from "@/lib/api/hooks/useProvider";
+import { OnboardingFeeModal } from "@/components/revenue/OnboardingFeeModal";
 
 export default function DashboardLayoutClient({
   children,
@@ -10,6 +13,17 @@ export default function DashboardLayoutClient({
 }) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
+  
+  const { data: session } = useSession();
+
+  // Check onboarding fee status for Providers
+  const isProvider = session?.user?.role === "PROVIDER";
+  const { data: profileData } = useProviderProfile(isProvider);
+  const showOnboardingModal = 
+    isProvider && 
+    profileData?.data && 
+    !profileData.data.hasPaidOnboardingFee &&
+    !profileData.data.onboardingFeeWaived; // Skip modal if fee is waived by admin
 
   return (
     <>
@@ -74,6 +88,12 @@ export default function DashboardLayoutClient({
           </div>
         </main>
       </div>
+      
+      {/* Onboarding Fee Modal (Blocking for Providers) */}
+      <OnboardingFeeModal 
+        isOpen={!!showOnboardingModal} 
+        userName={session?.user?.name?.split(" ")[0] || "Provider"} 
+      />
     </>
   );
 }

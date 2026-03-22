@@ -12,8 +12,6 @@ import JobSort from "@/components/dashboard/JobSort";
 import Link from "next/link";
 import { toast } from "sonner";
 import NotificationPermissionOverlay from "@/components/NotificationPermissionOverlay";
-import { useProviderProfile } from "@/lib/api/hooks/useProvider";
-import { OnboardingFeeModal } from "@/components/revenue/OnboardingFeeModal";
 import { useSearchParams, useRouter } from "next/navigation";
 
 const DashboardPage = () => {
@@ -164,15 +162,6 @@ const DashboardPage = () => {
     skills: [],
     bio: "",
   });
-
-  // Check onboarding fee status for Providers
-  const isProvider = session?.user?.role === "PROVIDER";
-  const { data: profileData } = useProviderProfile(isProvider);
-  const showOnboardingModal = 
-    isProvider && 
-    profileData?.data && 
-    !profileData.data.hasPaidOnboardingFee &&
-    !profileData.data.onboardingFeeWaived; // Skip modal if fee is waived by admin
 
   // Determine which jobs to display based on sort
   const jobs = sortBy === "recommended" ? recommendations : rawJobs;
@@ -482,12 +471,6 @@ const DashboardPage = () => {
       </div>
 
       <NotificationPermissionOverlay />
-      
-      {/* Onboarding Fee Modal (Blocking for Providers) */}
-      <OnboardingFeeModal 
-        isOpen={!!showOnboardingModal} 
-        userName={session?.user?.name?.split(" ")[0] || "Provider"} 
-      />
     </div>
   );
 };
