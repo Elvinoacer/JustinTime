@@ -211,7 +211,7 @@ const Footer = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Email Us</p>
-                  <p className="text-xs break-all">support@justintime.co.ke</p>
+                  <p className="text-xs break-all">support@gtss.software</p>
                 </div>
               </div>
             </div>

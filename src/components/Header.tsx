@@ -34,6 +34,7 @@ const Header = () => {
   const { data: session, status } = useSession();
 
   const isAuthenticated = status === "authenticated";
+  const isLandingPage = pathname === "/";
   const isLoading = status === "loading";
 
   const navItems = [
@@ -101,9 +102,13 @@ const Header = () => {
     <>
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled
-            ? "bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-200/50"
-            : "bg-white border-b border-gray-200"
+          isLandingPage
+            ? isScrolled
+              ? "bg-[#0a1a15]/90 backdrop-blur-xl border-b border-white/[0.06]"
+              : "bg-transparent"
+            : isScrolled
+              ? "bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-200/50"
+              : "bg-white border-b border-gray-200"
         }`}
       >
         <div className="px-3 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3">
@@ -116,7 +121,7 @@ const Header = () => {
                   alt="JustInTime Logo"
                   className="h-6 sm:h-8 w-auto"
                 />
-                <h2 className="text-gray-900 text-base sm:text-xl font-bold leading-tight">
+                <h2 className={`text-base sm:text-xl font-bold leading-tight ${isLandingPage ? "text-white" : "text-gray-900"}`}>
                   JustInTime
                 </h2>
               </Link>
@@ -130,8 +135,12 @@ const Header = () => {
                   href={item.href}
                   className={`text-sm font-medium px-3 py-2 rounded-lg transition-colors duration-300 relative group ${
                     pathname === item.href
-                      ? "text-emerald-600 bg-emerald-50"
-                      : "text-gray-600 hover:text-emerald-600 hover:bg-gray-50"
+                      ? isLandingPage
+                        ? "text-emerald-400"
+                        : "text-emerald-600 bg-emerald-50"
+                      : isLandingPage
+                        ? "text-gray-300 hover:text-white"
+                        : "text-gray-600 hover:text-emerald-600 hover:bg-gray-50"
                   }`}
                 >
                   {item.name}
@@ -151,11 +160,11 @@ const Header = () => {
               {/* Mobile Search Button */}
               <button
                 onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
-                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className={`lg:hidden p-2 rounded-lg transition-colors ${isLandingPage ? "hover:bg-white/10" : "hover:bg-gray-100"}`}
                 aria-label="Search"
               >
                 <svg
-                  className="w-5 h-5 text-gray-600"
+                  className={`w-5 h-5 ${isLandingPage ? "text-gray-300" : "text-gray-600"}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -181,7 +190,7 @@ const Header = () => {
                     className="lg:hidden relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
                     aria-label="Notifications"
                   >
-                    <Bell className="w-5 h-5 text-gray-600" />
+                    <Bell className={`w-5 h-5 ${isLandingPage ? "text-gray-300" : "text-gray-600"}`} />
                     <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                   </button>
 
@@ -306,7 +315,7 @@ const Header = () => {
                   <div className="hidden lg:flex items-center gap-2 sm:gap-3">
                     <motion.button
                       onClick={() => signIn()}
-                      className="px-3 sm:px-4 py-2 text-emerald-600 font-semibold hover:bg-emerald-50 rounded-lg transition-colors text-sm"
+                      className={`px-3 sm:px-4 py-2 font-semibold rounded-lg transition-colors text-sm ${isLandingPage ? "text-gray-300 hover:text-white hover:bg-white/10" : "text-emerald-600 hover:bg-emerald-50"}`}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -314,21 +323,21 @@ const Header = () => {
                     </motion.button>
                     <motion.button
                       onClick={() => signIn()}
-                      className="px-3 sm:px-4 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-sm"
+                      className={`px-3 sm:px-4 py-2 font-semibold rounded-full transition-colors text-sm ${isLandingPage ? "bg-emerald-500 text-white hover:bg-emerald-400" : "bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg shadow-sm"}`}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      Get Started
+                      {isLandingPage ? "Log In / Sign Up" : "Get Started"}
                     </motion.button>
                   </div>
 
                   {/* Mobile Menu Button for Unauthenticated */}
                   <button
                     onClick={() => setIsMenuOpen(true)}
-                    className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                    className={`lg:hidden p-2 rounded-lg transition-colors ${isLandingPage ? "hover:bg-white/10" : "hover:bg-gray-100"}`}
                     aria-label="Open menu"
                   >
-                    <Menu className="w-5 h-5 text-gray-700" />
+                    <Menu className={`w-5 h-5 ${isLandingPage ? "text-gray-300" : "text-gray-700"}`} />
                   </button>
                 </>
               )}

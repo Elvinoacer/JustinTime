@@ -1,72 +1,56 @@
 "use client";
 import { motion } from "framer-motion";
-import { benefits } from "@/lib/dummyData/benefits";
-import {
-  Shield,
-  Clock,
-  Award,
-  DollarSign,
-  ThumbsUp,
-  Headphones,
-} from "lucide-react";
+import { Shield, Clock, CreditCard, Umbrella, Headphones, ThumbsUp } from "lucide-react";
 
-// Map icon names to actual components
-const iconComponents: { [key: string]: React.ComponentType<any> } = {
-  shield: Shield,
-  schedule: Clock,
-  workspace_premium: Award,
-  payments: DollarSign,
-  thumb_up: ThumbsUp,
-  support_agent: Headphones,
-};
+const benefits = [
+  { title: "Verified Professionals", description: "Every pro is background-checked and vetted before joining.", icon: Shield },
+  { title: "Instant Booking", description: "Book a professional in minutes. No phone calls, no waiting.", icon: Clock },
+  { title: "M-Pesa Payments", description: "Pay securely with M-Pesa or card. No cash needed.", icon: CreditCard },
+  { title: "Happiness Guarantee", description: "Not satisfied? We'll make it right or refund your payment.", icon: Umbrella },
+  { title: "24/7 Support", description: "Our support team is always available to assist you.", icon: Headphones },
+  { title: "Top-Rated Quality", description: "98% satisfaction rate. Exceptional service every time.", icon: ThumbsUp },
+];
 
 const Benefits = () => {
   return (
-    <section className="py-8 sm:py-12 md:py-16 lg:py-20 px-3 xs:px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl sm:rounded-2xl md:rounded-3xl mx-3 xs:mx-4 sm:mx-6 lg:mx-auto">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-8 sm:mb-12 md:mb-16">
-          <motion.h2
-            className="text-xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 tracking-tight leading-tight"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true, margin: "-50px" }}
-          >
-            Why Choose Us?
-          </motion.h2>
-          <motion.p
-            className="text-sm xs:text-base sm:text-lg md:text-xl text-gray-600 mt-2 sm:mt-3 max-w-2xl md:max-w-3xl mx-auto px-2 leading-relaxed"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            viewport={{ once: true, margin: "-50px" }}
-          >
-            Discover the advantages of using our platform
-          </motion.p>
-        </div>
+    <section className="py-16 sm:py-20 md:py-24 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <motion.div
+          className="mb-10 sm:mb-12"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          viewport={{ once: true, margin: "-50px" }}
+        >
+          <p className="text-emerald-400 text-xs font-semibold tracking-widest uppercase mb-2">
+            Why Us
+          </p>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+            Why Kenyans Trust JustInTime
+          </h2>
+        </motion.div>
 
-        <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+        {/* Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {benefits.map((benefit, index) => {
-            const IconComponent = iconComponents[benefit.icon] || Shield;
+            const Icon = benefit.icon;
             return (
               <motion.div
                 key={index}
-                className="flex flex-col items-center text-center p-4 sm:p-5 md:p-6 bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-emerald-100"
-                initial={{ opacity: 0, y: 30 }}
+                className="group backdrop-blur-sm bg-white/[0.04] border border-white/[0.08] rounded-2xl p-5 sm:p-6 hover:bg-white/[0.07] hover:border-emerald-500/20 transition-all duration-500"
+                initial={{ opacity: 0, y: 25 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
+                transition={{ duration: 0.4, delay: index * 0.06 }}
                 viewport={{ once: true, margin: "-50px" }}
-                whileHover={{ y: -2 }}
               >
-                <div className="flex items-center justify-center bg-gradient-to-br from-emerald-400 to-green-500 text-white rounded-full h-14 w-14 xs:h-16 xs:w-16 sm:h-18 sm:w-18 md:h-20 md:w-20 mb-4 sm:mb-5 shadow-sm sm:shadow-md">
-                  <IconComponent className="h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8" />
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4 group-hover:bg-emerald-500/15 transition-colors">
+                  <Icon className="w-5 h-5 text-emerald-400" />
                 </div>
-
-                <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-800 mb-2 sm:mb-3 leading-tight">
+                <h3 className="text-white text-base sm:text-lg font-semibold mb-1.5">
                   {benefit.title}
                 </h3>
-
-                <p className="text-xs sm:text-sm md:text-base text-gray-600 leading-relaxed max-w-xs sm:max-w-sm mx-auto px-1">
+                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed">
                   {benefit.description}
                 </p>
               </motion.div>
