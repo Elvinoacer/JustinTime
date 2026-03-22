@@ -322,12 +322,12 @@ const Header = () => {
                       Sign In
                     </motion.button>
                     <motion.button
-                      onClick={() => signIn()}
+                      onClick={() => router.push("/auth/signup")}
                       className={`px-3 sm:px-4 py-2 font-semibold rounded-full transition-colors text-sm ${isLandingPage ? "bg-emerald-500 text-white hover:bg-emerald-400" : "bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg shadow-sm"}`}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      {isLandingPage ? "Log In / Sign Up" : "Get Started"}
+                      {isLandingPage ? "Sign Up" : "Get Started"}
                     </motion.button>
                   </div>
 
@@ -550,12 +550,12 @@ const Header = () => {
                       Sign In
                     </motion.button>
                     <motion.button
-                      onClick={() => signIn()}
+                      onClick={() => router.push("/auth/signup")}
                       className="flex w-full items-center justify-center px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-sm"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      Get Started
+                      {isLandingPage ? "Sign Up" : "Get Started"}
                     </motion.button>
                   </>
                 )}

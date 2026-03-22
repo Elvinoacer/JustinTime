@@ -82,7 +82,19 @@ function LoginPageContent() {
         } else {
           toast.success("Successfully logged in!");
           // B5: Smart redirect based on user role
-          if (callbackUrl) {
+          let shouldSmartRedirect = !callbackUrl;
+          try {
+            if (callbackUrl) {
+              const url = new URL(callbackUrl, window.location.origin);
+              if (url.pathname === "/") {
+                shouldSmartRedirect = true;
+              }
+            }
+          } catch (e) {
+            shouldSmartRedirect = true;
+          }
+
+          if (!shouldSmartRedirect) {
             router.push(callbackUrl);
           } else {
             const session = await getSession();
@@ -128,7 +140,19 @@ function LoginPageContent() {
           } else {
             toast.success("Successfully logged in!");
             // B5: Smart redirect based on user role
-            if (callbackUrl) {
+            let shouldSmartRedirect = !callbackUrl;
+            try {
+              if (callbackUrl) {
+                const url = new URL(callbackUrl, window.location.origin);
+                if (url.pathname === "/") {
+                  shouldSmartRedirect = true;
+                }
+              }
+            } catch (e) {
+              shouldSmartRedirect = true;
+            }
+
+            if (!shouldSmartRedirect) {
               router.push(callbackUrl);
             } else {
               const session = await getSession();
