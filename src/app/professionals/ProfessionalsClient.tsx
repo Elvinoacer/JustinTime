@@ -304,7 +304,6 @@ export default function ProfessionalsPage() {
             </div>
           </div>
         </div>
-      </div>
       
       <Footer />
 
