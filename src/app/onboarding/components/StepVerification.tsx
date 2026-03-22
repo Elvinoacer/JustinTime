@@ -429,14 +429,23 @@ export default function StepVerification({
               </div>
               {/* Match bar */}
               <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${faceMatchScore}%` }}
-                  transition={{ duration: 0.8, ease: "easeOut" }}
-                  className={`h-full rounded-full ${
-                    faceMatchScore >= 28 ? "bg-emerald-500" : "bg-red-500"
-                  }`}
-                />
+                {(() => {
+                  // NEW4 Fix: Remap score so threshold (28) = 50% width
+                  const displayWidth = faceMatchScore >= 28
+                    ? 50 + ((faceMatchScore - 28) / (100 - 28)) * 50
+                    : (faceMatchScore / 28) * 50;
+                    
+                  return (
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${displayWidth}%` }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                      className={`h-full rounded-full ${
+                        faceMatchScore >= 28 ? "bg-emerald-500" : "bg-red-500"
+                      }`}
+                    />
+                  );
+                })()}
               </div>
               <p className="text-xs mt-1.5 text-gray-600">
                 Match accuracy: <span className="font-bold">

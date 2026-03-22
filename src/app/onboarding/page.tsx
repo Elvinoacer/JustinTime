@@ -57,9 +57,6 @@ export default function OnboardingPage() {
   });
   const [clientInterests, setClientInterests] = useState<string[]>([]);
 
-  // Verification result (set by StepVerification)
-  const [verificationResult, setVerificationResult] =
-    useState<VerificationResult | null>(null);
 
   // Fetch categories from database
   const { data: categoriesData = [], isLoading: isLoadingCategories } =
@@ -81,12 +78,19 @@ export default function OnboardingPage() {
         return; // Stay on onboarding page for upgrade
       }
 
+      // NEW1 Fix: Don't redirect if we just completed onboarding — let the 
+      // success screen show and the setTimeout handle the navigation
+      const isOnSuccessStep =
+        (selectedRole === "CLIENT" && currentStep === 3) ||
+        (selectedRole === "PROVIDER" && currentStep === 4);
+      if (isOnSuccessStep) return;
+
       const role = session.user.role;
       const redirectPath =
         role === "PROVIDER" ? "/dashboard" : "/client/dashboard";
       router.push(redirectPath);
     }
-  }, [session, router]);
+  }, [session, router, currentStep, selectedRole]);
 
   // Phone number formatter for Kenyan numbers
   const formatPhoneNumber = useCallback((input: string): string => {
@@ -144,6 +148,7 @@ export default function OnboardingPage() {
   // Client: Step 2 → Submit
   const handleClientSubmit = async () => {
     setIsLoading(true);
+    let succeeded = false;
     try {
       const payload = {
         role: "CLIENT" as Role,
@@ -168,6 +173,7 @@ export default function OnboardingPage() {
       });
 
       // Show success step
+      succeeded = true;
       setIsLoading(false);
       setCurrentStep(3);
       router.refresh(); // Flush cache and re-read session cookie
@@ -182,7 +188,7 @@ export default function OnboardingPage() {
         "Onboarding failed. Please try again.";
       toast.error(errorMessage);
     } finally {
-      setIsLoading(false);
+      if (!succeeded) setIsLoading(false);
       setSubmitStage("");
     }
   };
@@ -194,8 +200,8 @@ export default function OnboardingPage() {
 
   // Provider: Step 3 → Submit
   const handleVerificationComplete = async (result: VerificationResult) => {
-    setVerificationResult(result);
     setIsLoading(true);
+    let succeeded = false;
 
     try {
       let idDocumentUrl = null;
@@ -248,6 +254,7 @@ export default function OnboardingPage() {
         },
       });
 
+      succeeded = true;
       setIsLoading(false);
       setCurrentStep(4); // Success step
       router.refresh(); // Flush cache and re-read session cookie
@@ -262,7 +269,7 @@ export default function OnboardingPage() {
         "Onboarding failed. Please try again.";
       toast.error(errorMessage);
     } finally {
-      setIsLoading(false);
+      if (!succeeded) setIsLoading(false);
       setSubmitStage("");
     }
   };

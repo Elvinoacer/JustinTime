@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -24,63 +24,43 @@ function VerifyEmailContent() {
   );
   const [message, setMessage] = useState("Verifying your email address...");
 
-  useEffect(() => {
+  const verifyEmail = useCallback(async () => {
     if (!token) {
       setStatus("error");
       setMessage("Missing verification token.");
       return;
     }
 
-    const verifyEmail = async () => {
-      try {
-        const response = await fetch(`/api/auth/verify-email?token=${token}`);
-        const data = await response.json();
+    try {
+      const response = await fetch(`/api/auth/verify-email?token=${token}`);
+      const data = await response.json();
 
-        if (response.ok) {
-          setStatus("success");
-          setMessage("Your email has been successfully verified!");
-          // B7: Auto-redirect to login after 2 seconds
-          setTimeout(() => {
-            router.push("/auth/login?verified=true");
-          }, 2000);
-        } else {
-          setStatus("error");
-          setMessage(data.error || "Failed to verify email.");
-        }
-      } catch (error) {
+      if (response.ok) {
+        setStatus("success");
+        setMessage("Your email has been successfully verified!");
+        // B7: Auto-redirect to login after 2 seconds
+        setTimeout(() => {
+          router.push("/auth/login?verified=true");
+        }, 2000);
+      } else {
         setStatus("error");
-        setMessage("An unexpected error occurred. Please try again.");
+        setMessage(data.error || "Failed to verify email.");
       }
-    };
-
-    verifyEmail();
+    } catch (error) {
+      setStatus("error");
+      setMessage("An unexpected error occurred. Please try again.");
+    }
   }, [token, router]);
+
+  useEffect(() => {
+    verifyEmail();
+  }, [verifyEmail]);
 
   const handleRetry = () => {
     setStatus("loading");
     setMessage("Retrying verification...");
     setTimeout(() => {
-      if (token) {
-        const retryVerification = async () => {
-          try {
-            const response = await fetch(
-              `/api/auth/verify-email?token=${token}`
-            );
-            const data = await response.json();
-            if (response.ok) {
-              setStatus("success");
-              setMessage("Your email has been successfully verified!");
-            } else {
-              setStatus("error");
-              setMessage(data.error || "Failed to verify email.");
-            }
-          } catch (error) {
-            setStatus("error");
-            setMessage("An unexpected error occurred. Please try again.");
-          }
-        };
-        retryVerification();
-      }
+      verifyEmail();
     }, 1000);
   };
 
