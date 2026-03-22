@@ -152,24 +152,22 @@ export default function LocationPicker({
       {/* Location Button - Responsive */}
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-medium transition-all ${
-          currentLocation
-            ? "bg-gradient-to-r from-emerald-100 to-emerald-50 text-emerald-700 border-2 border-emerald-300 shadow-sm"
-            : "bg-white text-gray-700 border-2 border-gray-200 hover:border-emerald-300 hover:shadow-sm"
-        } ${isOpen ? "border-emerald-500 shadow-md" : ""}`}
+        className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border-2 border-emerald-200 text-emerald-700 rounded-xl font-semibold hover:bg-emerald-100 hover:border-emerald-400 transition-all whitespace-nowrap text-sm min-w-[160px]"
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         aria-label={currentLocation ? "Change location" : "Set location"}
       >
-        <span className="material-symbols-outlined text-lg sm:text-xl">
-          {currentLocation ? "location_on" : "location_off"}
+        <span className="material-symbols-outlined text-emerald-600">
+          my_location
         </span>
-        <span className="hidden sm:inline whitespace-nowrap">
-          {currentLocation ? "Location Set" : "Set Location"}
-        </span>
-        <span className="inline sm:hidden text-xs font-medium">
-          {currentLocation ? "✓ Set" : "Location"}
-        </span>
+        {currentLocation ? (
+          <span className="truncate max-w-[120px]">{currentLocation.address || 'Location Set'}</span>
+        ) : (
+          <span>Set my location</span>
+        )}
+        {currentLocation && (
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+        )}
       </motion.button>
 
       {/* Mobile Full-screen Overlay */}

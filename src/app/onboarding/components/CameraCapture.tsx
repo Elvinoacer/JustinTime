@@ -15,11 +15,22 @@ export default function CameraCapture({
   guideType = "oval",
 }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let active = true;
+    let cancelled = false;
+
+    const stopStream = () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+    };
+
+    // Stop any existing stream before starting a new one
+    stopStream();
+
     navigator.mediaDevices
       .getUserMedia({
         video: {
@@ -29,11 +40,11 @@ export default function CameraCapture({
         },
       })
       .then((s) => {
-        if (!active) {
+        if (cancelled) {
           s.getTracks().forEach((t) => t.stop());
           return;
         }
-        setStream(s);
+        streamRef.current = s;
         if (videoRef.current) videoRef.current.srcObject = s;
       })
       .catch(() => {
@@ -41,18 +52,10 @@ export default function CameraCapture({
       });
 
     return () => {
-      active = false;
-      stream?.getTracks().forEach((t) => t.stop());
+      cancelled = true;
+      stopStream();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facingMode]);
-
-  // Cleanup stream on unmount
-  useEffect(() => {
-    return () => {
-      stream?.getTracks().forEach((t) => t.stop());
-    };
-  }, [stream]);
 
   const capture = useCallback(() => {
     if (!videoRef.current) return;
@@ -66,14 +69,17 @@ export default function CameraCapture({
       (blob) => {
         if (blob) {
           // Stop stream before calling onCapture
-          stream?.getTracks().forEach((t) => t.stop());
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach((t) => t.stop());
+            streamRef.current = null;
+          }
           onCapture(blob);
         }
       },
       "image/jpeg",
       0.92
     );
-  }, [onCapture, stream]);
+  }, [onCapture]);
 
   if (error) {
     return (
@@ -132,7 +138,10 @@ export default function CameraCapture({
         </button>
         <button
           onClick={() => {
-            stream?.getTracks().forEach((t) => t.stop());
+            if (streamRef.current) {
+              streamRef.current.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+              streamRef.current = null;
+            }
             onClose();
           }}
           className="px-6 py-3 bg-white/10 text-white rounded-xl font-bold hover:bg-white/20 transition-colors border border-white/20"

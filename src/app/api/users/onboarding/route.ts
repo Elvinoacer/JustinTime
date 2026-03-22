@@ -23,12 +23,35 @@ export const POST = auth(async (req) => {
       phone,
       hourlyRate,
       address,
-      // New verification fields
       faceMatchScore,
       idDocumentType,
       locationSource,
       locationAccuracy,
     } = body;
+
+    // B12 Fix: Robust validation
+    if (!["CLIENT", "PROVIDER"].includes(role)) {
+      return NextResponse.json({ message: "Invalid role" }, { status: 400 });
+    }
+
+    if (role === "PROVIDER") {
+      if (!skills?.length) {
+        return NextResponse.json({ message: "At least one skill is required" }, { status: 400 });
+      }
+      if (!bio?.trim()) {
+        return NextResponse.json({ message: "Professional bio is required" }, { status: 400 });
+      }
+      if (!phone) {
+        return NextResponse.json({ message: "Phone number is required" }, { status: 400 });
+      }
+      if (hourlyRate !== undefined && (isNaN(Number(hourlyRate)) || Number(hourlyRate) < 0)) {
+        return NextResponse.json({ message: "Invalid hourly rate" }, { status: 400 });
+      }
+    } else if (role === "CLIENT") {
+      if (!phone) {
+        return NextResponse.json({ message: "Phone number is required" }, { status: 400 });
+      }
+    }
 
     // Update user with common fields
     const updatedUser = await prisma.user.update({

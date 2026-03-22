@@ -12,6 +12,7 @@ interface StepVerificationProps {
   onBack: () => void;
   onNext: (data: VerificationResult) => void;
   isSubmitting: boolean;
+  submitStage?: string;
 }
 
 export interface VerificationResult {
@@ -27,6 +28,7 @@ export default function StepVerification({
   onBack,
   onNext,
   isSubmitting,
+  submitStage,
 }: StepVerificationProps) {
   // Models
   const [modelsLoaded, setModelsLoaded] = useState(false);
@@ -421,8 +423,8 @@ export default function StepVerification({
                 </span>
                 <span className="text-sm font-bold text-gray-800">
                   {verificationStatus === "VERIFIED"
-                    ? "Faces Match!"
-                    : "Faces Don't Match"}
+                    ? "Identity Verified"
+                    : "Verification Failed"}
                 </span>
               </div>
               {/* Match bar */}
@@ -437,14 +439,19 @@ export default function StepVerification({
                 />
               </div>
               <p className="text-xs mt-1.5 text-gray-600">
-                Match score: <span className="font-bold">{faceMatchScore.toFixed(0)}%</span>
-                {faceMatchScore >= 28 ? " ✓ Above threshold" : " ✗ Below threshold"}
+                Match accuracy: <span className="font-bold">
+                  {faceMatchScore >= 60 ? "Excellent" 
+                    : faceMatchScore >= 45 ? "Good" 
+                    : faceMatchScore >= 28 ? "Acceptable" 
+                    : "Mismatch detected"}
+                </span>
+                {faceMatchScore >= 28 ? " ✓ Verified" : " ✗ Below threshold"}
               </p>
             </motion.div>
           )}
 
           {/* Verification Status */}
-          {verificationMessage && !faceMatchScore && (
+          {verificationMessage && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -518,8 +525,8 @@ export default function StepVerification({
             {isSubmitting ? (
               <>
                 <span className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span className="hidden sm:inline">Finishing...</span>
-                <span className="inline sm:hidden">Finishing</span>
+                <span className="hidden sm:inline">{submitStage || "Finishing..."}</span>
+                <span className="inline sm:hidden">{submitStage ? "Processing" : "Finishing"}</span>
               </>
             ) : (
               <>

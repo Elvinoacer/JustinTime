@@ -1,4 +1,4 @@
-import { useQuery, UseQueryResult } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, UseQueryResult } from "@tanstack/react-query";
 import apiClient from "../client";
 import { queryKeys } from "../queryKeys";
 
@@ -119,6 +119,20 @@ export function useServices(
   return useQuery({
     queryKey: queryKeys.services.list(filters),
     queryFn: () => fetchServices(filters),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+// Infinite Hook to fetch services
+export function useServicesInfinite(filters: ServicesFilters = {}) {
+  return useInfiniteQuery({
+    queryKey: [...queryKeys.services.list(filters), 'infinite'],
+    queryFn: async ({ pageParam = 1 }) => fetchServices({ ...filters, page: pageParam as number, limit: 12 }),
+    getNextPageParam: (lastPage: ServicesResponse) => {
+      const { page, totalPages } = lastPage.pagination;
+      return page < totalPages ? page + 1 : undefined;
+    },
+    initialPageParam: 1,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

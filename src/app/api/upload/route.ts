@@ -12,6 +12,7 @@ export const POST = auth(async (request) => {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
+    const folder = (formData.get('folder') as string) || 'uploads';
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -23,7 +24,11 @@ export const POST = auth(async (request) => {
     // Generate a unique filename
     const timestamp = Date.now();
     const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const fileName = `messages/${session.user.id}/${timestamp}-${safeName}`;
+    
+    // B2 Fix: Use safe folder prefix
+    const allowedFolders = ['messages', 'identity', 'services', 'avatars', 'uploads'];
+    const safeFolder = allowedFolders.includes(folder) ? folder : 'uploads';
+    const fileName = `${safeFolder}/${session.user.id}/${timestamp}-${safeName}`;
 
     let url;
     url = await uploadFile(buffer, fileName, file.type);

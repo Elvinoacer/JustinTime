@@ -34,6 +34,7 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [submitStage, setSubmitStage] = useState<string>("");
 
   // Provider Form Data
   const [providerData, setProviderData] = useState({
@@ -101,16 +102,28 @@ export default function OnboardingPage() {
   }, []);
 
   // File upload helper
-  const uploadFile = async (file: File): Promise<string> => {
+  const uploadFile = async (file: File, folder: string = 'uploads'): Promise<string> => {
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("folder", folder);
+
     const res = await fetch("/api/upload", { 
       method: "POST", 
       body: formData,
       credentials: "include" 
     });
-    if (!res.ok) throw new Error("Upload failed");
+
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try {
+        const errBody = await res.json();
+        detail = errBody?.error || errBody?.message || detail;
+      } catch {}
+      throw new Error(`Upload failed: ${detail}`);
+    }
+
     const data = await res.json();
+    if (!data.url) throw new Error("Upload succeeded but no URL returned.");
     return data.url;
   };
 
@@ -143,29 +156,34 @@ export default function OnboardingPage() {
         clientInterests,
       };
 
+      setSubmitStage("Saving your profile...");
       await apiClient.post("/users/onboarding", payload);
 
+      setSubmitStage("Finalizing your account...");
       await update({
-        ...session,
         user: {
-          ...session?.user,
           role: "CLIENT",
           onboardingCompleted: true,
         },
       });
 
       // Show success step
-      setCurrentStep(selectedRole === "CLIENT" ? 3 : 4);
-      setTimeout(() => router.push("/client/dashboard"), 2000);
+      setIsLoading(false);
+      setCurrentStep(3);
+      router.refresh(); // Flush cache and re-read session cookie
+      setTimeout(() => router.push("/client/dashboard"), 1800);
     } catch (error: any) {
       console.error("Onboarding failed:", error);
+      
+      // B3 Fix: Handle reshaped apiClient errors and raw Errors
       const errorMessage =
         error?.message ||
-        error?.response?.data?.message ||
+        error?.data?.message ||
         "Onboarding failed. Please try again.";
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
+      setSubmitStage("");
     }
   };
 
@@ -185,17 +203,19 @@ export default function OnboardingPage() {
 
       // Upload ID Document
       if (result.idFile) {
-        idDocumentUrl = await uploadFile(result.idFile);
+        setSubmitStage("Uploading ID document...");
+        idDocumentUrl = await uploadFile(result.idFile, "identity");
       }
 
       // Upload Selfie (also used as avatar)
       if (result.croppedSelfieBlob || result.selfieFile) {
+        setSubmitStage("Uploading profile photo...");
         const fileToUpload = result.croppedSelfieBlob
           ? new File([result.croppedSelfieBlob], "avatar.jpg", {
               type: "image/jpeg",
             })
           : result.selfieFile;
-        selfieUrl = await uploadFile(fileToUpload!);
+        selfieUrl = await uploadFile(fileToUpload!, "avatars");
       }
 
       const payload = {
@@ -217,28 +237,33 @@ export default function OnboardingPage() {
         idDocumentType: result.idDocumentType,
       };
 
+      setSubmitStage("Saving your profile...");
       await apiClient.post("/users/onboarding", payload);
 
+      setSubmitStage("Finalizing your account...");
       await update({
-        ...session,
         user: {
-          ...session?.user,
           role: "PROVIDER",
           onboardingCompleted: true,
         },
       });
 
+      setIsLoading(false);
       setCurrentStep(4); // Success step
-      setTimeout(() => router.push("/dashboard"), 2000);
+      router.refresh(); // Flush cache and re-read session cookie
+      setTimeout(() => router.push("/dashboard"), 1800);
     } catch (error: any) {
       console.error("Onboarding failed:", error);
+      
+      // B3 Fix: Handle reshaped apiClient errors and raw Errors
       const errorMessage =
         error?.message ||
-        error?.response?.data?.message ||
+        error?.data?.message ||
         "Onboarding failed. Please try again.";
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
+      setSubmitStage("");
     }
   };
 
@@ -289,6 +314,7 @@ export default function OnboardingPage() {
             onBack={() => setCurrentStep(2)}
             onNext={handleVerificationComplete}
             isSubmitting={isLoading}
+            submitStage={submitStage}
           />
         )}
 

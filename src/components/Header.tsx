@@ -22,6 +22,7 @@ import {
   Phone,
   Calendar,
   LayoutDashboard,
+  Wrench,
 } from "lucide-react";
 
 const Header = () => {
@@ -39,7 +40,7 @@ const Header = () => {
 
   const navItems = [
     { name: "Home", href: "/", icon: Home },
-    { name: "Services", href: "/services", icon: Briefcase },
+    { name: "Services", href: "/services", icon: Wrench },
     { name: "Jobs", href: "/jobs", icon: Briefcase },
     { name: "Professionals", href: "/professionals", icon: Users },
     { name: "About", href: "/about", icon: Info },
@@ -312,23 +313,17 @@ const Header = () => {
               ) : (
                 <>
                   {/* Desktop Unauthenticated Actions */}
-                  <div className="hidden lg:flex items-center gap-2 sm:gap-3">
-                    <motion.button
-                      onClick={() => signIn()}
-                      className={`px-3 sm:px-4 py-2 font-semibold rounded-lg transition-colors text-sm ${isLandingPage ? "text-gray-300 hover:text-white hover:bg-white/10" : "text-emerald-600 hover:bg-emerald-50"}`}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
+                  <div className="hidden lg:flex items-center gap-2">
+                    <Link href="/auth/login"
+                      className={`px-4 py-2 text-sm font-semibold transition-colors ${
+                        isLandingPage ? "text-gray-100 hover:text-white" : "text-gray-700 hover:text-emerald-600"
+                      }`}>
                       Sign In
-                    </motion.button>
-                    <motion.button
-                      onClick={() => router.push("/auth/signup")}
-                      className={`px-3 sm:px-4 py-2 font-semibold rounded-full transition-colors text-sm ${isLandingPage ? "bg-emerald-500 text-white hover:bg-emerald-400" : "bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg shadow-sm"}`}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      {isLandingPage ? "Sign Up" : "Get Started"}
-                    </motion.button>
+                    </Link>
+                    <Link href="/auth/signup"
+                      className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-all">
+                      Get Started →
+                    </Link>
                   </div>
 
                   {/* Mobile Menu Button for Unauthenticated */}
@@ -516,9 +511,9 @@ const Header = () => {
               </nav>
 
               {/* Footer Actions */}
-              <div className="p-4 border-t border-gray-200 space-y-3">
+              <div className="p-4 border-t border-gray-200">
                 {isAuthenticated ? (
-                  <>
+                  <div className="space-y-3">
                     <motion.button
                       onClick={handlePostService}
                       className="flex w-full items-center justify-center gap-2 px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-sm"
@@ -538,26 +533,16 @@ const Header = () => {
                       <LogOut className="w-5 h-5" />
                       Sign Out
                     </button>
-                  </>
+                  </div>
                 ) : (
-                  <>
-                    <motion.button
-                      onClick={() => signIn()}
-                      className="flex w-full items-center justify-center px-6 py-3 border-2 border-emerald-600 text-emerald-600 font-semibold rounded-lg hover:bg-emerald-50 transition-colors text-sm"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
+                  <div className="space-y-2">
+                    <Link href="/auth/signup" onClick={() => setIsMenuOpen(false)} className="block w-full px-4 py-3 bg-emerald-600 text-white rounded-xl text-center font-bold">
+                      Get Started
+                    </Link>
+                    <Link href="/auth/login" onClick={() => setIsMenuOpen(false)} className="block w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-xl text-center font-semibold">
                       Sign In
-                    </motion.button>
-                    <motion.button
-                      onClick={() => router.push("/auth/signup")}
-                      className="flex w-full items-center justify-center px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-sm"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      {isLandingPage ? "Sign Up" : "Get Started"}
-                    </motion.button>
-                  </>
+                    </Link>
+                  </div>
                 )}
               </div>
             </motion.div>

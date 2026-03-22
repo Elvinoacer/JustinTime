@@ -68,7 +68,7 @@ const JoinAsPro = () => {
 
             {/* CTA */}
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/provider/onboarding">
+              <Link href="/auth/signup?callbackUrl=/provider/onboarding">
                 <motion.button
                   className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white text-sm font-semibold rounded-xl hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20 group"
                   whileHover={{ scale: 1.02 }}

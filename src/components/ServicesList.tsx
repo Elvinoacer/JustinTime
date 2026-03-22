@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
 import ServiceCard from "./ServiceCard";
-import { useServices, ServicesFilters } from "@/lib/api/hooks/useServices";
+import { useServicesInfinite, ServicesFilters } from "@/lib/api/hooks/useServices";
 import { useState } from "react";
+import InfiniteScrollSentinel from "@/components/shared/InfiniteScrollSentinel";
 
 interface ServicesListProps {
   filters: ServicesFilters;
@@ -15,7 +16,15 @@ const ServicesList = ({
   onSortChange,
 }: ServicesListProps) => {
   // Fetch services from API
-  const { data, isLoading, isError, error } = useServices(filters);
+  const { 
+    data, 
+    isLoading, 
+    isError, 
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useServicesInfinite(filters);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   // Handle sort change
@@ -76,8 +85,8 @@ const ServicesList = ({
     );
   }
 
-  const services = data?.services || [];
-  const pagination = data?.pagination;
+  const services = data?.pages.flatMap((page: any) => page.services) || [];
+  const pagination = data?.pages[0]?.pagination;
 
   // Empty State
   if (services.length === 0) {
@@ -151,43 +160,6 @@ const ServicesList = ({
             Sort:
           </span>
 
-          {/* Mobile Sort Dropdown */}
-          <div className="relative md:hidden">
-            <button
-              onClick={() => setShowSortDropdown(!showSortDropdown)}
-              className="flex items-center gap-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <span className="material-symbols-outlined text-sm">sort</span>
-              <span className="truncate max-w-[100px]">{currentSortLabel}</span>
-              <span className="material-symbols-outlined text-sm">
-                {showSortDropdown ? "expand_less" : "expand_more"}
-              </span>
-            </button>
-
-            {showSortDropdown && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1"
-              >
-                {sortOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => handleSortChange(option.label)}
-                    className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors ${
-                      filters.sort === option.value
-                        ? "text-emerald-600 bg-emerald-50"
-                        : "text-gray-700"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </div>
-
           {/* Desktop Sort Select */}
           <div className="hidden md:block">
             <select
@@ -260,113 +232,26 @@ const ServicesList = ({
         ))}
       </div>
 
-      {/* Load More Button */}
-      {pagination && pagination.page < pagination.totalPages && (
-        <div className="mt-8 sm:mt-12 md:mt-16 flex justify-center">
-          <motion.button
-            onClick={() => onPageChange((pagination.page || 1) + 1)}
-            className="group flex items-center gap-2 sm:gap-3 px-6 sm:px-8 py-3 sm:py-4 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl sm:rounded-2xl hover:bg-gradient-to-r hover:from-emerald-500 hover:to-green-600 hover:text-white hover:border-transparent transition-all duration-300 shadow-sm hover:shadow-lg active:scale-[0.98] text-sm sm:text-base"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <span>Load More Services</span>
-            <motion.span
-              className="material-symbols-outlined text-sm sm:text-base"
-              animate={{ y: [0, 2, 0] }}
-              transition={{
-                repeat: Infinity,
-                duration: 1.5,
-                ease: "easeInOut",
-              }}
-            >
-              expand_more
-            </motion.span>
-          </motion.button>
+      {/* Load More via Infinite Scroll Sentinel */}
+      <InfiniteScrollSentinel
+        hasNextPage={!!hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        fetchNextPage={fetchNextPage}
+      >
+        <div className="flex items-center gap-2 text-emerald-600 font-medium">
+          <motion.div
+            className="w-5 h-5 border-2 border-emerald-200 border-t-emerald-600 rounded-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
+          Loading more services...
         </div>
-      )}
+      </InfiniteScrollSentinel>
 
-      {/* Pagination Info */}
-      {pagination && (
-        <div className="mt-6 sm:mt-8 text-center">
-          <p className="text-xs sm:text-sm text-gray-500">
-            Page{" "}
-            <span className="font-medium text-gray-700">{pagination.page}</span>{" "}
-            of{" "}
-            <span className="font-medium text-gray-700">
-              {pagination.totalPages}
-            </span>
-          </p>
-
-          {/* Pagination Controls - Mobile */}
-          {pagination.totalPages > 1 && (
-            <div className="mt-4 flex items-center justify-center gap-2">
-              <button
-                onClick={() =>
-                  onPageChange(Math.max(1, (pagination.page || 1) - 1))
-                }
-                disabled={pagination.page === 1}
-                className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-              >
-                <span className="material-symbols-outlined text-sm">
-                  chevron_left
-                </span>
-                Prev
-              </button>
-
-              <div className="flex items-center gap-1">
-                {Array.from(
-                  { length: Math.min(3, pagination.totalPages) },
-                  (_, i) => {
-                    const pageNum = i + 1;
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => onPageChange(pageNum)}
-                        className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
-                          pagination.page === pageNum
-                            ? "bg-emerald-600 text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  }
-                )}
-
-                {pagination.totalPages > 3 && (
-                  <>
-                    <span className="text-gray-400">...</span>
-                    <button
-                      onClick={() => onPageChange(pagination.totalPages)}
-                      className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
-                        pagination.page === pagination.totalPages
-                          ? "bg-emerald-600 text-white"
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      }`}
-                    >
-                      {pagination.totalPages}
-                    </button>
-                  </>
-                )}
-              </div>
-
-              <button
-                onClick={() =>
-                  onPageChange(
-                    Math.min(pagination.totalPages, (pagination.page || 1) + 1)
-                  )
-                }
-                disabled={pagination.page === pagination.totalPages}
-                className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-              >
-                Next
-                <span className="material-symbols-outlined text-sm">
-                  chevron_right
-                </span>
-              </button>
-            </div>
-          )}
+      {/* End of list message */}
+      {!hasNextPage && services.length > 0 && (
+        <div className="mt-8 text-center text-gray-500 text-sm">
+          You've seen all available services
         </div>
       )}
 

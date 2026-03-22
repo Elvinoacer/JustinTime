@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
     const maxPrice = searchParams.get("maxPrice") ? Number(searchParams.get("maxPrice")) : undefined;
     const sortBy = searchParams.get("sortBy") || "rating";
     const verifiedOnly = searchParams.get("verifiedOnly") === "true";
+    const page = Number(searchParams.get("page")) || 1;
+    const limit = Number(searchParams.get("limit")) || 12;
 
     // Build filter conditions (no search filter in Prisma - we'll filter in JS)
     const where: any = {
@@ -100,7 +102,7 @@ export async function GET(request: NextRequest) {
       filteredProviders = formattedProviders.filter((provider) => {
         // Check if search term matches name or bio (already filtered by Prisma)
         const matchesNameOrBio = 
-          provider.name.toLowerCase().includes(search.toLowerCase()) ||
+          (provider.name || "").toLowerCase().includes(search.toLowerCase()) ||
           (provider.bio?.toLowerCase().includes(search.toLowerCase()) ?? false);
         
         // Check if search term matches any skill (case-insensitive)
@@ -143,10 +145,20 @@ export async function GET(request: NextRequest) {
       return 0;
     });
 
-    // Limit final results
-    const limitedResults = sortedProviders.slice(0, 50);
+    // Pagination
+    const total = sortedProviders.length;
+    const totalPages = Math.ceil(total / limit);
+    const paginatedResults = sortedProviders.slice((page - 1) * limit, page * limit);
 
-    return successResponse(limitedResults);
+    return successResponse({
+      data: paginatedResults,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      }
+    });
   } catch (error) {
     return handleError(error);
   }
