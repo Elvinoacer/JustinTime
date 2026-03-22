@@ -3,7 +3,8 @@ import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from "ax
 // Create axios instance with default config
 const apiClient: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "/api",
-  timeout: 10000,
+  timeout: 30000,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
@@ -50,11 +51,10 @@ apiClient.interceptors.response.use(
       
       switch (status) {
         case 401:
-          // Unauthorized - clear token and redirect to login
-          if (typeof window !== "undefined") {
-            localStorage.removeItem("auth_token");
-            window.location.href = "/auth/login";
-          }
+          // Unauthorized - next-auth will handle session invalidation. 
+          // Removed manual window.location.href to prevent jarring redirects 
+          // during onboarding or session generation lags.
+          console.warn("[API] 401 Unauthorized received. Session might be expired or lagging.");
           break;
         case 403:
           console.error("[API] Forbidden:", message);
