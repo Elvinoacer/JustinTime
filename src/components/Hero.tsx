@@ -81,7 +81,7 @@ const Hero = () => {
   const stat3 = useCounter(98, 1800);
 
   return (
-    <section className="relative min-h-[90svh] flex flex-col items-center justify-center pt-20 pb-16 overflow-hidden">
+    <section className="relative min-h-[100svh] sm:min-h-[90svh] w-full flex flex-col items-center justify-center pt-20 pb-16 overflow-hidden">
       {/* Background Video */}
       <div className="absolute inset-0 w-full h-full pointer-events-none z-0">
         <video
@@ -127,8 +127,8 @@ const Hero = () => {
           transition={{ duration: 0.6 }}
         >
           Find Trusted
-          <br />
-          <span className="text-white">Professionals</span> Near You
+          <br className="sm:hidden" />
+          <span className="text-white sm:ml-2">Professionals</span> Near You
         </motion.h1>
 
         <motion.p
@@ -204,16 +204,16 @@ const Hero = () => {
           </div>
 
           {/* Mobile stacked search */}
-          <div className="sm:hidden backdrop-blur-xl bg-white/[0.08] border border-white/[0.15] rounded-2xl p-3 shadow-2xl shadow-black/40">
-            <div className="relative mb-2">
+          <div className="sm:hidden w-full backdrop-blur-xl bg-white/[0.08] border border-white/[0.15] rounded-2xl p-3 shadow-2xl shadow-black/40">
+            <div className="relative mb-2 w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />
               <input className="w-full pl-10 pr-4 py-3 bg-white/[0.06] border border-white/[0.12] rounded-xl outline-none text-white placeholder-gray-400 text-sm font-medium" placeholder="What service do you need?" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()} />
             </div>
-            <div className="flex gap-2 mb-2">
-              <select className="flex-1 pl-3 pr-6 py-3 bg-white/[0.06] border border-white/[0.12] rounded-xl text-white text-xs font-medium outline-none appearance-none" value={selectedCountry.code} onChange={(e) => handleCountryChange(e.target.value)}>
+            <div className="flex flex-col min-[400px]:flex-row gap-2 mb-2 w-full">
+              <select className="flex-1 w-full pl-3 pr-8 py-3 bg-white/[0.06] border border-white/[0.12] rounded-xl text-white text-xs font-medium outline-none appearance-none truncate" value={selectedCountry.code} onChange={(e) => handleCountryChange(e.target.value)}>
                 {countries.map((c) => (<option key={c.code} value={c.code} className="bg-[#0a1a15]">{c.name}</option>))}
               </select>
-              <select className="flex-1 pl-3 pr-6 py-3 bg-white/[0.06] border border-white/[0.12] rounded-xl text-white text-xs font-medium outline-none appearance-none" value={selectedLocation} onChange={(e) => setSelectedLocation(e.target.value)}>
+              <select className="flex-1 w-full pl-3 pr-8 py-3 bg-white/[0.06] border border-white/[0.12] rounded-xl text-white text-xs font-medium outline-none appearance-none truncate" value={selectedLocation} onChange={(e) => setSelectedLocation(e.target.value)}>
                 {selectedCountry.subdivisions.map((s, i) => (<option key={i} value={s} className="bg-[#0a1a15]">{s}</option>))}
               </select>
             </div>
@@ -236,18 +236,18 @@ const Hero = () => {
         </motion.div>
 
         {/* Stats */}
-        <motion.div className="mt-14 grid grid-cols-3 gap-8 w-full max-w-md" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.6 }}>
+        <motion.div className="mt-10 sm:mt-14 grid grid-cols-3 gap-3 sm:gap-8 w-full max-w-md" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.6 }}>
           <div className="text-center" ref={stat1.ref}>
             <div className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tabular-nums drop-shadow-lg">{stat1.count}<span className="text-emerald-400">+</span></div>
-            <div className="text-[11px] text-gray-300 mt-1 font-bold uppercase tracking-wider drop-shadow-md">Verified Pros</div>
+            <div className="text-[10px] sm:text-[11px] text-gray-300 mt-1 font-bold uppercase tracking-wider drop-shadow-md truncate">Pros</div>
           </div>
           <div className="text-center" ref={stat2.ref}>
             <div className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tabular-nums drop-shadow-lg">{stat2.count >= 1000 ? `${(stat2.count / 1000).toFixed(1)}k` : stat2.count}<span className="text-emerald-400">+</span></div>
-            <div className="text-[11px] text-gray-300 mt-1 font-bold uppercase tracking-wider drop-shadow-md">Happy Clients</div>
+            <div className="text-[10px] sm:text-[11px] text-gray-300 mt-1 font-bold uppercase tracking-wider drop-shadow-md truncate">Clients</div>
           </div>
           <div className="text-center" ref={stat3.ref}>
             <div className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tabular-nums drop-shadow-lg">{stat3.count}<span className="text-emerald-400">%</span></div>
-            <div className="text-[11px] text-gray-300 mt-1 font-bold uppercase tracking-wider drop-shadow-md">Satisfaction</div>
+            <div className="text-[10px] sm:text-[11px] text-gray-300 mt-1 font-bold uppercase tracking-wider drop-shadow-md truncate">Rating</div>
           </div>
         </motion.div>
       </div>
