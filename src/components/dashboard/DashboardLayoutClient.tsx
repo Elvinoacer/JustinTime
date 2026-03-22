@@ -16,9 +16,8 @@ export default function DashboardLayoutClient({
   
   const { data: session } = useSession();
 
-  // Check onboarding fee status for Providers
   const isProvider = session?.user?.role === "PROVIDER";
-  const { data: profileData } = useProviderProfile(isProvider);
+  const { data: profileData, isLoading: profileLoading } = useProviderProfile(isProvider);
   const showOnboardingModal = 
     isProvider && 
     profileData?.data && 
@@ -83,8 +82,19 @@ export default function DashboardLayoutClient({
           className="flex-1 p-4 lg:p-8 overflow-y-auto w-full"
           role="main"
         >
-          <div className="max-w-7xl mx-auto">
-            {children}
+          <div className="max-w-7xl mx-auto h-full min-h-[50vh]">
+            {isProvider && profileLoading ? (
+              <div className="flex h-full min-h-[50vh] flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600 mb-4"></div>
+                <p className="text-gray-500 font-medium">Loading profile...</p>
+              </div>
+            ) : showOnboardingModal ? (
+              <div className="flex h-full min-h-[50vh] items-center justify-center">
+                <p className="text-gray-500 font-medium">Please activate your account to access provider features.</p>
+              </div>
+            ) : (
+              children
+            )}
           </div>
         </main>
       </div>
