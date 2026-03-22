@@ -4,6 +4,7 @@ import JobsClient from "./JobsClient";
 export const metadata = constructMetadata({
   title: "Jobs - Find Work & Projects",
   description: "Browse available jobs and projects. Find new opportunities to grow your business and connect with clients looking for your skills.",
+  canonical: "https://justintime.gtss.software/jobs",
 });
 
 export default function JobsPage() {

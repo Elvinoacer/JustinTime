@@ -33,6 +33,7 @@ export async function generateMetadata({
       title,
       description,
       image,
+      canonical: `https://justintime.gtss.software/professionals/${id}`,
     });
   } catch (error) {
     console.error("Error generating metadata:", error);

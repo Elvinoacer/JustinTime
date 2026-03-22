@@ -4,6 +4,8 @@ import PrivacyClient from "./PrivacyClient";
 export const metadata = constructMetadata({
   title: "Privacy Policy - Your Data Security",
   description: "Read our Privacy Policy to understand how JustInTime collects, uses, and protects your personal information.",
+  canonical: "https://justintime.gtss.software/privacy",
+  noIndex: false,
 });
 
 export default function PrivacyPage() {

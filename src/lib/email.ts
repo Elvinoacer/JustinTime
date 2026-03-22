@@ -470,7 +470,7 @@ export const sendPasswordChangedEmail = async (
 
               <p>
                 If you have any questions or concerns, please contact our support team at 
-                <a href="mailto:support@justintime.com" style="color: #10b981;">support@justintime.com</a>
+                <a href="mailto:support@gtss.software" style="color: #10b981;">support@gtss.software</a>
               </p>
 
               <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
@@ -503,7 +503,7 @@ SECURITY TIPS:
 - Never share your password with anyone
 - Avoid using the same password across multiple sites
 
-If you have any questions or concerns, please contact our support team at support@justintime.com
+If you have any questions or concerns, please contact our support team at support@gtss.software
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
       `,    });
@@ -586,7 +586,7 @@ export const sendPasswordResetEmail = async (
             </div>
             <div class="footer">
               <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
-              <p>Need help? Contact us at <a href="mailto:support@justintime.com" style="color: #10b981;">support@justintime.com</a></p>
+              <p>Need help? Contact us at <a href="mailto:support@gtss.software" style="color: #10b981;">support@gtss.software</a></p>
             </div>
           </div>
         </body>
@@ -605,7 +605,7 @@ ${resetUrl}
 DIDN'T REQUEST THIS?
 If you didn't request a password reset, please ignore this email or contact our support team if you have concerns about your account security.
 
-Need help? Contact us at support@justintime.com
+Need help? Contact us at support@gtss.software
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
       `,    });
@@ -669,13 +669,10 @@ export const sendSupportTicketCreatedEmail = async (
                 <li>You can track your ticket anytime in your dashboard</li>
               </ul>
 
-              <a href="${process.env.NEXTAUTH_URL}/dashboard/help" class="button">
-                View My Tickets
-              </a>
-
-              <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
-                Need immediate assistance? Contact us at <a href="mailto:support@justintime.com" style="color: #10b981;">support@justintime.com</a>
-              </p>
+                <ul>
+                  <li>Reply to this email</li>
+                 <li>Contact our support team at <a href="mailto:support@gtss.software" style="color: #10B981; text-decoration: none;">support@gtss.software</a></li>
+               </ul>
             </div>
             <div class="footer">
               <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
@@ -702,7 +699,7 @@ WHAT HAPPENS NEXT?
 
 View your ticket: ${process.env.NEXTAUTH_URL}/dashboard/help
 
-Need immediate assistance? Contact us at support@justintime.com
+Need immediate assistance? Contact us at support@gtss.software
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
       `,    });
@@ -1480,7 +1477,7 @@ export const sendBookingStatusUpdateEmail = async (
               </a>
 
               <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
-                Need help? Contact us at <a href="mailto:support@justintime.com" style="color: ${statusColor};">support@justintime.com</a>
+                Need help? Contact us at <a href="mailto:support@gtss.software" style="color: ${statusColor};">support@gtss.software</a>
               </p>
             </div>
             <div class="footer">
@@ -1512,7 +1509,7 @@ ${newStatus === "CANCELLED" ? `Important: This booking has been cancelled. If yo
 
 View booking details: ${process.env.NEXTAUTH_URL}/client/bookings
 
-Need help? Contact us at support@justintime.com
+Need help? Contact us at support@gtss.software
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
       `,    });
@@ -1614,7 +1611,7 @@ export const sendContactFormEmail = async (
   try {
     await resend.emails.send({
       from: `JustInTime Contact Form <${getFromEmail()}>`,
-      to: process.env.EMAIL_USER || "support@justintime.com",
+      to: process.env.EMAIL_USER || "support@gtss.software",
       replyTo: email,
       subject: `Contact Form: ${subject}`,
       html: `
@@ -1757,7 +1754,7 @@ export const sendVerificationEmail = async (
             </div>
             <div class="footer">
               <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
-              <p>Need help? Contact us at <a href="mailto:support@justintime.com" style="color: #10b981;">support@justintime.com</a></p>
+              <p>Need help? Contact us at <a href="mailto:support@gtss.software" style="color: #10b981;">support@gtss.software</a></p>
             </div>
           </div>
         </body>
@@ -1778,7 +1775,7 @@ If you didn't create an account with JustInTime, you can safely ignore this emai
 Can't click the link? Copy and paste this URL into your browser:
 ${verificationUrl}
 
-Need help? Contact us at support@justintime.com
+Need help? Contact us at support@gtss.software
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
       `,    });
