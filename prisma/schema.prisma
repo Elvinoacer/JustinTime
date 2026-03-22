@@ -115,6 +115,11 @@ model User {
   clientProjects         VerticalProject[] @relation("ClientProjects")
   providerProjects       VerticalProject[] @relation("ProviderProjects")
   equipment              EquipmentRegistry[]
+  
+  // WebAuthn Biometric Authentication
+  webAuthnCredentialId    String?
+  webAuthnPublicKey       String?   @db.Text
+  biometricRegisteredAt   DateTime?
 }
 
 // Promo Codes / Vouchers
@@ -229,6 +234,14 @@ model Profile {
   // TaaS Premium Pricing
   premiumPricingEnabled Boolean @default(false)
   premiumMultiplier     Float   @default(1.0) // 1.0 = no premium, 1.3 = +30%
+  
+  // Verification Enhancement Fields
+  faceMatchScore          Float?    // 0-100 score from face comparison
+  idDocumentType          String?   // 'national_id' | 'passport' | 'drivers_license'
+  verificationAttempts    Int       @default(0)
+  lastVerificationAt      DateTime?
+  locationSource          String?   @default("MANUAL") // GPS | IP | MANUAL
+  locationAccuracy        Float?    // GPS accuracy in meters
   
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

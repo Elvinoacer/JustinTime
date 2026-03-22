@@ -22,7 +22,12 @@ export async function POST(req: Request) {
       image,
       phone,
       hourlyRate,
-      address
+      address,
+      // New verification fields
+      faceMatchScore,
+      idDocumentType,
+      locationSource,
+      locationAccuracy,
     } = body;
 
     // Update user with common fields
@@ -41,6 +46,15 @@ export async function POST(req: Request) {
     if (role === "PROVIDER") {
       const { verificationStatus, idDocument } = body;
       
+      const verificationFields = {
+        ...(faceMatchScore !== undefined && { faceMatchScore: Number(faceMatchScore) }),
+        ...(idDocumentType && { idDocumentType }),
+        ...(locationSource && { locationSource }),
+        ...(locationAccuracy !== undefined && { locationAccuracy: Number(locationAccuracy) }),
+        verificationAttempts: { increment: 1 },
+        lastVerificationAt: new Date(),
+      };
+
       await prisma.profile.upsert({
         where: { userId: session.user.id },
         create: {
@@ -54,6 +68,12 @@ export async function POST(req: Request) {
           verificationStatus: "PENDING",
           idDocument,
           isVerified: false,
+          ...(faceMatchScore !== undefined && { faceMatchScore: Number(faceMatchScore) }),
+          ...(idDocumentType && { idDocumentType }),
+          ...(locationSource && { locationSource }),
+          ...(locationAccuracy !== undefined && { locationAccuracy: Number(locationAccuracy) }),
+          verificationAttempts: 1,
+          lastVerificationAt: new Date(),
         },
         update: {
           skills: skills || [],
@@ -65,6 +85,7 @@ export async function POST(req: Request) {
           verificationStatus: "PENDING",
           idDocument,
           isVerified: false,
+          ...verificationFields,
         },
       });
     }

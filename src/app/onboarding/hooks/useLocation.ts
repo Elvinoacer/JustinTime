@@ -1,0 +1,169 @@
+"use client";
+import { useState, useCallback } from "react";
+
+export type LocationSource = "GPS" | "IP" | "MANUAL";
+export type LocationStatus = "IDLE" | "LOADING" | "SUCCESS" | "DENIED" | "FAILED";
+
+interface LocationResult {
+  latitude: number | null;
+  longitude: number | null;
+  address: string;
+  source: LocationSource;
+  accuracy: number | null;
+}
+
+interface UseLocationReturn {
+  location: LocationResult;
+  status: LocationStatus;
+  permissionStatus: PermissionState | null;
+  getLocation: (userType: "provider" | "client") => void;
+  setManualAddress: (address: string) => void;
+  setLocationResult: (result: Partial<LocationResult>) => void;
+}
+
+const GPS_OPTIONS_TIERS = [
+  { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
+  { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
+];
+
+const reverseGeocode = async (lat: number, lon: number): Promise<string> => {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+      {
+        headers: {
+          "User-Agent": "JustInTime/1.0 (contact@justintime.co.ke)",
+          "Accept-Language": "en",
+        },
+        signal: AbortSignal.timeout(5000),
+      }
+    );
+    const data = await res.json();
+    return data.display_name ?? `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  } catch {
+    return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  }
+};
+
+export function useLocation(): UseLocationReturn {
+  const [location, setLocation] = useState<LocationResult>({
+    latitude: null,
+    longitude: null,
+    address: "",
+    source: "MANUAL",
+    accuracy: null,
+  });
+  const [status, setStatus] = useState<LocationStatus>("IDLE");
+  const [permissionStatus, setPermissionStatus] = useState<PermissionState | null>(null);
+
+  const applyLocation = useCallback(
+    async (lat: number, lon: number, source: LocationSource, accuracy: number | null) => {
+      const address = await reverseGeocode(lat, lon);
+      setLocation({ latitude: lat, longitude: lon, address, source, accuracy });
+      setStatus("SUCCESS");
+    },
+    []
+  );
+
+  const requestIPFallback = useCallback(async () => {
+    try {
+      const res = await fetch(
+        "http://ip-api.com/json/?fields=lat,lon,city,regionName,country"
+      );
+      const data = await res.json();
+      if (data.lat && data.lon) {
+        const address = `${data.city}, ${data.regionName}, ${data.country}`;
+        setLocation({
+          latitude: data.lat,
+          longitude: data.lon,
+          address,
+          source: "IP",
+          accuracy: null,
+        });
+        setStatus("SUCCESS");
+      } else {
+        setStatus("FAILED");
+      }
+    } catch {
+      setStatus("FAILED");
+    }
+  }, []);
+
+  const requestGPS = useCallback(
+    (tier: number = 0) => {
+      if (tier >= GPS_OPTIONS_TIERS.length) {
+        requestIPFallback();
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          await applyLocation(
+            pos.coords.latitude,
+            pos.coords.longitude,
+            "GPS",
+            pos.coords.accuracy
+          );
+        },
+        (err) => {
+          if (err.code === err.TIMEOUT) {
+            requestGPS(tier + 1);
+          } else {
+            // PERMISSION_DENIED or POSITION_UNAVAILABLE
+            if (err.code === err.PERMISSION_DENIED) {
+              setPermissionStatus("denied");
+            }
+            requestIPFallback();
+          }
+        },
+        GPS_OPTIONS_TIERS[tier]
+      );
+    },
+    [applyLocation, requestIPFallback]
+  );
+
+  const getLocation = useCallback(async () => {
+    if (!navigator.geolocation) {
+      setStatus("FAILED");
+      return;
+    }
+
+    setStatus("LOADING");
+
+    // Step 1: Check permission status
+    if ("permissions" in navigator) {
+      try {
+        const perm = await navigator.permissions.query({ name: "geolocation" });
+        setPermissionStatus(perm.state);
+        if (perm.state === "denied") {
+          setStatus("DENIED");
+          // Still try IP fallback
+          await requestIPFallback();
+          return;
+        }
+      } catch {
+        // permissions.query not supported (e.g., Safari) — proceed anyway
+      }
+    }
+
+    // Step 2: Attempt GPS
+    requestGPS(0);
+  }, [requestGPS, requestIPFallback]);
+
+  const setManualAddress = useCallback((address: string) => {
+    setLocation((prev) => ({ ...prev, address, source: "MANUAL" as LocationSource }));
+  }, []);
+
+  const setLocationResult = useCallback((result: Partial<LocationResult>) => {
+    setLocation((prev) => ({ ...prev, ...result }));
+  }, []);
+
+  return {
+    location,
+    status,
+    permissionStatus,
+    getLocation,
+    setManualAddress,
+    setLocationResult,
+  };
+}
