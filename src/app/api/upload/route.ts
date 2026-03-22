@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { uploadFile, deleteFile } from '@/lib/cloudinary';
-import { uploadBlob, deleteBlob } from '@/lib/blob';
+import { uploadFile, deleteFile } from '@/lib/s3';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,11 +26,7 @@ export async function POST(request: NextRequest) {
     const fileName = `messages/${session.user.id}/${timestamp}-${safeName}`;
 
     let url;
-    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-        url = await uploadFile(buffer, fileName, file.type);
-    } else {
-        url = await uploadBlob(buffer, fileName, file.type);
-    }
+    url = await uploadFile(buffer, fileName, file.type);
 
     return NextResponse.json({
       url,
@@ -59,13 +54,7 @@ export async function DELETE(request: NextRequest) {
     const url = searchParams.get('url');
 
     if (url) {
-      if (url.includes('cloudinary.com')) {
-        await deleteFile(url);
-      } else if (url.includes('vercel-storage.com')) {
-        await deleteBlob(url);
-      } else {
-         return NextResponse.json({ error: 'Unsupported URL for deletion' }, { status: 400 });
-      }
+      await deleteFile(url);
     } else {
       return NextResponse.json({ error: 'No url provided' }, { status: 400 });
     }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
-import { deleteFile } from '@/lib/cloudinary';
+import { deleteFile } from '@/lib/s3';
 
 export async function DELETE(
   request: NextRequest,

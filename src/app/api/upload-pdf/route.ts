@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { uploadBlob, deleteBlob } from '@/lib/blob';
+import { uploadFile, deleteFile } from '@/lib/s3';
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const fileName = `certifications/${session.user.id}/${timestamp}-${safeName}`;
 
-    const url = await uploadBlob(buffer, fileName, file.type);
+    const url = await uploadFile(buffer, fileName, file.type);
 
     return NextResponse.json({
       url,
@@ -69,8 +69,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'No URL provided' }, { status: 400 });
     }
 
-    // Delete from Vercel Blob
-    await deleteBlob(url);
+    // Delete from storage
+    await deleteFile(url);
 
     return NextResponse.json({ success: true });
   } catch (error) {
