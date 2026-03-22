@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
+import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import { prisma } from "@/lib/prisma";
-import { successResponse, handleError } from "@/lib/middleware/errorHandler";
 
 /**
  * GET /api/categories
