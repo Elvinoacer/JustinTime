@@ -11,23 +11,35 @@ function VerifyRequestContent() {
   const email = searchParams.get("email");
   const [isResending, setIsResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
+  const [resendError, setResendError] = useState("");
 
   const handleResendEmail = async () => {
     if (!email || isResending) return;
 
     setIsResending(true);
     setResendSuccess(false);
+    setResendError("");
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setResendError(data.error || "Failed to send. Try again.");
+      } else {
+        setResendSuccess(true);
+        setTimeout(() => setResendSuccess(false), 5000);
+      }
+    } catch {
+      setResendError("Network error. Please try again.");
+    } finally {
       setIsResending(false);
-      setResendSuccess(true);
-
-      // Hide success message after 3 seconds
-      setTimeout(() => {
-        setResendSuccess(false);
-      }, 3000);
-    }, 1500);
+    }
   };
 
   return (
@@ -185,6 +197,22 @@ function VerifyRequestContent() {
                     <p className="text-xs text-emerald-700">
                       Verification email sent! Check your inbox.
                     </p>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Resend Error Message */}
+              {resendError && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="bg-red-50 border border-red-100 rounded-xl p-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center">
+                      <span className="text-red-600 text-xs">✕</span>
+                    </div>
+                    <p className="text-xs text-red-700">{resendError}</p>
                   </div>
                 </motion.div>
               )}

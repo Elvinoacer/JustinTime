@@ -3,9 +3,10 @@ import React, { useState, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { useEffect } from "react";
 import { loginWithCredentials, resendTwoFactorToken } from "@/app/actions/auth";
 import {
   Mail,
@@ -26,7 +27,15 @@ import {
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrl = searchParams.get("callbackUrl") || "";
+  const verified = searchParams.get("verified");
+
+  // B7: Show toast if user just verified their email
+  useEffect(() => {
+    if (verified === "true") {
+      toast.success("Email verified! You can now sign in.");
+    }
+  }, [verified]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -72,7 +81,23 @@ function LoginPageContent() {
           toast.error("Invalid code");
         } else {
           toast.success("Successfully logged in!");
-          router.push(callbackUrl);
+          // B5: Smart redirect based on user role
+          if (callbackUrl) {
+            router.push(callbackUrl);
+          } else {
+            const session = await getSession();
+            const role = session?.user?.role;
+            const onboarded = session?.user?.onboardingCompleted;
+            if (!onboarded) {
+              router.push("/onboarding");
+            } else if (role === "PROVIDER") {
+              router.push("/dashboard");
+            } else if (role === "ADMIN") {
+              router.push("/admin");
+            } else {
+              router.push("/client/dashboard");
+            }
+          }
         }
       } else {
         // Step 1: Check credentials & 2FA status
@@ -102,7 +127,23 @@ function LoginPageContent() {
             toast.error("Invalid credentials");
           } else {
             toast.success("Successfully logged in!");
-            router.push(callbackUrl);
+            // B5: Smart redirect based on user role
+            if (callbackUrl) {
+              router.push(callbackUrl);
+            } else {
+              const session = await getSession();
+              const role = session?.user?.role;
+              const onboarded = session?.user?.onboardingCompleted;
+              if (!onboarded) {
+                router.push("/onboarding");
+              } else if (role === "PROVIDER") {
+                router.push("/dashboard");
+              } else if (role === "ADMIN") {
+                router.push("/admin");
+              } else {
+                router.push("/client/dashboard");
+              }
+            }
           }
         }
       }
@@ -116,7 +157,7 @@ function LoginPageContent() {
 
   const handleGoogleSignIn = async () => {
     try {
-      await signIn("google", { callbackUrl });
+      await signIn("google", { callbackUrl: callbackUrl || "/onboarding" });
     } catch (error) {
       toast.error("Failed to sign in with Google");
     }

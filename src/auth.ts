@@ -2,11 +2,24 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 
+/**
+ * Resolve the base URL for internal API calls.
+ * Fails loudly if NEXTAUTH_URL is not configured.
+ */
+function getBaseUrl(): string {
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  throw new Error(
+    "[Auth] NEXTAUTH_URL is not set. Add it to .env for development " +
+      "or your deployment environment variables."
+  );
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
-    maxAge: 3 * 24 * 60 * 60, // 3 days in seconds (259,200)
+    maxAge: 3 * 24 * 60 * 60, // 3 days
   },
   pages: {
     signIn: "/auth/login",
@@ -29,16 +42,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         try {
-          // Call internal API route for verification (avoids Prisma in Edge)
+          const baseUrl = getBaseUrl();
           const response = await fetch(
-            `${process.env.NEXTAUTH_URL || "https://justintimeservices.vercel.app"}/api/auth/verify-credentials`,
+            `${baseUrl}/api/auth/verify-credentials`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 email: credentials.email,
                 password: credentials.password,
-                code: credentials.code,
+                code: (credentials as any).code,
               }),
             }
           );
@@ -57,29 +70,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       // For Google sign-in, create/update user with verified email
       if (account?.provider === "google") {
         try {
-          // Call API route to handle user creation/update (avoids Prisma in Edge)
-          const baseUrl = process.env.NEXTAUTH_URL 
-            || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
-            || 'https://justintimeservices.vercel.app';
-          
-          console.log('[Google Sign-In] Using baseUrl:', baseUrl);
-          
-          const response = await fetch(
-            `${baseUrl}/api/auth/google-signin`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                email: user.email,
-                name: user.name,
-                image: user.image,
-              }),
-            }
-          );
+          const baseUrl = getBaseUrl();
+          const response = await fetch(`${baseUrl}/api/auth/google-signin`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: user.email,
+              name: user.name,
+              image: user.image,
+            }),
+          });
 
           if (!response.ok) {
             const errorText = await response.text();
@@ -88,30 +92,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               response.status,
               errorText
             );
-            // Don't fail sign-in, just log the error
-            // return false;
+            // B9: Only allow if user already exists (409 = duplicate)
+            if (response.status !== 409) {
+              return false; // deny sign-in → redirects to /auth/error
+            }
           }
         } catch (error) {
           console.error("[Google Sign-In Error]", error);
-          // Don't fail sign-in if API call fails
+          // B9: DB unreachable — deny so we don't create an orphaned session
+          return false;
         }
         return true;
       }
       return true;
     },
+
     async jwt({ token, user, trigger, session, account }) {
-      // On initial sign-in, user object is available
+      // On initial sign-in, persist provider + user data
       if (user) {
-        // For Google sign-in, fetch complete user data from API
+        // B2/B6: save authProvider on first sign-in
+        if (account) {
+          token.authProvider = account.provider; // "google" | "credentials"
+        }
+
         if (account?.provider === "google") {
           try {
-            // Fetch user data from API (avoids Prisma in Edge)
-            const baseUrl = process.env.NEXTAUTH_URL 
-              || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
-              || 'https://justintimeservices.vercel.app';
-            
-            console.log('[JWT Callback] Using baseUrl:', baseUrl);
-            
+            const baseUrl = getBaseUrl();
             const response = await fetch(
               `${baseUrl}/api/users/me?email=${encodeURIComponent(user.email!)}`,
               {
@@ -128,13 +134,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               token.clientInterests = dbUser.clientInterests;
               token.emailVerified = dbUser.emailVerified;
             } else {
-              console.error('[JWT Error] Failed to fetch user:', response.status);
+              console.error(
+                "[JWT Error] Failed to fetch user:",
+                response.status
+              );
             }
           } catch (error) {
             console.error("[JWT Error - Google]", error);
           }
         } else {
-          // For credentials login, user data comes from authorize()
+          // Credentials login — user data comes from authorize()
           token.role = (user as any).role;
           token.id = user.id;
           token.onboardingCompleted = (user as any).onboardingCompleted;
@@ -142,14 +151,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.emailVerified = (user as any).emailVerified;
         }
       }
+
+      // Handle session updates (e.g., after onboarding completion)
       if (trigger === "update" && session?.user) {
         token.onboardingCompleted = session.user.onboardingCompleted;
         token.role = session.user.role;
         token.clientInterests = session.user.clientInterests;
         token.emailVerified = session.user.emailVerified;
+        if (session.user.authProvider) {
+          token.authProvider = session.user.authProvider;
+        }
       }
+
       return token;
     },
+
     async session({ session, token }) {
       if (token && session.user) {
         session.user.role = token.role as string;
@@ -157,6 +173,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.onboardingCompleted = token.onboardingCompleted as boolean;
         session.user.clientInterests = token.clientInterests as string[];
         session.user.emailVerified = token.emailVerified as Date | null;
+        session.user.authProvider = token.authProvider as string; // B2/B6
       }
       return session;
     },

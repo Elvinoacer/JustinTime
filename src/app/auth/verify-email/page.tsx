@@ -39,6 +39,10 @@ function VerifyEmailContent() {
         if (response.ok) {
           setStatus("success");
           setMessage("Your email has been successfully verified!");
+          // B7: Auto-redirect to login after 2 seconds
+          setTimeout(() => {
+            router.push("/auth/login?verified=true");
+          }, 2000);
         } else {
           setStatus("error");
           setMessage(data.error || "Failed to verify email.");

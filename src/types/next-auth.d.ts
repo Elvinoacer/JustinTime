@@ -8,6 +8,7 @@ declare module "next-auth" {
       onboardingCompleted: boolean
       clientInterests: string[]
       emailVerified: Date | null
+      authProvider: string
     } & DefaultSession["user"]
   }
 
@@ -26,5 +27,6 @@ declare module "next-auth/jwt" {
     onboardingCompleted: boolean
     clientInterests: string[]
     emailVerified: Date | null
+    authProvider: string
   }
 }
