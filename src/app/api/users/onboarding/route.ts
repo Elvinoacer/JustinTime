@@ -1,10 +1,10 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function POST(req: NextRequest) {
+export const POST = auth(async (req) => {
   try {
-    const session = await auth();
+    const session = req.auth;
     if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
@@ -119,4 +119,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

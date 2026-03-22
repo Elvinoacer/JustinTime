@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { uploadFile, deleteFile } from '@/lib/s3';
 
-export async function POST(request: NextRequest) {
+export const POST = auth(async (request) => {
   try {
-    const session = await auth();
+    const session = request.auth;
     
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -40,11 +40,11 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function DELETE(request: NextRequest) {
+export const DELETE = auth(async (request) => {
   try {
-    const session = await auth();
+    const session = request.auth;
     
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -67,4 +67,4 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
