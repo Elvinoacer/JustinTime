@@ -3,7 +3,10 @@
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import InteractionBar from "@/components/InteractionBar"; // Added import
-import { useProfessional, ProfessionalDetail } from "@/lib/api/hooks/useProfessional";
+import {
+  useProfessional,
+  ProfessionalDetail,
+} from "@/lib/api/hooks/useProfessional";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
@@ -127,8 +130,7 @@ export default function ProfessionalDetailPage({
     { id: "reviews", label: "Reviews", icon: "star" },
   ];
   const educationItems = (prof.education || []) as EducationItem[];
-  const certificationItems = (prof.certifications ||
-    []) as CertificationItem[];
+  const certificationItems = (prof.certifications || []) as CertificationItem[];
   const socialLinks = (prof.socialLinks || []) as SocialLinkItem[];
 
   return (
@@ -138,7 +140,7 @@ export default function ProfessionalDetailPage({
         {/* Hero Section */}
         <div className="relative bg-white pb-8 sm:pb-12">
           {/* Cover Background */}
-          <div className="h-32 sm:h-40 md:h-48 lg:h-64 bg-gradient-to-r from-emerald-900 via-emerald-800 to-teal-900 relative overflow-hidden">
+          <div className="h-32 sm:h-40 md:h-48 lg:h-64 bg-linear-to-r from-emerald-900 via-emerald-800 to-teal-900 relative overflow-hidden">
             <div className="absolute inset-0 bg-black/20" />
           </div>
 
@@ -161,7 +163,7 @@ export default function ProfessionalDetailPage({
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400 text-3xl sm:text-4xl md:text-6xl font-bold">
-                      {professional.name.charAt(0)}
+                      {(professional.name || "U").charAt(0)}
                     </div>
                   )}
                 </div>
@@ -216,7 +218,7 @@ export default function ProfessionalDetailPage({
                           <span className="material-symbols-outlined text-emerald-600 text-xs sm:text-sm">
                             location_on
                           </span>
-                          <span className="truncate max-w-[120px] sm:max-w-none">
+                          <span className="truncate max-w-30 sm:max-w-none">
                             {professional.location}
                           </span>
                         </div>
@@ -385,7 +387,7 @@ export default function ProfessionalDetailPage({
                 </div>
               </div>
 
-              <div className="min-h-[300px] sm:min-h-[400px]">
+              <div className="min-h-75 sm:min-h-100">
                 <AnimatePresence mode="wait">
                   {activeTab === "about" && (
                     <motion.div
@@ -441,7 +443,7 @@ export default function ProfessionalDetailPage({
                                   key={idx}
                                   className="relative pl-4 sm:pl-6 border-l-2 border-gray-100 last:border-0"
                                 >
-                                  <div className="absolute -left-[5px] top-1.5 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-200 border-2 border-white ring-1 ring-emerald-100" />
+                                  <div className="absolute -left-1.25 top-1.5 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-200 border-2 border-white ring-1 ring-emerald-100" />
                                   <div className="font-bold text-gray-900 text-sm sm:text-base">
                                     {edu.degree}
                                   </div>
@@ -495,7 +497,7 @@ export default function ProfessionalDetailPage({
                                       href={cert.fileUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="p-1.5 sm:p-2 text-gray-400 hover:text-emerald-600 hover:bg-white rounded-lg transition-all flex-shrink-0"
+                                      className="p-1.5 sm:p-2 text-gray-400 hover:text-emerald-600 hover:bg-white rounded-lg transition-all shrink-0"
                                       title="View Certificate"
                                     >
                                       <span className="material-symbols-outlined text-sm sm:text-base">
@@ -536,81 +538,84 @@ export default function ProfessionalDetailPage({
                         </div>
                       ) : (
                         <div className="grid sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-                          {prof.services.map((service: ProfessionalDetail["services"][0]) => (
-                            <div
-                              key={service.id}
-                              className="group bg-white rounded-lg sm:rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
-                            >
-                              {/* Service Image */}
-                              <div className="h-32 sm:h-40 md:h-48 bg-gray-100 relative overflow-hidden">
-                                {service.images && service.images.length > 0 ? (
-                                  <Image
-                                    src={service.images[0] as string}
-                                    alt={service.title}
-                                    fill
-                                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                                    unoptimized
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                                    <span className="material-symbols-outlined text-gray-300 text-3xl sm:text-4xl md:text-5xl">
-                                      construction
-                                    </span>
-                                  </div>
-                                )}
-                                <div className="absolute top-2 right-2">
-                                  <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-white/90 backdrop-blur-sm text-gray-900 text-xs font-bold rounded-full shadow-sm">
-                                    {service.pricingUnit === "hourly"
-                                      ? "Hourly"
-                                      : "Fixed"}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="p-3 sm:p-4 md:p-6">
-                                <h4 className="text-base sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2 line-clamp-1 group-hover:text-emerald-600 transition-colors">
-                                  {service.title}
-                                </h4>
-                                <p className="text-gray-500 text-xs sm:text-sm leading-relaxed line-clamp-2 mb-3 sm:mb-4 h-8 sm:h-10">
-                                  {service.description}
-                                </p>
-
-                                <div className="flex items-end justify-between pt-3 sm:pt-4 border-t border-gray-50">
-                                  <div>
-                                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-0.5">
-                                      Price
-                                    </p>
-                                    <div className="flex items-baseline gap-0.5">
-                                      <span className="text-lg sm:text-xl font-bold text-gray-900">
-                                        KES{" "}
-                                        {Number(
-                                          service.price ?? 0,
-                                        ).toLocaleString()}
+                          {prof.services.map(
+                            (service: ProfessionalDetail["services"][0]) => (
+                              <div
+                                key={service.id}
+                                className="group bg-white rounded-lg sm:rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                              >
+                                {/* Service Image */}
+                                <div className="h-32 sm:h-40 md:h-48 bg-gray-100 relative overflow-hidden">
+                                  {service.images &&
+                                  service.images.length > 0 ? (
+                                    <Image
+                                      src={service.images[0] as string}
+                                      alt={service.title}
+                                      fill
+                                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                      unoptimized
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                                      <span className="material-symbols-outlined text-gray-300 text-3xl sm:text-4xl md:text-5xl">
+                                        construction
                                       </span>
-                                      {service.pricingUnit === "hourly" && (
-                                        <span className="text-xs sm:text-sm text-gray-500 font-medium">
-                                          /hr
-                                        </span>
-                                      )}
                                     </div>
-                                  </div>
-                                  <button
-                                    onClick={() =>
-                                      router.push(
-                                        `/booking?professional=${id}&service=${service.id}`,
-                                      )
-                                    }
-                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-50 text-gray-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all"
-                                    title="Book this service"
-                                  >
-                                    <span className="material-symbols-outlined text-sm sm:text-base">
-                                      arrow_forward
+                                  )}
+                                  <div className="absolute top-2 right-2">
+                                    <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-white/90 backdrop-blur-sm text-gray-900 text-xs font-bold rounded-full shadow-sm">
+                                      {service.pricingUnit === "hourly"
+                                        ? "Hourly"
+                                        : "Fixed"}
                                     </span>
-                                  </button>
+                                  </div>
+                                </div>
+
+                                <div className="p-3 sm:p-4 md:p-6">
+                                  <h4 className="text-base sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2 line-clamp-1 group-hover:text-emerald-600 transition-colors">
+                                    {service.title}
+                                  </h4>
+                                  <p className="text-gray-500 text-xs sm:text-sm leading-relaxed line-clamp-2 mb-3 sm:mb-4 h-8 sm:h-10">
+                                    {service.description}
+                                  </p>
+
+                                  <div className="flex items-end justify-between pt-3 sm:pt-4 border-t border-gray-50">
+                                    <div>
+                                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-0.5">
+                                        Price
+                                      </p>
+                                      <div className="flex items-baseline gap-0.5">
+                                        <span className="text-lg sm:text-xl font-bold text-gray-900">
+                                          KES{" "}
+                                          {Number(
+                                            service.price ?? 0,
+                                          ).toLocaleString()}
+                                        </span>
+                                        {service.pricingUnit === "hourly" && (
+                                          <span className="text-xs sm:text-sm text-gray-500 font-medium">
+                                            /hr
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <button
+                                      onClick={() =>
+                                        router.push(
+                                          `/booking?professional=${id}&service=${service.id}`,
+                                        )
+                                      }
+                                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-50 text-gray-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all"
+                                      title="Book this service"
+                                    >
+                                      <span className="material-symbols-outlined text-sm sm:text-base">
+                                        arrow_forward
+                                      </span>
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            ),
+                          )}
                         </div>
                       )}
                     </motion.div>
@@ -641,72 +646,74 @@ export default function ProfessionalDetailPage({
                         </div>
                       ) : (
                         <div className="grid gap-3 sm:gap-4">
-                          {prof.reviews.map((review: ProfessionalDetail["reviews"][0]) => (
-                            <div
-                              key={review.id}
-                              className="p-4 sm:p-6 bg-white rounded-lg sm:rounded-xl border border-gray-100 hover:shadow-md transition-all"
-                            >
-                              <div className="flex items-start gap-3 sm:gap-4">
-                                {review.reviewer.image ? (
-                                  <Image
-                                    src={review.reviewer.image}
-                                    alt={review.reviewer.name || "User"}
-                                    width={48}
-                                    height={48}
-                                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-gray-100"
-                                    unoptimized
-                                  />
-                                ) : (
-                                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center text-gray-500 font-bold text-base sm:text-lg ring-2 ring-gray-100">
-                                    {(review.reviewer.name || "U").charAt(0)}
-                                  </div>
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-1 sm:gap-2">
-                                    <div className="min-w-0">
-                                      <div className="font-bold text-gray-900 text-sm sm:text-base truncate">
-                                        {review.reviewer.name || "Anonymous"}
-                                      </div>
-                                      <div className="text-xs text-gray-500">
-                                        {new Date(
-                                          review.createdAt,
-                                        ).toLocaleDateString("en-US", {
-                                          month: "short",
-                                          day: "numeric",
-                                          year: "numeric",
-                                        })}
-                                      </div>
+                          {prof.reviews.map(
+                            (review: ProfessionalDetail["reviews"][0]) => (
+                              <div
+                                key={review.id}
+                                className="p-4 sm:p-6 bg-white rounded-lg sm:rounded-xl border border-gray-100 hover:shadow-md transition-all"
+                              >
+                                <div className="flex items-start gap-3 sm:gap-4">
+                                  {review.reviewer.image ? (
+                                    <Image
+                                      src={review.reviewer.image}
+                                      alt={review.reviewer.name || "User"}
+                                      width={48}
+                                      height={48}
+                                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-gray-100"
+                                      unoptimized
+                                    />
+                                  ) : (
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center text-gray-500 font-bold text-base sm:text-lg ring-2 ring-gray-100">
+                                      {(review.reviewer.name || "U").charAt(0)}
                                     </div>
-                                    <div className="flex items-center gap-0.5 bg-amber-50 px-2 py-1 rounded-lg self-start sm:self-auto">
-                                      {[...Array(5)].map((_, i) => (
-                                        <span
-                                          key={i}
-                                          className="material-symbols-outlined text-xs sm:text-sm"
-                                          style={{
-                                            color:
-                                              i < review.rating
-                                                ? "#F59E0B"
-                                                : "#E5E7EB",
-                                            fontVariationSettings: "'FILL' 1",
-                                          }}
-                                        >
-                                          star
-                                        </span>
-                                      ))}
-                                      <span className="ml-1 text-xs sm:text-sm font-bold text-amber-700">
-                                        {review.rating}.0
-                                      </span>
-                                    </div>
-                                  </div>
-                                  {review.comment && (
-                                    <p className="text-gray-600 leading-relaxed text-sm sm:text-base bg-gray-50 p-3 sm:p-4 rounded-lg sm:rounded-xl rounded-tl-none">
-                                      {review.comment}
-                                    </p>
                                   )}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-1 sm:gap-2">
+                                      <div className="min-w-0">
+                                        <div className="font-bold text-gray-900 text-sm sm:text-base truncate">
+                                          {review.reviewer.name || "Anonymous"}
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          {new Date(
+                                            review.createdAt,
+                                          ).toLocaleDateString("en-US", {
+                                            month: "short",
+                                            day: "numeric",
+                                            year: "numeric",
+                                          })}
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-0.5 bg-amber-50 px-2 py-1 rounded-lg self-start sm:self-auto">
+                                        {[...Array(5)].map((_, i) => (
+                                          <span
+                                            key={i}
+                                            className="material-symbols-outlined text-xs sm:text-sm"
+                                            style={{
+                                              color:
+                                                i < review.rating
+                                                  ? "#F59E0B"
+                                                  : "#E5E7EB",
+                                              fontVariationSettings: "'FILL' 1",
+                                            }}
+                                          >
+                                            star
+                                          </span>
+                                        ))}
+                                        <span className="ml-1 text-xs sm:text-sm font-bold text-amber-700">
+                                          {review.rating}.0
+                                        </span>
+                                      </div>
+                                    </div>
+                                    {review.comment && (
+                                      <p className="text-gray-600 leading-relaxed text-sm sm:text-base bg-gray-50 p-3 sm:p-4 rounded-lg sm:rounded-xl rounded-tl-none">
+                                        {review.comment}
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            ),
+                          )}
                         </div>
                       )}
                     </motion.div>
@@ -834,41 +841,44 @@ export default function ProfessionalDetailPage({
                 </div>
 
                 <div className="space-y-2 sm:space-y-3">
-                  {prof.ratingDistribution.map((dist: { stars: number; count: number }) => (
-                    <div
-                      key={dist.stars}
-                      className="flex items-center gap-2 text-xs sm:text-sm"
-                    >
-                      <div className="flex items-center gap-0.5 sm:gap-1 w-10 sm:w-12 font-medium text-gray-600">
-                        {dist.stars}{" "}
-                        <span className="material-symbols-outlined text-gray-300 text-xs">
-                          star
+                  {prof.ratingDistribution.map(
+                    (dist: { stars: number; count: number }) => (
+                      <div
+                        key={dist.stars}
+                        className="flex items-center gap-2 text-xs sm:text-sm"
+                      >
+                        <div className="flex items-center gap-0.5 sm:gap-1 w-10 sm:w-12 font-medium text-gray-600">
+                          {dist.stars}{" "}
+                          <span className="material-symbols-outlined text-gray-300 text-xs">
+                            star
+                          </span>
+                        </div>
+                        <div className="flex-1 h-1.5 sm:h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${
+                                professional.totalReviews > 0
+                                  ? (dist.count / professional.totalReviews) *
+                                    100
+                                  : 0
+                              }%`,
+                            }}
+                            transition={{ duration: 1, delay: 0.5 }}
+                            className="h-full bg-amber-400 rounded-full"
+                          />
+                        </div>
+                        <span className="text-gray-500 w-6 sm:w-8 text-right">
+                          {dist.count}
                         </span>
                       </div>
-                      <div className="flex-1 h-1.5 sm:h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{
-                            width: `${
-                              professional.totalReviews > 0
-                                ? (dist.count / professional.totalReviews) * 100
-                                : 0
-                            }%`,
-                          }}
-                          transition={{ duration: 1, delay: 0.5 }}
-                          className="h-full bg-amber-400 rounded-full"
-                        />
-                      </div>
-                      <span className="text-gray-500 w-6 sm:w-8 text-right">
-                        {dist.count}
-                      </span>
-                    </div>
-                  ))}
+                    ),
+                  )}
                 </div>
               </div>
 
               {/* Safety Badge */}
-              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 text-white text-center">
+              <div className="bg-linear-to-br from-gray-900 to-gray-800 rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 text-white text-center">
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 backdrop-blur-sm">
                   <span className="material-symbols-outlined text-xl sm:text-2xl">
                     security
@@ -884,7 +894,7 @@ export default function ProfessionalDetailPage({
               </div>
 
               {/* Mobile-only CTA */}
-              <div className="lg:hidden bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl p-4 text-white">
+              <div className="lg:hidden bg-linear-to-r from-emerald-600 to-teal-600 rounded-xl p-4 text-white">
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <p className="font-bold text-lg">Ready to Book?</p>
