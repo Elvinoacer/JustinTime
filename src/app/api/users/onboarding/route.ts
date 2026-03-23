@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { VALIDATION } from "@/lib/constants/validation";
 
 export const POST = auth(async (req) => {
   try {
@@ -10,7 +11,7 @@ export const POST = auth(async (req) => {
     }
 
     const body = await req.json();
-    const { 
+    let { 
       role, 
       onboardingCompleted, 
       clientInterests, 
@@ -29,27 +30,39 @@ export const POST = auth(async (req) => {
       locationAccuracy,
     } = body;
 
+    // Sanitize string inputs
+    location = location?.trim();
+    bio = bio?.trim();
+    phone = phone?.trim();
+    address = address?.trim();
+
     // B12 Fix: Robust validation
     if (!["CLIENT", "PROVIDER"].includes(role)) {
-      return NextResponse.json({ message: "Invalid role" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
 
     if (role === "PROVIDER") {
       if (!skills?.length) {
-        return NextResponse.json({ message: "At least one skill is required" }, { status: 400 });
+        return NextResponse.json({ error: "At least one skill is required" }, { status: 400 });
       }
-      if (!bio?.trim()) {
-        return NextResponse.json({ message: "Professional bio is required" }, { status: 400 });
+      if (skills.length > VALIDATION.MAX_PROVIDER_SKILLS) {
+        return NextResponse.json({ error: `Maximum ${VALIDATION.MAX_PROVIDER_SKILLS} skills allowed` }, { status: 400 });
+      }
+      if (!bio?.trim() || bio.length < VALIDATION.MIN_BIO_LENGTH || bio.length > VALIDATION.MAX_BIO_LENGTH) {
+        return NextResponse.json({ error: `Bio must be between ${VALIDATION.MIN_BIO_LENGTH} and ${VALIDATION.MAX_BIO_LENGTH} characters` }, { status: 400 });
       }
       if (!phone) {
-        return NextResponse.json({ message: "Phone number is required" }, { status: 400 });
+        return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
       }
       if (hourlyRate !== undefined && (isNaN(Number(hourlyRate)) || Number(hourlyRate) < 0)) {
-        return NextResponse.json({ message: "Invalid hourly rate" }, { status: 400 });
+        return NextResponse.json({ error: "Invalid hourly rate" }, { status: 400 });
       }
     } else if (role === "CLIENT") {
       if (!phone) {
-        return NextResponse.json({ message: "Phone number is required" }, { status: 400 });
+        return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
+      }
+      if (clientInterests && clientInterests.length > VALIDATION.MAX_CLIENT_INTERESTS) {
+        return NextResponse.json({ error: `Maximum ${VALIDATION.MAX_CLIENT_INTERESTS} interests allowed` }, { status: 400 });
       }
     }
 
@@ -132,13 +145,13 @@ export const POST = auth(async (req) => {
     // Check for specific Prisma errors (e.g., unique constraint)
     if (error?.code === 'P2002') {
       return NextResponse.json(
-        { message: `A user with this ${error.meta?.target?.join(', ') || 'field'} already exists.` },
+        { error: `A user with this ${error.meta?.target?.join(', ') || 'field'} already exists.` },
         { status: 409 }
       );
     }
 
     return NextResponse.json(
-      { message: errorMessage }, 
+      { error: errorMessage }, 
       { status: 500 }
     );
   }

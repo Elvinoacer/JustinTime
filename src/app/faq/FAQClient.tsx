@@ -107,7 +107,7 @@ const faqs: FAQ[] = [
     category: "Support",
     question: "How can I contact customer support?",
     answer:
-      "You can reach our support team via the in-app chat, email at support@justintime.co.ke, or call us at +254 790 670 542.",
+      "You can reach our support team via the in-app chat, email at support@gtss.software, or call us at +254 790 670 542.",
   },
   {
     category: "Support",
@@ -374,11 +374,11 @@ export default function FAQPage() {
             <div className="mt-6 pt-6 border-t border-emerald-400/30">
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
                 <a
-                  href="mailto:support@justintime.co.ke"
+                  href="mailto:support@gtss.software"
                   className="inline-flex items-center gap-2 text-emerald-50 hover:text-white transition-colors text-sm"
                 >
                   <Mail className="w-4 h-4" />
-                  support@justintime.co.ke
+                  support@gtss.software
                 </a>
                 <span className="text-emerald-400/50 hidden sm:inline">•</span>
                 <p className="text-emerald-50/80 text-xs sm:text-sm">

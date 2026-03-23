@@ -290,10 +290,10 @@ const HelpPage = () => {
             Get help from our support team
           </p>
           <a
-            href="mailto:support@justintime.com"
+            href="mailto:support@gtss.software"
             className="text-blue-600 text-xs sm:text-sm font-medium mt-1.5 sm:mt-2 md:mt-3 inline-flex items-center gap-0.5 sm:gap-1 truncate"
           >
-            <span className="truncate">support@justintime.com</span>
+            <span className="truncate">support@gtss.software</span>
             <span className="material-symbols-outlined text-xs sm:text-sm flex-shrink-0">
               mail
             </span>

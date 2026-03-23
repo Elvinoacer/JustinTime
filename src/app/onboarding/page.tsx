@@ -177,7 +177,7 @@ export default function OnboardingPage() {
       setIsLoading(false);
       setCurrentStep(3);
       router.refresh(); // Flush cache and re-read session cookie
-      setTimeout(() => router.push("/client/dashboard"), 1800);
+      setTimeout(() => router.push("/client/dashboard"), 3000);
     } catch (error: any) {
       console.error("Onboarding failed:", error);
       
@@ -258,7 +258,7 @@ export default function OnboardingPage() {
       setIsLoading(false);
       setCurrentStep(4); // Success step
       router.refresh(); // Flush cache and re-read session cookie
-      setTimeout(() => router.push("/dashboard"), 1800);
+      setTimeout(() => router.push("/dashboard"), 3000);
     } catch (error: any) {
       console.error("Onboarding failed:", error);
       

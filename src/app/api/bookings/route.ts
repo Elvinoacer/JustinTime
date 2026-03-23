@@ -12,6 +12,7 @@ import { calculateBookingBreakdown } from "@/lib/financials";
 import { createInvoiceForBooking } from "@/app/actions/invoice";
 import { validatePromoCode } from "@/lib/promo";
 import { getDynamicPrice } from "@/lib/pricing-engine";
+import { VALIDATION } from "@/lib/constants/validation";
 
 export async function GET(request: Request) {
   try {
@@ -89,7 +90,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const {
+    let {
       professionalId,
       serviceId,
       date,
@@ -103,9 +104,30 @@ export async function POST(request: Request) {
       promoCode, 
     } = body;
 
+    // Sanitize inputs
+    location = location?.trim();
+    notes = notes?.trim();
+    clientPhone = clientPhone?.trim();
+    clientAddress = clientAddress?.trim();
+    promoCode = promoCode?.trim()?.toUpperCase();
+
     // Validate required fields
     if (!professionalId || !serviceId) {
-      return new NextResponse("Missing required fields", { status: 400 });
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // Validate lengths
+    if (notes && notes.length > VALIDATION.MAX_NOTES_LENGTH) {
+      return NextResponse.json({ error: `Notes cannot exceed ${VALIDATION.MAX_NOTES_LENGTH} characters` }, { status: 400 });
+    }
+    if (location && location.length > VALIDATION.MAX_LOCATION_LENGTH) {
+      return NextResponse.json({ error: `Location cannot exceed ${VALIDATION.MAX_LOCATION_LENGTH} characters` }, { status: 400 });
+    }
+    if (clientPhone && clientPhone.length > VALIDATION.MAX_PHONE_LENGTH) {
+      return NextResponse.json({ error: `Phone cannot exceed ${VALIDATION.MAX_PHONE_LENGTH} characters` }, { status: 400 });
+    }
+    if (clientAddress && clientAddress.length > VALIDATION.MAX_ADDRESS_LENGTH) {
+      return NextResponse.json({ error: `Address cannot exceed ${VALIDATION.MAX_ADDRESS_LENGTH} characters` }, { status: 400 });
     }
 
     // Get service details
@@ -123,13 +145,15 @@ export async function POST(request: Request) {
     });
 
     if (!service) {
-      return new NextResponse("Service not found", { status: 404 });
+      return NextResponse.json({ error: "Service not found" }, { status: 404 });
     }
 
     if (service.providerId !== professionalId) {
-      return new NextResponse("Service does not belong to this provider", {
-        status: 400,
-      });
+      return NextResponse.json({ error: "Service does not belong to this provider" }, { status: 400 });
+    }
+
+    if (professionalId === session.user.id) {
+      return NextResponse.json({ error: "You cannot book your own service" }, { status: 400 });
     }
 
     // Prepare slots
@@ -158,7 +182,7 @@ export async function POST(request: Request) {
         endTime: finalEndTime,
       });
     } else {
-      return new NextResponse("Missing date/time or slots", { status: 400 });
+      return NextResponse.json({ error: "Missing date/time or slots" }, { status: 400 });
     }
 
     // Sort slots by date and time
@@ -404,6 +428,6 @@ export async function POST(request: Request) {
     return NextResponse.json(booking, { status: 201 });
   } catch (error) {
     console.error("[BOOKINGS_POST]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }
 }

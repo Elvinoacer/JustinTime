@@ -22,6 +22,7 @@ interface CategorySelectorProps {
   label?: string;
   error?: string;
   compact?: boolean;
+  disabled?: boolean;
 }
 
 export default function CategorySelector({
@@ -34,6 +35,7 @@ export default function CategorySelector({
   label = "Category",
   error,
   compact = false,
+  disabled = false,
 }: CategorySelectorProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -143,7 +145,9 @@ export default function CategorySelector({
     return (
       <button
         type="button"
+        disabled={disabled && !isSelected}
         onClick={() => {
+          if (disabled && !isSelected) return;
           onToggle(cat.id);
           if (isModal && !multiSelect) setIsModalOpen(false);
         }}
@@ -152,6 +156,8 @@ export default function CategorySelector({
         } overflow-hidden transition-all duration-200 w-full text-left min-h-0 ${
           isSelected
             ? "ring-1 sm:ring-2 ring-emerald-500 ring-offset-1 shadow-md shadow-emerald-500/20 scale-[1.02]"
+            : disabled
+            ? "opacity-50 cursor-not-allowed grayscale-[50%]"
             : "shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
         }`}
         aria-label={`Select ${cat.name}`}

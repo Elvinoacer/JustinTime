@@ -54,7 +54,7 @@ export default function SystemSettings({ settings }: SystemSettingsProps) {
     },
     { 
       key: 'support_email', 
-      defaultValue: 'support@justintime.com', 
+      defaultValue: 'support@gtss.software', 
       description: 'Primary support email address for customer inquiries', 
       type: 'text',
       icon: '📧',

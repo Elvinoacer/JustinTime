@@ -4,6 +4,7 @@ import CategorySelector from "@/components/CategorySelector";
 import React from "react";
 import { useLocation, LocationSource } from "../hooks/useLocation";
 import LocationDeniedModal from "./LocationDeniedModal";
+import { VALIDATION } from "@/lib/constants/validation";
 
 interface Category {
   id: string;
@@ -217,14 +218,20 @@ export default function StepClientDetails({
             onToggle={onInterestToggle}
             multiSelect={true}
             isLoading={isLoadingCategories}
-            label="What services might you need? (Optional)"
+            label={`What services might you need? (Optional, Max ${VALIDATION.MAX_CLIENT_INTERESTS})`}
+            disabled={clientInterests.length >= VALIDATION.MAX_CLIENT_INTERESTS}
           />
         </div>
 
         {/* Sticky selected interests summary */}
         {clientInterests.length > 0 && (
           <div className="sticky bottom-0 bg-white border-t border-gray-100 p-3 flex flex-wrap gap-1.5 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] rounded-t-xl -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8">
-            <span className="text-xs font-bold text-gray-500 w-full mb-1">Selected ({clientInterests.length}):</span>
+            <div className="w-full flex justify-between items-center mb-1">
+              <span className="text-xs font-bold text-gray-500">Selected:</span>
+              <span className={`text-xs font-bold ${clientInterests.length >= VALIDATION.MAX_CLIENT_INTERESTS ? 'text-amber-500' : 'text-gray-500'}`}>
+                {clientInterests.length} / {VALIDATION.MAX_CLIENT_INTERESTS}
+              </span>
+            </div>
             {clientInterests.map((id) => {
               const cat = categories.find((c) => c.id === id);
               if (!cat) return null;

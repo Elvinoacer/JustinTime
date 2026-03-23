@@ -32,7 +32,7 @@ const reverseGeocode = async (lat: number, lon: number): Promise<string> => {
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
       {
         headers: {
-          "User-Agent": "JustInTime/1.0 (contact@justintime.co.ke)",
+          "User-Agent": "JustInTime/1.0 (support@gtss.software)",
           "Accept-Language": "en",
         },
         signal: AbortSignal.timeout(5000),

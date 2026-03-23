@@ -4,6 +4,7 @@ import CategorySelector from "@/components/CategorySelector";
 import React from "react";
 import { useLocation, LocationSource } from "../hooks/useLocation";
 import LocationDeniedModal from "./LocationDeniedModal";
+import { VALIDATION } from "@/lib/constants/validation";
 
 interface Category {
   id: string;
@@ -67,12 +68,18 @@ export default function StepProviderDetails({
   }, [loc.status]);
 
   const handleSkillToggle = (skillId: string) => {
-    setProviderData((prev) => ({
-      ...prev,
-      skills: prev.skills.includes(skillId)
-        ? prev.skills.filter((id) => id !== skillId)
-        : [...prev.skills, skillId],
-    }));
+    setProviderData((prev) => {
+      const isSelected = prev.skills.includes(skillId);
+      if (!isSelected && prev.skills.length >= VALIDATION.MAX_PROVIDER_SKILLS) {
+        return prev;
+      }
+      return {
+        ...prev,
+        skills: isSelected
+          ? prev.skills.filter((id) => id !== skillId)
+          : [...prev.skills, skillId],
+      };
+    });
   };
 
   const handlePhoneChange = (value: string) => {
@@ -120,10 +127,15 @@ export default function StepProviderDetails({
           {/* Selected Services Display */}
           {providerData.skills.length > 0 && (
             <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-lg sm:rounded-xl">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">verified</span>
-                <span className="text-xs sm:text-sm font-bold text-gray-700">
-                  Selected Services ({providerData.skills.length})
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">verified</span>
+                  <span className="text-xs sm:text-sm font-bold text-gray-700">
+                    Selected Services
+                  </span>
+                </div>
+                <span className={`text-xs font-medium ${providerData.skills.length >= VALIDATION.MAX_PROVIDER_SKILLS ? 'text-amber-600' : 'text-gray-500'}`}>
+                  {providerData.skills.length} / {VALIDATION.MAX_PROVIDER_SKILLS}
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5 sm:gap-2">
@@ -163,7 +175,8 @@ export default function StepProviderDetails({
             onToggle={handleSkillToggle}
             multiSelect={true}
             isLoading={isLoadingCategories}
-            label="What services do you offer? *"
+            label={`What services do you offer? (Max ${VALIDATION.MAX_PROVIDER_SKILLS}) *`}
+            disabled={providerData.skills.length >= VALIDATION.MAX_PROVIDER_SKILLS}
           />
         </div>
 
@@ -212,18 +225,33 @@ export default function StepProviderDetails({
 
         {/* Bio */}
         <div className="group">
-          <label htmlFor="bio" className="block text-xs sm:text-sm font-bold text-gray-700 mb-1 sm:mb-2 group-focus-within:text-emerald-600 transition-colors">
-            Professional Bio *
-          </label>
+          <div className="flex justify-between items-end mb-1 sm:mb-2">
+            <label htmlFor="bio" className="block text-xs sm:text-sm font-bold text-gray-700 group-focus-within:text-emerald-600 transition-colors">
+              Professional Bio *
+            </label>
+            <span className={`text-xs ${providerData.bio.length < VALIDATION.MIN_BIO_LENGTH || providerData.bio.length > VALIDATION.MAX_BIO_LENGTH ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+              {providerData.bio.length} / {VALIDATION.MAX_BIO_LENGTH}
+            </span>
+          </div>
           <textarea
             id="bio"
             rows={3}
+            maxLength={VALIDATION.MAX_BIO_LENGTH}
             value={providerData.bio}
             onChange={(e) => setProviderData((prev) => ({ ...prev, bio: e.target.value }))}
-            className="w-full px-3 sm:px-4 py-3 sm:py-4 rounded-lg sm:rounded-xl bg-gray-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium resize-none text-sm sm:text-base"
-            placeholder="Tell clients about your experience, skills, and what makes you unique..."
+            className={`w-full px-3 sm:px-4 py-3 sm:py-4 rounded-lg sm:rounded-xl bg-gray-50 border-2 focus:bg-white focus:ring-2 sm:focus:ring-4 transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium resize-none text-sm sm:text-base ${
+              providerData.bio.length > 0 && providerData.bio.length < VALIDATION.MIN_BIO_LENGTH 
+              ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500/10' 
+              : 'border-transparent focus:border-emerald-500 focus:ring-emerald-500/10'
+            }`}
+            placeholder={`Tell clients about your experience, skills... (min ${VALIDATION.MIN_BIO_LENGTH} characters)`}
             required
           />
+          {providerData.bio.length > 0 && providerData.bio.length < VALIDATION.MIN_BIO_LENGTH && (
+            <p className="mt-1 text-xs text-amber-600">
+              Please enter at least {VALIDATION.MIN_BIO_LENGTH} characters ({VALIDATION.MIN_BIO_LENGTH - providerData.bio.length} more needed).
+            </p>
+          )}
         </div>
 
         {/* Location */}
@@ -310,10 +338,12 @@ export default function StepProviderDetails({
         <button
           onClick={onNext}
           disabled={
-            !providerData.skills.length ||
+            providerData.skills.length === 0 ||
+            providerData.skills.length > VALIDATION.MAX_PROVIDER_SKILLS ||
             !providerData.phone ||
             !providerData.hourlyRate ||
-            !providerData.bio ||
+            providerData.bio.length < VALIDATION.MIN_BIO_LENGTH ||
+            providerData.bio.length > VALIDATION.MAX_BIO_LENGTH ||
             !providerData.location
           }
           className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-4 sm:px-6 md:px-8 py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center gap-2 text-sm sm:text-base min-h-[44px]"

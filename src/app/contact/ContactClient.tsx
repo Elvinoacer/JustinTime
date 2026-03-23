@@ -167,9 +167,7 @@ const ContactPage = () => {
                       Email Us
                     </h4>
                     <p className="text-gray-600 text-xs sm:text-sm mt-1">
-                      support@justintime.co.ke
-                      <br />
-                      info@justintime.co.ke
+                      support@gtss.software
                     </p>
                   </div>
                 </div>
@@ -328,6 +326,7 @@ const ContactPage = () => {
                         id="name"
                         name="name"
                         required
+                        maxLength={100}
                         value={formState.name}
                         onChange={handleChange}
                         className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-gray-50 focus:bg-white text-sm sm:text-base"
@@ -388,6 +387,7 @@ const ContactPage = () => {
                       name="message"
                       required
                       rows={4}
+                      maxLength={2000}
                       value={formState.message}
                       onChange={handleChange}
                       className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-gray-50 focus:bg-white text-sm sm:text-base resize-none"
@@ -458,7 +458,7 @@ const ContactPage = () => {
                     </span>
                   </a>
                   <a
-                    href="mailto:support@justintime.co.ke"
+                    href="mailto:support@gtss.software"
                     className="flex flex-col items-center justify-center p-3 bg-white border border-gray-200 rounded-lg hover:border-emerald-300 transition-colors"
                   >
                     <Mail className="w-5 h-5 text-emerald-600 mb-1" />
