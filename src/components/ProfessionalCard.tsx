@@ -31,6 +31,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
   professional,
   index = 0,
 }) => {
+  const displayName = (professional.name || "").trim() || "Unknown";
   const isPro =
     professional.subscription?.plan &&
     ["PRO", "BUSINESS"].includes(professional.subscription.plan) &&
@@ -165,14 +166,14 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
                 {professional.image ? (
                   <Image
                     src={professional.image}
-                    alt={professional.name}
+                    alt={displayName}
                     fill
                     className="object-cover"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-100 to-teal-100">
                     <span className="text-3xl sm:text-4xl font-bold text-emerald-600">
-                      {professional.name.charAt(0)}
+                      {displayName.charAt(0)}
                     </span>
                   </div>
                 )}
@@ -187,7 +188,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
           <div className="p-4 sm:p-5 flex flex-col flex-grow text-center">
             {/* Name */}
             <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 group-hover:text-emerald-700 transition-colors">
-              {professional.name}
+              {displayName}
             </h3>
 
             {/* Title */}
