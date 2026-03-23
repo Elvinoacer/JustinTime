@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { motion } from 'framer-motion';
-import Image from 'next/image';
-import Link from 'next/link';
+import { motion } from "framer-motion";
+import Image from "next/image";
+import Link from "next/link";
 
 interface ProfessionalCardProps {
   professional: {
@@ -10,12 +10,12 @@ interface ProfessionalCardProps {
     name: string;
     title?: string;
     image?: string | null;
-    rating: number;
-    reviews: number;
-    hourlyRate: number;
+    rating?: number | null;
+    reviews?: number | null;
+    hourlyRate?: number | null;
     location?: string | null;
     skills: string[];
-    completedJobs: number;
+    completedJobs?: number | null;
     memberSince: string;
     verified?: boolean;
     subscription?: {
@@ -27,12 +27,34 @@ interface ProfessionalCardProps {
   index?: number;
 }
 
-const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional, index = 0 }) => {
-  const isPro = professional.subscription?.plan && 
-    ["PRO", "BUSINESS"].includes(professional.subscription.plan) && 
+const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
+  professional,
+  index = 0,
+}) => {
+  const isPro =
+    professional.subscription?.plan &&
+    ["PRO", "BUSINESS"].includes(professional.subscription.plan) &&
     professional.subscription.isActive;
-  
+
   const isVerified = professional.verified;
+  const hourlyRate = Number.isFinite(Number(professional.hourlyRate))
+    ? Number(professional.hourlyRate)
+    : 0;
+  const rating = Number.isFinite(Number(professional.rating))
+    ? Number(professional.rating)
+    : 0;
+  const reviews = Number.isFinite(Number(professional.reviews))
+    ? Number(professional.reviews)
+    : 0;
+  const completedJobs = Number.isFinite(Number(professional.completedJobs))
+    ? Number(professional.completedJobs)
+    : 0;
+  const skills = Array.isArray(professional.skills) ? professional.skills : [];
+  const memberSinceYear = Number.isNaN(
+    new Date(professional.memberSince).getFullYear(),
+  )
+    ? new Date().getFullYear()
+    : new Date(professional.memberSince).getFullYear();
 
   // Format distance
   const formatDistance = (km?: number) => {
@@ -54,7 +76,6 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional, index
     >
       <Link href={`/professionals/${professional.id}`} className="block h-full">
         <div className="relative h-full flex flex-col bg-white rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-[0_20px_50px_-12px_rgba(16,185,129,0.25)] border border-gray-100 hover:border-emerald-200/50">
-          
           {/* Top Section - Gradient Background with Avatar */}
           <div className="relative bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600 pt-6 pb-12 px-4">
             {/* Background Pattern */}
@@ -67,44 +88,50 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional, index
             <div className="relative flex justify-between items-start mb-4">
               {/* PRO Badge */}
               {isPro && (
-                <motion.div 
+                <motion.div
                   className="px-3 py-1.5 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full shadow-lg shadow-amber-500/30"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.2, type: "spring" }}
                 >
                   <span className="text-white text-xs font-bold tracking-wide flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">workspace_premium</span>
+                    <span className="material-symbols-outlined text-sm">
+                      workspace_premium
+                    </span>
                     PRO
                   </span>
                 </motion.div>
               )}
-              
+
               {/* Verified Badge */}
               {isVerified && !isPro && (
-                <motion.div 
+                <motion.div
                   className="px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.2, type: "spring" }}
                 >
                   <span className="text-emerald-700 text-xs font-bold tracking-wide flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">verified</span>
+                    <span className="material-symbols-outlined text-sm">
+                      verified
+                    </span>
                     Verified
                   </span>
                 </motion.div>
               )}
-              
+
               {/* Distance Badge */}
               {professional.distance && (
-                <motion.div 
+                <motion.div
                   className="px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-full shadow-lg ml-auto"
                   initial={{ opacity: 0, x: 10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 }}
                 >
                   <span className="text-emerald-700 text-xs font-bold flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">near_me</span>
+                    <span className="material-symbols-outlined text-sm">
+                      near_me
+                    </span>
                     {formatDistance(professional.distance)}
                   </span>
                 </motion.div>
@@ -114,9 +141,11 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional, index
             {/* Price Badge - Floating */}
             <div className="absolute top-4 right-4">
               <div className="bg-white/95 backdrop-blur-md rounded-xl px-3 py-2 shadow-lg border border-white/50">
-                <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">From</p>
+                <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">
+                  From
+                </p>
                 <p className="text-emerald-700 font-bold text-lg leading-none">
-                  KES {professional.hourlyRate.toLocaleString()}
+                  KES {hourlyRate.toLocaleString()}
                   <span className="text-xs font-medium text-gray-500">/hr</span>
                 </p>
               </div>
@@ -130,7 +159,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional, index
               <div className="absolute -inset-1 bg-gradient-to-br from-emerald-400 via-green-500 to-teal-500 rounded-full p-[3px] shadow-lg shadow-emerald-500/30">
                 <div className="w-full h-full bg-white rounded-full" />
               </div>
-              
+
               {/* Avatar */}
               <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-white border-4 border-white shadow-xl">
                 {professional.image ? (
@@ -148,7 +177,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional, index
                   </div>
                 )}
               </div>
-              
+
               {/* Online Indicator */}
               <div className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm" />
             </div>
@@ -160,7 +189,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional, index
             <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 group-hover:text-emerald-700 transition-colors">
               {professional.name}
             </h3>
-            
+
             {/* Title */}
             {professional.title && (
               <p className="text-sm text-gray-500 mb-3 line-clamp-1">
@@ -175,34 +204,43 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional, index
                   <span
                     key={i}
                     className={`material-symbols-outlined text-base ${
-                      i < Math.floor(professional.rating) 
-                        ? "text-amber-400" 
-                        : i < professional.rating 
-                          ? "text-amber-300" 
+                      i < Math.floor(rating)
+                        ? "text-amber-400"
+                        : i < rating
+                          ? "text-amber-300"
                           : "text-gray-200"
                     }`}
-                    style={{ fontVariationSettings: i < professional.rating ? '"FILL" 1' : '"FILL" 0' }}
+                    style={{
+                      fontVariationSettings:
+                        i < rating ? '"FILL" 1' : '"FILL" 0',
+                    }}
                   >
                     star
                   </span>
                 ))}
               </div>
-              <span className="text-sm font-bold text-gray-900">{professional.rating.toFixed(1)}</span>
-              <span className="text-xs text-gray-400">({professional.reviews} reviews)</span>
+              <span className="text-sm font-bold text-gray-900">
+                {rating.toFixed(1)}
+              </span>
+              <span className="text-xs text-gray-400">({reviews} reviews)</span>
             </div>
 
             {/* Location */}
             {professional.location && (
               <div className="flex items-center justify-center gap-1 text-gray-500 text-sm mb-3">
-                <span className="material-symbols-outlined text-sm">location_on</span>
-                <span className="truncate max-w-[180px]">{professional.location}</span>
+                <span className="material-symbols-outlined text-sm">
+                  location_on
+                </span>
+                <span className="truncate max-w-[180px]">
+                  {professional.location}
+                </span>
               </div>
             )}
 
             {/* Skills */}
-            {professional.skills.length > 0 && (
+            {skills.length > 0 && (
               <div className="flex flex-wrap justify-center gap-1.5 mb-4">
-                {professional.skills.slice(0, 3).map((skill, idx) => (
+                {skills.slice(0, 3).map((skill, idx) => (
                   <span
                     key={idx}
                     className="px-2.5 py-1 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 rounded-full text-xs font-medium border border-emerald-100"
@@ -210,9 +248,9 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional, index
                     {skill}
                   </span>
                 ))}
-                {professional.skills.length > 3 && (
+                {skills.length > 3 && (
                   <span className="px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                    +{professional.skills.length - 3}
+                    +{skills.length - 3}
                   </span>
                 )}
               </div>
@@ -221,13 +259,17 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional, index
             {/* Stats Row */}
             <div className="flex items-center justify-center gap-4 text-xs text-gray-500 mb-4 pt-3 border-t border-gray-100">
               <div className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm text-emerald-500">verified_user</span>
-                <span>{professional.completedJobs} jobs</span>
+                <span className="material-symbols-outlined text-sm text-emerald-500">
+                  verified_user
+                </span>
+                <span>{completedJobs} jobs</span>
               </div>
               <div className="w-px h-4 bg-gray-200" />
               <div className="flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm text-gray-400">calendar_month</span>
-                <span>Since {new Date(professional.memberSince).getFullYear()}</span>
+                <span className="material-symbols-outlined text-sm text-gray-400">
+                  calendar_month
+                </span>
+                <span>Since {memberSinceYear}</span>
               </div>
             </div>
 
@@ -242,7 +284,9 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional, index
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                 <span className="relative flex items-center justify-center gap-2">
                   View Profile
-                  <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                  <span className="material-symbols-outlined text-base group-hover:translate-x-1 transition-transform">
+                    arrow_forward
+                  </span>
                 </span>
               </div>
             </motion.div>
