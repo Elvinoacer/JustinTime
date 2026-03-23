@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 1. Fetch Providers
+    console.log("[Professionals API] Fetching providers from DB...");
     const providers = await prisma.user.findMany({
       where,
       include: {
@@ -60,12 +61,12 @@ export async function GET(request: NextRequest) {
         },
         _count: {
           select: {
-            bookings: { where: { status: "COMPLETED" } },
+            providerBookings: { where: { status: "COMPLETED" } },
             receivedReviews: true,
           },
         },
       },
-      take: 200, // Reasonable limit for in-memory sorting/filtering
+      take: 200,
     });
 
     if (providers.length === 0) {
@@ -75,17 +76,30 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 2. Optimized Batch Rating Fetch (Solves N+1 connection exhaustion)
+    // 2. Fetch Ratings 
+    // Using findMany + in-memory grouping is often more stable than groupBy across various Prisma versions
+    console.log("[Professionals API] Fetching reviews for", providers.length, "providers...");
     const providerIds = providers.map(p => p.id);
-    const ratings = await prisma.review.groupBy({
-      by: ['targetId'],
+    const reviews = await prisma.review.findMany({
       where: { targetId: { in: providerIds } },
-      _avg: { rating: true },
+      select: { targetId: true, rating: true },
     });
 
-    const ratingMap = new Map(ratings.map(r => [r.targetId, r._avg.rating || 0]));
+    // Group reviews by targetId and calculate averages
+    const ratingsAcc: Record<string, { sum: number; count: number }> = {};
+    reviews.forEach(r => {
+      if (!ratingsAcc[r.targetId]) ratingsAcc[r.targetId] = { sum: 0, count: 0 };
+      ratingsAcc[r.targetId].sum += r.rating;
+      ratingsAcc[r.targetId].count += 1;
+    });
+
+    const getAvg = (pid: string) => {
+      const stats = ratingsAcc[pid];
+      return stats ? stats.sum / stats.count : 0;
+    };
 
     // 3. Fetch categories for skill mapping
+    console.log("[Professionals API] Fetching categories for mapping...");
     const categories = await prisma.category.findMany({
       select: { id: true, name: true }
     });
@@ -93,26 +107,27 @@ export async function GET(request: NextRequest) {
 
     // 4. Transform and Format
     const formattedProviders = providers.map((provider) => {
-      const skills = Array.isArray(provider.profile?.skills) 
-        ? provider.profile.skills.map(skillId => categoryMap.get(skillId) || skillId)
+      const p = provider.profile;
+      const skills = Array.isArray(p?.skills) 
+        ? p!.skills.map(skillId => categoryMap.get(skillId) || skillId)
         : [];
 
       return {
         id: provider.id,
-        name: provider.name,
+        name: provider.name || "Anonymous Professional",
         image: provider.image,
-        title: provider.profile?.bio?.split(".")[0] || "Service Provider",
-        bio: provider.profile?.bio,
+        title: p?.bio?.split(".")[0] || "Service Provider",
+        bio: p?.bio || "",
         skills,
-        hourlyRate: provider.profile?.hourlyRate ? Number(provider.profile.hourlyRate) : 0,
-        location: provider.profile?.location,
-        latitude: provider.profile?.latitude,
-        longitude: provider.profile?.longitude,
-        rating: ratingMap.get(provider.id) || 0,
-        reviews: provider._count.receivedReviews,
-        completedJobs: provider._count.bookings,
+        hourlyRate: p?.hourlyRate ? Number(p.hourlyRate) : 0,
+        location: p?.location || "Mobile Service",
+        latitude: p?.latitude,
+        longitude: p?.longitude,
+        rating: getAvg(provider.id),
+        reviews: provider._count?.receivedReviews || 0,
+        completedJobs: provider._count?.providerBookings || 0, 
         memberSince: provider.createdAt,
-        verified: provider.profile?.isVerified || false,
+        verified: p?.isVerified || false,
         subscription: {
           plan: provider.subscription?.plan || "FREE",
           isActive: provider.subscription?.isActive || false,
@@ -120,18 +135,18 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // 5. Client-side Search (Skills, Bio, Name)
+    // 5. Client-side Search
     let filtered = formattedProviders;
     if (search) {
       const lowerSearch = search.toLowerCase();
       filtered = formattedProviders.filter(p => 
         (p.name || "").toLowerCase().includes(lowerSearch) ||
-        (p.bio?.toLowerCase().includes(lowerSearch) ?? false) ||
+        (p.bio?.toLowerCase().includes(lowerSearch)) ||
         p.skills.some(s => s.toLowerCase().includes(lowerSearch))
       );
     }
 
-    // 6. Support Distance Sorting if coordinates available
+    // 6. Support Distance Sorting
     const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
       const R = 6371; // km
       const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -146,15 +161,16 @@ export async function GET(request: NextRequest) {
 
     // 7. SortResults
     filtered.sort((a, b) => {
-      // Premium prioritization
       const isAPremium = ["PRO", "BUSINESS"].includes(a.subscription.plan) && a.subscription.isActive;
       const isBPremium = ["PRO", "BUSINESS"].includes(b.subscription.plan) && b.subscription.isActive;
       if (isAPremium && !isBPremium) return -1;
       if (!isAPremium && isBPremium) return 1;
 
-      if (sortBy === "distance" && latitude && longitude && a.latitude && a.longitude && b.latitude && b.longitude) {
-        const distA = calculateDistance(latitude, longitude, a.latitude, a.longitude);
-        const distB = calculateDistance(latitude, longitude, b.latitude, b.longitude);
+      const hasCoords = (lat: any, lon: any) => typeof lat === 'number' && typeof lon === 'number';
+
+      if (sortBy === "distance" && hasCoords(latitude, longitude) && hasCoords(a.latitude, a.longitude) && hasCoords(b.latitude, b.longitude)) {
+        const distA = calculateDistance(latitude!, longitude!, a.latitude!, a.longitude!);
+        const distB = calculateDistance(latitude!, longitude!, b.latitude!, b.longitude!);
         return distA - distB;
       }
       
@@ -179,7 +195,8 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       }
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error("[Professionals API Fatal Error]:", error);
     return handleError(error);
   }
 }
