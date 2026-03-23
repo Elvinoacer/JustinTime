@@ -51,7 +51,11 @@ export async function GET(request: NextRequest) {
     console.log("[Professionals API] Fetching providers from DB...");
     const providers = await prisma.user.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        createdAt: true,
         profile: true,
         subscription: {
           select: {
