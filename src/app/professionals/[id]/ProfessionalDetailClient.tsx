@@ -1,33 +1,50 @@
-
 "use client";
 
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import InteractionBar from "@/components/InteractionBar"; // Added import
-import { useProfessional } from "@/lib/api/hooks/useProfessional";
+import { useProfessional, ProfessionalDetail } from "@/lib/api/hooks/useProfessional";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { use, useState } from "react";
 import { toast } from "sonner";
 
-export default function ProfessionalDetailPage({ 
-  params 
-}: { 
-  params: Promise<{ id: string }>
+export default function ProfessionalDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
 }) {
+  type TabId = "about" | "services" | "reviews";
+  type EducationItem = {
+    degree?: string;
+    field?: string;
+    institution?: string;
+    startYear?: string | number;
+    endYear?: string | number | null;
+  };
+  type CertificationItem = {
+    name?: string;
+    issuer?: string;
+    date?: string;
+    fileUrl?: string;
+  };
+  type SocialLinkItem = {
+    platform?: string;
+    url?: string;
+  };
+
   const { id } = use(params);
   const router = useRouter();
 
   const { data, isLoading, error } = useProfessional(id);
   const professional = data?.data;
-  
-  console.log('Professional Data:', professional);
-  console.log('Social Links:', professional?.socialLinks);
 
-  const [activeTab, setActiveTab] = useState<"about" | "services" | "reviews">(
-    "about"
-  );
+  console.log("Professional Data:", professional);
+  console.log("Social Links:", professional?.socialLinks);
+
+  const [activeTab, setActiveTab] = useState<TabId>("about");
   const [showMobileContact, setShowMobileContact] = useState(false);
 
   // Handler for booking
@@ -43,7 +60,7 @@ export default function ProfessionalDetailPage({
     }
     const formattedPhone = professional.phone.replace(/[^0-9+]/g, "");
     const message = encodeURIComponent(
-      `Hi ${professional.name}, I found your profile on JustInTime and would like to discuss your services.`
+      `Hi ${professional.name}, I found your profile on JustInTime and would like to discuss your services.`,
     );
     window.open(`https://wa.me/${formattedPhone}?text=${message}`, "_blank");
   };
@@ -101,11 +118,18 @@ export default function ProfessionalDetailPage({
     );
   }
 
-  const tabs = [
+  // Type assertion for better inference in nested components/mappings
+  const prof = professional as ProfessionalDetail;
+
+  const tabs: { id: TabId; label: string; icon: string }[] = [
     { id: "about", label: "About", icon: "person" },
     { id: "services", label: "Services", icon: "work" },
     { id: "reviews", label: "Reviews", icon: "star" },
   ];
+  const educationItems = (prof.education || []) as EducationItem[];
+  const certificationItems = (prof.certifications ||
+    []) as CertificationItem[];
+  const socialLinks = (prof.socialLinks || []) as SocialLinkItem[];
 
   return (
     <>
@@ -118,7 +142,7 @@ export default function ProfessionalDetailPage({
             <div className="absolute inset-0 bg-black/20" />
           </div>
 
-          <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
             <div className="relative flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 lg:gap-8">
               {/* Profile Image */}
               <motion.div
@@ -128,10 +152,12 @@ export default function ProfessionalDetailPage({
               >
                 <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-40 md:h-40 lg:w-52 lg:h-52 rounded-xl sm:rounded-2xl md:rounded-3xl border-3 sm:border-4 border-white shadow-xl md:shadow-2xl overflow-hidden bg-white relative z-10">
                   {professional.image ? (
-                    <img
+                    <Image
                       src={professional.image}
                       alt={professional.name}
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
+                      unoptimized
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400 text-3xl sm:text-4xl md:text-6xl font-bold">
@@ -139,15 +165,26 @@ export default function ProfessionalDetailPage({
                     </div>
                   )}
                 </div>
-                {(professional.isVerified || (["PRO", "BUSINESS"].includes(professional.subscription?.plan) && professional.subscription?.isActive === true)) && (
+                {(professional.isVerified ||
+                  (["PRO", "BUSINESS"].includes(
+                    professional.subscription?.plan || "",
+                  ) &&
+                    professional.subscription?.isActive === true)) && (
                   <div
                     className={`absolute -bottom-1 -right-1 sm:bottom-0 sm:right-0 md:bottom-2 md:-right-2 z-20 p-1 sm:p-1.5 md:p-2 rounded-full border-2 sm:border-3 md:border-4 border-white shadow-md md:shadow-lg ${
-                      ["PRO", "BUSINESS"].includes(professional.subscription?.plan) &&
-                      professional.subscription?.isActive === true
+                      ["PRO", "BUSINESS"].includes(
+                        professional.subscription?.plan || "",
+                      ) && professional.subscription?.isActive === true
                         ? "bg-amber-500 text-white"
                         : "bg-blue-500 text-white"
                     }`}
-                    title={["PRO", "BUSINESS"].includes(professional.subscription?.plan) && professional.subscription?.isActive === true ? "Premium Professional" : "Verified Professional"}
+                    title={
+                      ["PRO", "BUSINESS"].includes(
+                        professional.subscription?.plan || "",
+                      ) && professional.subscription?.isActive === true
+                        ? "Premium Professional"
+                        : "Verified Professional"
+                    }
                   >
                     <span className="material-symbols-outlined text-xs sm:text-sm md:text-lg lg:text-xl">
                       verified
@@ -314,7 +351,7 @@ export default function ProfessionalDetailPage({
         </div>
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-6 lg:px-8 py-6 sm:py-8 md:py-12">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 md:py-12">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
             {/* Left Column - Main Content */}
             <div className="lg:col-span-2 space-y-4 sm:space-y-6 md:space-y-8">
@@ -324,7 +361,7 @@ export default function ProfessionalDetailPage({
                   {tabs.map((tab) => (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveTab(tab.id as any)}
+                      onClick={() => setActiveTab(tab.id)}
                       className={`pb-3 font-medium text-sm sm:text-base transition-all relative whitespace-nowrap ${
                         activeTab === tab.id
                           ? "text-emerald-600"
@@ -376,7 +413,7 @@ export default function ProfessionalDetailPage({
                             Skills & Expertise
                           </h3>
                           <div className="flex flex-wrap gap-2 sm:gap-3">
-                            {professional.skills.map((skill, idx) => (
+                            {prof.skills.map((skill: string, idx: number) => (
                               <span
                                 key={idx}
                                 className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-50 text-gray-700 rounded-lg sm:rounded-xl font-medium border border-gray-200 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 transition-all cursor-default text-xs sm:text-sm"
@@ -390,7 +427,7 @@ export default function ProfessionalDetailPage({
 
                       {/* Education & Certifications Grid */}
                       <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
-                        {professional.education.length > 0 && (
+                        {educationItems.length > 0 && (
                           <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm border border-gray-100">
                             <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2">
                               <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
@@ -399,34 +436,31 @@ export default function ProfessionalDetailPage({
                               Education
                             </h3>
                             <div className="space-y-4 sm:space-y-6">
-                              {professional.education.map(
-                                (edu: any, idx: number) => (
-                                  <div
-                                    key={idx}
-                                    className="relative pl-4 sm:pl-6 border-l-2 border-gray-100 last:border-0"
-                                  >
-                                    <div className="absolute -left-[5px] top-1.5 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-200 border-2 border-white ring-1 ring-emerald-100" />
-                                    <div className="font-bold text-gray-900 text-sm sm:text-base">
-                                      {edu.degree}
-                                    </div>
-                                    <div className="text-emerald-600 font-medium text-xs sm:text-sm mb-1">
-                                      {edu.field}
-                                    </div>
-                                    <div className="text-gray-500 text-xs sm:text-sm">
-                                      {edu.institution}
-                                    </div>
-                                    <div className="text-xs text-gray-400 mt-1">
-                                      {edu.startYear} -{" "}
-                                      {edu.endYear || "Present"}
-                                    </div>
+                              {educationItems.map((edu, idx) => (
+                                <div
+                                  key={idx}
+                                  className="relative pl-4 sm:pl-6 border-l-2 border-gray-100 last:border-0"
+                                >
+                                  <div className="absolute -left-[5px] top-1.5 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-200 border-2 border-white ring-1 ring-emerald-100" />
+                                  <div className="font-bold text-gray-900 text-sm sm:text-base">
+                                    {edu.degree}
                                   </div>
-                                )
-                              )}
+                                  <div className="text-emerald-600 font-medium text-xs sm:text-sm mb-1">
+                                    {edu.field}
+                                  </div>
+                                  <div className="text-gray-500 text-xs sm:text-sm">
+                                    {edu.institution}
+                                  </div>
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    {edu.startYear} - {edu.endYear || "Present"}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         )}
 
-                        {professional.certifications.length > 0 && (
+                        {certificationItems.length > 0 && (
                           <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm border border-gray-100">
                             <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2">
                               <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
@@ -435,44 +469,42 @@ export default function ProfessionalDetailPage({
                               Certifications
                             </h3>
                             <div className="space-y-3 sm:space-y-4">
-                              {professional.certifications.map(
-                                (cert: any, idx: number) => (
-                                  <div
-                                    key={idx}
-                                    className="flex items-start gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl hover:bg-emerald-50/50 transition-colors group"
-                                  >
-                                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white flex items-center justify-center shadow-sm text-emerald-600">
-                                      <span className="material-symbols-outlined text-sm sm:text-base">
-                                        verified
-                                      </span>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="font-bold text-gray-900 text-sm sm:text-base group-hover:text-emerald-700 transition-colors truncate">
-                                        {cert.name}
-                                      </div>
-                                      <div className="text-gray-500 text-xs sm:text-sm truncate">
-                                        {cert.issuer}
-                                      </div>
-                                      <div className="text-xs text-gray-400 mt-1">
-                                        {cert.date}
-                                      </div>
-                                    </div>
-                                    {cert.fileUrl && (
-                                      <a
-                                        href={cert.fileUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="p-1.5 sm:p-2 text-gray-400 hover:text-emerald-600 hover:bg-white rounded-lg transition-all flex-shrink-0"
-                                        title="View Certificate"
-                                      >
-                                        <span className="material-symbols-outlined text-sm sm:text-base">
-                                          visibility
-                                        </span>
-                                      </a>
-                                    )}
+                              {certificationItems.map((cert, idx) => (
+                                <div
+                                  key={idx}
+                                  className="flex items-start gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl hover:bg-emerald-50/50 transition-colors group"
+                                >
+                                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white flex items-center justify-center shadow-sm text-emerald-600">
+                                    <span className="material-symbols-outlined text-sm sm:text-base">
+                                      verified
+                                    </span>
                                   </div>
-                                )
-                              )}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-gray-900 text-sm sm:text-base group-hover:text-emerald-700 transition-colors truncate">
+                                      {cert.name}
+                                    </div>
+                                    <div className="text-gray-500 text-xs sm:text-sm truncate">
+                                      {cert.issuer}
+                                    </div>
+                                    <div className="text-xs text-gray-400 mt-1">
+                                      {cert.date}
+                                    </div>
+                                  </div>
+                                  {cert.fileUrl && (
+                                    <a
+                                      href={cert.fileUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1.5 sm:p-2 text-gray-400 hover:text-emerald-600 hover:bg-white rounded-lg transition-all flex-shrink-0"
+                                      title="View Certificate"
+                                    >
+                                      <span className="material-symbols-outlined text-sm sm:text-base">
+                                        visibility
+                                      </span>
+                                    </a>
+                                  )}
+                                </div>
+                              ))}
                             </div>
                           </div>
                         )}
@@ -499,12 +531,12 @@ export default function ProfessionalDetailPage({
                             No services listed
                           </h3>
                           <p className="text-gray-500 text-sm sm:text-base">
-                            This professional hasn't added any services yet.
+                            This professional has not added any services yet.
                           </p>
                         </div>
                       ) : (
                         <div className="grid sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-                          {professional.services.map((service) => (
+                          {prof.services.map((service: ProfessionalDetail["services"][0]) => (
                             <div
                               key={service.id}
                               className="group bg-white rounded-lg sm:rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
@@ -512,10 +544,12 @@ export default function ProfessionalDetailPage({
                               {/* Service Image */}
                               <div className="h-32 sm:h-40 md:h-48 bg-gray-100 relative overflow-hidden">
                                 {service.images && service.images.length > 0 ? (
-                                  <img
-                                    src={service.images[0]}
+                                  <Image
+                                    src={service.images[0] as string}
                                     alt={service.title}
-                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                    fill
+                                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                    unoptimized
                                   />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center bg-gray-50">
@@ -548,7 +582,10 @@ export default function ProfessionalDetailPage({
                                     </p>
                                     <div className="flex items-baseline gap-0.5">
                                       <span className="text-lg sm:text-xl font-bold text-gray-900">
-                                        KES {service.price.toLocaleString()}
+                                        KES{" "}
+                                        {Number(
+                                          service.price ?? 0,
+                                        ).toLocaleString()}
                                       </span>
                                       {service.pricingUnit === "hourly" && (
                                         <span className="text-xs sm:text-sm text-gray-500 font-medium">
@@ -560,7 +597,7 @@ export default function ProfessionalDetailPage({
                                   <button
                                     onClick={() =>
                                       router.push(
-                                        `/booking?professional=${id}&service=${service.id}`
+                                        `/booking?professional=${id}&service=${service.id}`,
                                       )
                                     }
                                     className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-50 text-gray-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all"
@@ -604,17 +641,20 @@ export default function ProfessionalDetailPage({
                         </div>
                       ) : (
                         <div className="grid gap-3 sm:gap-4">
-                          {professional.reviews.map((review) => (
+                          {prof.reviews.map((review: ProfessionalDetail["reviews"][0]) => (
                             <div
                               key={review.id}
                               className="p-4 sm:p-6 bg-white rounded-lg sm:rounded-xl border border-gray-100 hover:shadow-md transition-all"
                             >
                               <div className="flex items-start gap-3 sm:gap-4">
                                 {review.reviewer.image ? (
-                                  <img
+                                  <Image
                                     src={review.reviewer.image}
                                     alt={review.reviewer.name || "User"}
+                                    width={48}
+                                    height={48}
                                     className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-gray-100"
+                                    unoptimized
                                   />
                                 ) : (
                                   <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center text-gray-500 font-bold text-base sm:text-lg ring-2 ring-gray-100">
@@ -629,7 +669,7 @@ export default function ProfessionalDetailPage({
                                       </div>
                                       <div className="text-xs text-gray-500">
                                         {new Date(
-                                          review.createdAt
+                                          review.createdAt,
                                         ).toLocaleDateString("en-US", {
                                           month: "short",
                                           day: "numeric",
@@ -660,7 +700,7 @@ export default function ProfessionalDetailPage({
                                   </div>
                                   {review.comment && (
                                     <p className="text-gray-600 leading-relaxed text-sm sm:text-base bg-gray-50 p-3 sm:p-4 rounded-lg sm:rounded-xl rounded-tl-none">
-                                      "{review.comment}"
+                                      {review.comment}
                                     </p>
                                   )}
                                 </div>
@@ -734,7 +774,7 @@ export default function ProfessionalDetailPage({
               </div>
 
               {/* Social Links & Portfolio */}
-              {professional.socialLinks && professional.socialLinks.length > 0 && (
+              {socialLinks.length > 0 && (
                 <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
                   <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2">
                     <span className="material-symbols-outlined text-emerald-600">
@@ -743,25 +783,25 @@ export default function ProfessionalDetailPage({
                     Portfolio & Socials
                   </h3>
                   <div className="flex flex-wrap gap-3">
-                    {professional.socialLinks.map((link: any, idx: number) => {
+                    {socialLinks.map((link, idx) => {
                       const icons: Record<string, string> = {
-                        'Website': 'language',
-                        'LinkedIn': 'work',
-                        'Twitter': 'tag',
-                        'Facebook': 'thumb_up',
-                        'Instagram': 'photo_camera',
-                        'GitHub': 'code',
-                        'YouTube': 'play_circle',
-                        'TikTok': 'music_note',
-                        'Behance': 'palette',
-                        'Dribbble': 'sports_basketball',
+                        Website: "language",
+                        LinkedIn: "work",
+                        Twitter: "tag",
+                        Facebook: "thumb_up",
+                        Instagram: "photo_camera",
+                        GitHub: "code",
+                        YouTube: "play_circle",
+                        TikTok: "music_note",
+                        Behance: "palette",
+                        Dribbble: "sports_basketball",
                       };
-                      const icon = icons[link.platform] || 'link';
-                      
+                      const icon = icons[link.platform || ""] || "link";
+
                       return (
                         <a
                           key={idx}
-                          href={link.url}
+                          href={link.url || "#"}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-emerald-50 text-gray-700 hover:text-emerald-700 rounded-lg border border-gray-200 hover:border-emerald-200 transition-all text-sm font-medium group"
@@ -769,7 +809,7 @@ export default function ProfessionalDetailPage({
                           <span className="material-symbols-outlined text-lg group-hover:scale-110 transition-transform">
                             {icon}
                           </span>
-                          {link.platform}
+                          {link.platform || "Link"}
                         </a>
                       );
                     })}
@@ -794,7 +834,7 @@ export default function ProfessionalDetailPage({
                 </div>
 
                 <div className="space-y-2 sm:space-y-3">
-                  {professional.ratingDistribution.map((dist) => (
+                  {prof.ratingDistribution.map((dist: { stars: number; count: number }) => (
                     <div
                       key={dist.stars}
                       className="flex items-center gap-2 text-xs sm:text-sm"

@@ -13,8 +13,8 @@ export interface ProfessionalDetail {
   skills: string[];
   hourlyRate: number;
   isVerified: boolean;
-  certifications: any[];
-  education: any[];
+  certifications: unknown[];
+  education: unknown[];
   socialLinks: { platform: string; url: string }[];
   memberSince: string;
   completedJobs: number;
@@ -23,6 +23,10 @@ export interface ProfessionalDetail {
   totalReviews: number;
   views: number;
   favorites: number;
+  subscription?: {
+    plan: string;
+    isActive: boolean;
+  } | null;
   ratingDistribution: {
     stars: number;
     count: number;
@@ -34,7 +38,7 @@ export interface ProfessionalDetail {
     categoryId: string;
     price: number;
     pricingUnit: string;
-    images: any;
+    images: unknown;
   }[];
   reviews: {
     id: string;
