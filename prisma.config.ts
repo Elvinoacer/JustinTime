@@ -1,9 +1,14 @@
+import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
-const databaseUrl =
-  process.env.DIRECT_DATABASE_URL ??
-  process.env.DATABASE_URL ??
-  "postgresql://user:password@localhost:5432/justintime";
+const directUrl = process.env.DIRECT_DATABASE_URL;
+const pooledUrl = process.env.DATABASE_URL;
+
+if (!directUrl && !pooledUrl) {
+  throw new Error(
+    "Neither DIRECT_DATABASE_URL nor DATABASE_URL is set. Prisma CLI cannot connect to the database.",
+  );
+}
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -11,6 +16,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: databaseUrl,
+    url: directUrl ?? pooledUrl!,
   },
 });

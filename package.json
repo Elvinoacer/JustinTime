@@ -1,12 +1,15 @@
 {
   "name": "justintime",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "npx prisma generate && next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "studio": "BROWSER=none prisma studio",
+    "studio:5555": "BROWSER=none prisma studio --port 5555"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
