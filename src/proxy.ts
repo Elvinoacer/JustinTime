@@ -41,9 +41,11 @@ export default auth((req) => {
   const emailVerified = req.auth?.user?.emailVerified;
   const authProvider = req.auth?.user?.authProvider;
   const isGoogleUser = authProvider === "google";
+  const isEffectivelyVerified =
+    isGoogleUser || Boolean(emailVerified) || Boolean(hasCompletedOnboarding);
 
-  // B2: Email verification — skip for Google users (email is verified by Google)
-  if (isLoggedIn && !isGoogleUser && !emailVerified && !isOnAuth) {
+  // B2: Email verification gate (treat completed onboarding as verified for routing)
+  if (isLoggedIn && !isEffectivelyVerified && !isOnAuth) {
     return NextResponse.redirect(new URL("/auth/verify-request", nextUrl));
   }
 
@@ -120,15 +122,8 @@ export default auth((req) => {
         return NextResponse.redirect(new URL("/admin", nextUrl));
       }
 
-      // Treat completed onboarding as effectively verified for route-guarding.
-      // This prevents stale token fields from trapping authenticated users on auth pages.
-      const shouldTreatAsVerified =
-        isGoogleUser ||
-        Boolean(emailVerified) ||
-        Boolean(hasCompletedOnboarding);
-
       // If user is still unverified, keep them on auth pages.
-      if (!shouldTreatAsVerified) {
+      if (!isEffectivelyVerified) {
         return NextResponse.next();
       }
 
