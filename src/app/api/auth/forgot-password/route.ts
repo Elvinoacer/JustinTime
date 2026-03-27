@@ -1,30 +1,45 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import crypto from 'crypto';
-import { sendPasswordResetEmail } from '@/lib/email';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
+import { sendPasswordResetEmail } from "@/lib/email";
+import {
+  getAuthTemporaryUnavailableMessage,
+  isPrismaMissingColumnError,
+} from "@/lib/auth/errors";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email } = body;
+    const email = String(body?.email ?? "")
+      .trim()
+      .toLowerCase();
 
     if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    if (email.length > 254) {
       return NextResponse.json(
-        { error: 'Email is required' },
-        { status: 400 }
+        { error: "Invalid email address" },
+        { status: 400 },
       );
     }
 
     // Find user by email
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+      },
     });
 
     // Always return success to prevent email enumeration
     // But only send email if user exists
     if (user) {
       // Generate secure random token
-      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetToken = crypto.randomBytes(32).toString("hex");
       const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
 
       // Save token to database
@@ -37,21 +52,28 @@ export async function POST(request: NextRequest) {
       });
 
       // Construct reset URL
-      const resetUrl = `${process.env.NEXTAUTH_URL || 'https://justintimeservices.vercel.app'}/auth/reset-password?token=${resetToken}`;
-      
+      const resetUrl = `${process.env.NEXTAUTH_URL || "https://justintimeservices.vercel.app"}/auth/reset-password?token=${resetToken}`;
+
       // Send password reset email
-      await sendPasswordResetEmail(user.email!, user.name || 'User', resetUrl);
+      await sendPasswordResetEmail(user.email!, user.name || "User", resetUrl);
     }
 
     return NextResponse.json({
       success: true,
-      message: 'If an account exists with that email, a password reset link has been sent.',
+      message:
+        "If an account exists with that email, a password reset link has been sent.",
     });
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error("Forgot password error:", error);
+    if (isPrismaMissingColumnError(error, "webAuthnCredentialId")) {
+      return NextResponse.json(
+        { error: getAuthTemporaryUnavailableMessage() },
+        { status: 503 },
+      );
+    }
     return NextResponse.json(
-      { error: 'An error occurred. Please try again later.' },
-      { status: 500 }
+      { error: "An error occurred. Please try again later." },
+      { status: 500 },
     );
   }
 }

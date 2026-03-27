@@ -256,6 +256,7 @@ function ResetPasswordContent() {
                     className="block w-full pl-10 sm:pl-12 pr-10 py-2.5 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm sm:text-base transition-all"
                     placeholder="Enter new password"
                     minLength={8}
+                    maxLength={128}
                     disabled={isLoading}
                   />
                   <button
@@ -284,8 +285,8 @@ function ResetPasswordContent() {
                           passwordStrength.score <= 2
                             ? "text-red-600"
                             : passwordStrength.score <= 4
-                            ? "text-amber-600"
-                            : "text-emerald-600"
+                              ? "text-amber-600"
+                              : "text-emerald-600"
                         }`}
                       >
                         {passwordStrength.message}
@@ -294,7 +295,7 @@ function ResetPasswordContent() {
                     <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                       <div
                         className={`h-full transition-all duration-300 ${getStrengthColor(
-                          passwordStrength.score
+                          passwordStrength.score,
                         )}`}
                         style={{
                           width: `${(passwordStrength.score / 6) * 100}%`,
@@ -359,6 +360,7 @@ function ResetPasswordContent() {
                     }`}
                     placeholder="Confirm new password"
                     minLength={8}
+                    maxLength={128}
                     disabled={isLoading}
                   />
                   <button

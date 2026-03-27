@@ -114,8 +114,20 @@ function LoginPageContent() {
       } else {
         // Step 1: Check credentials & 2FA status
         const formData = new FormData(e.currentTarget);
-        const email = formData.get("email") as string;
-        const password = formData.get("password") as string;
+        const email = String(formData.get("email") ?? "")
+          .trim()
+          .toLowerCase();
+        const password = String(formData.get("password") ?? "").trim();
+
+        if (email.length > 254 || password.length > 128) {
+          const message = "Invalid email or password format";
+          setError(message);
+          toast.error(message);
+          return;
+        }
+
+        formData.set("email", email);
+        formData.set("password", password);
 
         const result = await loginWithCredentials(formData);
 
@@ -135,8 +147,12 @@ function LoginPageContent() {
           });
 
           if (signInResult?.error) {
-            setError("Invalid credentials");
-            toast.error("Invalid credentials");
+            const message =
+              signInResult.error === "CredentialsSignin"
+                ? "Invalid email or password"
+                : "Unable to sign in right now. Please try again.";
+            setError(message);
+            toast.error(message);
           } else {
             toast.success("Successfully logged in!");
             // B5: Smart redirect based on user role
@@ -312,6 +328,7 @@ function LoginPageContent() {
                         name="email"
                         type="email"
                         autoComplete="email"
+                        maxLength={254}
                         required
                         disabled={isLoading}
                         className="block w-full pl-10 pr-3 py-2.5 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl placeholder-gray-400 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base transition-all disabled:bg-gray-100"
@@ -337,6 +354,7 @@ function LoginPageContent() {
                         name="password"
                         type={showPassword ? "text" : "password"}
                         autoComplete="current-password"
+                        maxLength={128}
                         required
                         disabled={isLoading}
                         className="block w-full pl-10 pr-10 py-2.5 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl placeholder-gray-400 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base transition-all disabled:bg-gray-100"
@@ -432,7 +450,7 @@ function LoginPageContent() {
                         value={twoFactorCode}
                         onChange={(e) =>
                           setTwoFactorCode(
-                            e.target.value.replace(/\D/g, "").slice(0, 6)
+                            e.target.value.replace(/\D/g, "").slice(0, 6),
                           )
                         }
                         className="block w-full pl-10 pr-3 py-2.5 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl placeholder-gray-400 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base transition-all text-center font-mono tracking-widest disabled:bg-gray-100"

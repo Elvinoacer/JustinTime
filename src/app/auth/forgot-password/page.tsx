@@ -24,10 +24,19 @@ export default function ForgotPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
 
     // Basic email validation
-    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+    if (!normalizedEmail.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
       setMessage({ type: "error", text: "Please enter a valid email address" });
+      return;
+    }
+
+    if (normalizedEmail.length > 254) {
+      setMessage({
+        type: "error",
+        text: "Email must be 254 characters or fewer",
+      });
       return;
     }
 
@@ -38,7 +47,7 @@ export default function ForgotPasswordPage() {
       const response = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: normalizedEmail }),
       });
 
       const data = await response.json();
@@ -140,6 +149,7 @@ export default function ForgotPasswordPage() {
                   type="email"
                   autoComplete="email"
                   required
+                  maxLength={254}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="block w-full pl-10 sm:pl-12 pr-4 py-3 border border-gray-300 rounded-lg sm:rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm sm:text-base"

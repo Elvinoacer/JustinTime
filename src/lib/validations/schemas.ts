@@ -2,16 +2,40 @@ import { z } from "zod";
 
 // User validation schemas
 export const signupSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(80, "Name must not exceed 80 characters"),
+  email: z
+    .string()
+    .trim()
+    .email("Invalid email address")
+    .max(254, "Email must not exceed 254 characters"),
+  password: z
+    .string()
+    .trim()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password must not exceed 128 characters"),
   role: z.enum(["CLIENT", "PROVIDER"]).optional().default("CLIENT"),
-  phone: z.string().optional(),
+  phone: z
+    .string()
+    .trim()
+    .max(20, "Phone must not exceed 20 characters")
+    .optional(),
 });
 
 export const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
+  email: z
+    .string()
+    .trim()
+    .email("Invalid email address")
+    .max(254, "Email must not exceed 254 characters"),
+  password: z
+    .string()
+    .trim()
+    .min(1, "Password is required")
+    .max(128, "Password must not exceed 128 characters"),
 });
 
 export const updateUserSchema = z.object({
@@ -28,7 +52,11 @@ export const createJobSchema = z.object({
   category: z.string().min(1, "Category is required"),
   budget: z.number().positive("Budget must be positive"),
   location: z.string().min(1, "Location is required"),
-  maxApplicants: z.number().int().positive("Max applicants must be a positive number").optional(),
+  maxApplicants: z
+    .number()
+    .int()
+    .positive("Max applicants must be a positive number")
+    .optional(),
   images: z.array(z.string()).optional(),
 });
 

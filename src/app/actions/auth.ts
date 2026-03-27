@@ -1,20 +1,38 @@
 "use server";
 import { prisma } from "@/lib/prisma";
 import { comparePassword } from "@/lib/auth/password";
+import {
+  getAuthTemporaryUnavailableMessage,
+  isPrismaMissingColumnError,
+} from "@/lib/auth/errors";
 import { sendTwoFactorTokenEmail } from "@/lib/email";
 import crypto from "crypto";
 
 export async function loginWithCredentials(formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const password = String(formData.get("password") ?? "").trim();
 
   if (!email || !password) {
     return { error: "Email and password are required" };
   }
 
+  if (email.length > 254 || password.length > 128) {
+    return { error: "Invalid email or password format" };
+  }
+
   try {
     const user = await prisma.user.findUnique({
       where: { email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        password: true,
+        emailVerified: true,
+        isTwoFactorEnabled: true,
+      },
     });
 
     if (!user || !user.password) {
@@ -29,9 +47,8 @@ export async function loginWithCredentials(formData: FormData) {
 
     // Check if email is verified
     if (!user.emailVerified) {
-      return { error: "Please verify your email address" }; 
+      return { error: "Please verify your email address" };
     }
-
 
     // Check if 2FA is enabled
     if (user.isTwoFactorEnabled) {
@@ -62,14 +79,27 @@ export async function loginWithCredentials(formData: FormData) {
     return { success: true };
   } catch (error) {
     console.error("Login error:", error);
+    if (isPrismaMissingColumnError(error, "webAuthnCredentialId")) {
+      return { error: getAuthTemporaryUnavailableMessage() };
+    }
     return { error: "Something went wrong" };
   }
 }
 
 export async function resendTwoFactorToken(email: string) {
   try {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || normalizedEmail.length > 254) {
+      return { error: "Invalid email address" };
+    }
+
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
+      select: {
+        email: true,
+        name: true,
+        isTwoFactorEnabled: true,
+      },
     });
 
     if (!user || !user.isTwoFactorEnabled) {
@@ -100,6 +130,9 @@ export async function resendTwoFactorToken(email: string) {
     return { success: true };
   } catch (error) {
     console.error("Resend 2FA error:", error);
+    if (isPrismaMissingColumnError(error, "webAuthnCredentialId")) {
+      return { error: getAuthTemporaryUnavailableMessage() };
+    }
     return { error: "Something went wrong" };
   }
 }

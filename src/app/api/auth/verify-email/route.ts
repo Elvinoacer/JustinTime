@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  getAuthTemporaryUnavailableMessage,
+  isPrismaMissingColumnError,
+} from "@/lib/auth/errors";
 
 export async function GET(request: NextRequest) {
-  const token = request.nextUrl.searchParams.get("token");
+  const token = request.nextUrl.searchParams.get("token")?.trim();
 
   if (!token) {
     return NextResponse.json({ error: "Missing token" }, { status: 400 });
+  }
+
+  if (token.length > 128) {
+    return NextResponse.json({ error: "Invalid token" }, { status: 400 });
   }
 
   try {
@@ -23,6 +31,7 @@ export async function GET(request: NextRequest) {
 
     const existingUser = await prisma.user.findUnique({
       where: { email: verificationToken.identifier },
+      select: { id: true },
     });
 
     if (!existingUser) {
@@ -31,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     await prisma.user.update({
       where: { email: verificationToken.identifier },
-      data: { 
+      data: {
         emailVerified: new Date(),
       },
     });
@@ -40,9 +49,21 @@ export async function GET(request: NextRequest) {
       where: { token },
     });
 
-    return NextResponse.json({ message: "Email verified successfully" }, { status: 200 });
+    return NextResponse.json(
+      { message: "Email verified successfully" },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("Error verifying email:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    if (isPrismaMissingColumnError(error, "webAuthnCredentialId")) {
+      return NextResponse.json(
+        { error: getAuthTemporaryUnavailableMessage() },
+        { status: 503 },
+      );
+    }
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

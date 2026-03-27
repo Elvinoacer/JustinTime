@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { comparePassword } from "@/lib/auth/password";
+import {
+  getAuthTemporaryUnavailableMessage,
+  isPrismaMissingColumnError,
+} from "@/lib/auth/errors";
 
 /**
  * Internal API endpoint for credential verification
@@ -9,54 +13,95 @@ import { comparePassword } from "@/lib/auth/password";
 export async function POST(request: NextRequest) {
   try {
     const { email, password, code } = await request.json();
+    const normalizedEmail = String(email ?? "")
+      .trim()
+      .toLowerCase();
+    const normalizedPassword = String(password ?? "").trim();
+    const normalizedCode =
+      typeof code === "string"
+        ? code.replace(/\D/g, "").slice(0, 6)
+        : undefined;
 
-    if (!email || !password) {
+    if (!normalizedEmail || !normalizedPassword) {
       return NextResponse.json(
         { error: "Email and password required" },
-        { status: 400 }
+        { status: 400 },
+      );
+    }
+
+    if (normalizedEmail.length > 254 || normalizedPassword.length > 128) {
+      return NextResponse.json(
+        { error: "Invalid email or password format" },
+        { status: 400 },
       );
     }
 
     // Find user
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        password: true,
+        role: true,
+        image: true,
+        onboardingCompleted: true,
+        clientInterests: true,
+        emailVerified: true,
+        isTwoFactorEnabled: true,
+      },
     });
 
     if (!user || !user.password) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 },
+      );
     }
 
     // Verify password
-    const isValid = await comparePassword(password, user.password);
+    const isValid = await comparePassword(normalizedPassword, user.password);
 
     if (!isValid) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 },
+      );
     }
 
     // Check if email is verified
     if (!user.emailVerified) {
-      return NextResponse.json({ error: "Please verify your email address" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Please verify your email address" },
+        { status: 401 },
+      );
     }
 
     // 2FA Verification
     if (user.isTwoFactorEnabled) {
-
-      if (code) {
+      if (normalizedCode) {
         const twoFactorToken = await prisma.twoFactorToken.findUnique({
           where: {
             email_token: {
               email: user.email!,
-              token: code,
+              token: normalizedCode,
             },
           },
         });
 
         if (!twoFactorToken) {
-          return NextResponse.json({ error: "Invalid 2FA code" }, { status: 401 });
+          return NextResponse.json(
+            { error: "Invalid 2FA code" },
+            { status: 401 },
+          );
         }
 
         if (new Date() > twoFactorToken.expires) {
-          return NextResponse.json({ error: "2FA code expired" }, { status: 401 });
+          return NextResponse.json(
+            { error: "2FA code expired" },
+            { status: 401 },
+          );
         }
 
         await prisma.twoFactorToken.delete({
@@ -73,7 +118,10 @@ export async function POST(request: NextRequest) {
         // Actually, the initial step is done by the Server Action.
         // So when `signIn` is called, it MUST succeed.
         // So if 2FA is enabled and code is missing, it's an error.
-        return NextResponse.json({ error: "2FA code required" }, { status: 401 });
+        return NextResponse.json(
+          { error: "2FA code required" },
+          { status: 401 },
+        );
       }
     }
 
@@ -90,9 +138,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("[Auth Verify Error]", error);
+    if (isPrismaMissingColumnError(error, "webAuthnCredentialId")) {
+      return NextResponse.json(
+        { error: getAuthTemporaryUnavailableMessage() },
+        { status: 503 },
+      );
+    }
     return NextResponse.json(
       { error: "Authentication failed" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

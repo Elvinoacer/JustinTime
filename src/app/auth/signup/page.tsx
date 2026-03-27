@@ -85,10 +85,24 @@ export default function SignupPage() {
 
     const formData = new FormData(e.currentTarget);
     const data = {
-      name: formData.get("name") as string,
-      email: formData.get("email") as string,
-      password: formData.get("password") as string,
+      name: String(formData.get("name") ?? "").trim(),
+      email: String(formData.get("email") ?? "")
+        .trim()
+        .toLowerCase(),
+      password: String(formData.get("password") ?? "").trim(),
     };
+
+    if (
+      data.name.length > 80 ||
+      data.email.length > 254 ||
+      data.password.length > 128
+    ) {
+      const message = "One or more fields exceed the allowed length";
+      setError(message);
+      toast.error(message);
+      setIsLoading(false);
+      return;
+    }
 
     // Validate password strength
     const strength = calculatePasswordStrength(data.password);
@@ -116,7 +130,7 @@ export default function SignupPage() {
       // Account created successfully, redirect to verification request page
       toast.success("Account created! Please verify your email.");
       router.push(
-        `/auth/verify-request?email=${encodeURIComponent(data.email)}`
+        `/auth/verify-request?email=${encodeURIComponent(data.email)}`,
       );
     } catch (err: any) {
       setError(err.message || "Something went wrong");
@@ -235,6 +249,7 @@ export default function SignupPage() {
                   name="name"
                   type="text"
                   autoComplete="name"
+                  maxLength={80}
                   required
                   disabled={isLoading}
                   className="block w-full pl-10 pr-3 py-2.5 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl placeholder-gray-400 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base transition-all disabled:bg-gray-100"
@@ -260,6 +275,7 @@ export default function SignupPage() {
                   name="email"
                   type="email"
                   autoComplete="email"
+                  maxLength={254}
                   required
                   disabled={isLoading}
                   className="block w-full pl-10 pr-3 py-2.5 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl placeholder-gray-400 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base transition-all disabled:bg-gray-100"
@@ -288,9 +304,10 @@ export default function SignupPage() {
                   required
                   disabled={isLoading}
                   minLength={8}
+                  maxLength={128}
                   onChange={(e) =>
                     setPasswordStrength(
-                      calculatePasswordStrength(e.target.value)
+                      calculatePasswordStrength(e.target.value),
                     )
                   }
                   className="block w-full pl-10 pr-10 py-2.5 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl placeholder-gray-400 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base transition-all disabled:bg-gray-100"
@@ -320,8 +337,8 @@ export default function SignupPage() {
                         passwordStrength.score <= 2
                           ? "text-red-600"
                           : passwordStrength.score <= 4
-                          ? "text-amber-600"
-                          : "text-emerald-600"
+                            ? "text-amber-600"
+                            : "text-emerald-600"
                       }`}
                     >
                       {passwordStrength.message}
@@ -330,7 +347,7 @@ export default function SignupPage() {
                   <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                     <div
                       className={`h-full transition-all duration-300 ${getStrengthColor(
-                        passwordStrength.score
+                        passwordStrength.score,
                       )}`}
                       style={{
                         width: `${(passwordStrength.score / 6) * 100}%`,

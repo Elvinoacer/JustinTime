@@ -1,21 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
-import { handleError, successResponse, ConflictError } from "@/lib/middleware/errorHandler";
+import {
+  handleError,
+  successResponse,
+  ConflictError,
+} from "@/lib/middleware/errorHandler";
 import { signupSchema } from "@/lib/validations/schemas";
 import { sendVerificationEmail } from "@/lib/email";
+import {
+  getAuthTemporaryUnavailableMessage,
+  isPrismaMissingColumnError,
+} from "@/lib/auth/errors";
 import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     // Validate input
     const validatedData = signupSchema.parse(body);
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: validatedData.email },
+      select: { id: true },
     });
 
     if (existingUser) {
@@ -59,17 +68,28 @@ export async function POST(request: NextRequest) {
 
     // Send verification email
     const verificationUrl = `${process.env.NEXTAUTH_URL}/auth/verify-email?token=${token}`;
-    await sendVerificationEmail(user.email!, user.name || "User", verificationUrl);
+    await sendVerificationEmail(
+      user.email!,
+      user.name || "User",
+      verificationUrl,
+    );
 
     // Return success - client will then sign in with NextAuth
     return successResponse(
       {
         user,
-        message: "Account created successfully. Please check your email to verify your account.",
+        message:
+          "Account created successfully. Please check your email to verify your account.",
       },
-      201
+      201,
     );
   } catch (error) {
+    if (isPrismaMissingColumnError(error, "webAuthnCredentialId")) {
+      return NextResponse.json(
+        { error: getAuthTemporaryUnavailableMessage() },
+        { status: 503 },
+      );
+    }
     return handleError(error);
   }
 }

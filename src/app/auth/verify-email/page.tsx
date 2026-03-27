@@ -20,7 +20,7 @@ function VerifyEmailContent() {
   const router = useRouter();
 
   const [status, setStatus] = useState<"loading" | "success" | "error">(
-    "loading"
+    "loading",
   );
   const [message, setMessage] = useState("Verifying your email address...");
 
@@ -32,7 +32,9 @@ function VerifyEmailContent() {
     }
 
     try {
-      const response = await fetch(`/api/auth/verify-email?token=${token}`);
+      const response = await fetch(
+        `/api/auth/verify-email?token=${encodeURIComponent(token)}`,
+      );
       const data = await response.json();
 
       if (response.ok) {
@@ -130,8 +132,8 @@ function VerifyEmailContent() {
               {status === "loading"
                 ? "Verifying Email"
                 : status === "success"
-                ? "Email Verified!"
-                : "Verification Failed"}
+                  ? "Email Verified!"
+                  : "Verification Failed"}
             </h2>
 
             {/* Status Message */}
