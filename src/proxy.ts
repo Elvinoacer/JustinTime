@@ -29,7 +29,7 @@ export default auth((req) => {
   ];
   const isPublicPage = publicPages.some(
     (page) =>
-      nextUrl.pathname === page || nextUrl.pathname.startsWith(page + "/")
+      nextUrl.pathname === page || nextUrl.pathname.startsWith(page + "/"),
   );
 
   if (isPublicPage) {
@@ -120,8 +120,15 @@ export default auth((req) => {
         return NextResponse.redirect(new URL("/admin", nextUrl));
       }
 
-      // If email is not verified (and not Google), keep on auth pages
-      if (!isGoogleUser && !emailVerified) {
+      // Treat completed onboarding as effectively verified for route-guarding.
+      // This prevents stale token fields from trapping authenticated users on auth pages.
+      const shouldTreatAsVerified =
+        isGoogleUser ||
+        Boolean(emailVerified) ||
+        Boolean(hasCompletedOnboarding);
+
+      // If user is still unverified, keep them on auth pages.
+      if (!shouldTreatAsVerified) {
         return NextResponse.next();
       }
 
