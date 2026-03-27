@@ -1,8 +1,15 @@
 "use client";
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils"; // Assuming these exist, otherwise usage standard Intl
-import { TransactionType } from "@prisma/client";
+import { TransactionType } from "@/generated/prisma/client";
 
 interface Transaction {
   id: string;
@@ -17,9 +24,11 @@ interface TransactionListProps {
 }
 
 export function TransactionList({ transactions }: TransactionListProps) {
-    if (transactions.length === 0) {
-        return <div className="p-8 text-center text-gray-500">No transactions yet.</div>;
-    }
+  if (transactions.length === 0) {
+    return (
+      <div className="p-8 text-center text-gray-500">No transactions yet.</div>
+    );
+  }
 
   return (
     <Table>
@@ -34,13 +43,14 @@ export function TransactionList({ transactions }: TransactionListProps) {
       <TableBody>
         {transactions.map((tx) => (
           <TableRow key={tx.id}>
-            <TableCell className="font-medium">
-                {formatType(tx.type)}
-            </TableCell>
+            <TableCell className="font-medium">{formatType(tx.type)}</TableCell>
             <TableCell>{tx.description || "-"}</TableCell>
             <TableCell>{new Date(tx.createdAt).toLocaleDateString()}</TableCell>
-            <TableCell className={`text-right font-bold ${isNegative(tx.type) ? 'text-red-600' : 'text-green-600'}`}>
-              {isNegative(tx.type) ? "-" : "+"} {Number(tx.amount).toLocaleString()}
+            <TableCell
+              className={`text-right font-bold ${isNegative(tx.type) ? "text-red-600" : "text-green-600"}`}
+            >
+              {isNegative(tx.type) ? "-" : "+"}{" "}
+              {Number(tx.amount).toLocaleString()}
             </TableCell>
           </TableRow>
         ))}
@@ -50,9 +60,15 @@ export function TransactionList({ transactions }: TransactionListProps) {
 }
 
 function formatType(type: string) {
-    return type.replace(/_/g, " ");
+  return type.replace(/_/g, " ");
 }
 
 function isNegative(type: TransactionType) {
-    return ["WITHDRAWAL", "PAYMENT", "CREDIT_PURCHASE", "PROMOTION_PAYMENT", "ONBOARDING_FEE"].includes(type);
+  return [
+    "WITHDRAWAL",
+    "PAYMENT",
+    "CREDIT_PURCHASE",
+    "PROMOTION_PAYMENT",
+    "ONBOARDING_FEE",
+  ].includes(type);
 }

@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { ChurnRiskLevel } from "@/generated/prisma";
+import { ChurnRiskLevel } from "@/generated/prisma/client";
 
 export interface ChurnFactors {
   inactivityDays: number;

@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { ChurnRiskLevel } from "@/generated/prisma";
+import { ChurnRiskLevel } from "@/generated/prisma/client";
 import { AlertTriangle, TrendingDown, Activity, Check } from "lucide-react";
 
 interface ChurnRiskBadgeProps {

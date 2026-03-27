@@ -1,242 +1,697 @@
-# JustInTime - Manual Testing Roadmap
+# JustInTime Evidence-Based Testing Guide (Full Feature Coverage)
 
-This document provides a comprehensive testing guide for all newly implemented strategic features. Use this to manually verify each feature before production deployment.
+This guide replaces assumption-based testing with implementation-backed checks.
 
-## Pre-Testing Requirements
+Scope:
 
-### 1. Database Migration
+- Covers all feature groups listed in docs/features/overview.md.
+- Uses current code evidence only (routes, actions, APIs, Prisma models, utilities).
+- Flags documentation and implementation gaps explicitly instead of guessing behavior.
+
+## 0. Evidence Sources Used
+
+- App Router pages under src/app/\*\*/page.tsx.
+- API routes under src/app/api/\*\*/route.ts.
+- Server actions under src/app/actions/\*.ts.
+- Core domain models in prisma/schema.prisma.
+- Core platform modules in src/lib and src/providers.
+
+## 1. Test Execution Protocol (No Hallucination Rules)
+
+1. For each feature, validate at least one implementation anchor before asserting expected behavior.
+2. If anchor is route-only, expectation is route availability and UI render/empty-state behavior.
+3. If anchor is API/action, expectation is contract behavior (status/result shape), not hypothetical UX.
+4. If anchor is model-only, expectation is persistence capability, not guaranteed UI.
+5. If no anchor exists, mark as GAP and file follow-up instead of creating fake expectations.
+
+## 2. Environment Setup
+
 ```bash
 cd /home/elvin/Projects/SAAS/JAVASCRIPT-WRLD/businesses/justintime
-npx prisma migrate dev --name strategic_features_migration
+npm install
 npx prisma generate
-```
-
-### 2. Start Development Server
-```bash
 npm run dev
 ```
 
-### 3. Test User Setup
-- Create a **Provider** account (for testing provider features)
-- Create a **Client** account (for testing client features)
-- Have **Admin** access (for admin verification features)
+Recommended test identities:
 
----
+- Client account
+- Provider account
+- Admin account
 
-## Feature 1: eTIMS Gatekeeper (Tax Compliance)
+## 3. End-to-End Experience Layers
 
-### Test Route: `/dashboard/invoices`
+### 3.1 Guest and Discovery Layer
 
-| Test Case | Steps | Expected Result |
-|-----------|-------|-----------------|
-| **View Invoice Dashboard** | 1. Login as Provider 2. Navigate to `/dashboard/invoices` | Dashboard loads with invoice list, stats cards, filter options |
-| **Create Invoice** | 1. Complete a booking 2. Check invoice auto-generation | Invoice created with tax breakdown (VAT, digital service tax) |
-| **View Tax Breakdown** | 1. Click on any invoice | Modal shows base, VAT (16%), excise, withholding tax breakdown |
-| **Retry Failed Invoice** | 1. Find invoice with FAILED status 2. Click retry | Invoice attempts re-submission, status updates |
-| **Filter Invoices** | 1. Use status filter (PENDING, SUBMITTED, FAILED) | List updates to show only filtered invoices |
+Implementation anchors:
 
-### Test Route: `/dashboard/settings/tax`
+- Public routes: /, /services, /services/[id], /professionals, /professionals/[id], /jobs, /jobs/[id], /about, /faq, /terms, /privacy, /cookie-policy, /contact, /blog, /solar, /solar/estimate.
 
-| Test Case | Steps | Expected Result |
-|-----------|-------|-----------------|
-| **View Tax Settings** | 1. Login as Provider 2. Go to Settings > Tax | Tax settings page loads with KRA PIN form |
-| **Save KRA PIN** | 1. Enter KRA PIN (format: A123456789B) 2. Toggle VAT if applicable 3. Save | Settings saved, success message shown |
-| **Verify KRA PIN Status** | 1. Check verification badge | Shows verified/pending status |
+Test steps:
 
-### Breakpoint Check
-> ⚠️ **Known Issue**: Ensure Invoice model has all required tax fields in schema. Check for `taxBreakdown`, `exciseAmount`, `vatAmount` fields.
+1. Visit each public route directly.
+2. Open browser network panel while loading listing/detail pages.
+3. Confirm no route returns 404 for listed pages.
 
----
+Expected:
 
-## Feature 2: Team Management OS
+- Route renders with either content or explicit empty state.
+- Discovery pages do not hard-crash when data is missing.
 
-### Test Route: `/dashboard/team`
+### 3.2 Authentication and Account Lifecycle
 
-| Test Case | Steps | Expected Result |
-|-----------|-------|-----------------|
-| **View Team Dashboard** | 1. Login as Provider 2. Navigate to `/dashboard/team` | Dashboard shows team stats, member cards, earnings overview |
-| **Create Team** | 1. Click "Create Team" if no team exists 2. Enter team name | Team created, redirected to dashboard |
+Implementation anchors:
 
-### Test Route: `/dashboard/team/members`
+- Routes: /auth/login, /auth/signup, /auth/forgot-password, /auth/reset-password, /auth/verify-email, /auth/error, /auth/verify, /auth/verify-request.
+- APIs: /api/auth/signup, /api/auth/forgot-password, /api/auth/reset-password, /api/auth/verify-email, /api/auth/verify-credentials.
+- Account deletion APIs: /api/account/request-deletion, /api/account/cancel-deletion, /api/account/cleanup-deletions.
 
-| Test Case | Steps | Expected Result |
-|-----------|-------|-----------------|
-| **View Members** | 1. Go to Members tab | List of team members with roles and status |
-| **Invite Member** | 1. Click "Invite Member" 2. Enter email 3. Select role (ADMIN/DISPATCHER/MEMBER) | Invitation sent, member appears as INVITED |
-| **Change Member Role** | 1. Click member menu 2. Select new role | Role updated, permissions change accordingly |
-| **Remove Member** | 1. Click remove 2. Confirm | Member removed from team |
+Test steps:
 
-### Test Route: `/dashboard/team/jobs`
+1. Submit signup/login/forgot-password flows with valid and invalid inputs.
+2. Call deletion request endpoint while authenticated.
+3. Cancel deletion and verify fields reset.
+4. Execute cleanup endpoint in test environment only.
 
-| Test Case | Steps | Expected Result |
-|-----------|-------|-----------------|
-| **View Team Jobs** | 1. Go to Jobs tab | List of team jobs with status filters |
-| **Create Job** | 1. Click "Create Job" 2. Fill title, description, amount 3. Save | Job created with PENDING status |
-| **Assign Job** | 1. Select job 2. Choose team member 3. Assign | Job assigned, member notified |
-| **Update Job Status** | 1. Change status to IN_PROGRESS → COMPLETED | Status updates, earnings recorded |
-| **Collect Payment** | 1. Mark job as collected | Collection recorded with amount and method |
+Expected:
 
-### Test Route: `/dashboard/team/payroll`
+- Unauthorized calls return 401 where auth is required.
+- Request deletion schedules deletion approximately 24 hours ahead and creates notification.
+- Cancel deletion clears deletionScheduledAt and deletionReason.
 
-| Test Case | Steps | Expected Result |
-|-----------|-------|-----------------|
-| **View Payroll** | 1. Go to Payroll tab | Payroll summary with member earnings |
-| **Generate Payroll** | 1. Select period 2. Click "Generate" | Payroll calculated based on earnings split |
-| **Process Payment** | 1. Click "Process" on pending payroll | Status changes to PROCESSED |
-| **View History** | 1. Check payroll history | Past payroll records displayed |
+### 3.3 Onboarding and Role Personalization
 
-### Breakpoint Check
-> ⚠️ **Known Issue**: Verify `TeamJob`, `TeamEarning`, `TeamPayroll` models exist in schema. Check for relations between Team, TeamMember, and User.
+Implementation anchors:
 
----
+- Route: /onboarding.
+- Components used by flow: StepRoleSelect, StepClientDetails, StepProviderDetails, StepVerification, StepComplete.
+- API: /api/users/onboarding.
+- Location API: /api/user/location.
 
-## Feature 3: TaaS Premium Verification
+Test steps:
 
-### Test Route: `/dashboard/verification`
+1. Complete onboarding as client.
+2. Complete onboarding as provider with verification artifacts.
+3. Submit invalid payloads directly to /api/users/onboarding.
 
-| Test Case | Steps | Expected Result |
-|-----------|-------|-----------------|
-| **View Trust Score** | 1. Login as Provider 2. Navigate to `/dashboard/verification` | Trust Score display with 5 components (Identity, Conduct, Performance, Reliability, Compliance) |
-| **View Badge Checklist** | 1. Scroll to verification checklist | List of 8 badge types with status indicators |
-| **Request Badge** | 1. Click "Upload" on a badge (e.g., GOOD_CONDUCT) 2. Upload document | Badge status changes to PENDING |
-| **Auto-Badge Check** | 1. Click "Refresh Status" | Automatic badges (SOS, TOP_RATED, KRA) checked and granted |
-| **View Tier** | 1. Check tier display | Shows UNVERIFIED/BASIC/VERIFIED/PREMIUM/ELITE |
-| **Enable Premium Pricing** | 1. If eligible, toggle "Enable Premium" | Premium pricing activated with multiplier |
+Expected:
 
-### Verification Badges to Test
+- API validates role, required phone, provider skills and bio constraints.
+- Provider onboarding upserts profile and sets verificationStatus to PENDING.
+- Duplicate unique fields return conflict path when Prisma unique constraint is triggered.
 
-| Badge | How to Obtain | Verification |
-|-------|---------------|--------------|
-| KRA_VERIFIED | Settings > Tax > Verify KRA PIN | Automatic after KRA verified |
-| GOOD_CONDUCT | Upload Police Good Conduct Certificate | Admin approval required |
-| IDENTITY_VERIFIED | Upload National ID | Admin approval required |
-| SOS_ENABLED | Add 2+ trusted contacts in SOS settings | Automatic |
-| TOP_RATED | Get 4.8+ rating with 50+ reviews | Automatic |
-| SKILLS_CERTIFIED | Upload professional certificate | Admin approval required |
+### 3.4 Role-Specific Workspaces
 
-### Trust Score Components
+Implementation anchors:
 
-| Component | Weight | Factors |
-|-----------|--------|---------|
-| Identity | 25% | KRA verified + ID verified + complete profile |
-| Conduct | 25% | Good conduct badge + background check + SOS enabled |
-| Performance | 20% | Average rating + review count |
-| Reliability | 15% | Completion rate + low cancellation |
-| Compliance | 15% | KRA PIN + VAT + insurance + certifications |
+- Client routes: /client/dashboard, /client/jobs, /client/proposals, /client/bookings, /client/messages, /client/analytics, /client/referral, /client/settings, /client/profile, /client/wallet.
+- Provider routes: /dashboard, /dashboard/services, /dashboard/jobs, /dashboard/requests, /dashboard/bookings, /dashboard/availability, /dashboard/earnings, /dashboard/invoices, /dashboard/settings/tax, /dashboard/verification, /dashboard/premium, /dashboard/team, /dashboard/team/jobs, /dashboard/team/members, /dashboard/team/payroll, /dashboard/expenses, /dashboard/safety, /dashboard/reviews, /dashboard/wallet.
+- Admin routes: /admin/dashboard, /admin/users, /admin/users/[id], /admin/bookings, /admin/disputes, /admin/verifications, /admin/finance, /admin/support, /admin/logs, /admin/settings, /admin/churn-analysis, /admin/marketing/promos.
 
-### Breakpoint Check
-> ⚠️ **Known Issue**: TrustScore and VerificationBadge relations must exist on User model. Check Profile model for `premiumPricingEnabled` and `premiumMultiplier` fields.
+Expected:
 
----
+- Protected routes redirect unauthenticated users to login.
+- Workspace pages load with data or controlled fallback states.
 
-## Feature 4: Solar & Green Tech Vertical
+## 4. Marketplace and Commerce Core
 
-### Test Route: `/solar`
+### 4.1 Services Marketplace
 
-| Test Case | Steps | Expected Result |
-|-----------|-------|-----------------|
-| **View Solar Landing** | 1. Navigate to `/solar` | Solar branded landing page with hero, benefits, featured installers |
-| **View Featured Installers** | 1. Scroll to installers section | Grid of verified solar specialists with ratings |
-| **Quick Estimate** | 1. Enter monthly bill 2. Click "Calculate" | Redirects to estimation page |
+Anchors:
 
-### Test Route: `/solar/estimate`
+- APIs: /api/services, /api/services/[id], /api/services/[id]/interactions.
+- Provider service API: /api/provider/services.
 
-| Test Case | Steps | Expected Result |
-|-----------|-------|-----------------|
-| **Step 1: Bill Entry** | 1. Enter monthly electricity bill (e.g., 15000 KES) 2. Click Continue | Moves to Step 2 |
-| **Step 2: System Config** | 1. Select property type 2. Choose panel type 3. Toggle battery 4. Click "Get Estimate" | Calculation runs |
-| **Step 3: View Results** | 1. Review system specs | Shows kW, panel count, battery capacity |
-| **View Cost Breakdown** | 1. Check pricing section | Panels, inverter, battery, labor, total costs |
-| **View Savings** | 1. Check savings section | Monthly savings, payback years, 20-year ROI |
-| **Adjust Options** | 1. Click "Adjust Options" | Returns to Step 2 with current values |
+Expectations:
 
-### Estimation Calculations to Verify
+- Service listing and detail endpoints respond without 404.
+- Interaction endpoint accepts tracking requests.
 
-| Monthly Bill | Expected System | Approx. Price Range |
-|--------------|-----------------|---------------------|
-| KES 10,000 | ~3 kW | KES 250K - 500K |
-| KES 15,000 | ~5 kW | KES 400K - 800K |
-| KES 25,000 | ~8 kW | KES 650K - 1.3M |
+### 4.2 Professionals Marketplace
 
-### Specialist Features (Provider)
+Anchors:
 
-| Test Case | Route | Expected Result |
-|-----------|-------|-----------------|
-| **Register as Specialist** | `/dashboard/solar` | Form to enter experience, specializations, equipment |
-| **Submit Certification** | `/dashboard/solar/certifications` | Upload EPRA license, await admin approval |
-| **View Projects** | `/dashboard/solar/projects` | List of solar project requests |
+- APIs: /api/professionals, /api/professionals/[id], /api/professionals/[id]/interactions.
+- Provider profile API: /api/provider/profile.
 
-### Breakpoint Check
-> ⚠️ **Known Issue**: Ensure VerticalCategory with type 'SOLAR' exists in database. Run seed script if needed. Check SolarEstimationConfig for pricing configuration.
+Expectations:
 
----
+- Directory and profile routes resolve.
+- Profile data includes verification-related fields when available.
 
-## Known Issues & Breakpoints Summary
+### 4.3 Jobs, Proposals, Negotiation
 
-### Critical (Must Fix Before Testing)
+Anchors:
 
-| Issue | File | Fix |
-|-------|------|-----|
-| ✅ Fixed | `settings/page.tsx:196` | Removed duplicate closing brace |
+- APIs: /api/jobs, /api/jobs/[id], /api/jobs/[id]/proposals, /api/jobs/[id]/proposals/[proposalId], /api/proposals, /api/proposals/[id], /api/negotiations, /api/negotiations/[id].
+- Actions: acceptProposal, rejectProposal.
 
-### Pre-existing (Not from Features 1-4)
+Expectations:
 
-| Issue | Description | Impact |
-|-------|-------------|--------|
-| Next.js 15 Params | API routes need async params | Message routes may fail |
-| ProxySession missing | Model not in schema | Phone anonymization disabled |
-| Schema fields mismatch | Some fields changed in schema | Need migration |
+- Proposal lifecycle endpoints return deterministic success/error payloads.
+- Negotiation endpoints exist and are reachable.
 
-### Migration Required
+### 4.4 Booking Lifecycle
 
-Before testing, run:
-```bash
-npx prisma migrate dev --name strategic_features_migration
-```
+Anchors:
 
-This will create tables for:
-- Invoice enhancements (tax fields, eTIMS status)
-- Team models (TeamJob, TeamEarning, TeamPayroll, TeamAnnouncement)
-- TaaS models (VerificationBadge, TrustScore, VerificationAudit)
-- Solar models (VerticalCategory, VerticalCertification, VerticalSpecialist, EquipmentRegistry, ProjectTemplate, VerticalProject, ProjectMilestone, SolarEstimationConfig)
+- Route: /booking.
+- APIs: /api/bookings, /api/bookings/[id], /api/bookings/[id]/accept, /api/bookings/[id]/reject.
+- Invoice route: /bookings/[id]/invoice.
+- Cancellation action: cancelBooking with refund preview action.
 
----
+Expectations:
 
-## Testing Checklist
+- Booking create/get endpoints respond with valid JSON contracts.
+- Provider accept/reject operations are available.
+- Cancellation flow exposes refund preview then cancellation action path.
 
-### eTIMS Gatekeeper
-- [ ] Invoice dashboard loads
-- [ ] Tax breakdown displays correctly
-- [ ] Tax settings can be saved
-- [ ] Invoice PDF generation works
+## 5. Communication and Engagement Systems
 
-### Team Management OS
-- [ ] Team dashboard loads
-- [ ] Can create/invite team members
-- [ ] Can create and assign jobs
-- [ ] Earnings calculation works
-- [ ] Payroll generation works
+### 5.1 In-App Messaging
 
-### TaaS Premium Verification
-- [ ] Verification dashboard loads
-- [ ] Trust score displays correctly
-- [ ] Badge request works
-- [ ] Automatic badges granted
-- [ ] Premium pricing toggle works
+Anchors:
 
-### Solar & Green Tech
-- [ ] Solar landing page loads
-- [ ] Estimation calculator works
-- [ ] All three steps complete
-- [ ] ROI calculations are reasonable
-- [ ] Featured installers display
+- Routes: /dashboard/messages, /client/messages.
+- APIs: /api/messages/send, /api/messages/history/[otherUserId], /api/messages/conversations, /api/messages/contacts, /api/messages/clear/[otherUserId], /api/messages/[messageId].
+- Components: ChatWindow, ConversationsList, NewConversationModal.
 
----
+Expectations:
 
-## Post-Testing
+- Send/history/clear/message management endpoints resolve.
+- Message pages render conversation and empty-state variants.
 
-After all tests pass:
-1. ✅ Mark features as tested in STRATEGIC_FEATURES_ROADMAP.md
-2. ✅ Deploy migration to staging
-3. ✅ Run smoke tests on staging
-4. ✅ Deploy to production
+### 5.2 Calls and Direct Communication
+
+Anchors:
+
+- Actions: initiateSecureCall, logCallStart, logCallStatus, getCallHistory.
+- Components: SecureCallButton, CallOverlay, VideoCallInterface.
+- Prisma model: Call exists.
+
+Critical current-state expectation:
+
+- initiateSecureCall references prisma.proxySession, but ProxySession is not present in current schema.
+- Test must validate this path fails gracefully and does not crash the page.
+
+### 5.3 Notifications and Omnichannel Alerts
+
+Anchors:
+
+- APIs: /api/notifications, /api/notifications/[id], /api/notifications/mark-all-read, /api/notifications/store-token.
+- Admin debug API: /api/admin/debug-notifications.
+- FCM hook: src/lib/hooks/useFcmToken.ts.
+- WhatsApp webhook: /api/webhooks/whatsapp.
+
+Expectations:
+
+- Notification CRUD and mark-all-read endpoints are reachable.
+- Token storage endpoint accepts authenticated token updates.
+- WhatsApp webhook GET verifies challenge token and POST accepts Meta event payload shape.
+
+## 6. Trust, Safety, Verification, and Quality
+
+### 6.1 Identity and Verification
+
+Anchors:
+
+- Routes: /auth/verify, /dashboard/verification.
+- Actions: submitBackgroundCheck, getProviderBackgroundCheck, approveBackgroundCheck, rejectBackgroundCheck, getExpiringChecks.
+
+Expectations:
+
+- Verification route renders upload workflow.
+- Background-check actions persist and change status lifecycle.
+
+### 6.2 Trust-as-a-Service
+
+Anchors:
+
+- Actions: getMyVerificationStatus, requestVerificationBadge, checkMyAutomaticBadges, refreshMyTrustScore, togglePremiumPricing, adminApproveBadge, adminRevokeBadge.
+- Utilities: src/lib/taas/trust-score-calculator.ts, src/lib/taas/badge-manager.ts.
+- Models: VerificationBadge, TrustScore, VerificationAudit.
+
+Expectations:
+
+- Trust score components are weighted identity 25, conduct 25, performance 20, reliability 15, compliance 15.
+- Tier thresholds and premium eligibility follow calculator rules.
+- Badge admin actions update badge status history.
+
+### 6.3 Safety Operations
+
+Anchors:
+
+- Route: /dashboard/safety.
+- Actions: addTrustedContact, removeTrustedContact, getTrustedContacts, triggerSOS, cancelSOS, getActiveSOS.
+- Models: TrustedContact, SOSAlert.
+
+Expectations:
+
+- Trusted contact CRUD works for authenticated provider.
+- SOS trigger creates active alert and cancel transitions state.
+
+### 6.4 Disputes and Reviews
+
+Anchors:
+
+- Admin route: /admin/disputes.
+- Actions: getDisputes, resolveDispute.
+- Reviews API: /api/reviews.
+- Client review route: /client/reviews/submit/[bookingId].
+
+Expectations:
+
+- Booking-linked review submission path is available.
+- Dispute resolution updates status through admin action.
+
+### 6.5 Insurance and Risk Events
+
+Anchors:
+
+- Actions: submitInsuranceClaim, getClaims.
+- Model: InsuranceClaim.
+
+Expectations:
+
+- Claim submission persists claim record.
+- Claims retrieval returns authenticated user scope.
+
+## 7. Financial Systems, Billing, and Compliance
+
+### 7.1 Wallet and Transactions
+
+Anchors:
+
+- Routes: /wallet, /client/wallet, /dashboard/wallet/topup-complete.
+- APIs: /api/wallet, /api/wallet/balance, /api/wallet/transactions, /api/wallet/topup, /api/wallet/verify, /api/wallet/webhook.
+
+Expectations:
+
+- Wallet summary/balance/transactions endpoints return valid responses.
+- Top-up and verify paths are callable and webhook endpoint is available.
+
+### 7.2 Provider Revenue and Monetization
+
+Anchors:
+
+- Actions: purchaseCredits, payOnboardingFee, promoteService.
+- APIs: /api/onboarding-fee/initiate, /api/onboarding-fee/webhook.
+
+Expectations:
+
+- Credit purchase reduces wallet balance and increases creditBalance on success.
+- Onboarding fee action updates profile.hasPaidOnboardingFee when funds suffice.
+- Promotion action sets or extends service promotedUntil.
+
+### 7.3 Subscriptions and Plans
+
+Anchors:
+
+- APIs: /api/subscription/initiate, /api/subscription/status, /api/subscription/webhook.
+- Admin action: updateUserPlan.
+
+Expectations:
+
+- Subscription initiation/status/webhook endpoints are reachable and process payloads.
+- Admin plan update action exists for governance workflow.
+
+### 7.4 Invoicing and Tax Compliance
+
+Anchors:
+
+- Routes: /dashboard/invoices, /dashboard/settings/tax, /bookings/[id]/invoice.
+- Actions: createInvoiceForBooking, getInvoice, getInvoiceHistory, getInvoiceStats, retryInvoiceSubmission, calculateTaxPreview.
+- Tax actions: verifyAndSaveKraDetails, fileNilReturnAction, getTaxFilings, getTaxProfile.
+- Tax settings actions: getTaxSettings, updateTaxSettings, verifyKRAPin, getTaxComplianceStatus.
+- Utilities: src/lib/etims/tax-calculator.ts.
+
+Expectations:
+
+- Tax calculator uses VAT 16 percent, Excise 2.5 percent, Withholding 5 percent.
+- KRA PIN format validation requires letter + 9 digits + letter.
+- Invoice retry action path is available for failed submission records.
+
+### 7.5 Promo and Growth Revenue
+
+Anchors:
+
+- Actions: validatePromoCodeAction, createPromoCodeAction.
+- Admin route: /admin/marketing/promos.
+- Components: PromoList, CreatePromoModal.
+
+Expectations:
+
+- Promo creation and validation actions are callable.
+- Admin promo module loads and lists promo records.
+
+## 8. Provider Business OS
+
+### 8.1 Profile and Service Operations
+
+Anchors:
+
+- Provider APIs: /api/provider/profile, /api/provider/services, /api/provider/activities, /api/provider/stats.
+- Provider routes: /dashboard/profile, /dashboard/services.
+
+Expectations:
+
+- Provider can fetch/update profile and service records through exposed APIs.
+
+### 8.2 Availability and Scheduling
+
+Anchors:
+
+- APIs: /api/provider/availability, /api/provider/availability/month, /api/provider/availability/check, /api/provider/availability/exceptions.
+- Route: /dashboard/availability.
+
+Expectations:
+
+- Weekly/monthly availability and exception endpoints are reachable.
+- Slot check endpoint returns conflict-safe availability response.
+
+### 8.3 Earnings and Analytics
+
+Anchors:
+
+- APIs: /api/provider/earnings, /api/provider/earnings/chart, /api/provider/reviews.
+- Routes: /dashboard/earnings, /dashboard/analytics.
+
+Expectations:
+
+- Earnings summaries and chart data endpoints respond.
+
+### 8.4 Expense Intelligence
+
+Anchors:
+
+- Route: /dashboard/expenses.
+- Actions: createExpense, getExpenses, scanReceipt, deleteExpense.
+
+Expectations:
+
+- Expense CRUD action flows complete successfully.
+- Receipt scan action returns parse result or controlled error state.
+
+## 9. Team and Agency Management OS
+
+### 9.1 Team Structure
+
+Anchors:
+
+- Routes: /dashboard/team, /dashboard/team/members.
+- Actions: createTeam, getMyTeam, inviteTeamMember or addMember, removeTeamMember, updateMemberPermissions, updateMemberLocation, updateMemberStatus.
+- Models: Team, TeamMember.
+
+Expectations:
+
+- Team can be created by provider account.
+- Member lifecycle operations are executable.
+
+### 9.2 Team Job Dispatch
+
+Anchors:
+
+- Route: /dashboard/team/jobs.
+- Actions: createJob, assignMembersToJob, updateJobStatusAction, markJobAsCollected, getTodaysJobsAction, getTodaysCollectionsAction.
+- Models: TeamJob, TeamJobAssignment.
+
+Expectations:
+
+- Job creation, assignment, and status transitions are persisted.
+- Collection recording updates dashboard aggregates.
+
+### 9.3 Team Earnings and Payroll
+
+Anchors:
+
+- Route: /dashboard/team/payroll.
+- Actions: generatePayrollAction, processPayrollAction, getPendingPayrollAction, getMemberBalanceAction.
+- Utilities: src/lib/teams/earnings-calculator.ts, src/lib/teams/payroll-processor.ts.
+- Models: TeamEarning, TeamPayroll.
+
+Expectations:
+
+- Payroll generation creates pending payroll entries.
+- Processing payroll updates status and records process metadata.
+
+### 9.4 Team Coordination
+
+Anchors:
+
+- Model: TeamAnnouncement.
+- Team components: MemberCard, TeamMemberList.
+
+Expectation:
+
+- Team coordination data model exists even if announcement UI flow is limited.
+
+## 10. AI, Analytics, Gamification, and Retention
+
+### 10.1 Matching and Recommendations
+
+Anchors:
+
+- Hooks/utilities: src/lib/hooks/useRecommendations.ts, src/lib/utils/geolocation.ts, src/lib/sheng-normalizer.ts.
+
+Expectations:
+
+- Recommendation and geolocation helpers are importable and functional.
+- Sheng normalization maps slang to normalized terms for search inputs.
+
+### 10.2 Dynamic Pricing
+
+Anchors:
+
+- Utility: src/lib/pricing-engine.ts.
+- Route: /dashboard/surge-pricing-demo.
+
+Expectation:
+
+- Surge pricing demo route loads and executes pricing logic without crash.
+
+### 10.3 Churn Prediction
+
+Anchors:
+
+- Route: /admin/churn-analysis.
+- Actions: getAtRiskUsers, getUserChurnScore, triggerChurnAnalysis, createManualIntervention, triggerUserReEngagement, getInterventionStats.
+- Utilities: src/lib/churn/churn-predictor.ts, src/lib/churn/re-engagement.ts.
+- Models: ChurnScore, ChurnIntervention.
+
+Expectation:
+
+- Admin churn workflows execute through actions and surface at-risk cohorts.
+
+### 10.4 Gamification and Loyalty
+
+Anchors:
+
+- Actions: getUserBadges, getBadgeProgress, syncBadges, manuallyAwardBadge.
+- Loyalty actions: getLoyaltyStatus, getPointHistory, getAvailablePartnerRewards, redeemPartnerReward, getRedemptionHistory, getLoyaltyLeaderboard.
+- Models: Badge, UserBadge, UserLoyalty, LoyaltyPointTransaction, Partner, PartnerReward, RewardRedemption.
+
+Expectations:
+
+- Badge and loyalty retrieval endpoints/actions return deterministic structures.
+- Reward redemption creates redemption history entries when validation passes.
+
+## 11. Specialized Vertical: Solar and Green Tech
+
+### 11.1 Solar Discovery and Estimation
+
+Anchors:
+
+- Routes: /solar, /solar/estimate.
+- Actions: getQuickSolarEstimate, getDetailedSolarEstimate.
+- Utility: src/lib/solar/estimation-calculator.ts.
+
+Expectations:
+
+- Stepper on /solar/estimate progresses through bill input, configuration, results.
+- Quick estimate supports bill presets such as 10000, 15000, 25000.
+- Detailed estimate returns system sizing, cost breakdown, savings and payback fields.
+
+### 11.2 Specialist and Certification Workflows
+
+Anchors:
+
+- Actions: registerAsSolarSpecialist, submitCertification, getFeaturedSolarSpecialists.
+- Models: VerticalSpecialist, VerticalCertification.
+
+Expectations:
+
+- Specialist registration and certification submission actions persist data.
+- Featured specialist retrieval returns limited result set.
+
+### 11.3 Solar Project Lifecycle
+
+Anchors:
+
+- Actions: requestSolarQuote, getMySolarProjects, updateProjectStatus.
+- Models: VerticalProject, ProjectMilestone, EquipmentRegistry, ProjectTemplate, SolarEstimationConfig.
+
+Expectations:
+
+- Project creation and status update action paths are available.
+- Milestone and equipment models support project tracking persistence.
+
+## 12. Referral, Support, and Customer Care
+
+Anchors:
+
+- Referral API and route: /api/client/referral, /client/referral.
+- Support APIs: /api/support/tickets, /api/support/tickets/[id].
+- Admin support route: /admin/support.
+- Growth APIs: /api/contact, /api/newsletter/subscribe.
+
+Expectations:
+
+- Referral data is retrievable by authenticated client.
+- Support ticket create/update endpoints return valid success/error contracts.
+
+## 13. Admin Command Center
+
+### 13.1 User Governance
+
+Anchors:
+
+- Admin actions: getUsers, getUserDetails, updateUserRole, updateUserPlan, toggleBanUser, verifyProvider.
+- Fee waiver API: /api/admin/users/[id]/waive-fee.
+
+Expectations:
+
+- User governance actions function from admin context.
+
+### 13.2 Financial Governance
+
+Anchors:
+
+- Admin actions: getFinanceSummary, getTransactions, getWallets, processManualRefund.
+- Route: /admin/finance.
+
+Expectations:
+
+- Finance summary and transaction/wallet tables load from action data.
+
+### 13.3 Trust and Compliance Governance
+
+Anchors:
+
+- Admin routes: /admin/verifications, /admin/logs.
+- Actions: getBackgroundChecks, getExpiringChecks, getExpiringBadgesAdmin, getAdminLogs.
+
+Expectations:
+
+- Verification and compliance queues are queryable.
+
+### 13.4 Category and Platform Configuration
+
+Anchors:
+
+- API: /api/categories.
+- Admin actions: getCategories, createCategory, updateCategory, deleteCategory, getSystemSettings, updateSystemSetting.
+- Route: /admin/settings.
+
+Expectations:
+
+- Category CRUD and system-setting update flows are available.
+
+## 14. Platform Foundations and Integrations
+
+### 14.1 Technical Stack
+
+Anchors:
+
+- Next.js App Router layout with server actions.
+- Prisma schema and generated client in src/generated/prisma.
+- NextAuth route: /api/auth/[...nextauth].
+
+Expectation:
+
+- Application boots with current schema and auth wiring.
+
+### 14.2 Real-Time and Offline Resilience
+
+Anchors:
+
+- Socket singleton: src/lib/socket.ts.
+- Offline provider: src/providers/OfflineSyncProvider.tsx.
+- Notification permission overlay + FCM hooks.
+
+Expectations:
+
+- In production, socket endpoint resolves to configured non-localhost endpoint or Render fallback.
+- Offline provider displays offline indicator and sync queue status.
+
+### 14.3 External Integrations
+
+Anchors:
+
+- IntaSend: src/lib/intasend.ts and webhook routes.
+- Firebase: src/lib/firebase.ts, src/lib/firebase-admin.ts.
+- WhatsApp: src/lib/whatsapp-service.ts and /api/webhooks/whatsapp.
+- Object storage: src/lib/s3.ts and /api/upload.
+- eTIMS and KRA: src/lib/etims/\* plus tax actions.
+- Gava utility: src/lib/gava.ts.
+
+Expectations:
+
+- Integration routes/modules load with environment-dependent behavior.
+- Upload route restricts folders to allowed list and rejects unauthenticated requests.
+
+### 14.4 Internationalization and Local Context
+
+Anchors:
+
+- i18n routing locales: en, sw, sheng.
+- Message packs: messages/en.json, messages/sw.json, messages/sheng.json.
+- Local normalization: src/lib/sheng-normalizer.ts.
+
+Expectations:
+
+- Locale fallback defaults to en when unsupported locale is requested.
+
+## 15. Data Domain Coverage (Prisma)
+
+Current schema contains the key domains listed in the overview, including:
+
+- Auth and identity models.
+- Marketplace and booking models.
+- Trust, support, and safety models.
+- Financial, invoicing, tax, and wallet models.
+- Team OS models.
+- TaaS models.
+- Vertical solar models.
+
+Test expectation:
+
+- For each critical workflow above, verify at least one create and one read operation against corresponding model-backed feature path.
+
+## 16. Gaps Found During Evidence Review
+
+These are factual mismatches to test and track:
+
+1. initiateSecureCall action depends on prisma.proxySession, but ProxySession model is not present in prisma/schema.prisma.
+2. Verification page contains link to /dashboard/sos, while current route is /dashboard/safety.
+3. Provider onboarding page links to /dashboard/calendar, but this route is not present in current page inventory.
+4. Solar provider dashboard routes referenced in older docs (/dashboard/solar\*) are not present as pages; solar specialist/project flows currently surface through actions and public solar routes.
+
+## 17. Exhaustive Execution Checklist (Overview-Aligned)
+
+- [ ] 1. End-to-end experience layers
+- [ ] 2. Marketplace and commerce core
+- [ ] 3. Communication and engagement systems
+- [ ] 4. Trust, safety, verification, and quality
+- [ ] 5. Financial systems, billing, and compliance
+- [ ] 6. Provider business OS
+- [ ] 7. Team and agency management OS
+- [ ] 8. AI, analytics, gamification, and retention
+- [ ] 9. Specialized vertical: solar and green tech
+- [ ] 10. Referral, support, and customer care
+- [ ] 11. Admin command center
+- [ ] 12. Platform foundations and integrations
+- [ ] 13. Data domain coverage
+- [ ] 14. Canonical route index validation
+- [ ] 15. Strategic module validation
+
+Use this checklist repeatedly for each release until all boxes remain green across smoke, regression, and role-based test runs.

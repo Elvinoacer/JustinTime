@@ -3,7 +3,7 @@
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
-import { BadgeType } from "@/generated/prisma";
+import { BadgeType } from "@/generated/prisma/client";
 import { 
   requestBadge, 
   approveBadge, 

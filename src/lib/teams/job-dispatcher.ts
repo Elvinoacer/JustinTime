@@ -4,7 +4,7 @@
  */
 
 import prisma from "@/lib/prisma";
-import { TeamJobStatus, AssignmentStatus, MemberStatus } from "@/generated/prisma";
+import { TeamJobStatus, AssignmentStatus, MemberStatus } from "@/generated/prisma/client";
 
 export interface JobCreateInput {
   teamId: string;

@@ -5,7 +5,7 @@ import { VerificationBadge, GovernmentVerifiedBadge } from "@/components/taas/Ve
 import { TrustScoreDisplay } from "@/components/taas/TrustScoreDisplay";
 import { Shield, Upload, RefreshCw, DollarSign, CheckCircle, Clock, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { BadgeType } from "@/generated/prisma";
+import { BadgeType } from "@/generated/prisma/client";
 
 export const dynamic = 'force-dynamic';
 

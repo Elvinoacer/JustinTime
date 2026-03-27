@@ -5,15 +5,13 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
-
 
 // User Roles
 enum UserRole {
@@ -24,102 +22,102 @@ enum UserRole {
 
 // User Model (NextAuth compatible)
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  password      String?   // For credentials authentication
-  image         String?
-  phone         String?   @unique
-  whatsappNumber String?
-  role          UserRole  @default(CLIENT)
-  createdAt     DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  onboardingCompleted Boolean   @default(false)
-  clientInterests     String[]
-  isBanned            Boolean   @default(false)
-  isTwoFactorEnabled  Boolean   @default(false)
+  id                    String                 @id @default(cuid())
+  name                  String?
+  email                 String?                @unique
+  emailVerified         DateTime?
+  password              String? // For credentials authentication
+  image                 String?
+  phone                 String?                @unique
+  whatsappNumber        String?
+  role                  UserRole               @default(CLIENT)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  onboardingCompleted   Boolean                @default(false)
+  clientInterests       String[]
+  isBanned              Boolean                @default(false)
+  isTwoFactorEnabled    Boolean                @default(false)
   twoFactorConfirmation TwoFactorConfirmation?
-  adminLogs           AdminLog[]
-  
+  adminLogs             AdminLog[]
+
   // Settings preferences (stored as JSON)
   notificationPreferences Json? @default("{\"emailJobAlerts\":true,\"emailMessages\":true,\"emailBookings\":true,\"emailReviews\":true,\"emailMarketing\":false,\"pushNotifications\":true}")
   privacySettings         Json? @default("{\"profileVisible\":true,\"searchable\":true,\"showLocation\":true,\"allowMessages\":true}")
-  
+
   // Account deletion tracking
   deletionScheduledAt DateTime?
   deletionReason      String?
-  
-  // Password reset
-  resetToken          String?   @unique
-  resetTokenExpiry    DateTime?
 
-  accounts      Account[]
-  sessions      Session[]
-  
+  // Password reset
+  resetToken       String?   @unique
+  resetTokenExpiry DateTime?
+
+  accounts Account[]
+  sessions Session[]
+
   // Relations
-  profile       Profile?
-  services      Service[]
-  jobs          Job[]
-  proposals     Proposal[]
-  bookings      Booking[]     @relation("ClientBookings")
-  providerBookings Booking[]  @relation("ProviderBookings")
-  reviews       Review[]      @relation("WrittenReviews")
-  receivedReviews Review[]    @relation("ReceivedReviews")
-  sentMessages  Message[]     @relation("SentMessages")
-  receivedMessages Message[]  @relation("ReceivedMessages")
-  notifications Notification[]
-  wallet        Wallet?
-  subscription  Subscription?
-  disputes      Dispute[]     @relation("CreatedDisputes")
-  disputesAgainst Dispute[]   @relation("DisputesAgainst")
-  supportTickets SupportTicket[]
-  availability  Availability[]
+  profile                Profile?
+  services               Service[]
+  jobs                   Job[]
+  proposals              Proposal[]
+  bookings               Booking[]               @relation("ClientBookings")
+  providerBookings       Booking[]               @relation("ProviderBookings")
+  reviews                Review[]                @relation("WrittenReviews")
+  receivedReviews        Review[]                @relation("ReceivedReviews")
+  sentMessages           Message[]               @relation("SentMessages")
+  receivedMessages       Message[]               @relation("ReceivedMessages")
+  notifications          Notification[]
+  wallet                 Wallet?
+  subscription           Subscription?
+  disputes               Dispute[]               @relation("CreatedDisputes")
+  disputesAgainst        Dispute[]               @relation("DisputesAgainst")
+  supportTickets         SupportTicket[]
+  availability           Availability[]
   availabilityExceptions AvailabilityException[]
-  initiatedNegotiations BookingNegotiation[] @relation("InitiatedNegotiations")
-  receivedNegotiations BookingNegotiation[]  @relation("ReceivedNegotiations")
-  fcmTokens     UserToken[]
-  trustedContacts TrustedContact[]
-  sosAlerts       SOSAlert[]
-  backgroundChecks BackgroundCheck[]
-  taxFilings    TaxFiling[]
-  
+  initiatedNegotiations  BookingNegotiation[]    @relation("InitiatedNegotiations")
+  receivedNegotiations   BookingNegotiation[]    @relation("ReceivedNegotiations")
+  fcmTokens              UserToken[]
+  trustedContacts        TrustedContact[]
+  sosAlerts              SOSAlert[]
+  backgroundChecks       BackgroundCheck[]
+  taxFilings             TaxFiling[]
+
   // Referral system
-  referralCode  String?   @unique
-  referredById  String?
-  referredBy    User?     @relation("Referrals", fields: [referredById], references: [id])
-  referrals     User[]    @relation("Referrals")
-  sentReferrals Referral[] @relation("ReferrerReferrals")
-  receivedReferral Referral? @relation("ReferredUserReferral")
-  
+  referralCode     String?    @unique
+  referredById     String?
+  referredBy       User?      @relation("Referrals", fields: [referredById], references: [id])
+  referrals        User[]     @relation("Referrals")
+  sentReferrals    Referral[] @relation("ReferrerReferrals")
+  receivedReferral Referral?  @relation("ReferredUserReferral")
+
   // Team / Agency
-  ownedTeam     Team?     @relation("OwnedTeam")
-  teamMemberships TeamMember[]
-  callsMade     Call[]    @relation("CallsMade")
-  callsReceived Call[]    @relation("CallsReceived")
-  insuranceClaims InsuranceClaim[]
-  expenses      Expense[]
-  earnedBadges  UserBadge[]
-  churnScores   ChurnScore[]
+  ownedTeam          Team?               @relation("OwnedTeam")
+  teamMemberships    TeamMember[]
+  callsMade          Call[]              @relation("CallsMade")
+  callsReceived      Call[]              @relation("CallsReceived")
+  insuranceClaims    InsuranceClaim[]
+  expenses           Expense[]
+  earnedBadges       UserBadge[]
+  churnScores        ChurnScore[]
   churnInterventions ChurnIntervention[]
-  loyalty       UserLoyalty?
-  taxSettings   TaxSettings?
-  
+  loyalty            UserLoyalty?
+  taxSettings        TaxSettings?
+
   // TaaS Premium Verification
   verificationBadges VerificationBadge[]
-  trustScore    TrustScore?
-  
+  trustScore         TrustScore?
+
   // Solar & Green Tech Verticals
   verticalCertifications VerticalCertification[]
   verticalSpecialties    VerticalSpecialist[]
-  clientProjects         VerticalProject[] @relation("ClientProjects")
-  providerProjects       VerticalProject[] @relation("ProviderProjects")
+  clientProjects         VerticalProject[]       @relation("ClientProjects")
+  providerProjects       VerticalProject[]       @relation("ProviderProjects")
   equipment              EquipmentRegistry[]
-  
+
   // WebAuthn Biometric Authentication
-  webAuthnCredentialId    String?
-  webAuthnPublicKey       String?   @db.Text
-  biometricRegisteredAt   DateTime?
+  webAuthnCredentialId  String?
+  webAuthnPublicKey     String?   @db.Text
+  biometricRegisteredAt DateTime?
 }
 
 // Promo Codes / Vouchers
@@ -138,30 +136,30 @@ model PromoCode {
   maxDiscountAmount Decimal?  @db.Decimal(10, 2)
   startDate         DateTime  @default(now())
   endDate           DateTime?
-  usageLimit        Int?      // Max total usages (e.g., first 100 people)
+  usageLimit        Int? // Max total usages (e.g., first 100 people)
   perUserLimit      Int       @default(1) // Max usages per user
   usageCount        Int       @default(0)
   isActive          Boolean   @default(true)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  bookings          Booking[]
+  bookings Booking[]
 }
 
 // NextAuth Models
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.Text
-  session_state      String?
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -194,103 +192,103 @@ model TwoFactorToken {
 }
 
 model TwoFactorConfirmation {
-  id      String   @id @default(cuid())
-  userId  String
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId])
 }
 
 // Provider Profile
 model Profile {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  bio         String?  @db.Text
-  skills      String[]
-  hourlyRate  Decimal? @db.Decimal(10, 2)
-  portfolio   String[] // URLs to images/videos
-  isVerified  Boolean  @default(false)
-  verificationStatus String? @default("PENDING") // PENDING, VERIFIED, REJECTED
-  hasPaidOnboardingFee Boolean @default(false) // Revenue Feature: Onboarding Fee
-  onboardingFeeWaived     Boolean   @default(false) // Admin can waive the fee
-  onboardingFeeWaivedBy   String?   // Admin user ID who approved waiver
-  onboardingFeeWaivedAt   DateTime? // When waiver was approved
-  idDocument  String?  // URL to ID document
-  location    String?
-  latitude    Float?
-  longitude   Float?
-  certifications Json? @default("[]") // Array of {name, issuer, date, fileUrl}
-  education   Json? @default("[]") // Array of {institution, degree, field, startYear, endYear}
-  socialLinks Json? @default("[]") // Array of {platform, url} - social media and website links
-  views       Int      @default(0)
-  favorites   Int      @default(0)
-  
+  id                    String    @id @default(cuid())
+  userId                String    @unique
+  bio                   String?   @db.Text
+  skills                String[]
+  hourlyRate            Decimal?  @db.Decimal(10, 2)
+  portfolio             String[] // URLs to images/videos
+  isVerified            Boolean   @default(false)
+  verificationStatus    String?   @default("PENDING") // PENDING, VERIFIED, REJECTED
+  hasPaidOnboardingFee  Boolean   @default(false) // Revenue Feature: Onboarding Fee
+  onboardingFeeWaived   Boolean   @default(false) // Admin can waive the fee
+  onboardingFeeWaivedBy String? // Admin user ID who approved waiver
+  onboardingFeeWaivedAt DateTime? // When waiver was approved
+  idDocument            String? // URL to ID document
+  location              String?
+  latitude              Float?
+  longitude             Float?
+  certifications        Json?     @default("[]") // Array of {name, issuer, date, fileUrl}
+  education             Json?     @default("[]") // Array of {institution, degree, field, startYear, endYear}
+  socialLinks           Json?     @default("[]") // Array of {platform, url} - social media and website links
+  views                 Int       @default(0)
+  favorites             Int       @default(0)
+
   // KRA / Tax Information
   kraPin      String? // KRA Personal Identification Number
   tccNumber   String? // Tax Compliance Certificate Number
   tccExpiry   DateTime?
-  kraVerified Boolean @default(false)
-  
+  kraVerified Boolean   @default(false)
+
   // TaaS Premium Pricing
   premiumPricingEnabled Boolean @default(false)
   premiumMultiplier     Float   @default(1.0) // 1.0 = no premium, 1.3 = +30%
-  
+
   // Verification Enhancement Fields
-  faceMatchScore          Float?    // 0-100 score from face comparison
-  idDocumentType          String?   // 'national_id' | 'passport' | 'drivers_license'
-  verificationAttempts    Int       @default(0)
-  lastVerificationAt      DateTime?
-  locationSource          String?   @default("MANUAL") // GPS | IP | MANUAL
-  locationAccuracy        Float?    // GPS accuracy in meters
-  
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  faceMatchScore       Float? // 0-100 score from face comparison
+  idDocumentType       String? // 'national_id' | 'passport' | 'drivers_license'
+  verificationAttempts Int       @default(0)
+  lastVerificationAt   DateTime?
+  locationSource       String?   @default("MANUAL") // GPS | IP | MANUAL
+  locationAccuracy     Float? // GPS accuracy in meters
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // Services offered by Providers
 model Service {
-  id          String   @id @default(cuid())
-  providerId  String
-  categoryId  String
-  title       String
-  description String   @db.Text
-  price       Decimal  @db.Decimal(10, 2)
-  pricingUnit String   // e.g., "per hour", "fixed"
-  cancellationPolicy CancellationPolicy @default(FLEXIBLE)
-  images      String[]
-  video       String?  // URL to service video
-  isActive    Boolean  @default(true)
-  requiresAvailability Boolean @default(true) // Whether service needs availability scheduling
-  defaultDuration Int?  // Duration in minutes
-  locationType String  @default("PROVIDER_LOCATION") // PROVIDER_LOCATION, CLIENT_LOCATION, NEGOTIABLE, REMOTE
-  location    String?  // Default location for service
-  
+  id                   String             @id @default(cuid())
+  providerId           String
+  categoryId           String
+  title                String
+  description          String             @db.Text
+  price                Decimal            @db.Decimal(10, 2)
+  pricingUnit          String // e.g., "per hour", "fixed"
+  cancellationPolicy   CancellationPolicy @default(FLEXIBLE)
+  images               String[]
+  video                String? // URL to service video
+  isActive             Boolean            @default(true)
+  requiresAvailability Boolean            @default(true) // Whether service needs availability scheduling
+  defaultDuration      Int? // Duration in minutes
+  locationType         String             @default("PROVIDER_LOCATION") // PROVIDER_LOCATION, CLIENT_LOCATION, NEGOTIABLE, REMOTE
+  location             String? // Default location for service
+
   // Revenue Feature: Promoted Listings
   promotedUntil DateTime?
-  promotionPlan String?   // STANDARD, PREMIUM
+  promotionPlan String? // STANDARD, PREMIUM
 
-  views       Int      @default(0)
-  favorites   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  views     Int      @default(0)
+  favorites Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  provider    User     @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  category    Category @relation(fields: [categoryId], references: [id])
-  bookings    Booking[]
+  provider User      @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  category Category  @relation(fields: [categoryId], references: [id])
+  bookings Booking[]
 }
 
 // Service Categories
 model Category {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  slug        String    @unique
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
   image       String?
   description String?
   parentId    String?
-  
-  parent      Category?  @relation("SubCategories", fields: [parentId], references: [id])
-  children    Category[] @relation("SubCategories")
-  services    Service[]
-  jobs        Job[]
+
+  parent   Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  children Category[] @relation("SubCategories")
+  services Service[]
+  jobs     Job[]
 }
 
 // Jobs posted by Clients
@@ -302,27 +300,27 @@ enum JobStatus {
 }
 
 model Job {
-  id          String    @id @default(cuid())
-  clientId    String
-  categoryId  String
-  title       String
-  description String    @db.Text
-  budget      Decimal?  @db.Decimal(10, 2)
-  location    String?
-  latitude    Float?
-  longitude   Float?
-  deadline    DateTime?
-  maxApplicants Int?    // Maximum number of proposals allowed
-  status      JobStatus @default(OPEN)
-  images      String[]  // URLs to job images/photos
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id            String    @id @default(cuid())
+  clientId      String
+  categoryId    String
+  title         String
+  description   String    @db.Text
+  budget        Decimal?  @db.Decimal(10, 2)
+  location      String?
+  latitude      Float?
+  longitude     Float?
+  deadline      DateTime?
+  maxApplicants Int? // Maximum number of proposals allowed
+  status        JobStatus @default(OPEN)
+  images        String[] // URLs to job images/photos
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  client      User      @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  category    Category  @relation(fields: [categoryId], references: [id])
-  proposals   Proposal[]
-  bookings    Booking[]
-  expenses    Expense[]
+  client    User       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  category  Category   @relation(fields: [categoryId], references: [id])
+  proposals Proposal[]
+  bookings  Booking[]
+  expenses  Expense[]
 }
 
 // Proposals/Bids on Jobs
@@ -348,10 +346,10 @@ model Proposal {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  job         Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  provider    User           @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  provider      User     @relation(fields: [providerId], references: [id], onDelete: Cascade)
   estimatedDays Int?
-  attachments String[]
+  attachments   String[]
 }
 
 // Bookings
@@ -371,62 +369,62 @@ enum BookingChannel {
 }
 
 model Booking {
-  id          String        @id @default(cuid())
-  clientId    String
-  providerId  String
-  serviceId   String?
-  jobId       String?
-  date        DateTime
-  bookedVia   BookingChannel @default(WEB)
-  startTime   String?       // e.g., "09:00"
-  endTime     String?       // e.g., "10:00"
-  status      BookingStatus @default(PENDING)
-  totalAmount Decimal       @db.Decimal(10, 2)
-  proposedPrice Decimal?    @db.Decimal(10, 2) // If client proposes different price
-  location    String?       // Agreed location for service
-  proposedLocation String?   // If client proposes different location
-  notes       String?       @db.Text // Additional notes from client
-  clientPhone String?       // Client contact phone for this booking
-  clientAddress String?     @db.Text // Client address for this booking
-  
+  id               String         @id @default(cuid())
+  clientId         String
+  providerId       String
+  serviceId        String?
+  jobId            String?
+  date             DateTime
+  bookedVia        BookingChannel @default(WEB)
+  startTime        String? // e.g., "09:00"
+  endTime          String? // e.g., "10:00"
+  status           BookingStatus  @default(PENDING)
+  totalAmount      Decimal        @db.Decimal(10, 2)
+  proposedPrice    Decimal?       @db.Decimal(10, 2) // If client proposes different price
+  location         String? // Agreed location for service
+  proposedLocation String? // If client proposes different location
+  notes            String?        @db.Text // Additional notes from client
+  clientPhone      String? // Client contact phone for this booking
+  clientAddress    String?        @db.Text // Client address for this booking
+
   // Dynamic Pricing Fields
-  basePrice       Decimal?       @db.Decimal(10, 2)
-  surgeMultiplier Float?         @default(1.0)
-  finalPrice      Decimal?       @db.Decimal(10, 2)
+  basePrice       Decimal? @db.Decimal(10, 2)
+  surgeMultiplier Float?   @default(1.0)
+  finalPrice      Decimal? @db.Decimal(10, 2)
   surgeReason     String?
-  
+
   // Financial Breakdowns
   exciseDutyAmount Decimal? @db.Decimal(10, 2)
-  insuranceFee    Decimal? @db.Decimal(10, 2)
-  netAmount       Decimal? @db.Decimal(10, 2)
+  insuranceFee     Decimal? @db.Decimal(10, 2)
+  netAmount        Decimal? @db.Decimal(10, 2)
   totalTaxAmount   Decimal? @db.Decimal(10, 2)
-  
+
   // Cancellation Logic
-  cancelledAt      DateTime?
-  cancelledBy      String?   // User ID
+  cancelledAt        DateTime?
+  cancelledBy        String? // User ID
   cancellationReason String?
-  refundAmount     Decimal?  @db.Decimal(10, 2)
-  penaltyAmount    Decimal?  @db.Decimal(10, 2)
+  refundAmount       Decimal?  @db.Decimal(10, 2)
+  penaltyAmount      Decimal?  @db.Decimal(10, 2)
 
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  client      User      @relation("ClientBookings", fields: [clientId], references: [id])
-  provider    User      @relation("ProviderBookings", fields: [providerId], references: [id])
-  service     Service?  @relation(fields: [serviceId], references: [id])
-  job         Job?      @relation(fields: [jobId], references: [id])
-  payment       Payment?
-  review        Review?   @relation("BookingReview")
-  dispute       Dispute?
-  invoice       Invoice?
+  client         User            @relation("ClientBookings", fields: [clientId], references: [id])
+  provider       User            @relation("ProviderBookings", fields: [providerId], references: [id])
+  service        Service?        @relation(fields: [serviceId], references: [id])
+  job            Job?            @relation(fields: [jobId], references: [id])
+  payment        Payment?
+  review         Review?         @relation("BookingReview")
+  dispute        Dispute?
+  invoice        Invoice?
   insuranceClaim InsuranceClaim?
-  promoCodeId   String?
-  promoCode     PromoCode? @relation(fields: [promoCodeId], references: [id])
-  discountAmount Decimal? @db.Decimal(10, 2)
+  promoCodeId    String?
+  promoCode      PromoCode?      @relation(fields: [promoCodeId], references: [id])
+  discountAmount Decimal?        @db.Decimal(10, 2)
 
-  negotiations BookingNegotiation[]
-  slots       BookingSlot[]
-  teamJobs    TeamJob[]
+  negotiations    BookingNegotiation[]
+  slots           BookingSlot[]
+  teamJobs        TeamJob[]
   verticalProject VerticalProject?
 
   @@index([clientId])
@@ -442,21 +440,21 @@ enum ClaimStatus {
 }
 
 model InsuranceClaim {
-  id          String      @id @default(cuid())
-  bookingId   String      @unique
-  claimantId  String
-  amount      Decimal     @db.Decimal(10, 2)
-  description String      @db.Text
-  evidence    String[]    // URLs to images/videos
-  status      ClaimStatus @default(PENDING)
-  approvedAmount Decimal? @db.Decimal(10, 2)
-  adminNotes  String?     @db.Text
-  resolvedAt  DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  bookingId      String      @unique
+  claimantId     String
+  amount         Decimal     @db.Decimal(10, 2)
+  description    String      @db.Text
+  evidence       String[] // URLs to images/videos
+  status         ClaimStatus @default(PENDING)
+  approvedAmount Decimal?    @db.Decimal(10, 2)
+  adminNotes     String?     @db.Text
+  resolvedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
-  booking     Booking     @relation(fields: [bookingId], references: [id])
-  claimant    User        @relation(fields: [claimantId], references: [id])
+  booking  Booking @relation(fields: [bookingId], references: [id])
+  claimant User    @relation(fields: [claimantId], references: [id])
 
   @@index([claimantId])
   @@index([status])
@@ -476,17 +474,17 @@ model BookingSlot {
 
 // Reviews
 model Review {
-  id          String   @id @default(cuid())
-  bookingId   String   @unique
-  authorId    String
-  targetId    String
-  rating      Int      @default(5)
-  comment     String?  @db.Text
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  bookingId String   @unique
+  authorId  String
+  targetId  String
+  rating    Int      @default(5)
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
 
-  booking     Booking  @relation("BookingReview", fields: [bookingId], references: [id], onDelete: Cascade)
-  author      User     @relation("WrittenReviews", fields: [authorId], references: [id])
-  target      User     @relation("ReceivedReviews", fields: [targetId], references: [id])
+  booking Booking @relation("BookingReview", fields: [bookingId], references: [id], onDelete: Cascade)
+  author  User    @relation("WrittenReviews", fields: [authorId], references: [id])
+  target  User    @relation("ReceivedReviews", fields: [targetId], references: [id])
 }
 
 // Payments
@@ -505,29 +503,29 @@ enum PaymentMethod {
 }
 
 model Payment {
-  id            String        @id @default(cuid())
-  bookingId     String        @unique
-  amount        Decimal       @db.Decimal(10, 2)
-  method        PaymentMethod
-  status        PaymentStatus @default(PENDING)
-  transactionId String?       // External transaction ID (e.g., M-Pesa code)
-  exciseDutyAmount Decimal?   @db.Decimal(10, 2)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id               String        @id @default(cuid())
+  bookingId        String        @unique
+  amount           Decimal       @db.Decimal(10, 2)
+  method           PaymentMethod
+  status           PaymentStatus @default(PENDING)
+  transactionId    String? // External transaction ID (e.g., M-Pesa code)
+  exciseDutyAmount Decimal?      @db.Decimal(10, 2)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  booking       Booking       @relation(fields: [bookingId], references: [id])
+  booking Booking @relation(fields: [bookingId], references: [id])
 }
 
 // Tax Filings (Nil Returns)
 model TaxFiling {
-  id          String   @id @default(cuid())
-  providerId  String
-  provider    User     @relation(fields: [providerId], references: [id])
-  period      String   // e.g., "2025-01"
-  type        String   // "NIL" or "STANDARD"
-  status      String   // "FILED", "FAILED"
-  ackNumber   String?  // GavaConnect Acknowledgement
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  providerId String
+  provider   User     @relation(fields: [providerId], references: [id])
+  period     String // e.g., "2025-01"
+  type       String // "NIL" or "STANDARD"
+  status     String // "FILED", "FAILED"
+  ackNumber  String? // GavaConnect Acknowledgement
+  createdAt  DateTime @default(now())
 }
 
 // Invoices (eTIMS)
@@ -540,37 +538,37 @@ enum InvoiceStatus {
 }
 
 model Invoice {
-  id          String   @id @default(cuid())
-  bookingId   String   @unique
-  booking     Booking  @relation(fields: [bookingId], references: [id])
-  number      String   @unique // Internal Invoice Number e.g., INV-2025-00001
-  
+  id        String  @id @default(cuid())
+  bookingId String  @unique
+  booking   Booking @relation(fields: [bookingId], references: [id])
+  number    String  @unique // Internal Invoice Number e.g., INV-2025-00001
+
   // eTIMS Specifics
-  etimsCuNumber   String? // Control Unit Invoice Number
-  etimsQrUrl      String? // URL to QR Code image
-  etimsSignature  String? // Digital signature from KRA
-  
+  etimsCuNumber  String? // Control Unit Invoice Number
+  etimsQrUrl     String? // URL to QR Code image
+  etimsSignature String? // Digital signature from KRA
+
   // Tax Breakdown
-  subtotal        Decimal  @db.Decimal(10, 2) // Before tax
-  vatAmount       Decimal  @default(0) @db.Decimal(10, 2) // 16% VAT
-  exciseDuty      Decimal  @default(0) @db.Decimal(10, 2) // Digital service excise
-  withholdingTax  Decimal  @default(0) @db.Decimal(10, 2) // 5% withholding
-  totalAmount     Decimal  @db.Decimal(10, 2) // Final total
-  
+  subtotal       Decimal @db.Decimal(10, 2) // Before tax
+  vatAmount      Decimal @default(0) @db.Decimal(10, 2) // 16% VAT
+  exciseDuty     Decimal @default(0) @db.Decimal(10, 2) // Digital service excise
+  withholdingTax Decimal @default(0) @db.Decimal(10, 2) // 5% withholding
+  totalAmount    Decimal @db.Decimal(10, 2) // Final total
+
   // Status Tracking
-  status          InvoiceStatus @default(GENERATED)
-  pdfUrl          String?       // Stored PDF path
-  
+  status InvoiceStatus @default(GENERATED)
+  pdfUrl String? // Stored PDF path
+
   // Buyer/Seller Info
-  sellerPin       String?       // Provider's KRA PIN
-  buyerPin        String?       // Client's KRA PIN (if corporate)
-  buyerName       String?       // Client name for invoice
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  sellerPin String? // Provider's KRA PIN
+  buyerPin  String? // Client's KRA PIN (if corporate)
+  buyerName String? // Client name for invoice
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   submissions ETIMSSubmission[]
-  
+
   @@index([status])
   @@index([createdAt])
 }
@@ -578,30 +576,29 @@ model Invoice {
 model ETIMSSubmission {
   id              String   @id @default(cuid())
   invoiceId       String
-  submissionType  String   // INITIAL, RETRY, CORRECTION
+  submissionType  String // INITIAL, RETRY, CORRECTION
   requestPayload  Json
   responsePayload Json?
   success         Boolean  @default(false)
   errorMessage    String?
   submittedAt     DateTime @default(now())
-  
-  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
   @@index([invoiceId])
   @@index([submittedAt])
   @@index([success])
 }
 
-
 // Wallet
 model Wallet {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  balance     Decimal  @default(0) @db.Decimal(10, 2)
-  creditBalance Int    @default(0) // Revenue Feature: Lead Gen Credits
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  balance       Decimal  @default(0) @db.Decimal(10, 2)
+  creditBalance Int      @default(0) // Revenue Feature: Lead Gen Credits
+  updatedAt     DateTime @updatedAt
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
 }
 
@@ -611,9 +608,9 @@ enum TransactionType {
   PAYMENT
   REFUND
   EARNING
-  CREDIT_PURCHASE   // Revenue Feature
+  CREDIT_PURCHASE // Revenue Feature
   PROMOTION_PAYMENT // Revenue Feature
-  ONBOARDING_FEE    // Revenue Feature
+  ONBOARDING_FEE // Revenue Feature
 }
 
 model Transaction {
@@ -624,7 +621,7 @@ model Transaction {
   description String?
   createdAt   DateTime        @default(now())
 
-  wallet      Wallet          @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
 }
 
 // Messages
@@ -634,26 +631,26 @@ model Message {
   receiverId  String
   content     String   @db.Text
   fileUrl     String?
-  fileType    String?  // "image", "file", etc.
+  fileType    String? // "image", "file", etc.
   isRead      Boolean  @default(false)
   isDelivered Boolean  @default(false)
   createdAt   DateTime @default(now())
 
-  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
-  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  sender   User @relation("SentMessages", fields: [senderId], references: [id])
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
 }
 
 // Notifications
 model Notification {
-  id          String   @id @default(cuid())
-  userId      String
-  title       String
-  message     String
-  type        String   // e.g., "JOB_ALERT", "PAYMENT", "SYSTEM"
-  isRead      Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String // e.g., "JOB_ALERT", "PAYMENT", "SYSTEM"
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // Subscriptions
@@ -664,14 +661,14 @@ enum SubscriptionPlan {
 }
 
 model Subscription {
-  id          String           @id @default(cuid())
-  userId      String           @unique
-  plan        SubscriptionPlan @default(FREE)
-  startDate   DateTime         @default(now())
-  endDate     DateTime?
-  isActive    Boolean          @default(true)
+  id        String           @id @default(cuid())
+  userId    String           @unique
+  plan      SubscriptionPlan @default(FREE)
+  startDate DateTime         @default(now())
+  endDate   DateTime?
+  isActive  Boolean          @default(true)
 
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // Disputes
@@ -692,48 +689,48 @@ model Dispute {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  booking     Booking       @relation(fields: [bookingId], references: [id])
-  creator     User          @relation("CreatedDisputes", fields: [creatorId], references: [id])
-  defendant   User          @relation("DisputesAgainst", fields: [defendantId], references: [id])
+  booking   Booking @relation(fields: [bookingId], references: [id])
+  creator   User    @relation("CreatedDisputes", fields: [creatorId], references: [id])
+  defendant User    @relation("DisputesAgainst", fields: [defendantId], references: [id])
 }
 
 // Support Tickets
 model SupportTicket {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   subject     String
-  description String   @db.Text
-  category    String   // Account, Payments, Technical, Bookings, General
-  priority    String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
-  status      String   @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
-  
-  adminNotes  String?  @db.Text
-  resolution  String?  @db.Text
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  resolvedAt  DateTime?
-  
+  description String @db.Text
+  category    String // Account, Payments, Technical, Bookings, General
+  priority    String @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status      String @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+
+  adminNotes String? @db.Text
+  resolution String? @db.Text
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
+
   @@index([userId])
   @@index([status])
 }
 
 // Provider Availability Schedule
 model Availability {
-  id          String   @id @default(cuid())
-  providerId  String
-  serviceId   String?  // Optional: link to specific service
-  dayOfWeek   Int      // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-  startTime   String   // e.g., "09:00"
-  endTime     String   // e.g., "17:00"
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  providerId String
+  serviceId  String? // Optional: link to specific service
+  dayOfWeek  Int // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  startTime  String // e.g., "09:00"
+  endTime    String // e.g., "17:00"
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  provider    User     @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  
+  provider User @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
   @@index([providerId])
   @@index([serviceId])
 }
@@ -743,15 +740,15 @@ model AvailabilityException {
   id          String   @id @default(cuid())
   providerId  String
   date        DateTime // Specific date for this exception
-  isAvailable Boolean  // false = blocked date, true = special availability
-  startTime   String?  // If available, custom start time
-  endTime     String?  // If available, custom end time
-  reason      String?  // e.g., "Holiday", "Personal event"
+  isAvailable Boolean // false = blocked date, true = special availability
+  startTime   String? // If available, custom start time
+  endTime     String? // If available, custom end time
+  reason      String? // e.g., "Holiday", "Personal event"
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  provider    User     @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  
+  provider User @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
   @@index([providerId])
   @@index([date])
 }
@@ -766,24 +763,24 @@ enum NegotiationStatus {
 }
 
 model BookingNegotiation {
-  id              String            @id @default(cuid())
-  bookingId       String
-  initiatorId     String            // Who started this negotiation
-  receiverId      String            // Who receives this negotiation
-  proposedPrice   Decimal?          @db.Decimal(10, 2)
+  id               String            @id @default(cuid())
+  bookingId        String
+  initiatorId      String // Who started this negotiation
+  receiverId       String // Who receives this negotiation
+  proposedPrice    Decimal?          @db.Decimal(10, 2)
   proposedLocation String?
-  message         String?           @db.Text
-  status          NegotiationStatus @default(PENDING)
-  parentId        String?           // For counter-offers
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  message          String?           @db.Text
+  status           NegotiationStatus @default(PENDING)
+  parentId         String? // For counter-offers
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
-  booking         Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  initiator       User              @relation("InitiatedNegotiations", fields: [initiatorId], references: [id])
-  receiver        User              @relation("ReceivedNegotiations", fields: [receiverId], references: [id])
-  parent          BookingNegotiation? @relation("NegotiationThread", fields: [parentId], references: [id])
-  counterOffers   BookingNegotiation[] @relation("NegotiationThread")
-  
+  booking       Booking              @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  initiator     User                 @relation("InitiatedNegotiations", fields: [initiatorId], references: [id])
+  receiver      User                 @relation("ReceivedNegotiations", fields: [receiverId], references: [id])
+  parent        BookingNegotiation?  @relation("NegotiationThread", fields: [parentId], references: [id])
+  counterOffers BookingNegotiation[] @relation("NegotiationThread")
+
   @@index([bookingId])
   @@index([initiatorId])
   @@index([receiverId])
@@ -791,22 +788,21 @@ model BookingNegotiation {
 
 // Newsletter Subscribers
 model NewsletterSubscriber {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id        String   @id @default(cuid())
+  email     String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([email])
 }
-
 
 // Admin Audit Log
 model AdminLog {
   id        String   @id @default(cuid())
   adminId   String
-  action    String   // e.g., "VERIFIED_USER", "RESOLVED_DISPUTE"
-  targetId  String?  // ID of the object affected
+  action    String // e.g., "VERIFIED_USER", "RESOLVED_DISPUTE"
+  targetId  String? // ID of the object affected
   details   Json?
   createdAt DateTime @default(now())
   admin     User     @relation(fields: [adminId], references: [id])
@@ -814,7 +810,7 @@ model AdminLog {
 
 // System Settings
 model SystemSetting {
-  key         String   @id
+  key         String  @id
   value       Json
   description String?
 }
@@ -839,24 +835,24 @@ enum ReferralStatus {
 }
 
 enum ReferralType {
-  SIGNUP      // Points when referred user signs up
+  SIGNUP // Points when referred user signs up
   FIRST_BOOKING // Points when referred user completes first booking
 }
 
 model Referral {
-  id              String         @id @default(cuid())
-  referrerId      String
-  referredUserId  String         @unique
-  status          ReferralStatus @default(PENDING)
-  type            ReferralType
-  points          Int            @default(0)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  completedAt     DateTime?
-  
-  referrer        User           @relation("ReferrerReferrals", fields: [referrerId], references: [id], onDelete: Cascade)
-  referredUser    User           @relation("ReferredUserReferral", fields: [referredUserId], references: [id], onDelete: Cascade)
-  
+  id             String         @id @default(cuid())
+  referrerId     String
+  referredUserId String         @unique
+  status         ReferralStatus @default(PENDING)
+  type           ReferralType
+  points         Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  completedAt    DateTime?
+
+  referrer     User @relation("ReferrerReferrals", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredUser User @relation("ReferredUserReferral", fields: [referredUserId], references: [id], onDelete: Cascade)
+
   @@index([referrerId])
   @@index([status])
 }
@@ -868,11 +864,11 @@ model TrustedContact {
   userId    String
   name      String
   phone     String
-  relation  String?  // e.g., "Parent", "Spouse"
+  relation  String? // e.g., "Parent", "Spouse"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -884,18 +880,18 @@ enum SOSStatus {
 }
 
 model SOSAlert {
-  id        String    @id @default(cuid())
-  userId    String
-  latitude  Float
-  longitude Float
-  status    SOSStatus @default(ACTIVE)
-  triggeredAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  userId      String
+  latitude    Float
+  longitude   Float
+  status      SOSStatus @default(ACTIVE)
+  triggeredAt DateTime  @default(now())
   resolvedAt  DateTime?
-  
+
   // Snapshot of location addressing/context if available
   locationDetails String?
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
@@ -909,17 +905,17 @@ enum BackgroundCheckStatus {
 }
 
 model BackgroundCheck {
-  id          String                @id @default(cuid())
-  userId      String
-  status      BackgroundCheckStatus @default(PENDING)
-  documents   String[]              // URLs to uploaded documents
-  reportUrl   String?
-  expiresAt   DateTime?
-  renewalStatus String?             // e.g., "DUE", "OVERDUE"
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
+  id            String                @id @default(cuid())
+  userId        String
+  status        BackgroundCheckStatus @default(PENDING)
+  documents     String[] // URLs to uploaded documents
+  reportUrl     String?
+  expiresAt     DateTime?
+  renewalStatus String? // e.g., "DUE", "OVERDUE"
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
 
-  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -934,21 +930,22 @@ enum CallStatus {
 }
 
 model Call {
-  id          String     @id @default(cuid())
-  callerId    String
-  receiverId  String
-  status      CallStatus @default(INITIATED)
-  startedAt   DateTime?
-  endedAt     DateTime?
-  duration    Int?       // in seconds
-  createdAt   DateTime   @default(now())
+  id         String     @id @default(cuid())
+  callerId   String
+  receiverId String
+  status     CallStatus @default(INITIATED)
+  startedAt  DateTime?
+  endedAt    DateTime?
+  duration   Int? // in seconds
+  createdAt  DateTime   @default(now())
 
-  caller      User       @relation("CallsMade", fields: [callerId], references: [id])
-  receiver    User       @relation("CallsReceived", fields: [receiverId], references: [id])
+  caller   User @relation("CallsMade", fields: [callerId], references: [id])
+  receiver User @relation("CallsReceived", fields: [receiverId], references: [id])
 
   @@index([callerId])
   @@index([receiverId])
 }
+
 // Team / Agency Accounts
 enum TeamRole {
   OWNER
@@ -987,26 +984,26 @@ enum PayrollStatus {
 }
 
 model Team {
-  id          String       @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
-  ownerId     String       @unique
+  ownerId     String  @unique
   description String?
   logo        String?
-  
-  // Settings
-  defaultSplit    Float    @default(70) // Owner gets %, worker gets rest
-  payrollCycle    String   @default("WEEKLY") // WEEKLY, BIWEEKLY, MONTHLY
-  isActive        Boolean  @default(true)
-  
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
 
-  owner       User         @relation("OwnedTeam", fields: [ownerId], references: [id], onDelete: Cascade)
-  members     TeamMember[]
-  jobs        TeamJob[]
-  payrolls    TeamPayroll[]
+  // Settings
+  defaultSplit Float   @default(70) // Owner gets %, worker gets rest
+  payrollCycle String  @default("WEEKLY") // WEEKLY, BIWEEKLY, MONTHLY
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner         User               @relation("OwnedTeam", fields: [ownerId], references: [id], onDelete: Cascade)
+  members       TeamMember[]
+  jobs          TeamJob[]
+  payrolls      TeamPayroll[]
   announcements TeamAnnouncement[]
-  
+
   @@index([ownerId])
   @@index([isActive])
 }
@@ -1017,22 +1014,22 @@ model TeamMember {
   userId      String
   role        TeamRole @default(MEMBER)
   permissions String[] // e.g., ["MANAGE_SERVICES", "VIEW_BOOKINGS"]
-  
+
   // Status & Location
-  status          MemberStatus @default(OFFLINE)
-  lastLocation    Json?        // {lat, lng, address, timestamp}
-  lastLocationAt  DateTime?
-  
+  status         MemberStatus @default(OFFLINE)
+  lastLocation   Json? // {lat, lng, address, timestamp}
+  lastLocationAt DateTime?
+
   // Performance metrics
   totalJobsCompleted Int     @default(0)
   totalEarnings      Decimal @default(0) @db.Decimal(10, 2)
   rating             Float   @default(5.0)
-  
-  joinedAt    DateTime @default(now())
 
-  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  joinedAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   assignments TeamJobAssignment[]
   earnings    TeamEarning[]
 
@@ -1043,36 +1040,36 @@ model TeamMember {
 }
 
 model TeamJob {
-  id          String   @id @default(cuid())
-  teamId      String
-  bookingId   String?  // Link to platform booking (optional)
-  
-  title       String
-  description String?  @db.Text
-  location    Json?    // {address, lat, lng}
-  scheduledAt DateTime
+  id        String  @id @default(cuid())
+  teamId    String
+  bookingId String? // Link to platform booking (optional)
+
+  title             String
+  description       String?       @db.Text
+  location          Json? // {address, lat, lng}
+  scheduledAt       DateTime
   estimatedDuration Int? // minutes
-  status      TeamJobStatus @default(PENDING)
-  
+  status            TeamJobStatus @default(PENDING)
+
   // Financials
-  amount      Decimal  @db.Decimal(10, 2)
-  collected   Boolean  @default(false)
-  collectedAt DateTime?
-  collectedBy String?  // Member ID who collected
+  amount        Decimal   @db.Decimal(10, 2)
+  collected     Boolean   @default(false)
+  collectedAt   DateTime?
+  collectedBy   String? // Member ID who collected
   paymentMethod String? // CASH, MPESA, CARD
-  
+
   // Client Info
   clientName  String?
   clientPhone String?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   completedAt DateTime?
-  
-  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  booking     Booking? @relation(fields: [bookingId], references: [id])
+
+  team        Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  booking     Booking?            @relation(fields: [bookingId], references: [id])
   assignments TeamJobAssignment[]
-  
+
   @@index([teamId])
   @@index([status])
   @@index([scheduledAt])
@@ -1080,24 +1077,24 @@ model TeamJob {
 }
 
 model TeamJobAssignment {
-  id          String   @id @default(cuid())
-  jobId       String
-  memberId    String
-  role        String   @default("WORKER") // LEAD, WORKER, HELPER
-  
+  id       String @id @default(cuid())
+  jobId    String
+  memberId String
+  role     String @default("WORKER") // LEAD, WORKER, HELPER
+
   status      AssignmentStatus @default(PENDING)
   acceptedAt  DateTime?
   startedAt   DateTime?
   completedAt DateTime?
-  
-  notes       String?  @db.Text
-  rating      Int?     // 1-5 performance rating from owner
-  
-  createdAt   DateTime @default(now())
-  
-  job         TeamJob    @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  member      TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  
+
+  notes  String? @db.Text
+  rating Int? // 1-5 performance rating from owner
+
+  createdAt DateTime @default(now())
+
+  job    TeamJob    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  member TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
   @@unique([jobId, memberId])
   @@index([jobId])
   @@index([memberId])
@@ -1105,24 +1102,24 @@ model TeamJobAssignment {
 }
 
 model TeamEarning {
-  id          String   @id @default(cuid())
-  teamId      String
-  memberId    String
-  jobId       String?
-  
-  amount      Decimal  @db.Decimal(10, 2)
-  splitPercent Float   // e.g., 30 for 30% worker share
-  reason      String   // "Job: Plumbing Fix", "Bonus", "Tip"
-  
-  isPaid      Boolean  @default(false)
-  paidAt      DateTime?
-  payrollId   String?
-  
-  createdAt   DateTime @default(now())
-  
-  member      TeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  payroll     TeamPayroll? @relation(fields: [payrollId], references: [id])
-  
+  id       String  @id @default(cuid())
+  teamId   String
+  memberId String
+  jobId    String?
+
+  amount       Decimal @db.Decimal(10, 2)
+  splitPercent Float // e.g., 30 for 30% worker share
+  reason       String // "Job: Plumbing Fix", "Bonus", "Tip"
+
+  isPaid    Boolean   @default(false)
+  paidAt    DateTime?
+  payrollId String?
+
+  createdAt DateTime @default(now())
+
+  member  TeamMember   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  payroll TeamPayroll? @relation(fields: [payrollId], references: [id])
+
   @@index([teamId])
   @@index([memberId])
   @@index([isPaid])
@@ -1134,42 +1131,41 @@ model TeamPayroll {
   teamId      String
   periodStart DateTime
   periodEnd   DateTime
-  
-  totalAmount Decimal  @db.Decimal(10, 2)
-  memberCount Int      @default(0)
+
+  totalAmount Decimal       @db.Decimal(10, 2)
+  memberCount Int           @default(0)
   status      PayrollStatus @default(PENDING)
   processedAt DateTime?
-  processedBy String?  // User ID who processed
-  
-  notes       String?  @db.Text
-  
-  createdAt   DateTime @default(now())
-  
-  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  earnings    TeamEarning[]
-  
+  processedBy String? // User ID who processed
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  team     Team          @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  earnings TeamEarning[]
+
   @@index([teamId])
   @@index([status])
   @@index([periodStart])
 }
 
 model TeamAnnouncement {
-  id          String   @id @default(cuid())
-  teamId      String
-  authorId    String
-  
-  title       String
-  content     String   @db.Text
-  priority    String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
-  
-  createdAt   DateTime @default(now())
-  
-  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  
+  id       String @id @default(cuid())
+  teamId   String
+  authorId String
+
+  title    String
+  content  String @db.Text
+  priority String @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+
+  createdAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
   @@index([teamId])
   @@index([createdAt])
 }
-
 
 // Expense Management
 enum ExpenseStatus {
@@ -1190,12 +1186,12 @@ model Expense {
   receiptUrl  String?
   description String?
   status      ExpenseStatus @default(VERIFIED)
-  rawScanData Json?         // Raw output from AI scan for debugging/correction
+  rawScanData Json? // Raw output from AI scan for debugging/correction
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  job         Job?          @relation(fields: [jobId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job? @relation(fields: [jobId], references: [id])
 
   @@index([userId])
   @@index([jobId])
@@ -1204,10 +1200,10 @@ model Expense {
 
 // Gamification: Badges & Achievements
 enum BadgeCategory {
-  MILESTONE      // Job counts, revenue milestones
-  PERFORMANCE    // Speed, quality ratings
-  ENGAGEMENT     // Profile completeness, activity
-  SPECIAL        // Seasonal, promotional
+  MILESTONE // Job counts, revenue milestones
+  PERFORMANCE // Speed, quality ratings
+  ENGAGEMENT // Profile completeness, activity
+  SPECIAL // Seasonal, promotional
 }
 
 model Badge {
@@ -1216,29 +1212,29 @@ model Badge {
   slug        String        @unique
   description String
   category    BadgeCategory
-  icon        String        // Emoji or icon name
-  color       String        // Hex color for badge display
-  requirement Json          // Flexible requirements: { type: "JOB_COUNT", value: 100 }
+  icon        String // Emoji or icon name
+  color       String // Hex color for badge display
+  requirement Json // Flexible requirements: { type: "JOB_COUNT", value: 100 }
   points      Int           @default(0)
   isActive    Boolean       @default(true)
   createdAt   DateTime      @default(now())
-  
-  userBadges  UserBadge[]
-  
+
+  userBadges UserBadge[]
+
   @@index([slug])
   @@index([category])
 }
 
 model UserBadge {
-  id          String   @id @default(cuid())
-  userId      String
-  badgeId     String
-  awardedAt   DateTime @default(now())
-  progress    Int      @default(0) // For tracking progress toward badge
-  
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  badge       Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
-  
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  awardedAt DateTime @default(now())
+  progress  Int      @default(0) // For tracking progress toward badge
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
   @@unique([userId, badgeId])
   @@index([userId])
   @@index([badgeId])
@@ -1253,39 +1249,39 @@ enum ChurnRiskLevel {
 }
 
 model ChurnScore {
-  id              String         @id @default(cuid())
-  userId          String
-  riskLevel       ChurnRiskLevel
-  score           Float          // 0.0 to 1.0 (1.0 = highest risk)
-  factors         Json           // Contributing factors breakdown
-  lastActivityDays Int           // Days since last activity
-  bookingDecline  Float?         // % decline in bookings
-  engagementScore Float?         // Overall engagement metric
-  calculatedAt    DateTime       @default(now())
-  
-  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  interventions   ChurnIntervention[]
-  
+  id               String         @id @default(cuid())
+  userId           String
+  riskLevel        ChurnRiskLevel
+  score            Float // 0.0 to 1.0 (1.0 = highest risk)
+  factors          Json // Contributing factors breakdown
+  lastActivityDays Int // Days since last activity
+  bookingDecline   Float? // % decline in bookings
+  engagementScore  Float? // Overall engagement metric
+  calculatedAt     DateTime       @default(now())
+
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interventions ChurnIntervention[]
+
   @@index([userId])
   @@index([riskLevel])
   @@index([calculatedAt])
 }
 
 model ChurnIntervention {
-  id              String   @id @default(cuid())
-  churnScoreId    String
-  userId          String
-  type            String   // EMAIL, NOTIFICATION, DISCOUNT, CALL
-  message         String   @db.Text
-  executed        Boolean  @default(false)
-  executedAt      DateTime?
-  successful      Boolean?
-  response        String?  @db.Text
-  createdAt       DateTime @default(now())
-  
-  churnScore      ChurnScore @relation(fields: [churnScoreId], references: [id], onDelete: Cascade)
-  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id           String    @id @default(cuid())
+  churnScoreId String
+  userId       String
+  type         String // EMAIL, NOTIFICATION, DISCOUNT, CALL
+  message      String    @db.Text
+  executed     Boolean   @default(false)
+  executedAt   DateTime?
+  successful   Boolean?
+  response     String?   @db.Text
+  createdAt    DateTime  @default(now())
+
+  churnScore ChurnScore @relation(fields: [churnScoreId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([executed])
   @@index([createdAt])
@@ -1301,34 +1297,34 @@ enum LoyaltyTier {
 }
 
 model UserLoyalty {
-  id            String      @id @default(cuid())
-  userId        String      @unique
-  currentTier   LoyaltyTier @default(BRONZE)
-  points        Int         @default(0)
-  lifetimePoints Int        @default(0)
-  tierProgress  Float       @default(0) // % to next tier
-  lastTierUpdate DateTime   @default(now())
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  pointHistory  LoyaltyPointTransaction[]
-  redemptions   RewardRedemption[]
-  
+  id             String      @id @default(cuid())
+  userId         String      @unique
+  currentTier    LoyaltyTier @default(BRONZE)
+  points         Int         @default(0)
+  lifetimePoints Int         @default(0)
+  tierProgress   Float       @default(0) // % to next tier
+  lastTierUpdate DateTime    @default(now())
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  user         User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pointHistory LoyaltyPointTransaction[]
+  redemptions  RewardRedemption[]
+
   @@index([userId])
   @@index([currentTier])
 }
 
 model LoyaltyPointTransaction {
-  id          String   @id @default(cuid())
-  loyaltyId   String
-  points      Int      // Can be positive (earned) or negative (spent)
-  reason      String   // "Job Completion", "5-Star Review", "Tier Bonus", etc.
-  metadata    Json?    // Additional context
-  createdAt   DateTime @default(now())
-  
-  loyalty     UserLoyalty @relation(fields: [loyaltyId], references: [id], onDelete: Cascade)
-  
+  id        String   @id @default(cuid())
+  loyaltyId String
+  points    Int // Can be positive (earned) or negative (spent)
+  reason    String // "Job Completion", "5-Star Review", "Tier Bonus", etc.
+  metadata  Json? // Additional context
+  createdAt DateTime @default(now())
+
+  loyalty UserLoyalty @relation(fields: [loyaltyId], references: [id], onDelete: Cascade)
+
   @@index([loyaltyId])
   @@index([createdAt])
 }
@@ -1353,9 +1349,9 @@ model Partner {
   website     String?
   isActive    Boolean         @default(true)
   createdAt   DateTime        @default(now())
-  
-  rewards     PartnerReward[]
-  
+
+  rewards PartnerReward[]
+
   @@index([category])
 }
 
@@ -1364,36 +1360,36 @@ model PartnerReward {
   partnerId       String
   title           String
   description     String      @db.Text
-  discountType    String      // PERCENTAGE, FIXED_AMOUNT, FREE_ITEM
+  discountType    String // PERCENTAGE, FIXED_AMOUNT, FREE_ITEM
   discountValue   Float
   minTierRequired LoyaltyTier
-  maxRedemptions  Int?        // Null = unlimited
+  maxRedemptions  Int? // Null = unlimited
   expiryDate      DateTime?
   termsConditions String?     @db.Text
   isActive        Boolean     @default(true)
   createdAt       DateTime    @default(now())
-  
-  partner         Partner     @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  redemptions     RewardRedemption[]
-  
+
+  partner     Partner            @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  redemptions RewardRedemption[]
+
   @@index([partnerId])
   @@index([minTierRequired])
   @@index([isActive])
 }
 
 model RewardRedemption {
-  id          String    @id @default(cuid())
-  loyaltyId   String
-  rewardId    String
-  code        String    @unique // Unique redemption code
-  redeemedAt  DateTime  @default(now())
-  usedAt      DateTime? // When actually used at partner
-  expiresAt   DateTime
-  status      String    @default("ACTIVE") // ACTIVE, USED, EXPIRED
-  
-  loyalty     UserLoyalty   @relation(fields: [loyaltyId], references: [id], onDelete: Cascade)
-  reward      PartnerReward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
-  
+  id         String    @id @default(cuid())
+  loyaltyId  String
+  rewardId   String
+  code       String    @unique // Unique redemption code
+  redeemedAt DateTime  @default(now())
+  usedAt     DateTime? // When actually used at partner
+  expiresAt  DateTime
+  status     String    @default("ACTIVE") // ACTIVE, USED, EXPIRED
+
+  loyalty UserLoyalty   @relation(fields: [loyaltyId], references: [id], onDelete: Cascade)
+  reward  PartnerReward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+
   @@index([loyaltyId])
   @@index([rewardId])
   @@index([status])
@@ -1402,21 +1398,21 @@ model RewardRedemption {
 
 // Tax Settings for eTIMS Compliance
 model TaxSettings {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  kraPin          String?  // Provider's KRA PIN (e.g., A001234567B)
-  kraPinVerified  Boolean  @default(false)
-  tccNumber       String?  // Tax Compliance Certificate Number
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  kraPin          String? // Provider's KRA PIN (e.g., A001234567B)
+  kraPinVerified  Boolean   @default(false)
+  tccNumber       String? // Tax Compliance Certificate Number
   tccExpiry       DateTime?
-  vatRegistered   Boolean  @default(false)
-  preferredMethod String   @default("STANDARD") // STANDARD, REVERSE, EXEMPT
-  businessName    String?  // Trading name for invoices
-  
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  vatRegistered   Boolean   @default(false)
+  preferredMethod String    @default("STANDARD") // STANDARD, REVERSE, EXEMPT
+  businessName    String? // Trading name for invoices
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
   @@index([kraPinVerified])
 }
@@ -1426,14 +1422,14 @@ model TaxSettings {
 // ==========================================
 
 enum BadgeType {
-  KRA_VERIFIED      // KRA PIN is verified
-  GOOD_CONDUCT      // Police clearance certificate
-  SOS_ENABLED       // Has active SOS/emergency contacts
+  KRA_VERIFIED // KRA PIN is verified
+  GOOD_CONDUCT // Police clearance certificate
+  SOS_ENABLED // Has active SOS/emergency contacts
   IDENTITY_VERIFIED // Government ID verified
-  SKILLS_CERTIFIED  // Professional certification
-  INSURANCE_ACTIVE  // Has active insurance
-  TOP_RATED         // 4.8+ rating with 50+ reviews
-  PREMIUM_MEMBER    // Paid subscription active
+  SKILLS_CERTIFIED // Professional certification
+  INSURANCE_ACTIVE // Has active insurance
+  TOP_RATED // 4.8+ rating with 50+ reviews
+  PREMIUM_MEMBER // Paid subscription active
 }
 
 enum BadgeStatus {
@@ -1444,26 +1440,26 @@ enum BadgeStatus {
 }
 
 model VerificationBadge {
-  id          String      @id @default(cuid())
-  userId      String
-  type        BadgeType
-  status      BadgeStatus @default(PENDING)
-  
+  id     String      @id @default(cuid())
+  userId String
+  type   BadgeType
+  status BadgeStatus @default(PENDING)
+
   // Verification details
-  documentUrl String?     // Supporting document
+  documentUrl String? // Supporting document
   verifiedAt  DateTime?
-  verifiedBy  String?     // Admin who verified
-  expiresAt   DateTime?   // When badge expires
-  
+  verifiedBy  String? // Admin who verified
+  expiresAt   DateTime? // When badge expires
+
   // Audit trail
-  notes       String?     @db.Text
-  metadata    Json?       // Additional verification data
-  
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  notes    String? @db.Text
+  metadata Json? // Additional verification data
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, type])
   @@index([userId])
   @@index([type])
@@ -1471,45 +1467,45 @@ model VerificationBadge {
 }
 
 model TrustScore {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  
+  id     String @id @default(cuid())
+  userId String @unique
+
   // Score components (0-100 each)
-  identityScore   Int      @default(0)  // ID verification
-  conductScore    Int      @default(0)  // Background check
-  performanceScore Int     @default(0)  // Ratings & reviews
-  reliabilityScore Int     @default(0)  // Completion rate
-  complianceScore Int      @default(0)  // Tax & legal
-  
+  identityScore    Int @default(0) // ID verification
+  conductScore     Int @default(0) // Background check
+  performanceScore Int @default(0) // Ratings & reviews
+  reliabilityScore Int @default(0) // Completion rate
+  complianceScore  Int @default(0) // Tax & legal
+
   // Overall composite score
-  overallScore    Int      @default(0)  // Weighted average
-  tier            String   @default("UNVERIFIED") // UNVERIFIED, BASIC, VERIFIED, PREMIUM, ELITE
-  
+  overallScore Int    @default(0) // Weighted average
+  tier         String @default("UNVERIFIED") // UNVERIFIED, BASIC, VERIFIED, PREMIUM, ELITE
+
   // Premium pricing eligibility
-  premiumEligible Boolean  @default(false)
-  premiumMultiplier Float  @default(1.0) // 1.0 = no premium, 1.3 = +30%
-  
+  premiumEligible   Boolean @default(false)
+  premiumMultiplier Float   @default(1.0) // 1.0 = no premium, 1.3 = +30%
+
   // Calculated at
-  lastCalculated  DateTime @default(now())
-  
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  lastCalculated DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([overallScore])
   @@index([tier])
 }
 
 model VerificationAudit {
-  id          String   @id @default(cuid())
-  userId      String
-  action      String   // BADGE_GRANTED, BADGE_REVOKED, SCORE_UPDATED, DOCUMENT_UPLOADED
-  badgeType   String?  // If badge-related
+  id            String  @id @default(cuid())
+  userId        String
+  action        String // BADGE_GRANTED, BADGE_REVOKED, SCORE_UPDATED, DOCUMENT_UPLOADED
+  badgeType     String? // If badge-related
   previousValue String? // Previous state
-  newValue    String?  // New state
-  performedBy String?  // Admin or SYSTEM
-  reason      String?
-  
-  createdAt   DateTime @default(now())
-  
+  newValue      String? // New state
+  performedBy   String? // Admin or SYSTEM
+  reason        String?
+
+  createdAt DateTime @default(now())
+
   @@index([userId])
   @@index([action])
   @@index([createdAt])
@@ -1520,33 +1516,33 @@ model VerificationAudit {
 // ==========================================
 
 enum VerticalType {
-  SOLAR          // Solar panel installation & maintenance
-  HVAC           // Heating, ventilation, air conditioning
-  SECURITY       // Security systems, CCTV
-  SMART_HOME     // Home automation
-  EV_CHARGING    // Electric vehicle charging stations
-  WATER_SYSTEMS  // Rainwater harvesting, water heating
+  SOLAR // Solar panel installation & maintenance
+  HVAC // Heating, ventilation, air conditioning
+  SECURITY // Security systems, CCTV
+  SMART_HOME // Home automation
+  EV_CHARGING // Electric vehicle charging stations
+  WATER_SYSTEMS // Rainwater harvesting, water heating
 }
 
 model VerticalCategory {
   id          String       @id @default(cuid())
   type        VerticalType @unique
-  name        String       // "Solar Installation"
+  name        String // "Solar Installation"
   description String?      @db.Text
-  icon        String?      // Icon name or URL
+  icon        String? // Icon name or URL
   isActive    Boolean      @default(true)
-  
+
   // Vertical-specific settings
   requiresCertification Boolean @default(true)
   minExperienceYears    Int     @default(2)
   insuranceRequired     Boolean @default(true)
-  
+
   // Premium pricing for this vertical
-  baseMarkup    Float      @default(1.0) // 1.0 = no markup
-  
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  
+  baseMarkup Float @default(1.0) // 1.0 = no markup
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   certifications VerticalCertification[]
   specialists    VerticalSpecialist[]
   projects       VerticalProject[]
@@ -1561,29 +1557,29 @@ enum CertificationStatus {
 }
 
 model VerticalCertification {
-  id              String             @id @default(cuid())
-  verticalId      String
-  userId          String
-  
+  id         String @id @default(cuid())
+  verticalId String
+  userId     String
+
   // Certification details
-  name            String             // "EPRA Licensed Electrician"
-  issuingBody     String             // "Energy and Petroleum Regulatory Authority"
-  licenseNumber   String?
-  issueDate       DateTime?
-  expiryDate      DateTime?
-  documentUrl     String?            // Uploaded certificate
-  
-  status          CertificationStatus @default(PENDING)
-  verifiedAt      DateTime?
-  verifiedBy      String?            // Admin who verified
-  notes           String?            @db.Text
-  
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  
-  vertical        VerticalCategory   @relation(fields: [verticalId], references: [id], onDelete: Cascade)
-  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  name          String // "EPRA Licensed Electrician"
+  issuingBody   String // "Energy and Petroleum Regulatory Authority"
+  licenseNumber String?
+  issueDate     DateTime?
+  expiryDate    DateTime?
+  documentUrl   String? // Uploaded certificate
+
+  status     CertificationStatus @default(PENDING)
+  verifiedAt DateTime?
+  verifiedBy String? // Admin who verified
+  notes      String?             @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vertical VerticalCategory @relation(fields: [verticalId], references: [id], onDelete: Cascade)
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([verticalId, userId, name])
   @@index([userId])
   @@index([verticalId])
@@ -1591,33 +1587,33 @@ model VerticalCertification {
 }
 
 model VerticalSpecialist {
-  id              String           @id @default(cuid())
-  verticalId      String
-  userId          String
-  
+  id         String @id @default(cuid())
+  verticalId String
+  userId     String
+
   // Specialist profile
-  experienceYears Int              @default(0)
-  portfolioUrls   String[]         // Project photos
-  specializations String[]         // e.g., ["Residential", "Commercial", "Off-grid"]
-  equipmentOwned  String[]         // Tools they own
-  serviceRadius   Int?             // km radius they serve
-  
+  experienceYears Int      @default(0)
+  portfolioUrls   String[] // Project photos
+  specializations String[] // e.g., ["Residential", "Commercial", "Off-grid"]
+  equipmentOwned  String[] // Tools they own
+  serviceRadius   Int? // km radius they serve
+
   // Performance in this vertical
-  projectsCompleted Int            @default(0)
-  averageRating   Float            @default(0)
-  totalRevenue    Decimal          @default(0) @db.Decimal(12, 2)
-  
+  projectsCompleted Int     @default(0)
+  averageRating     Float   @default(0)
+  totalRevenue      Decimal @default(0) @db.Decimal(12, 2)
+
   // Featured/verified status
-  isFeatured      Boolean          @default(false)
-  isVerified      Boolean          @default(false)
-  featuredUntil   DateTime?
-  
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
-  vertical        VerticalCategory @relation(fields: [verticalId], references: [id], onDelete: Cascade)
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  isFeatured    Boolean   @default(false)
+  isVerified    Boolean   @default(false)
+  featuredUntil DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vertical VerticalCategory @relation(fields: [verticalId], references: [id], onDelete: Cascade)
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([verticalId, userId])
   @@index([userId])
   @@index([verticalId])
@@ -1627,70 +1623,70 @@ model VerticalSpecialist {
 
 // Equipment/Inventory Registry
 model EquipmentRegistry {
-  id              String   @id @default(cuid())
-  userId          String
-  
+  id     String @id @default(cuid())
+  userId String
+
   // Equipment details
-  name            String   // "Fluke Multimeter 87V"
-  category        String   // "Testing Equipment", "Safety Gear", "Power Tools"
-  brand           String?
-  model           String?
-  serialNumber    String?
-  
+  name         String // "Fluke Multimeter 87V"
+  category     String // "Testing Equipment", "Safety Gear", "Power Tools"
+  brand        String?
+  model        String?
+  serialNumber String?
+
   // Status
-  condition       String   @default("GOOD") // EXCELLENT, GOOD, FAIR, POOR
+  condition       String    @default("GOOD") // EXCELLENT, GOOD, FAIR, POOR
   lastServiceDate DateTime?
   nextServiceDue  DateTime?
-  
+
   // Value
-  purchasePrice   Decimal? @db.Decimal(10, 2)
-  currentValue    Decimal? @db.Decimal(10, 2)
-  purchaseDate    DateTime?
-  
+  purchasePrice Decimal?  @db.Decimal(10, 2)
+  currentValue  Decimal?  @db.Decimal(10, 2)
+  purchaseDate  DateTime?
+
   // For inventory
-  quantity        Int      @default(1)
-  location        String?  // Storage location
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  quantity Int     @default(1)
+  location String? // Storage location
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([category])
 }
 
 // Project Templates (Solar-specific workflows)
 model ProjectTemplate {
-  id              String           @id @default(cuid())
-  verticalId      String
-  
-  name            String           // "Residential Solar 5kW System"
-  description     String?          @db.Text
-  
+  id         String @id @default(cuid())
+  verticalId String
+
+  name        String // "Residential Solar 5kW System"
+  description String? @db.Text
+
   // Estimation parameters
-  basePriceMin    Decimal          @db.Decimal(10, 2) // KES 350,000
-  basePriceMax    Decimal          @db.Decimal(10, 2) // KES 500,000
-  estimatedDays   Int              @default(3)
-  teamSizeMin     Int              @default(2)
-  teamSizeMax     Int              @default(4)
-  
+  basePriceMin  Decimal @db.Decimal(10, 2) // KES 350,000
+  basePriceMax  Decimal @db.Decimal(10, 2) // KES 500,000
+  estimatedDays Int     @default(3)
+  teamSizeMin   Int     @default(2)
+  teamSizeMax   Int     @default(4)
+
   // Workflow steps
-  phases          Json             // [{name, duration, tasks, checklistItems}]
-  requiredEquipment String[]       // Equipment needed
-  requiredCertifications String[]  // Certs needed
-  
+  phases                 Json // [{name, duration, tasks, checklistItems}]
+  requiredEquipment      String[] // Equipment needed
+  requiredCertifications String[] // Certs needed
+
   // Materials/parts estimate
-  materialsTemplate Json?          // [{name, quantity, unitPrice, supplier}]
-  
-  isActive        Boolean          @default(true)
-  
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
-  vertical        VerticalCategory @relation(fields: [verticalId], references: [id], onDelete: Cascade)
-  projects        VerticalProject[]
-  
+  materialsTemplate Json? // [{name, quantity, unitPrice, supplier}]
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vertical VerticalCategory  @relation(fields: [verticalId], references: [id], onDelete: Cascade)
+  projects VerticalProject[]
+
   @@index([verticalId])
   @@index([isActive])
 }
@@ -1707,66 +1703,66 @@ enum ProjectStatus {
 }
 
 model VerticalProject {
-  id              String           @id @default(cuid())
-  verticalId      String
-  templateId      String?
-  clientId        String
-  providerId      String
-  bookingId       String?          @unique // Link to booking if applicable
-  
+  id         String  @id @default(cuid())
+  verticalId String
+  templateId String?
+  clientId   String
+  providerId String
+  bookingId  String? @unique // Link to booking if applicable
+
   // Project details
-  title           String
-  description     String?          @db.Text
-  status          ProjectStatus    @default(QUOTE_REQUESTED)
-  
+  title       String
+  description String?       @db.Text
+  status      ProjectStatus @default(QUOTE_REQUESTED)
+
   // Site information (solar-specific)
   siteAddress     String
-  siteCoordinates Json?            // {lat, lng}
-  propertyType    String?          // "Residential", "Commercial", "Industrial"
-  roofType        String?          // "Flat", "Pitched", "Metal Sheet"
-  roofArea        Float?           // m²
-  monthlyBill     Decimal?         @db.Decimal(10, 2) // Average electricity bill
-  
+  siteCoordinates Json? // {lat, lng}
+  propertyType    String? // "Residential", "Commercial", "Industrial"
+  roofType        String? // "Flat", "Pitched", "Metal Sheet"
+  roofArea        Float? // m²
+  monthlyBill     Decimal? @db.Decimal(10, 2) // Average electricity bill
+
   // System specification (solar)
-  systemSize      Float?           // kW
+  systemSize      Float? // kW
   panelCount      Int?
-  panelType       String?          // "Monocrystalline", "Polycrystalline"
+  panelType       String? // "Monocrystalline", "Polycrystalline"
   inverterType    String?
-  batteryCapacity Float?           // kWh
-  isOffGrid       Boolean          @default(false)
-  
+  batteryCapacity Float? // kWh
+  isOffGrid       Boolean @default(false)
+
   // Financials
-  quotedAmount    Decimal?         @db.Decimal(12, 2)
-  agreedAmount    Decimal?         @db.Decimal(12, 2)
-  depositAmount   Decimal?         @db.Decimal(10, 2)
-  depositPaid     Boolean          @default(false)
-  
+  quotedAmount  Decimal? @db.Decimal(12, 2)
+  agreedAmount  Decimal? @db.Decimal(12, 2)
+  depositAmount Decimal? @db.Decimal(10, 2)
+  depositPaid   Boolean  @default(false)
+
   // Timeline
   siteAssessmentDate DateTime?
-  proposalDate    DateTime?
-  approvalDate    DateTime?
-  startDate       DateTime?
-  completionDate  DateTime?
-  
+  proposalDate       DateTime?
+  approvalDate       DateTime?
+  startDate          DateTime?
+  completionDate     DateTime?
+
   // Warranty
-  warrantyYears   Int?             @default(5)
-  warrantyEnds    DateTime?
-  
+  warrantyYears Int?      @default(5)
+  warrantyEnds  DateTime?
+
   // Documents
-  proposalUrl     String?
-  contractUrl     String?
-  photos          String[]         // Before/during/after photos
-  
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  
-  vertical        VerticalCategory @relation(fields: [verticalId], references: [id])
-  template        ProjectTemplate? @relation(fields: [templateId], references: [id])
-  client          User             @relation("ClientProjects", fields: [clientId], references: [id])
-  provider        User             @relation("ProviderProjects", fields: [providerId], references: [id])
-  booking         Booking?         @relation(fields: [bookingId], references: [id])
-  milestones      ProjectMilestone[]
-  
+  proposalUrl String?
+  contractUrl String?
+  photos      String[] // Before/during/after photos
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vertical   VerticalCategory   @relation(fields: [verticalId], references: [id])
+  template   ProjectTemplate?   @relation(fields: [templateId], references: [id])
+  client     User               @relation("ClientProjects", fields: [clientId], references: [id])
+  provider   User               @relation("ProviderProjects", fields: [providerId], references: [id])
+  booking    Booking?           @relation(fields: [bookingId], references: [id])
+  milestones ProjectMilestone[]
+
   @@index([verticalId])
   @@index([clientId])
   @@index([providerId])
@@ -1774,65 +1770,65 @@ model VerticalProject {
 }
 
 model ProjectMilestone {
-  id          String          @id @default(cuid())
-  projectId   String
-  
-  name        String          // "Site Assessment", "Installation Day 1"
+  id        String @id @default(cuid())
+  projectId String
+
+  name        String // "Site Assessment", "Installation Day 1"
   description String?
-  sequence    Int             @default(0)
-  
+  sequence    Int     @default(0)
+
   // Status
-  isCompleted Boolean         @default(false)
+  isCompleted Boolean   @default(false)
   completedAt DateTime?
   completedBy String?
-  
+
   // Payment milestone?
-  paymentRequired Boolean     @default(false)
-  paymentAmount   Decimal?    @db.Decimal(10, 2)
-  paymentPaid     Boolean     @default(false)
-  
+  paymentRequired Boolean  @default(false)
+  paymentAmount   Decimal? @db.Decimal(10, 2)
+  paymentPaid     Boolean  @default(false)
+
   // Checklist
-  checklistItems Json?        // [{task, completed, completedAt}]
-  notes          String?      @db.Text
+  checklistItems Json? // [{task, completed, completedAt}]
+  notes          String?  @db.Text
   photos         String[]
-  
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  
-  project     VerticalProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project VerticalProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   @@index([projectId])
   @@index([sequence])
 }
 
 // Solar-specific estimation calculator data
 model SolarEstimationConfig {
-  id                String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Panel pricing (per watt)
-  monocrystallinePerWatt  Decimal @db.Decimal(6, 2) // KES per watt
-  polycrystallinePerWatt  Decimal @db.Decimal(6, 2)
-  
+  monocrystallinePerWatt Decimal @db.Decimal(6, 2) // KES per watt
+  polycrystallinePerWatt Decimal @db.Decimal(6, 2)
+
   // Inverter pricing
-  inverterPricePerKw      Decimal @db.Decimal(8, 2)
-  hybridInverterMarkup    Float   @default(1.3) // 30% more
-  
+  inverterPricePerKw   Decimal @db.Decimal(8, 2)
+  hybridInverterMarkup Float   @default(1.3) // 30% more
+
   // Battery pricing (per kWh)
-  leadAcidPerKwh          Decimal @db.Decimal(8, 2)
-  lithiumPerKwh           Decimal @db.Decimal(8, 2)
-  
+  leadAcidPerKwh Decimal @db.Decimal(8, 2)
+  lithiumPerKwh  Decimal @db.Decimal(8, 2)
+
   // Labor
-  laborPerKw              Decimal @db.Decimal(8, 2) // Installation labor per kW
-  
+  laborPerKw Decimal @db.Decimal(8, 2) // Installation labor per kW
+
   // Sundries (wiring, mounting, etc.) as % of equipment
-  sundriesPercent         Float   @default(0.15) // 15%
-  
+  sundriesPercent Float @default(0.15) // 15%
+
   // Profit margin
-  defaultMargin           Float   @default(0.25) // 25%
-  
+  defaultMargin Float @default(0.25) // 25%
+
   // Location multipliers (JSON: {county: multiplier})
-  locationMultipliers     Json?
-  
-  isActive                Boolean @default(true)
-  updatedAt               DateTime @updatedAt
+  locationMultipliers Json?
+
+  isActive  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
 }

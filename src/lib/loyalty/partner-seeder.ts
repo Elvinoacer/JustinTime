@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { PartnerCategory, LoyaltyTier } from "@/generated/prisma";
+import { PartnerCategory, LoyaltyTier } from "@/generated/prisma/client";
 
 export const MOCK_PARTNERS = [
   // HARDWARE & TOOLS

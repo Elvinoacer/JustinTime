@@ -1,5 +1,4 @@
-
-import { CancellationPolicy } from "@prisma/client";
+import { CancellationPolicy } from "@/generated/prisma/client";
 
 interface RefundResult {
   refundAmount: number;
@@ -10,7 +9,7 @@ interface RefundResult {
 
 /**
  * Calculates the refund amount based on the cancellation policy and time remaining.
- * 
+ *
  * @param totalAmount - The total amount paid for the booking
  * @param bookingDate - The date/time the booking is scheduled for
  * @param policy - The cancellation policy (FLEXIBLE, MODERATE, STRICT)
@@ -20,7 +19,7 @@ export function calculateRefund(
   totalAmount: number,
   bookingDate: Date,
   policy: CancellationPolicy,
-  cancellationDate: Date = new Date()
+  cancellationDate: Date = new Date(),
 ): RefundResult {
   const timeDifferenceMs = bookingDate.getTime() - cancellationDate.getTime();
   const hoursRemaining = timeDifferenceMs / (1000 * 60 * 60);
@@ -58,14 +57,14 @@ export function calculateRefund(
         refundPercentage = 0;
       }
       break;
-      
+
     default:
       refundPercentage = 0;
   }
 
   // Ensure negative hours (cancelled after start) result in 0 refund
   if (hoursRemaining < 0) {
-      refundPercentage = 0;
+    refundPercentage = 0;
   }
 
   const refundAmount = (totalAmount * refundPercentage) / 100;
@@ -75,19 +74,19 @@ export function calculateRefund(
     refundAmount,
     penaltyAmount,
     refundPercentage,
-    policyUsed: policy
+    policyUsed: policy,
   };
 }
 
 export function getPolicyDescription(policy: CancellationPolicy): string {
-    switch (policy) {
-        case "FLEXIBLE":
-            return "Free cancellation up to 24 hours before start. 50% refund up to 4 hours before.";
-        case "MODERATE":
-            return "Free cancellation up to 48 hours before start. 50% refund up to 12 hours before.";
-        case "STRICT":
-            return "50% refund up to 48 hours before start. No refund thereafter.";
-        default:
-            return "";
-    }
+  switch (policy) {
+    case "FLEXIBLE":
+      return "Free cancellation up to 24 hours before start. 50% refund up to 4 hours before.";
+    case "MODERATE":
+      return "Free cancellation up to 48 hours before start. 50% refund up to 12 hours before.";
+    case "STRICT":
+      return "50% refund up to 48 hours before start. No refund thereafter.";
+    default:
+      return "";
+  }
 }

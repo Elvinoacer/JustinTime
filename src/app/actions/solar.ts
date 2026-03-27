@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { estimateSolarSystem, quickEstimate, SolarEstimationInput } from "@/lib/solar/estimation-calculator";
-import { VerticalType, ProjectStatus } from "@/generated/prisma";
+import { VerticalType, ProjectStatus } from "@/generated/prisma/client";
 
 // ============ SOLAR ESTIMATION ============
 

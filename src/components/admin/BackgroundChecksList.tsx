@@ -1,5 +1,5 @@
 "use client";
-import { BackgroundCheck, User, Profile } from "@/generated/prisma";
+import { BackgroundCheck, User, Profile } from "@/generated/prisma/client";
 import { formatDate } from "@/lib/utils";
 import { CheckCircle2, XCircle, FileText, User as UserIcon, Calendar, ExternalLink } from "lucide-react";
 import { useState, useTransition } from "react";

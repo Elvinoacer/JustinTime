@@ -1,6 +1,6 @@
 "use client";
 
-import { MemberStatus } from "@/generated/prisma";
+import { MemberStatus } from "@/generated/prisma/client";
 import { MapPin, Phone, Briefcase } from "lucide-react";
 
 interface MemberCardProps {

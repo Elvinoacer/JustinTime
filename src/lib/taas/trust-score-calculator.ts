@@ -4,7 +4,7 @@
  */
 
 import prisma from "@/lib/prisma";
-import { BadgeType, BadgeStatus } from "@/generated/prisma";
+import { BadgeType, BadgeStatus } from "@/generated/prisma/client";
 
 // Score weights (must sum to 100)
 const SCORE_WEIGHTS = {

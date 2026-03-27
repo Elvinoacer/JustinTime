@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { LoyaltyTier } from "@/generated/prisma";
+import { LoyaltyTier } from "@/generated/prisma/client";
 
 /**
  * Generate unique redemption code

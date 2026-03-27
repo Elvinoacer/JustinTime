@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
-import { ChurnRiskLevel } from "@/generated/prisma";
+import { ChurnRiskLevel } from "@/generated/prisma/client";
 import { calculateChurnScore, analyzeAllUsers } from "@/lib/churn/churn-predictor";
 import { triggerReEngagement } from "@/lib/churn/re-engagement";
 import { revalidatePath } from "next/cache";

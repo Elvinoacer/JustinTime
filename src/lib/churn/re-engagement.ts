@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { ChurnRiskLevel } from "@/generated/prisma";
+import { ChurnRiskLevel } from "@/generated/prisma/client";
 
 interface ReEngagementStrategy {
   type: string;

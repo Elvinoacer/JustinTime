@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeType, BadgeStatus } from "@/generated/prisma";
+import { BadgeType, BadgeStatus } from "@/generated/prisma/client";
 import { Shield, CheckCircle, Clock, AlertCircle, Crown, Star, FileCheck, Phone, CreditCard, Award, Lock } from "lucide-react";
 
 interface VerificationBadgeProps {

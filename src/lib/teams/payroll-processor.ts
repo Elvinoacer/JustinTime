@@ -4,7 +4,7 @@
  */
 
 import prisma from "@/lib/prisma";
-import { PayrollStatus } from "@/generated/prisma";
+import { PayrollStatus } from "@/generated/prisma/client";
 
 /**
  * Generate payroll for a period

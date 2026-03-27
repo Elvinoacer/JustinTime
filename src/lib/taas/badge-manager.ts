@@ -4,7 +4,7 @@
  */
 
 import prisma from "@/lib/prisma";
-import { BadgeType, BadgeStatus } from "@/generated/prisma";
+import { BadgeType, BadgeStatus } from "@/generated/prisma/client";
 import { updateTrustScore } from "./trust-score-calculator";
 
 export interface BadgeRequest {

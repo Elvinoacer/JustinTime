@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
-import { TransactionType } from "@prisma/client";
+import { TransactionType } from "@/generated/prisma/client";
 
 // --- Types ---
 export interface PurchaseCreditsResult {
@@ -40,7 +40,9 @@ const PROMOTION_PLANS = {
  * Here we simulate it by deducting from "Wallet Balance" or assuming direct payment.
  * For now, let's assume it charges the USER'S MAIN WALLET BALANCE (which they might have topped up via M-Pesa).
  */
-export async function purchaseCredits(packageId: string): Promise<PurchaseCreditsResult> {
+export async function purchaseCredits(
+  packageId: string,
+): Promise<PurchaseCreditsResult> {
   const session = await auth();
   if (!session?.user?.id) {
     return { success: false, error: "Unauthorized" };
@@ -70,7 +72,7 @@ export async function purchaseCredits(packageId: string): Promise<PurchaseCredit
 
       // 3. Deduct Cost
       const newBalance = Number(wallet.balance) - pack.price;
-      
+
       // 4. Add Credits
       const newCreditBalance = (wallet.creditBalance || 0) + pack.credits;
 
@@ -107,7 +109,10 @@ export async function purchaseCredits(packageId: string): Promise<PurchaseCredit
 /**
  * Pay Onboarding Fee
  */
-export async function payOnboardingFee(): Promise<{ success: boolean; error?: string }> {
+export async function payOnboardingFee(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
   const session = await auth();
   if (!session?.user?.id) {
     return { success: false, error: "Unauthorized" };
@@ -121,17 +126,19 @@ export async function payOnboardingFee(): Promise<{ success: boolean; error?: st
       });
 
       if (!wallet) {
-         // Create wallet if missing?
-         throw new Error("Wallet setup required.");
+        // Create wallet if missing?
+        throw new Error("Wallet setup required.");
       }
 
       // 2. Check Balance
       if (Number(wallet.balance) < ONBOARDING_FEE_AMOUNT) {
-         throw new Error(`Insufficient funds. Fee is KES ${ONBOARDING_FEE_AMOUNT}`);
+        throw new Error(
+          `Insufficient funds. Fee is KES ${ONBOARDING_FEE_AMOUNT}`,
+        );
       }
 
       // 3. Deduct
-       await tx.wallet.update({
+      await tx.wallet.update({
         where: { id: wallet.id },
         data: { balance: { decrement: ONBOARDING_FEE_AMOUNT } },
       });
@@ -163,7 +170,10 @@ export async function payOnboardingFee(): Promise<{ success: boolean; error?: st
 /**
  * Promote a Service
  */
-export async function promoteService(serviceId: string, plan: "STANDARD" | "PREMIUM"): Promise<PromotionResult> {
+export async function promoteService(
+  serviceId: string,
+  plan: "STANDARD" | "PREMIUM",
+): Promise<PromotionResult> {
   const session = await auth();
   if (!session?.user?.id) {
     return { success: false, error: "Unauthorized" };
@@ -208,7 +218,7 @@ export async function promoteService(serviceId: string, plan: "STANDARD" | "PREM
       if (service.promotedUntil && service.promotedUntil > new Date()) {
         start = service.promotedUntil;
       }
-      
+
       const newEnd = new Date(start);
       newEnd.setDate(newEnd.getDate() + planDetails.days);
 

@@ -1,0 +1,1976 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JustInTime — Complete Feature Overview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #080a0e;
+        --surface: #0e1118;
+        --card: #131720;
+        --border: rgba(255, 255, 255, 0.06);
+        --border-bright: rgba(255, 255, 255, 0.12);
+        --text: #e8eaf0;
+        --muted: #6b7280;
+        --accent: #f0a500;
+        --accent2: #00d4aa;
+        --accent3: #7c6af7;
+        --accent4: #e85d75;
+        --accent5: #4db8ff;
+        --glow: rgba(240, 165, 0, 0.15);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: "DM Mono", monospace;
+        font-size: 13px;
+        line-height: 1.7;
+        overflow-x: hidden;
+      }
+
+      /* ── NOISE OVERLAY ── */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.6;
+      }
+
+      /* ── BACKGROUND GLOWS ── */
+      .bg-glow {
+        position: fixed;
+        border-radius: 50%;
+        filter: blur(120px);
+        pointer-events: none;
+        z-index: 0;
+      }
+      .bg-glow-1 {
+        width: 600px;
+        height: 600px;
+        background: rgba(240, 165, 0, 0.04);
+        top: -200px;
+        right: -100px;
+      }
+      .bg-glow-2 {
+        width: 500px;
+        height: 500px;
+        background: rgba(0, 212, 170, 0.03);
+        bottom: 200px;
+        left: -150px;
+      }
+      .bg-glow-3 {
+        width: 400px;
+        height: 400px;
+        background: rgba(124, 106, 247, 0.04);
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+
+      /* ── SIDEBAR NAV ── */
+      .sidenav {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 220px;
+        background: rgba(13, 16, 24, 0.92);
+        border-right: 1px solid var(--border);
+        backdrop-filter: blur(20px);
+        z-index: 100;
+        overflow-y: auto;
+        padding: 32px 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .sidenav::-webkit-scrollbar {
+        width: 3px;
+      }
+      .sidenav::-webkit-scrollbar-thumb {
+        background: var(--border-bright);
+        border-radius: 2px;
+      }
+
+      .sidenav-logo {
+        padding: 0 24px 28px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 20px;
+      }
+
+      .sidenav-logo .logo-text {
+        font-family: "Syne", sans-serif;
+        font-weight: 800;
+        font-size: 16px;
+        color: var(--accent);
+        letter-spacing: -0.02em;
+      }
+
+      .sidenav-logo .logo-sub {
+        font-size: 10px;
+        color: var(--muted);
+        margin-top: 2px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .sidenav-section {
+        padding: 4px 16px;
+      }
+
+      .sidenav-section-label {
+        font-size: 9px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding: 12px 8px 6px;
+      }
+
+      .sidenav a {
+        display: block;
+        padding: 6px 8px;
+        color: rgba(232, 234, 240, 0.55);
+        text-decoration: none;
+        font-size: 11px;
+        border-radius: 5px;
+        transition: all 0.2s;
+        border-left: 2px solid transparent;
+        line-height: 1.4;
+      }
+
+      .sidenav a:hover {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.04);
+        border-left-color: var(--accent);
+      }
+
+      /* ── MAIN CONTENT ── */
+      .main {
+        margin-left: 220px;
+        position: relative;
+        z-index: 1;
+      }
+
+      /* ── HERO ── */
+      .hero {
+        padding: 80px 72px 60px;
+        border-bottom: 1px solid var(--border);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .hero::after {
+        content: "JIT";
+        position: absolute;
+        right: -20px;
+        top: -30px;
+        font-family: "Syne", sans-serif;
+        font-weight: 800;
+        font-size: 260px;
+        color: rgba(255, 255, 255, 0.015);
+        line-height: 1;
+        pointer-events: none;
+        letter-spacing: -0.05em;
+      }
+
+      .hero-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(240, 165, 0, 0.08);
+        border: 1px solid rgba(240, 165, 0, 0.2);
+        color: var(--accent);
+        font-size: 10px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        padding: 5px 12px;
+        border-radius: 2px;
+        margin-bottom: 24px;
+      }
+
+      .hero-tag::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        background: var(--accent);
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.4;
+          transform: scale(0.7);
+        }
+      }
+
+      .hero h1 {
+        font-family: "Cormorant Garamond", serif;
+        font-weight: 300;
+        font-size: 68px;
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        color: var(--text);
+        max-width: 700px;
+        margin-bottom: 24px;
+      }
+
+      .hero h1 em {
+        font-style: italic;
+        color: var(--accent);
+      }
+
+      .hero-desc {
+        font-size: 13px;
+        color: var(--muted);
+        max-width: 480px;
+        line-height: 1.8;
+        margin-bottom: 40px;
+      }
+
+      /* ── STATS ROW ── */
+      .stats-row {
+        display: flex;
+        gap: 0;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        max-width: 720px;
+      }
+
+      .stat-item {
+        flex: 1;
+        padding: 20px 24px;
+        border-right: 1px solid var(--border);
+        position: relative;
+      }
+
+      .stat-item:last-child {
+        border-right: none;
+      }
+
+      .stat-item::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+      }
+
+      .stat-item:nth-child(1)::before {
+        background: var(--accent);
+      }
+      .stat-item:nth-child(2)::before {
+        background: var(--accent2);
+      }
+      .stat-item:nth-child(3)::before {
+        background: var(--accent3);
+      }
+      .stat-item:nth-child(4)::before {
+        background: var(--accent5);
+      }
+
+      .stat-num {
+        font-family: "Syne", sans-serif;
+        font-weight: 800;
+        font-size: 32px;
+        line-height: 1;
+        margin-bottom: 4px;
+      }
+
+      .stat-item:nth-child(1) .stat-num {
+        color: var(--accent);
+      }
+      .stat-item:nth-child(2) .stat-num {
+        color: var(--accent2);
+      }
+      .stat-item:nth-child(3) .stat-num {
+        color: var(--accent3);
+      }
+      .stat-item:nth-child(4) .stat-num {
+        color: var(--accent5);
+      }
+
+      .stat-label {
+        font-size: 10px;
+        color: var(--muted);
+        letter-spacing: 0.05em;
+      }
+
+      /* ── CONTENT WRAPPER ── */
+      .content {
+        padding: 60px 72px;
+      }
+
+      /* ── SECTION ── */
+      .section {
+        margin-bottom: 72px;
+        animation: fadeUp 0.5s ease both;
+      }
+
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .section-header {
+        display: flex;
+        align-items: baseline;
+        gap: 16px;
+        margin-bottom: 32px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .section-num {
+        font-family: "DM Mono", monospace;
+        font-size: 11px;
+        color: var(--muted);
+        letter-spacing: 0.1em;
+        min-width: 28px;
+      }
+
+      .section-title {
+        font-family: "Syne", sans-serif;
+        font-weight: 700;
+        font-size: 22px;
+        color: var(--text);
+        letter-spacing: -0.01em;
+      }
+
+      .section-icon {
+        margin-left: auto;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+
+      /* ── SUBSECTION CARDS ── */
+      .subsections {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 16px;
+      }
+
+      .sub-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 24px;
+        position: relative;
+        overflow: hidden;
+        transition:
+          border-color 0.25s,
+          transform 0.25s;
+      }
+
+      .sub-card:hover {
+        border-color: var(--border-bright);
+        transform: translateY(-2px);
+      }
+
+      .sub-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
+        border-radius: 8px 0 0 8px;
+      }
+
+      /* Color variants */
+      .c-gold::before {
+        background: var(--accent);
+      }
+      .c-teal::before {
+        background: var(--accent2);
+      }
+      .c-purple::before {
+        background: var(--accent3);
+      }
+      .c-red::before {
+        background: var(--accent4);
+      }
+      .c-blue::before {
+        background: var(--accent5);
+      }
+
+      .c-gold .sub-title {
+        color: var(--accent);
+      }
+      .c-teal .sub-title {
+        color: var(--accent2);
+      }
+      .c-purple .sub-title {
+        color: var(--accent3);
+      }
+      .c-red .sub-title {
+        color: var(--accent4);
+      }
+      .c-blue .sub-title {
+        color: var(--accent5);
+      }
+
+      .sub-num {
+        font-size: 10px;
+        color: var(--muted);
+        letter-spacing: 0.1em;
+        margin-bottom: 8px;
+      }
+
+      .sub-title {
+        font-family: "Syne", sans-serif;
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 14px;
+        letter-spacing: -0.01em;
+      }
+
+      .sub-list {
+        list-style: none;
+      }
+
+      .sub-list li {
+        font-size: 12px;
+        color: rgba(232, 234, 240, 0.65);
+        padding: 4px 0;
+        padding-left: 14px;
+        position: relative;
+        line-height: 1.5;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      }
+
+      .sub-list li:last-child {
+        border-bottom: none;
+      }
+
+      .sub-list li::before {
+        content: "→";
+        position: absolute;
+        left: 0;
+        color: var(--muted);
+        font-size: 10px;
+        top: 5px;
+      }
+
+      /* ── DATA DOMAIN TABLE ── */
+      .domain-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+      }
+
+      .domain-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 16px 20px;
+        transition: border-color 0.2s;
+      }
+
+      .domain-card:hover {
+        border-color: var(--border-bright);
+      }
+
+      .domain-label {
+        font-family: "Syne", sans-serif;
+        font-weight: 600;
+        font-size: 11px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .domain-label::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 1px;
+        flex-shrink: 0;
+      }
+
+      .domain-card:nth-child(1) .domain-label::before {
+        background: var(--accent);
+      }
+      .domain-card:nth-child(2) .domain-label::before {
+        background: var(--accent2);
+      }
+      .domain-card:nth-child(3) .domain-label::before {
+        background: var(--accent3);
+      }
+      .domain-card:nth-child(4) .domain-label::before {
+        background: var(--accent4);
+      }
+      .domain-card:nth-child(5) .domain-label::before {
+        background: var(--accent5);
+      }
+      .domain-card:nth-child(6) .domain-label::before {
+        background: var(--accent);
+      }
+      .domain-card:nth-child(7) .domain-label::before {
+        background: var(--accent2);
+      }
+      .domain-card:nth-child(8) .domain-label::before {
+        background: var(--accent3);
+      }
+      .domain-card:nth-child(9) .domain-label::before {
+        background: var(--accent4);
+      }
+      .domain-card:nth-child(10) .domain-label::before {
+        background: var(--accent5);
+      }
+      .domain-card:nth-child(11) .domain-label::before {
+        background: var(--accent);
+      }
+
+      .model-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+      }
+
+      .model-tag {
+        font-family: "DM Mono", monospace;
+        font-size: 10px;
+        padding: 2px 7px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        color: rgba(232, 234, 240, 0.6);
+      }
+
+      /* ── ROUTES SECTION ── */
+      .routes-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 12px;
+      }
+
+      .route-group {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 16px 20px;
+      }
+
+      .route-group-label {
+        font-family: "Syne", sans-serif;
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 10px;
+      }
+
+      .route-list {
+        list-style: none;
+      }
+
+      .route-list li {
+        font-family: "DM Mono", monospace;
+        font-size: 11px;
+        color: rgba(232, 234, 240, 0.55);
+        padding: 3px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        transition: color 0.2s;
+      }
+
+      .route-list li:hover {
+        color: var(--text);
+      }
+      .route-list li:last-child {
+        border-bottom: none;
+      }
+
+      /* ── INTEGRATIONS CHIPS ── */
+      .integrations-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 8px;
+      }
+
+      .integration-chip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 10px 16px;
+        font-size: 12px;
+        color: var(--text);
+        transition:
+          border-color 0.2s,
+          background 0.2s;
+      }
+
+      .integration-chip:hover {
+        border-color: var(--border-bright);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .chip-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      /* ── WIDE CARD ── */
+      .wide-card {
+        grid-column: 1 / -1;
+      }
+
+      /* ── ROLES BANNER ── */
+      .roles-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 48px;
+      }
+
+      .role-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 24px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        transition:
+          transform 0.2s,
+          border-color 0.2s;
+      }
+
+      .role-card:hover {
+        transform: translateY(-3px);
+        border-color: var(--border-bright);
+      }
+
+      .role-card::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        opacity: 0.06;
+      }
+
+      .role-card:nth-child(1)::after {
+        background: var(--accent);
+      }
+      .role-card:nth-child(2)::after {
+        background: var(--accent2);
+      }
+      .role-card:nth-child(3)::after {
+        background: var(--accent3);
+      }
+      .role-card:nth-child(4)::after {
+        background: var(--accent5);
+      }
+
+      .role-emoji {
+        font-size: 28px;
+        margin-bottom: 10px;
+      }
+
+      .role-name {
+        font-family: "Syne", sans-serif;
+        font-weight: 700;
+        font-size: 15px;
+        margin-bottom: 6px;
+      }
+
+      .role-desc {
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      /* ── SCROLLBAR ── */
+      ::-webkit-scrollbar {
+        width: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border-bright);
+        border-radius: 3px;
+      }
+
+      /* ── RESPONSIVE ── */
+      @media (max-width: 900px) {
+        .sidenav {
+          display: none;
+        }
+        .main {
+          margin-left: 0;
+        }
+        .hero,
+        .content {
+          padding: 40px 28px;
+        }
+        .hero h1 {
+          font-size: 44px;
+        }
+        .stats-row {
+          flex-wrap: wrap;
+        }
+        .roles-row {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      /* ── STAGGER ANIMATION ── */
+      .sub-card:nth-child(1) {
+        animation-delay: 0.05s;
+      }
+      .sub-card:nth-child(2) {
+        animation-delay: 0.1s;
+      }
+      .sub-card:nth-child(3) {
+        animation-delay: 0.15s;
+      }
+      .sub-card:nth-child(4) {
+        animation-delay: 0.2s;
+      }
+      .sub-card:nth-child(5) {
+        animation-delay: 0.25s;
+      }
+      .sub-card:nth-child(6) {
+        animation-delay: 0.3s;
+      }
+
+      /* ── FOOTER ── */
+      .doc-footer {
+        border-top: 1px solid var(--border);
+        padding: 32px 72px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .footer-note {
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .footer-links {
+        display: flex;
+        gap: 24px;
+      }
+
+      .footer-links a {
+        font-size: 11px;
+        color: var(--muted);
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+
+      .footer-links a:hover {
+        color: var(--accent);
+      }
+
+      .badge {
+        display: inline-block;
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        background: rgba(240, 165, 0, 0.1);
+        border: 1px solid rgba(240, 165, 0, 0.2);
+        color: var(--accent);
+        padding: 2px 7px;
+        border-radius: 2px;
+        margin-left: 8px;
+        vertical-align: middle;
+      }
+
+      .badge.new {
+        background: rgba(0, 212, 170, 0.1);
+        border-color: rgba(0, 212, 170, 0.2);
+        color: var(--accent2);
+      }
+      .badge.beta {
+        background: rgba(124, 106, 247, 0.1);
+        border-color: rgba(124, 106, 247, 0.2);
+        color: var(--accent3);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+
+    <!-- ── SIDEBAR ── -->
+    <nav class="sidenav">
+      <div class="sidenav-logo">
+        <div class="logo-text">JustInTime</div>
+        <div class="logo-sub">Feature Overview</div>
+      </div>
+
+      <div class="sidenav-section">
+        <div class="sidenav-section-label">Core Platform</div>
+        <a href="#discovery">Discovery Layer</a>
+        <a href="#auth">Auth & Accounts</a>
+        <a href="#onboarding">Onboarding</a>
+        <a href="#workspaces">Workspaces</a>
+      </div>
+
+      <div class="sidenav-section">
+        <div class="sidenav-section-label">Marketplace</div>
+        <a href="#marketplace">Services & Jobs</a>
+        <a href="#booking">Booking Engine</a>
+        <a href="#comms">Messaging & Calls</a>
+        <a href="#notifications">Notifications</a>
+      </div>
+
+      <div class="sidenav-section">
+        <div class="sidenav-section-label">Trust & Finance</div>
+        <a href="#trust">Trust & Safety</a>
+        <a href="#finance">Financial Systems</a>
+        <a href="#provider">Provider OS</a>
+      </div>
+
+      <div class="sidenav-section">
+        <div class="sidenav-section-label">Platform</div>
+        <a href="#team">Team & Agency</a>
+        <a href="#ai">AI & Retention</a>
+        <a href="#solar">Solar Vertical</a>
+        <a href="#admin">Admin Center</a>
+        <a href="#data">Data Models</a>
+        <a href="#routes">Route Index</a>
+      </div>
+    </nav>
+
+    <!-- ── MAIN ── -->
+    <div class="main">
+      <!-- HERO -->
+      <header class="hero">
+        <div class="hero-tag">Product Capability Map · v1.0</div>
+        <h1>Just<em>In</em>Time<br />Feature Overview</h1>
+        <p class="hero-desc">
+          A complete inventory of user-facing features, provider business tools,
+          admin operations, financial and compliance systems, integrations, and
+          technical platform capabilities.
+        </p>
+
+        <div class="stats-row">
+          <div class="stat-item">
+            <div class="stat-num">85+</div>
+            <div class="stat-label">App Router Pages</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num">89</div>
+            <div class="stat-label">API Routes</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num">68</div>
+            <div class="stat-label">Prisma Models</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num">4</div>
+            <div class="stat-label">User Roles</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- CONTENT -->
+      <div class="content">
+        <!-- ROLES -->
+        <div class="roles-row">
+          <div class="role-card">
+            <div class="role-emoji">👤</div>
+            <div class="role-name">Guest</div>
+            <div class="role-desc">
+              Discovery, browsing, and conversion surfaces
+            </div>
+          </div>
+          <div class="role-card">
+            <div class="role-emoji">🧑‍💼</div>
+            <div class="role-name">Client</div>
+            <div class="role-desc">
+              Jobs, bookings, wallet, messages, and referrals
+            </div>
+          </div>
+          <div class="role-card">
+            <div class="role-emoji">🔧</div>
+            <div class="role-name">Provider</div>
+            <div class="role-desc">
+              Full business OS: earnings, team, tax, and safety
+            </div>
+          </div>
+          <div class="role-card">
+            <div class="role-emoji">🛡️</div>
+            <div class="role-name">Admin</div>
+            <div class="role-desc">
+              Governance, finance, trust, and platform ops
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 1. EXPERIENCE LAYERS ── -->
+        <div class="section" id="discovery">
+          <div class="section-header">
+            <span class="section-num">01</span>
+            <span class="section-title">End-to-End Experience Layers</span>
+            <div
+              class="section-icon"
+              style="background: rgba(240, 165, 0, 0.08)"
+            >
+              🌐
+            </div>
+          </div>
+          <div class="subsections">
+            <div class="sub-card c-gold" id="discovery">
+              <div class="sub-num">1.1</div>
+              <div class="sub-title">Guest & Discovery Layer</div>
+              <ul class="sub-list">
+                <li>
+                  Landing and conversion funnels for services and professionals
+                </li>
+                <li>
+                  Public service catalog with category browsing and details
+                </li>
+                <li>
+                  Public professionals directory with profiles and social proof
+                </li>
+                <li>Public job listings and detail pages</li>
+                <li>Trust pages: About, FAQ, Terms, Privacy, Blog, Contact</li>
+                <li>Dedicated Solar vertical discovery and estimation entry</li>
+              </ul>
+            </div>
+            <div class="sub-card c-teal" id="auth">
+              <div class="sub-num">1.2</div>
+              <div class="sub-title">Authentication & Account Lifecycle</div>
+              <ul class="sub-list">
+                <li>Email and OAuth authentication via NextAuth</li>
+                <li>
+                  Signup, login, verify-email, forgot/reset-password flows
+                </li>
+                <li>Verification request and auth error handling</li>
+                <li>
+                  Account deletion: request, cancel, and scheduled cleanup
+                </li>
+              </ul>
+            </div>
+            <div class="sub-card c-purple" id="onboarding">
+              <div class="sub-num">1.3</div>
+              <div class="sub-title">Onboarding & Role Personalization</div>
+              <ul class="sub-list">
+                <li>Multi-step onboarding shell with role selection</li>
+                <li>Separate provider and client detail steps</li>
+                <li>Camera capture and identity verification step</li>
+                <li>Location capture, denied-location handling, completion</li>
+                <li>Dedicated client and provider onboarding entry points</li>
+              </ul>
+            </div>
+            <div class="sub-card c-blue" id="workspaces">
+              <div class="sub-num">1.4</div>
+              <div class="sub-title">Role-Specific Workspaces</div>
+              <ul class="sub-list">
+                <li>
+                  Client: dashboard, jobs, proposals, bookings, wallet,
+                  messages, reviews, analytics, referral, settings
+                </li>
+                <li>
+                  Provider: dashboard, services, jobs, requests, bookings,
+                  earnings, analytics, availability, invoices, verification,
+                  premium, team, payroll, expenses, safety, wallet
+                </li>
+                <li>
+                  Admin: overview dashboard and specialized operational modules
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 2. MARKETPLACE ── -->
+        <div class="section" id="marketplace">
+          <div class="section-header">
+            <span class="section-num">02</span>
+            <span class="section-title">Marketplace & Commerce Core</span>
+            <div
+              class="section-icon"
+              style="background: rgba(0, 212, 170, 0.08)"
+            >
+              🛒
+            </div>
+          </div>
+          <div class="subsections">
+            <div class="sub-card c-teal">
+              <div class="sub-num">2.1</div>
+              <div class="sub-title">Services Marketplace</div>
+              <ul class="sub-list">
+                <li>Category-based service discovery</li>
+                <li>Service creation and management for providers</li>
+                <li>Service detail pages with rich profile modules</li>
+                <li>Service interaction tracking for ranking intelligence</li>
+                <li>Promotion support for service visibility boosts</li>
+              </ul>
+            </div>
+            <div class="sub-card c-gold">
+              <div class="sub-num">2.2</div>
+              <div class="sub-title">Professionals Marketplace</div>
+              <ul class="sub-list">
+                <li>Public professional listing with filtering and ranking</li>
+                <li>Professional detail pages and interaction analytics</li>
+                <li>Provider profile APIs and management capabilities</li>
+                <li>Verification-aware trust signaling in discovery</li>
+              </ul>
+            </div>
+            <div class="sub-card c-purple">
+              <div class="sub-num">2.3</div>
+              <div class="sub-title">Jobs, Proposals & Negotiation</div>
+              <ul class="sub-list">
+                <li>Public and client-side job posting lifecycle</li>
+                <li>Job details with provider proposal pipeline</li>
+                <li>Proposal submission, review, acceptance, rejection</li>
+                <li>Booking negotiation object model and APIs</li>
+                <li>Structured offer exchange via negotiation routes</li>
+              </ul>
+            </div>
+            <div class="sub-card c-blue" id="booking">
+              <div class="sub-num">2.4</div>
+              <div class="sub-title">Booking Lifecycle</div>
+              <ul class="sub-list">
+                <li>Booking form: service, date/time, location, summary</li>
+                <li>Booking creation and retrieval APIs</li>
+                <li>Provider-side accept and reject controls</li>
+                <li>Availability-aware scheduling with slot engine</li>
+                <li>Booking cancellation with policy engine integration</li>
+                <li>Invoice page per booking for fiscal closure</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 3. COMMS ── -->
+        <div class="section" id="comms">
+          <div class="section-header">
+            <span class="section-num">03</span>
+            <span class="section-title">Communication & Engagement</span>
+            <div
+              class="section-icon"
+              style="background: rgba(124, 106, 247, 0.08)"
+            >
+              💬
+            </div>
+          </div>
+          <div class="subsections">
+            <div class="sub-card c-purple">
+              <div class="sub-num">3.1</div>
+              <div class="sub-title">In-App Messaging</div>
+              <ul class="sub-list">
+                <li>Real-time conversation model backed by message APIs</li>
+                <li>Conversation listing, contacts, and history endpoints</li>
+                <li>Send, fetch, and clear messaging operations</li>
+                <li>Dedicated client and provider message pages</li>
+              </ul>
+            </div>
+            <div class="sub-card c-teal">
+              <div class="sub-num">3.2</div>
+              <div class="sub-title">Calls & Direct Communication</div>
+              <ul class="sub-list">
+                <li>Secure call initiation server action</li>
+                <li>Call history retrieval and lifecycle logging</li>
+                <li>Call status tracking from start to completion</li>
+                <li>Video call interface and call overlay components</li>
+              </ul>
+            </div>
+            <div class="sub-card c-blue" id="notifications">
+              <div class="sub-num">3.3</div>
+              <div class="sub-title">Notifications & Omnichannel Alerts</div>
+              <ul class="sub-list">
+                <li>Notification center APIs and dashboard pages</li>
+                <li>Mark-all-read, per-notification update/delete</li>
+                <li>FCM token storage for push delivery</li>
+                <li>WhatsApp webhook for external message event handling</li>
+                <li>Admin notification debug endpoint</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 4. TRUST ── -->
+        <div class="section" id="trust">
+          <div class="section-header">
+            <span class="section-num">04</span>
+            <span class="section-title"
+              >Trust, Safety, Verification & Quality</span
+            >
+            <div
+              class="section-icon"
+              style="background: rgba(232, 93, 117, 0.08)"
+            >
+              🛡️
+            </div>
+          </div>
+          <div class="subsections">
+            <div class="sub-card c-gold">
+              <div class="sub-num">4.1</div>
+              <div class="sub-title">Identity & Verification</div>
+              <ul class="sub-list">
+                <li>Verification-focused onboarding with camera capture</li>
+                <li>Verification badge request and status lifecycle</li>
+                <li>
+                  Background check submission and provider verification flows
+                </li>
+                <li>
+                  Admin verification controls for approve/revoke decisions
+                </li>
+              </ul>
+            </div>
+            <div class="sub-card c-red">
+              <div class="sub-num">4.2</div>
+              <div class="sub-title">
+                Trust-as-a-Service (TaaS) <span class="badge">Core</span>
+              </div>
+              <ul class="sub-list">
+                <li>Verification badge system with status tracking</li>
+                <li>Trust score engine with weighted component scoring</li>
+                <li>Tier progression: unverified → elite levels</li>
+                <li>Premium pricing toggles tied to trust state</li>
+                <li>Badge sync and automatic badge checks</li>
+                <li>Verification audit model for reviewable history</li>
+              </ul>
+            </div>
+            <div class="sub-card c-blue">
+              <div class="sub-num">4.3</div>
+              <div class="sub-title">Safety Operations</div>
+              <ul class="sub-list">
+                <li>Panic/SOS trigger and active alert retrieval</li>
+                <li>SOS cancel operation and alert lifecycle management</li>
+                <li>Trusted contacts management: add, remove, list</li>
+                <li>Safety dashboard in provider workspace</li>
+              </ul>
+            </div>
+            <div class="sub-card c-purple">
+              <div class="sub-num">4.4</div>
+              <div class="sub-title">Dispute & Review Integrity</div>
+              <ul class="sub-list">
+                <li>Structured dispute model and admin dispute center</li>
+                <li>Dispute resolution actions and refund preview</li>
+                <li>Review and ratings system with submission route</li>
+                <li>Booking-linked review workflow for quality controls</li>
+              </ul>
+            </div>
+            <div class="sub-card c-teal">
+              <div class="sub-num">4.5</div>
+              <div class="sub-title">Insurance & Risk Events</div>
+              <ul class="sub-list">
+                <li>Insurance claim submission flows</li>
+                <li>Claims retrieval in operational contexts</li>
+                <li>Claim model linked to bookings and user accountability</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 5. FINANCE ── -->
+        <div class="section" id="finance">
+          <div class="section-header">
+            <span class="section-num">05</span>
+            <span class="section-title"
+              >Financial Systems, Billing & Compliance</span
+            >
+            <div
+              class="section-icon"
+              style="background: rgba(240, 165, 0, 0.08)"
+            >
+              💰
+            </div>
+          </div>
+          <div class="subsections">
+            <div class="sub-card c-gold">
+              <div class="sub-num">5.1</div>
+              <div class="sub-title">Wallet & Transactions</div>
+              <ul class="sub-list">
+                <li>Wallet overview page and APIs</li>
+                <li>Balance and financial history endpoints</li>
+                <li>Wallet top-up initiation and verification routes</li>
+                <li>IntaSend webhook processing for settlement updates</li>
+              </ul>
+            </div>
+            <div class="sub-card c-teal">
+              <div class="sub-num">5.2</div>
+              <div class="sub-title">Provider Revenue & Monetization</div>
+              <ul class="sub-list">
+                <li>Provider earnings APIs and chart data endpoints</li>
+                <li>Promote service monetization action</li>
+                <li>Credit purchase flows and transaction components</li>
+                <li>
+                  Onboarding fee payment initiation and webhook reconciliation
+                </li>
+              </ul>
+            </div>
+            <div class="sub-card c-purple">
+              <div class="sub-num">5.3</div>
+              <div class="sub-title">Subscriptions & Plans</div>
+              <ul class="sub-list">
+                <li>Subscription initiation for paid plans</li>
+                <li>Subscription status checks</li>
+                <li>Webhook handling for renewals and state sync</li>
+                <li>Plan and user-role update support</li>
+              </ul>
+            </div>
+            <div class="sub-card c-red">
+              <div class="sub-num">5.4</div>
+              <div class="sub-title">
+                Invoicing & Tax Compliance <span class="badge">KRA</span>
+              </div>
+              <ul class="sub-list">
+                <li>Invoice generation per booking</li>
+                <li>Invoice history, stats, and detail retrieval</li>
+                <li>Retry submission for failed invoice workflows</li>
+                <li>Tax breakdown and fiscal reporting components</li>
+                <li>KRA PIN verification and persistence flows</li>
+                <li>Tax filing support including nil-return action</li>
+                <li>ETIMS submission model and eTIMS service integration</li>
+                <li>Tax calculator modules for VAT and fiscal handling</li>
+              </ul>
+            </div>
+            <div class="sub-card c-blue">
+              <div class="sub-num">5.5</div>
+              <div class="sub-title">Promo & Growth Revenue</div>
+              <ul class="sub-list">
+                <li>Promo code create and validation actions</li>
+                <li>Admin promo management module</li>
+                <li>Promo model integrated with booking economics</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 6. PROVIDER OS ── -->
+        <div class="section" id="provider">
+          <div class="section-header">
+            <span class="section-num">06</span>
+            <span class="section-title">Provider Business OS</span>
+            <div
+              class="section-icon"
+              style="background: rgba(0, 212, 170, 0.08)"
+            >
+              ⚙️
+            </div>
+          </div>
+          <div class="subsections">
+            <div class="sub-card c-teal">
+              <div class="sub-num">6.1</div>
+              <div class="sub-title">Profile & Service Operations</div>
+              <ul class="sub-list">
+                <li>Provider profile management APIs and dashboard</li>
+                <li>Service CRUD support for provider offerings</li>
+                <li>Provider activity streams and stats endpoints</li>
+              </ul>
+            </div>
+            <div class="sub-card c-gold">
+              <div class="sub-num">6.2</div>
+              <div class="sub-title">Availability & Scheduling Engine</div>
+              <ul class="sub-list">
+                <li>Weekly availability configuration</li>
+                <li>Monthly availability retrieval for calendar views</li>
+                <li>Availability exception handling for one-off changes</li>
+                <li>Slot validation endpoint for conflict-safe bookings</li>
+              </ul>
+            </div>
+            <div class="sub-card c-purple">
+              <div class="sub-num">6.3</div>
+              <div class="sub-title">Earnings & Performance Intelligence</div>
+              <ul class="sub-list">
+                <li>Earnings and trend views for business performance</li>
+                <li>Review aggregation for reputation management</li>
+                <li>Dashboard analytics modules and status cards</li>
+              </ul>
+            </div>
+            <div class="sub-card c-blue">
+              <div class="sub-num">6.4</div>
+              <div class="sub-title">Expense Intelligence</div>
+              <ul class="sub-list">
+                <li>Expense creation, retrieval, and deletion actions</li>
+                <li>Receipt scan action for spend capture workflows</li>
+                <li>Provider expense page and related modals</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 7. TEAM ── -->
+        <div class="section" id="team">
+          <div class="section-header">
+            <span class="section-num">07</span>
+            <span class="section-title">Team & Agency Management OS</span>
+            <div
+              class="section-icon"
+              style="background: rgba(75, 184, 255, 0.08)"
+            >
+              👥
+            </div>
+          </div>
+          <div class="subsections">
+            <div class="sub-card c-blue">
+              <div class="sub-num">7.1</div>
+              <div class="sub-title">Team Structure & Membership</div>
+              <ul class="sub-list">
+                <li>Team creation and dashboard retrieval</li>
+                <li>Member invitation and direct add/remove operations</li>
+                <li>Member role and permission updates</li>
+                <li>Member status and location updates</li>
+              </ul>
+            </div>
+            <div class="sub-card c-gold">
+              <div class="sub-num">7.2</div>
+              <div class="sub-title">Team Job Dispatch</div>
+              <ul class="sub-list">
+                <li>Team jobs module in dashboard</li>
+                <li>Assign members to jobs with tracking</li>
+                <li>Team job status updates and progress operations</li>
+                <li>Daily jobs and collections retrieval actions</li>
+              </ul>
+            </div>
+            <div class="sub-card c-teal">
+              <div class="sub-num">7.3</div>
+              <div class="sub-title">Team Earnings & Payroll</div>
+              <ul class="sub-list">
+                <li>Earnings split calculation modules</li>
+                <li>Member balance retrieval actions</li>
+                <li>Payroll generation and processing actions</li>
+                <li>Pending payroll retrieval and history tracking</li>
+              </ul>
+            </div>
+            <div class="sub-card c-purple">
+              <div class="sub-num">7.4</div>
+              <div class="sub-title">Team Communication</div>
+              <ul class="sub-list">
+                <li>Team announcement model support</li>
+                <li>Team-centric UI cards and operational components</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 8. AI ── -->
+        <div class="section" id="ai">
+          <div class="section-header">
+            <span class="section-num">08</span>
+            <span class="section-title"
+              >AI, Analytics, Gamification & Retention</span
+            >
+            <div
+              class="section-icon"
+              style="background: rgba(124, 106, 247, 0.08)"
+            >
+              🤖
+            </div>
+          </div>
+          <div class="subsections">
+            <div class="sub-card c-purple">
+              <div class="sub-num">8.1</div>
+              <div class="sub-title">
+                Intelligent Matching & Recommendations
+              </div>
+              <ul class="sub-list">
+                <li>
+                  Recommendation hooks and matching-oriented data utilities
+                </li>
+                <li>Geolocation utilities for nearest-provider relevance</li>
+                <li>
+                  Search normalization utility for local language patterns
+                </li>
+              </ul>
+            </div>
+            <div class="sub-card c-gold">
+              <div class="sub-num">8.2</div>
+              <div class="sub-title">
+                Dynamic Pricing & Commercial Intelligence
+              </div>
+              <ul class="sub-list">
+                <li>Pricing engine modules</li>
+                <li>Surge pricing components and simulation page</li>
+              </ul>
+            </div>
+            <div class="sub-card c-red">
+              <div class="sub-num">8.3</div>
+              <div class="sub-title">Churn Prediction & Re-Engagement</div>
+              <ul class="sub-list">
+                <li>Churn score models and intervention models</li>
+                <li>At-risk user retrieval and intervention creation</li>
+                <li>Triggered churn analysis and re-engagement actions</li>
+                <li>Admin churn analysis workspace</li>
+              </ul>
+            </div>
+            <div class="sub-card c-teal">
+              <div class="sub-num">8.4</div>
+              <div class="sub-title">Gamification, Badges & Loyalty</div>
+              <ul class="sub-list">
+                <li>Badge model, user badge model, and badge definitions</li>
+                <li>Automatic badge checker modules and badge sync</li>
+                <li>Loyalty points and leaderboard support</li>
+                <li>
+                  Partner rewards, redemption history, and partner ecosystem
+                  seeding
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 9. SOLAR ── -->
+        <div class="section" id="solar">
+          <div class="section-header">
+            <span class="section-num">09</span>
+            <span class="section-title"
+              >Solar & Green Tech Vertical
+              <span class="badge new">Vertical</span></span
+            >
+            <div
+              class="section-icon"
+              style="background: rgba(240, 165, 0, 0.08)"
+            >
+              ☀️
+            </div>
+          </div>
+          <div class="subsections">
+            <div class="sub-card c-gold">
+              <div class="sub-num">9.1</div>
+              <div class="sub-title">Solar Discovery & Estimation</div>
+              <ul class="sub-list">
+                <li>Dedicated solar landing page</li>
+                <li>Multi-step solar estimate page</li>
+                <li>Quick estimate and detailed estimate actions</li>
+                <li>Estimation calculator: sizing and ROI-style outputs</li>
+              </ul>
+            </div>
+            <div class="sub-card c-teal">
+              <div class="sub-num">9.2</div>
+              <div class="sub-title">Specialist & Certification Workflows</div>
+              <ul class="sub-list">
+                <li>Solar specialist registration action</li>
+                <li>Vertical certification submission workflow</li>
+                <li>Featured solar specialist retrieval</li>
+                <li>Vertical availability retrieval action</li>
+              </ul>
+            </div>
+            <div class="sub-card c-purple">
+              <div class="sub-num">9.3</div>
+              <div class="sub-title">Solar Project Lifecycle</div>
+              <ul class="sub-list">
+                <li>Solar quote request action</li>
+                <li>Vertical project and milestone models</li>
+                <li>Project status update actions</li>
+                <li>Equipment registry and template models</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 10. REFERRAL ── -->
+        <div class="section">
+          <div class="section-header">
+            <span class="section-num">10</span>
+            <span class="section-title">Referral, Support & Customer Care</span>
+            <div
+              class="section-icon"
+              style="background: rgba(75, 184, 255, 0.08)"
+            >
+              🎯
+            </div>
+          </div>
+          <div class="subsections">
+            <div class="sub-card c-blue">
+              <div class="sub-num">10</div>
+              <div class="sub-title">Growth & Support Systems</div>
+              <ul class="sub-list">
+                <li>Referral model and client referral APIs</li>
+                <li>Client dashboard stats and activity streams</li>
+                <li>Support ticket creation and update APIs</li>
+                <li>Admin support operations dashboard and filtering</li>
+                <li>
+                  Contact and newsletter ingestion routes for growth funnels
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 11. ADMIN ── -->
+        <div class="section" id="admin">
+          <div class="section-header">
+            <span class="section-num">11</span>
+            <span class="section-title">Admin Command Center</span>
+            <div
+              class="section-icon"
+              style="background: rgba(232, 93, 117, 0.08)"
+            >
+              🎛️
+            </div>
+          </div>
+          <div class="subsections">
+            <div class="sub-card c-red">
+              <div class="sub-num">11.1</div>
+              <div class="sub-title">User Governance</div>
+              <ul class="sub-list">
+                <li>User listing and detailed user views</li>
+                <li>User role updates, plan updates, ban toggles</li>
+                <li>Provider fee waiver action</li>
+              </ul>
+            </div>
+            <div class="sub-card c-gold">
+              <div class="sub-num">11.2</div>
+              <div class="sub-title">Financial Governance</div>
+              <ul class="sub-list">
+                <li>Finance summary retrieval</li>
+                <li>Wallet and transaction administration tables</li>
+                <li>Manual refund processing action</li>
+                <li>Dispute and finance operational screens</li>
+              </ul>
+            </div>
+            <div class="sub-card c-teal">
+              <div class="sub-num">11.3</div>
+              <div class="sub-title">Trust & Compliance Governance</div>
+              <ul class="sub-list">
+                <li>Verification queue handling</li>
+                <li>Background checks review and decision actions</li>
+                <li>Expiring checks and badges monitoring</li>
+                <li>Admin logs retrieval and audit visibility</li>
+                <li>System settings update and operations</li>
+              </ul>
+            </div>
+            <div class="sub-card c-purple">
+              <div class="sub-num">11.4</div>
+              <div class="sub-title">Category & Platform Configuration</div>
+              <ul class="sub-list">
+                <li>Category CRUD actions</li>
+                <li>System setting models and admin settings screens</li>
+                <li>Enhanced management components for operational scale</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 12. PLATFORM ── -->
+        <div class="section">
+          <div class="section-header">
+            <span class="section-num">12</span>
+            <span class="section-title"
+              >Platform Foundations & Integrations</span
+            >
+            <div
+              class="section-icon"
+              style="background: rgba(75, 184, 255, 0.08)"
+            >
+              🔌
+            </div>
+          </div>
+
+          <div class="integrations-row" style="margin-bottom: 24px">
+            <div class="integration-chip">
+              <span class="chip-dot" style="background: var(--accent)"></span
+              >Next.js App Router
+            </div>
+            <div class="integration-chip">
+              <span class="chip-dot" style="background: var(--accent2)"></span
+              >Prisma + PostgreSQL
+            </div>
+            <div class="integration-chip">
+              <span class="chip-dot" style="background: var(--accent3)"></span
+              >NextAuth Sessions
+            </div>
+            <div class="integration-chip">
+              <span class="chip-dot" style="background: var(--accent5)"></span
+              >Tailwind UI
+            </div>
+            <div class="integration-chip">
+              <span class="chip-dot" style="background: var(--accent4)"></span
+              >Socket.io Real-time
+            </div>
+            <div class="integration-chip">
+              <span class="chip-dot" style="background: var(--accent)"></span
+              >IntaSend Payments
+            </div>
+            <div class="integration-chip">
+              <span class="chip-dot" style="background: var(--accent2)"></span
+              >Firebase + FCM
+            </div>
+            <div class="integration-chip">
+              <span class="chip-dot" style="background: var(--accent3)"></span
+              >WhatsApp Webhooks
+            </div>
+            <div class="integration-chip">
+              <span class="chip-dot" style="background: var(--accent5)"></span
+              >S3 Media Storage
+            </div>
+            <div class="integration-chip">
+              <span class="chip-dot" style="background: var(--accent4)"></span
+              >eTIMS / KRA Tax
+            </div>
+            <div class="integration-chip">
+              <span class="chip-dot" style="background: var(--accent)"></span
+              >Gava Compliance
+            </div>
+            <div class="integration-chip">
+              <span class="chip-dot" style="background: var(--accent2)"></span
+              >i18n: EN / SW / Sheng
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 13. DATA MODELS ── -->
+        <div class="section" id="data">
+          <div class="section-header">
+            <span class="section-num">13</span>
+            <span class="section-title"
+              >Data Domain Coverage
+              <span
+                style="
+                  font-family: &quot;DM Mono&quot;;
+                  font-weight: 400;
+                  font-size: 14px;
+                  color: var(--muted);
+                "
+                >— 68 Prisma Models</span
+              ></span
+            >
+            <div
+              class="section-icon"
+              style="background: rgba(124, 106, 247, 0.08)"
+            >
+              🗄️
+            </div>
+          </div>
+          <div class="domain-grid">
+            <div class="domain-card">
+              <div class="domain-label">Identity & Auth</div>
+              <div class="model-tags">
+                <span class="model-tag">User</span
+                ><span class="model-tag">Account</span
+                ><span class="model-tag">Session</span
+                ><span class="model-tag">VerificationToken</span
+                ><span class="model-tag">TwoFactorToken</span
+                ><span class="model-tag">TwoFactorConfirmation</span
+                ><span class="model-tag">UserToken</span
+                ><span class="model-tag">Profile</span>
+              </div>
+            </div>
+            <div class="domain-card">
+              <div class="domain-label">Marketplace</div>
+              <div class="model-tags">
+                <span class="model-tag">Category</span
+                ><span class="model-tag">Service</span
+                ><span class="model-tag">Job</span
+                ><span class="model-tag">Proposal</span
+                ><span class="model-tag">Booking</span
+                ><span class="model-tag">BookingSlot</span
+                ><span class="model-tag">BookingNegotiation</span>
+              </div>
+            </div>
+            <div class="domain-card">
+              <div class="domain-label">Trust & Support</div>
+              <div class="model-tags">
+                <span class="model-tag">Review</span
+                ><span class="model-tag">Dispute</span
+                ><span class="model-tag">SupportTicket</span
+                ><span class="model-tag">Notification</span
+                ><span class="model-tag">Message</span
+                ><span class="model-tag">BackgroundCheck</span
+                ><span class="model-tag">TrustedContact</span
+                ><span class="model-tag">SOSAlert</span
+                ><span class="model-tag">Call</span
+                ><span class="model-tag">InsuranceClaim</span>
+              </div>
+            </div>
+            <div class="domain-card">
+              <div class="domain-label">Financial</div>
+              <div class="model-tags">
+                <span class="model-tag">Payment</span
+                ><span class="model-tag">Wallet</span
+                ><span class="model-tag">Transaction</span
+                ><span class="model-tag">Subscription</span
+                ><span class="model-tag">PromoCode</span
+                ><span class="model-tag">Referral</span>
+              </div>
+            </div>
+            <div class="domain-card">
+              <div class="domain-label">Tax & Invoicing</div>
+              <div class="model-tags">
+                <span class="model-tag">Invoice</span
+                ><span class="model-tag">ETIMSSubmission</span
+                ><span class="model-tag">TaxFiling</span
+                ><span class="model-tag">TaxSettings</span>
+              </div>
+            </div>
+            <div class="domain-card">
+              <div class="domain-label">Provider Ops</div>
+              <div class="model-tags">
+                <span class="model-tag">Availability</span
+                ><span class="model-tag">AvailabilityException</span>
+              </div>
+            </div>
+            <div class="domain-card">
+              <div class="domain-label">Admin & Governance</div>
+              <div class="model-tags">
+                <span class="model-tag">AdminLog</span
+                ><span class="model-tag">SystemSetting</span>
+              </div>
+            </div>
+            <div class="domain-card">
+              <div class="domain-label">Team OS</div>
+              <div class="model-tags">
+                <span class="model-tag">Team</span
+                ><span class="model-tag">TeamMember</span
+                ><span class="model-tag">TeamJob</span
+                ><span class="model-tag">TeamJobAssignment</span
+                ><span class="model-tag">TeamEarning</span
+                ><span class="model-tag">TeamPayroll</span
+                ><span class="model-tag">TeamAnnouncement</span>
+              </div>
+            </div>
+            <div class="domain-card">
+              <div class="domain-label">Growth & Retention</div>
+              <div class="model-tags">
+                <span class="model-tag">Badge</span
+                ><span class="model-tag">UserBadge</span
+                ><span class="model-tag">ChurnScore</span
+                ><span class="model-tag">ChurnIntervention</span
+                ><span class="model-tag">UserLoyalty</span
+                ><span class="model-tag">LoyaltyPointTransaction</span
+                ><span class="model-tag">Partner</span
+                ><span class="model-tag">PartnerReward</span
+                ><span class="model-tag">RewardRedemption</span
+                ><span class="model-tag">NewsletterSubscriber</span>
+              </div>
+            </div>
+            <div class="domain-card">
+              <div class="domain-label">TaaS Verification</div>
+              <div class="model-tags">
+                <span class="model-tag">VerificationBadge</span
+                ><span class="model-tag">TrustScore</span
+                ><span class="model-tag">VerificationAudit</span>
+              </div>
+            </div>
+            <div class="domain-card">
+              <div class="domain-label">Vertical Platform</div>
+              <div class="model-tags">
+                <span class="model-tag">VerticalCategory</span
+                ><span class="model-tag">VerticalCertification</span
+                ><span class="model-tag">VerticalSpecialist</span
+                ><span class="model-tag">EquipmentRegistry</span
+                ><span class="model-tag">ProjectTemplate</span
+                ><span class="model-tag">VerticalProject</span
+                ><span class="model-tag">ProjectMilestone</span
+                ><span class="model-tag">SolarEstimationConfig</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── 14. ROUTES ── -->
+        <div class="section" id="routes">
+          <div class="section-header">
+            <span class="section-num">14</span>
+            <span class="section-title">Canonical Feature Route Index</span>
+            <div
+              class="section-icon"
+              style="background: rgba(0, 212, 170, 0.08)"
+            >
+              🗺️
+            </div>
+          </div>
+          <div class="routes-grid">
+            <div class="route-group">
+              <div class="route-group-label" style="color: var(--accent)">
+                Authentication
+              </div>
+              <ul class="route-list">
+                <li>/auth/login</li>
+                <li>/auth/signup</li>
+                <li>/auth/forgot-password</li>
+                <li>/auth/reset-password</li>
+                <li>/auth/verify-email</li>
+              </ul>
+            </div>
+            <div class="route-group">
+              <div class="route-group-label" style="color: var(--accent2)">
+                Public Marketplace
+              </div>
+              <ul class="route-list">
+                <li>/services</li>
+                <li>/services/[id]</li>
+                <li>/professionals</li>
+                <li>/professionals/[id]</li>
+                <li>/jobs</li>
+                <li>/jobs/[id]</li>
+              </ul>
+            </div>
+            <div class="route-group">
+              <div class="route-group-label" style="color: var(--accent3)">
+                Provider Workspace
+              </div>
+              <ul class="route-list">
+                <li>/dashboard</li>
+                <li>/dashboard/services</li>
+                <li>/dashboard/jobs</li>
+                <li>/dashboard/bookings</li>
+                <li>/dashboard/availability</li>
+                <li>/dashboard/earnings</li>
+                <li>/dashboard/invoices</li>
+                <li>/dashboard/settings/tax</li>
+                <li>/dashboard/verification</li>
+                <li>/dashboard/premium</li>
+                <li>/dashboard/expenses</li>
+              </ul>
+            </div>
+            <div class="route-group">
+              <div class="route-group-label" style="color: var(--accent5)">
+                Team OS
+              </div>
+              <ul class="route-list">
+                <li>/dashboard/team</li>
+                <li>/dashboard/team/jobs</li>
+                <li>/dashboard/team/members</li>
+                <li>/dashboard/team/payroll</li>
+              </ul>
+            </div>
+            <div class="route-group">
+              <div class="route-group-label" style="color: var(--accent4)">
+                Client Workspace
+              </div>
+              <ul class="route-list">
+                <li>/client/dashboard</li>
+                <li>/client/jobs</li>
+                <li>/client/proposals</li>
+                <li>/client/bookings</li>
+                <li>/client/messages</li>
+                <li>/client/reviews/submit/[bookingId]</li>
+                <li>/client/analytics</li>
+                <li>/client/referral</li>
+              </ul>
+            </div>
+            <div class="route-group">
+              <div class="route-group-label" style="color: var(--accent)">
+                Admin Center
+              </div>
+              <ul class="route-list">
+                <li>/admin/dashboard</li>
+                <li>/admin/users</li>
+                <li>/admin/bookings</li>
+                <li>/admin/disputes</li>
+                <li>/admin/verifications</li>
+                <li>/admin/finance</li>
+                <li>/admin/support</li>
+                <li>/admin/logs</li>
+                <li>/admin/settings</li>
+                <li>/admin/churn-analysis</li>
+                <li>/admin/marketing/promos</li>
+              </ul>
+            </div>
+            <div class="route-group">
+              <div class="route-group-label" style="color: var(--accent2)">
+                Solar Vertical
+              </div>
+              <ul class="route-list">
+                <li>/solar</li>
+                <li>/solar/estimate</li>
+              </ul>
+            </div>
+            <div class="route-group">
+              <div class="route-group-label" style="color: var(--accent3)">
+                Shared Transactions
+              </div>
+              <ul class="route-list">
+                <li>/booking</li>
+                <li>/wallet</li>
+                <li>/bookings/[id]/invoice</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- /content -->
+
+      <footer class="doc-footer">
+        <div class="footer-note">
+          JustInTime · Complete Feature Overview · Implementation-grounded
+        </div>
+        <div class="footer-links">
+          <a href="#">API Routes →</a>
+          <a href="#">Testing Guide →</a>
+          <a href="#">Schema Docs →</a>
+        </div>
+      </footer>
+    </div>
+    <!-- /main -->
+
+    <script>
+      // Highlight active nav link on scroll
+      const sections = document.querySelectorAll("[id]");
+      const navLinks = document.querySelectorAll(".sidenav a");
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              navLinks.forEach((l) => (l.style.color = ""));
+              const match = document.querySelector(
+                `.sidenav a[href="#${entry.target.id}"]`,
+              );
+              if (match) {
+                match.style.color = "var(--accent)";
+                match.style.borderLeftColor = "var(--accent)";
+              }
+            }
+          });
+        },
+        { threshold: 0.3 },
+      );
+
+      sections.forEach((s) => observer.observe(s));
+    </script>
+  </body>
+</html>

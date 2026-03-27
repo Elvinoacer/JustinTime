@@ -1,4 +1,4 @@
-import { BadgeCategory } from "@/generated/prisma";
+import { BadgeCategory } from "@/generated/prisma/client";
 
 export interface BadgeRequirement {
   type: 'JOB_COUNT' | 'AVG_COMPLETION_TIME' | 'RATING_THRESHOLD' | 'PROFILE_COMPLETENESS' | 'REVENUE_MILESTONE';
