@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
       data: {
         emailVerified: new Date(),
       },
+      select: { id: true },
     });
 
     await prisma.verificationToken.delete({

@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
           resetToken,
           resetTokenExpiry,
         },
+        select: { id: true },
       });
 
       // Construct reset URL

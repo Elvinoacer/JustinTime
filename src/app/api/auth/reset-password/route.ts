@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
         resetToken: null,
         resetTokenExpiry: null,
       },
+      select: { id: true },
     });
 
     return NextResponse.json({

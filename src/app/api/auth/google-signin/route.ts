@@ -41,6 +41,15 @@ export async function POST(req: Request) {
           // Only update image if user doesn't have one (preserve custom uploads)
           ...(!existingUser.image && { image }),
         },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          image: true,
+          role: true,
+          onboardingCompleted: true,
+          emailVerified: true,
+        },
       });
       return NextResponse.json(updatedUser);
     } else {
