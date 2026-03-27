@@ -2,6 +2,13 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 
+type CredentialsUserPayload = {
+  role?: string;
+  onboardingCompleted?: boolean;
+  clientInterests?: string[];
+  emailVerified?: Date | string | null;
+};
+
 /**
  * Resolve the base URL for internal API calls.
  * Fails loudly if NEXTAUTH_URL is not configured.
@@ -11,7 +18,7 @@ function getBaseUrl(): string {
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   throw new Error(
     "[Auth] NEXTAUTH_URL is not set. Add it to .env for development " +
-      "or your deployment environment variables."
+      "or your deployment environment variables.",
   );
 }
 
@@ -41,6 +48,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
+        const code =
+          "code" in credentials && typeof credentials.code === "string"
+            ? credentials.code
+            : undefined;
+
         try {
           const baseUrl = getBaseUrl();
           const response = await fetch(
@@ -51,9 +63,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               body: JSON.stringify({
                 email: credentials.email,
                 password: credentials.password,
-                code: (credentials as any).code,
+                code,
               }),
-            }
+            },
           );
 
           if (!response.ok) {
@@ -90,7 +102,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             console.error(
               "[Google Sign-In API Error]",
               response.status,
-              errorText
+              errorText,
             );
             // Log but don't block — user already authenticated with Google.
             // The JWT callback will fetch user data separately and handle
@@ -122,7 +134,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
-              }
+              },
             );
 
             if (response.ok) {
@@ -135,7 +147,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             } else {
               console.error(
                 "[JWT Error] Failed to fetch user:",
-                response.status
+                response.status,
               );
             }
           } catch (error) {
@@ -143,23 +155,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
         } else {
           // Credentials login — user data comes from authorize()
-          token.role = (user as any).role;
+          const credentialsUser = user as typeof user & CredentialsUserPayload;
+          token.role = credentialsUser.role;
           token.id = user.id;
-          token.onboardingCompleted = (user as any).onboardingCompleted;
-          token.clientInterests = (user as any).clientInterests;
-          token.emailVerified = (user as any).emailVerified;
+          token.onboardingCompleted = credentialsUser.onboardingCompleted;
+          token.clientInterests = credentialsUser.clientInterests;
+          token.emailVerified = credentialsUser.emailVerified;
         }
       }
 
       // Handle session updates (e.g., after onboarding completion)
       if (trigger === "update" && session?.user) {
-        token.onboardingCompleted = session.user.onboardingCompleted;
-        token.role = session.user.role;
-        token.clientInterests = session.user.clientInterests;
-        token.emailVerified = session.user.emailVerified;
-        if (session.user.authProvider) {
-          token.authProvider = session.user.authProvider;
-        }
+        token.onboardingCompleted =
+          session.user.onboardingCompleted ?? token.onboardingCompleted;
+        token.role = session.user.role ?? token.role;
+        token.clientInterests =
+          session.user.clientInterests ?? token.clientInterests;
+        token.emailVerified = session.user.emailVerified ?? token.emailVerified;
+        token.authProvider = session.user.authProvider ?? token.authProvider;
       }
 
       return token;

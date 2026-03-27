@@ -28,6 +28,33 @@ interface Category {
   count: number;
 }
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message?: unknown }).message === "string"
+  ) {
+    return (error as { message: string }).message;
+  }
+
+  if (
+    error &&
+    typeof error === "object" &&
+    "data" in error &&
+    typeof (error as { data?: { message?: unknown } }).data?.message ===
+      "string"
+  ) {
+    return (error as { data: { message: string } }).data.message;
+  }
+
+  return "Onboarding failed. Please try again.";
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const { data: session, update } = useSession();
@@ -57,7 +84,6 @@ export default function OnboardingPage() {
   });
   const [clientInterests, setClientInterests] = useState<string[]>([]);
 
-
   // Fetch categories from database
   const { data: categoriesData = [], isLoading: isLoadingCategories } =
     useQuery({
@@ -78,7 +104,7 @@ export default function OnboardingPage() {
         return; // Stay on onboarding page for upgrade
       }
 
-      // NEW1 Fix: Don't redirect if we just completed onboarding — let the 
+      // NEW1 Fix: Don't redirect if we just completed onboarding — let the
       // success screen show and the setTimeout handle the navigation
       const isOnSuccessStep =
         (selectedRole === "CLIENT" && currentStep === 3) ||
@@ -94,7 +120,7 @@ export default function OnboardingPage() {
 
   // Phone number formatter for Kenyan numbers
   const formatPhoneNumber = useCallback((input: string): string => {
-    let cleaned = input.replace(/\D/g, "");
+    const cleaned = input.replace(/\D/g, "");
     if (cleaned.startsWith("254")) {
       return cleaned;
     } else if (cleaned.startsWith("0")) {
@@ -106,15 +132,18 @@ export default function OnboardingPage() {
   }, []);
 
   // File upload helper
-  const uploadFile = async (file: File, folder: string = 'uploads'): Promise<string> => {
+  const uploadFile = async (
+    file: File,
+    folder: string = "uploads",
+  ): Promise<string> => {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("folder", folder);
 
-    const res = await fetch("/api/upload", { 
-      method: "POST", 
+    const res = await fetch("/api/upload", {
+      method: "POST",
       body: formData,
-      credentials: "include" 
+      credentials: "include",
     });
 
     if (!res.ok) {
@@ -141,7 +170,7 @@ export default function OnboardingPage() {
     setClientInterests((prev) =>
       prev.includes(interestId)
         ? prev.filter((id) => id !== interestId)
-        : [...prev, interestId]
+        : [...prev, interestId],
     );
   };
 
@@ -169,6 +198,9 @@ export default function OnboardingPage() {
         user: {
           role: "CLIENT",
           onboardingCompleted: true,
+          clientInterests,
+          emailVerified: session?.user?.emailVerified,
+          authProvider: session?.user?.authProvider,
         },
       });
 
@@ -178,15 +210,10 @@ export default function OnboardingPage() {
       setCurrentStep(3);
       router.refresh(); // Flush cache and re-read session cookie
       setTimeout(() => router.push("/client/dashboard"), 3000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Onboarding failed:", error);
-      
-      // B3 Fix: Handle reshaped apiClient errors and raw Errors
-      const errorMessage =
-        error?.message ||
-        error?.data?.message ||
-        "Onboarding failed. Please try again.";
-      toast.error(errorMessage);
+
+      toast.error(getErrorMessage(error));
     } finally {
       if (!succeeded) setIsLoading(false);
       setSubmitStage("");
@@ -251,6 +278,9 @@ export default function OnboardingPage() {
         user: {
           role: "PROVIDER",
           onboardingCompleted: true,
+          clientInterests: session?.user?.clientInterests,
+          emailVerified: session?.user?.emailVerified,
+          authProvider: session?.user?.authProvider,
         },
       });
 
@@ -259,15 +289,10 @@ export default function OnboardingPage() {
       setCurrentStep(4); // Success step
       router.refresh(); // Flush cache and re-read session cookie
       setTimeout(() => router.push("/dashboard"), 3000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Onboarding failed:", error);
-      
-      // B3 Fix: Handle reshaped apiClient errors and raw Errors
-      const errorMessage =
-        error?.message ||
-        error?.data?.message ||
-        "Onboarding failed. Please try again.";
-      toast.error(errorMessage);
+
+      toast.error(getErrorMessage(error));
     } finally {
       if (!succeeded) setIsLoading(false);
       setSubmitStage("");
