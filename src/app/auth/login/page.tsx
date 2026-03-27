@@ -43,7 +43,25 @@ function LoginPageContent() {
   const [showTwoFactor, setShowTwoFactor] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const [loginEmail, setLoginEmail] = useState("");
   const [isResending, setIsResending] = useState(false);
+
+  const normalizedLoginEmail = loginEmail.trim().toLowerCase();
+  const showVerifyAction =
+    !showTwoFactor &&
+    error.toLowerCase().includes("verify your email") &&
+    normalizedLoginEmail.length > 0;
+
+  const handleGoToVerifyRequest = () => {
+    if (!normalizedLoginEmail) {
+      toast.error("Enter your email address first");
+      return;
+    }
+
+    router.push(
+      `/auth/verify-request?email=${encodeURIComponent(normalizedLoginEmail)}`,
+    );
+  };
 
   const handleResend = async () => {
     setIsResending(true);
@@ -118,6 +136,7 @@ function LoginPageContent() {
           .trim()
           .toLowerCase();
         const password = String(formData.get("password") ?? "").trim();
+        setLoginEmail(email);
 
         if (email.length > 254 || password.length > 128) {
           const message = "Invalid email or password format";
@@ -294,7 +313,19 @@ function LoginPageContent() {
               >
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-800">{error}</p>
+                  <div className="flex-1">
+                    <p className="text-sm text-red-800">{error}</p>
+                    {showVerifyAction && (
+                      <button
+                        type="button"
+                        onClick={handleGoToVerifyRequest}
+                        className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-emerald-700 hover:text-emerald-600"
+                      >
+                        <Mail className="w-4 h-4" />
+                        Resend verification email
+                      </button>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -333,6 +364,8 @@ function LoginPageContent() {
                         disabled={isLoading}
                         className="block w-full pl-10 pr-3 py-2.5 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl placeholder-gray-400 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base transition-all disabled:bg-gray-100"
                         placeholder="you@example.com"
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
                       />
                     </div>
                   </div>
