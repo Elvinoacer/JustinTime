@@ -11,15 +11,15 @@ export const POST = auth(async (req) => {
     }
 
     const body = await req.json();
-    let { 
-      role, 
-      onboardingCompleted, 
-      clientInterests, 
-      skills, 
-      location, 
+    let {
+      role,
+      onboardingCompleted,
+      clientInterests,
+      skills,
+      location,
       latitude,
       longitude,
-      bio, 
+      bio,
       image,
       phone,
       hourlyRate,
@@ -43,26 +43,57 @@ export const POST = auth(async (req) => {
 
     if (role === "PROVIDER") {
       if (!skills?.length) {
-        return NextResponse.json({ error: "At least one skill is required" }, { status: 400 });
+        return NextResponse.json(
+          { error: "At least one skill is required" },
+          { status: 400 },
+        );
       }
       if (skills.length > VALIDATION.MAX_PROVIDER_SKILLS) {
-        return NextResponse.json({ error: `Maximum ${VALIDATION.MAX_PROVIDER_SKILLS} skills allowed` }, { status: 400 });
+        return NextResponse.json(
+          { error: `Maximum ${VALIDATION.MAX_PROVIDER_SKILLS} skills allowed` },
+          { status: 400 },
+        );
       }
-      if (!bio?.trim() || bio.length < VALIDATION.MIN_BIO_LENGTH || bio.length > VALIDATION.MAX_BIO_LENGTH) {
-        return NextResponse.json({ error: `Bio must be between ${VALIDATION.MIN_BIO_LENGTH} and ${VALIDATION.MAX_BIO_LENGTH} characters` }, { status: 400 });
+      if (!bio?.trim() || bio.length > VALIDATION.MAX_BIO_LENGTH) {
+        return NextResponse.json(
+          {
+            error: `Bio is required and must not exceed ${VALIDATION.MAX_BIO_LENGTH} characters`,
+          },
+          { status: 400 },
+        );
       }
       if (!phone) {
-        return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Phone number is required" },
+          { status: 400 },
+        );
       }
-      if (hourlyRate !== undefined && (isNaN(Number(hourlyRate)) || Number(hourlyRate) < 0)) {
-        return NextResponse.json({ error: "Invalid hourly rate" }, { status: 400 });
+      if (
+        hourlyRate !== undefined &&
+        (isNaN(Number(hourlyRate)) || Number(hourlyRate) < 0)
+      ) {
+        return NextResponse.json(
+          { error: "Invalid hourly rate" },
+          { status: 400 },
+        );
       }
     } else if (role === "CLIENT") {
       if (!phone) {
-        return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Phone number is required" },
+          { status: 400 },
+        );
       }
-      if (clientInterests && clientInterests.length > VALIDATION.MAX_CLIENT_INTERESTS) {
-        return NextResponse.json({ error: `Maximum ${VALIDATION.MAX_CLIENT_INTERESTS} interests allowed` }, { status: 400 });
+      if (
+        clientInterests &&
+        clientInterests.length > VALIDATION.MAX_CLIENT_INTERESTS
+      ) {
+        return NextResponse.json(
+          {
+            error: `Maximum ${VALIDATION.MAX_CLIENT_INTERESTS} interests allowed`,
+          },
+          { status: 400 },
+        );
       }
     }
 
@@ -81,12 +112,16 @@ export const POST = auth(async (req) => {
     // If provider, create or update profile
     if (role === "PROVIDER") {
       const { verificationStatus, idDocument } = body;
-      
+
       const verificationFields = {
-        ...(faceMatchScore !== undefined && { faceMatchScore: Number(faceMatchScore) }),
+        ...(faceMatchScore !== undefined && {
+          faceMatchScore: Number(faceMatchScore),
+        }),
         ...(idDocumentType && { idDocumentType }),
         ...(locationSource && { locationSource }),
-        ...(locationAccuracy !== undefined && { locationAccuracy: Number(locationAccuracy) }),
+        ...(locationAccuracy !== undefined && {
+          locationAccuracy: Number(locationAccuracy),
+        }),
         verificationAttempts: { increment: 1 },
         lastVerificationAt: new Date(),
       };
@@ -104,10 +139,14 @@ export const POST = auth(async (req) => {
           verificationStatus: "PENDING",
           idDocument,
           isVerified: false,
-          ...(faceMatchScore !== undefined && { faceMatchScore: Number(faceMatchScore) }),
+          ...(faceMatchScore !== undefined && {
+            faceMatchScore: Number(faceMatchScore),
+          }),
           ...(idDocumentType && { idDocumentType }),
           ...(locationSource && { locationSource }),
-          ...(locationAccuracy !== undefined && { locationAccuracy: Number(locationAccuracy) }),
+          ...(locationAccuracy !== undefined && {
+            locationAccuracy: Number(locationAccuracy),
+          }),
           verificationAttempts: 1,
           lastVerificationAt: new Date(),
         },
@@ -125,7 +164,7 @@ export const POST = auth(async (req) => {
         },
       });
     }
-    
+
     // If client, we might want to create a profile too or store address somewhere
     // For now, we can extend the User model or store in a separate ClientProfile
     // Since the schema doesn't have a specific client profile, we'll just ensure phone is saved above
@@ -138,21 +177,20 @@ export const POST = auth(async (req) => {
       meta: error?.meta,
       stack: error?.stack,
     });
-    
+
     // Return more specific error message
     const errorMessage = error?.message || "Internal Error";
-    
+
     // Check for specific Prisma errors (e.g., unique constraint)
-    if (error?.code === 'P2002') {
+    if (error?.code === "P2002") {
       return NextResponse.json(
-        { error: `A user with this ${error.meta?.target?.join(', ') || 'field'} already exists.` },
-        { status: 409 }
+        {
+          error: `A user with this ${error.meta?.target?.join(", ") || "field"} already exists.`,
+        },
+        { status: 409 },
       );
     }
 
-    return NextResponse.json(
-      { error: errorMessage }, 
-      { status: 500 }
-    );
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 });

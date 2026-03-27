@@ -3,7 +3,6 @@ export const VALIDATION = {
   MAX_PROVIDER_SKILLS: 5,
   MIN_PROVIDER_SKILLS: 1,
   MAX_BIO_LENGTH: 600,
-  MIN_BIO_LENGTH: 50,
   MAX_HOURLY_RATE: 100000,
 
   // Onboarding — Client
