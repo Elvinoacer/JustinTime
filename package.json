@@ -11,9 +11,6 @@
     "studio": "BROWSER=none prisma studio",
     "studio:5555": "BROWSER=none prisma studio --port 5555"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "dependencies": {
     "@auth/core": "^0.34.3",
     "@auth/prisma-adapter": "^2.11.1",
