@@ -8,7 +8,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-type Tab = "account" | "security" | "notifications" | "privacy" | "verification" | "tax";
+type Tab =
+  | "account"
+  | "security"
+  | "notifications"
+  | "privacy"
+  | "verification"
+  | "tax";
 import BackgroundCheckForm from "@/components/provider/BackgroundCheckForm";
 import { getProviderBackgroundCheck } from "@/app/actions/verification";
 import TaxSettings from "@/components/dashboard/TaxSettings";
@@ -46,8 +52,8 @@ function PushNotificationToggle() {
           {isEnabled
             ? "You are receiving real-time updates on this device."
             : notificationPermission === "denied"
-            ? "Notifications are blocked in your browser settings."
-            : "Enable to receive real-time updates on orders and messages."}
+              ? "Notifications are blocked in your browser settings."
+              : "Enable to receive real-time updates on orders and messages."}
         </p>
       </div>
       <label
@@ -90,7 +96,7 @@ function TwoFactorToggle({ initialEnabled }: { initialEnabled: boolean }) {
       toast.success(
         newState
           ? "Two-Factor Authentication enabled!"
-          : "Two-Factor Authentication disabled."
+          : "Two-Factor Authentication disabled.",
       );
     } catch (error: any) {
       toast.error(error.message || "Failed to update 2FA settings");
@@ -179,19 +185,22 @@ const SettingsPage = () => {
   const [loadingCheck, setLoadingCheck] = useState(false);
 
   useEffect(() => {
-    if (activeTab === 'verification' && settingsData?.settings?.account?.role === 'PROVIDER') {
-        const fetchCheck = async () => {
-            setLoadingCheck(true);
-            try {
-                const result = await getProviderBackgroundCheck();
-                setBackgroundCheck(result);
-            } catch (error) {
-                console.error("Failed to fetch background check:", error);
-            } finally {
-                setLoadingCheck(false);
-            }
-        };
-        fetchCheck();
+    if (
+      activeTab === "verification" &&
+      settingsData?.settings?.account?.role === "PROVIDER"
+    ) {
+      const fetchCheck = async () => {
+        setLoadingCheck(true);
+        try {
+          const result = await getProviderBackgroundCheck();
+          setBackgroundCheck(result);
+        } catch (error) {
+          console.error("Failed to fetch background check:", error);
+        } finally {
+          setLoadingCheck(false);
+        }
+      };
+      fetchCheck();
     }
   }, [activeTab, settingsData]);
 
@@ -201,23 +210,26 @@ const SettingsPage = () => {
   const [loadingTax, setLoadingTax] = useState(false);
 
   useEffect(() => {
-    if (activeTab === 'tax' && settingsData?.settings?.account?.role === 'PROVIDER') {
-        const fetchTaxData = async () => {
-            setLoadingTax(true);
-            try {
-                const [profile, filings] = await Promise.all([
-                    getTaxProfile(),
-                    getTaxFilings()
-                ]);
-                setTaxProfile(profile || { kraVerified: false });
-                setTaxFilings(filings || []);
-            } catch (error) {
-                console.error("Failed to fetch tax data:", error);
-            } finally {
-                setLoadingTax(false);
-            }
-        };
-        fetchTaxData();
+    if (
+      activeTab === "tax" &&
+      settingsData?.settings?.account?.role === "PROVIDER"
+    ) {
+      const fetchTaxData = async () => {
+        setLoadingTax(true);
+        try {
+          const [profile, filings] = await Promise.all([
+            getTaxProfile(),
+            getTaxFilings(),
+          ]);
+          setTaxProfile(profile || { kraVerified: false });
+          setTaxFilings(filings || []);
+        } catch (error) {
+          console.error("Failed to fetch tax data:", error);
+        } finally {
+          setLoadingTax(false);
+        }
+      };
+      fetchTaxData();
     }
   }, [activeTab, settingsData]);
 
@@ -227,7 +239,13 @@ const SettingsPage = () => {
     const tab = params.get("tab");
     if (
       tab &&
-      ["account", "security", "notifications", "privacy", "verification"].includes(tab)
+      [
+        "account",
+        "security",
+        "notifications",
+        "privacy",
+        "verification",
+      ].includes(tab)
     ) {
       setActiveTab(tab as Tab);
     }
@@ -242,7 +260,7 @@ const SettingsPage = () => {
 
     const updateCountdown = () => {
       const deletionTime = new Date(
-        settingsData.settings.account.deletionScheduledAt!
+        settingsData.settings.account.deletionScheduledAt!,
       );
       const now = new Date();
       const diff = deletionTime.getTime() - now.getTime();
@@ -274,10 +292,12 @@ const SettingsPage = () => {
       icon: "notifications",
     },
     { id: "privacy" as Tab, name: "Privacy", icon: "shield" },
-    ...(settingsData?.settings?.account?.role === 'PROVIDER' ? [
-        { id: "verification" as Tab, name: "Verification", icon: "verified" },
-        { id: "tax" as Tab, name: "Tax Center", icon: "account_balance" }
-    ] : []),
+    ...(settingsData?.settings?.account?.role === "PROVIDER"
+      ? [
+          { id: "verification" as Tab, name: "Verification", icon: "verified" },
+          { id: "tax" as Tab, name: "Tax Center", icon: "account_balance" },
+        ]
+      : []),
   ];
 
   const showSuccessNotification = (message: string) => {
@@ -321,7 +341,7 @@ const SettingsPage = () => {
 
     if (!hasUpperCase || !hasLowerCase || !hasNumber) {
       alert(
-        "Password must contain at least one uppercase letter, one lowercase letter, and one number"
+        "Password must contain at least one uppercase letter, one lowercase letter, and one number",
       );
       return;
     }
@@ -357,7 +377,7 @@ const SettingsPage = () => {
       setShowConfirmPassword(false);
     } catch (error) {
       alert(
-        error instanceof Error ? error.message : "Failed to change password"
+        error instanceof Error ? error.message : "Failed to change password",
       );
     } finally {
       setIsPasswordChanging(false);
@@ -544,29 +564,30 @@ const SettingsPage = () => {
         <div className="p-3 sm:p-4 md:p-6 lg:p-8">
           <AnimatePresence mode="wait">
             {/* Verification Tab (Provider Only) */}
-            {activeTab === "verification" && settings.account.role === 'PROVIDER' && (
+            {activeTab === "verification" &&
+              settings.account.role === "PROVIDER" && (
                 <motion.div
-                    key="verification"
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2 }}
+                  key="verification"
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.2 }}
                 >
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">
-                        Provider Verification
-                    </h2>
-                    {loadingCheck ? (
-                        <div className="flex justify-center p-8">
-                            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                        </div>
-                    ) : (
-                        <BackgroundCheckForm 
-                            initialStatus={backgroundCheck?.status} 
-                            expiresAt={backgroundCheck?.expiresAt}
-                        />
-                    )}
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">
+                    Provider Verification
+                  </h2>
+                  {loadingCheck ? (
+                    <div className="flex justify-center p-8">
+                      <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  ) : (
+                    <BackgroundCheckForm
+                      initialStatus={backgroundCheck?.status}
+                      expiresAt={backgroundCheck?.expiresAt}
+                    />
+                  )}
                 </motion.div>
-            )}
+              )}
 
             {/* Account Tab */}
             {activeTab === "account" && (
@@ -664,7 +685,7 @@ const SettingsPage = () => {
                         </p>
                         <p className="font-semibold text-gray-900 text-sm sm:text-base">
                           {new Date(
-                            settings.account.createdAt
+                            settings.account.createdAt,
                           ).toLocaleDateString("en-US", {
                             month: "short",
                             year: "numeric",
@@ -684,7 +705,7 @@ const SettingsPage = () => {
                               <p className="text-xs text-amber-700 mt-0.5 sm:mt-1">
                                 Valid until{" "}
                                 {new Date(
-                                  settings.subscription.endDate
+                                  settings.subscription.endDate,
                                 ).toLocaleDateString()}
                               </p>
                             )}
@@ -731,7 +752,8 @@ const SettingsPage = () => {
                             <p className="text-xs text-gray-500 mt-1 sm:mt-2">
                               Scheduled:{" "}
                               {new Date(
-                                settingsData.settings.account.deletionScheduledAt
+                                settingsData.settings.account
+                                  .deletionScheduledAt,
                               ).toLocaleDateString()}
                             </p>
                           </div>
@@ -972,24 +994,38 @@ const SettingsPage = () => {
                       <span>Active Sessions</span>
                     </h3>
                     <div className="space-y-2 sm:space-y-3">
-                      <div className="p-3 sm:p-4 bg-white border border-gray-200 rounded-lg flex items-center justify-between">
-                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                          <span className="material-symbols-outlined text-gray-400 text-base sm:text-lg">
-                            computer
-                          </span>
-                          <div className="min-w-0">
-                            <p className="font-medium text-gray-900 text-sm sm:text-base truncate">
-                              Current Session
-                            </p>
-                            <p className="text-xs sm:text-sm text-gray-800">
-                              Last active: Just now
-                            </p>
+                      {(settingsData?.settings.activeSessions || []).map(
+                        (activeSession) => (
+                          <div
+                            key={activeSession.id}
+                            className="p-3 sm:p-4 bg-white border border-gray-200 rounded-lg flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                              <span className="material-symbols-outlined text-gray-400 text-base sm:text-lg">
+                                computer
+                              </span>
+                              <div className="min-w-0">
+                                <p className="font-medium text-gray-900 text-sm sm:text-base truncate">
+                                  {activeSession.isCurrent
+                                    ? "Current Session"
+                                    : "Another Session"}
+                                </p>
+                                <p className="text-xs sm:text-sm text-gray-800">
+                                  Expires:{" "}
+                                  {activeSession.expires
+                                    ? new Date(
+                                        activeSession.expires,
+                                      ).toLocaleString()
+                                    : "Unknown"}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0">
+                              {activeSession.isCurrent ? "Current" : "Active"}
+                            </span>
                           </div>
-                        </div>
-                        <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0">
-                          Active
-                        </span>
-                      </div>
+                        ),
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1175,26 +1211,27 @@ const SettingsPage = () => {
               </motion.div>
             )}
             {/* Tax Tab (Providers Only) */}
-            {activeTab === "tax" && settingsData?.settings?.account?.role === 'PROVIDER' && (
-              <motion.div
-                key="tax"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-              >
+            {activeTab === "tax" &&
+              settingsData?.settings?.account?.role === "PROVIDER" && (
+                <motion.div
+                  key="tax"
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
                   {loadingTax ? (
-                      <div className="flex justify-center p-12">
-                          <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-                      </div>
+                    <div className="flex justify-center p-12">
+                      <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
                   ) : (
-                      <TaxSettings 
-                        initialData={taxProfile || { kraVerified: false }} 
-                        filings={taxFilings} 
-                      />
+                    <TaxSettings
+                      initialData={taxProfile || { kraVerified: false }}
+                      filings={taxFilings}
+                    />
                   )}
-              </motion.div>
-            )}
+                </motion.div>
+              )}
           </AnimatePresence>
         </div>
       </div>

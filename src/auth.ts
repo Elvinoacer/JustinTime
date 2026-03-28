@@ -9,6 +9,16 @@ type CredentialsUserPayload = {
   emailVerified?: Date | string | null;
 };
 
+type DbUserSnapshot = {
+  id: string;
+  role: string;
+  onboardingCompleted: boolean;
+  clientInterests: string[];
+  emailVerified: Date | string | null;
+};
+
+const DB_SESSION_SYNC_INTERVAL_SECONDS = 60;
+
 /**
  * Resolve the base URL for internal API calls.
  * Fails loudly if NEXTAUTH_URL is not configured.
@@ -20,6 +30,32 @@ function getBaseUrl(): string {
     "[Auth] NEXTAUTH_URL is not set. Add it to .env for development " +
       "or your deployment environment variables.",
   );
+}
+
+async function fetchDbUserByEmail(
+  email?: string | null,
+): Promise<DbUserSnapshot | null> {
+  if (!email) return null;
+
+  try {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(
+      `${baseUrl}/api/users/me?email=${encodeURIComponent(email)}`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as DbUserSnapshot;
+  } catch (error) {
+    console.error("[JWT Sync Error]", error);
+    return null;
+  }
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -119,6 +155,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
 
     async jwt({ token, user, trigger, session, account }) {
+      const nowSeconds = Math.floor(Date.now() / 1000);
+
       // On initial sign-in, persist provider + user data
       if (user) {
         // B2/B6: save authProvider on first sign-in
@@ -127,31 +165,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         if (account?.provider === "google") {
-          try {
-            const baseUrl = getBaseUrl();
-            const response = await fetch(
-              `${baseUrl}/api/users/me?email=${encodeURIComponent(user.email!)}`,
-              {
-                method: "GET",
-                headers: { "Content-Type": "application/json" },
-              },
-            );
-
-            if (response.ok) {
-              const dbUser = await response.json();
-              token.role = dbUser.role;
-              token.id = dbUser.id;
-              token.onboardingCompleted = dbUser.onboardingCompleted;
-              token.clientInterests = dbUser.clientInterests;
-              token.emailVerified = dbUser.emailVerified;
-            } else {
-              console.error(
-                "[JWT Error] Failed to fetch user:",
-                response.status,
-              );
-            }
-          } catch (error) {
-            console.error("[JWT Error - Google]", error);
+          const dbUser = await fetchDbUserByEmail(user.email);
+          if (dbUser) {
+            token.role = dbUser.role;
+            token.id = dbUser.id;
+            token.onboardingCompleted = dbUser.onboardingCompleted;
+            token.clientInterests = dbUser.clientInterests;
+            token.emailVerified = dbUser.emailVerified;
+            token.lastDbSyncAt = nowSeconds;
+          } else {
+            console.error("[JWT Error] Failed to fetch Google user snapshot");
           }
         } else {
           // Credentials login — user data comes from authorize()
@@ -161,7 +184,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.onboardingCompleted = credentialsUser.onboardingCompleted;
           token.clientInterests = credentialsUser.clientInterests;
           token.emailVerified = credentialsUser.emailVerified;
+          token.lastDbSyncAt = nowSeconds;
         }
+      }
+
+      const shouldRefreshFromDb =
+        !user &&
+        trigger !== "update" &&
+        !!token.email &&
+        (!token.lastDbSyncAt ||
+          nowSeconds - Number(token.lastDbSyncAt) >=
+            DB_SESSION_SYNC_INTERVAL_SECONDS);
+
+      if (shouldRefreshFromDb) {
+        const latestDbUser = await fetchDbUserByEmail(token.email);
+        if (latestDbUser) {
+          token.role = latestDbUser.role;
+          token.id = latestDbUser.id;
+          token.onboardingCompleted = latestDbUser.onboardingCompleted;
+          token.clientInterests = latestDbUser.clientInterests;
+          token.emailVerified = latestDbUser.emailVerified;
+        }
+        token.lastDbSyncAt = nowSeconds;
       }
 
       // Handle session updates (e.g., after onboarding completion)
@@ -173,6 +217,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           session.user.clientInterests ?? token.clientInterests;
         token.emailVerified = session.user.emailVerified ?? token.emailVerified;
         token.authProvider = session.user.authProvider ?? token.authProvider;
+        token.lastDbSyncAt = nowSeconds;
       }
 
       return token;

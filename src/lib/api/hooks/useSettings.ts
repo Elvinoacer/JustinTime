@@ -30,6 +30,11 @@ interface Settings {
     showLocation: boolean;
     allowMessages: boolean;
   };
+  activeSessions: {
+    id: string;
+    expires: string | null;
+    isCurrent: boolean;
+  }[];
 }
 
 interface UpdateSettingsParams {
@@ -40,7 +45,7 @@ interface UpdateSettingsParams {
 
 // Fetch user settings
 export const useSettings = () => {
-  return useQuery<{ settings: Settings }>({
+  return useQuery<{ settings: Settings; twoFactorEnabled: boolean }>({
     queryKey: ["settings"],
     queryFn: async () => {
       const response = await fetch("/api/settings");
@@ -49,6 +54,10 @@ export const useSettings = () => {
       }
       return response.json();
     },
+    // Ensure session-related UI stays fresh after refresh/focus/reconnect.
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 };
 
