@@ -1,18 +1,21 @@
 import { motion } from "framer-motion";
 import ServiceCard from "./ServiceCard";
-import { useServicesInfinite, ServicesFilters } from "@/lib/api/hooks/useServices";
-import { useState } from "react";
+import {
+  useServicesInfinite,
+  ServicesFilters,
+  Service,
+  ServicesResponse,
+} from "@/lib/api/hooks/useServices";
 import InfiniteScrollSentinel from "@/components/shared/InfiniteScrollSentinel";
 
 interface ServicesListProps {
   filters: ServicesFilters;
-  onPageChange: (page: number) => void;
-  onSortChange: (sort: any) => void;
+  onPageChange?: (page: number) => void;
+  onSortChange: (sort: ServicesFilters["sort"]) => void;
 }
 
 const ServicesList = ({
   filters,
-  onPageChange,
   onSortChange,
 }: ServicesListProps) => {
   // Fetch services from API
@@ -25,7 +28,6 @@ const ServicesList = ({
     hasNextPage,
     isFetchingNextPage
   } = useServicesInfinite(filters);
-  const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   // Handle sort change
   const handleSortChange = (sort: string) => {
@@ -37,7 +39,6 @@ const ServicesList = ({
       "Price: High to Low": "price_high",
     };
     onSortChange(sortMap[sort] || "relevance");
-    setShowSortDropdown(false);
   };
 
   // Loading State
@@ -85,7 +86,7 @@ const ServicesList = ({
     );
   }
 
-  const services = data?.pages.flatMap((page: any) => page.services) || [];
+  const services = data?.pages.flatMap((page: ServicesResponse) => page.services) || [];
   const pagination = data?.pages[0]?.pagination;
 
   // Empty State
@@ -143,42 +144,58 @@ const ServicesList = ({
 
   return (
     <div className="flex-1">
-      {/* Header - Two Column Layout */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 sm:mb-6 md:mb-8 gap-3 sm:gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-1">
-            Available <span className="text-emerald-600">Services</span>
-          </h2>
-          <p className="text-gray-600 text-sm sm:text-base">
-            Discover top-rated professionals
-          </p>
-        </div>
+      <div className="mb-6 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+              <span className="material-symbols-outlined text-sm">bolt</span>
+              Curated results
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl">
+              Available services tailored to your current filters
+            </h2>
+            <p className="max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">
+              Compare trusted providers faster with clearer prices, ratings, and
+              location-aware sorting.
+            </p>
+          </div>
 
-        {/* Sort Controls */}
-        <div className="flex items-center justify-between md:justify-end gap-2">
-          <span className="text-xs sm:text-sm font-medium text-gray-600 hidden sm:inline">
-            Sort:
-          </span>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+              <span className="material-symbols-outlined text-base text-emerald-600">
+                dataset
+              </span>
+              <span>
+                <strong className="text-gray-950">{pagination?.total || 0}</strong> results
+              </span>
+            </div>
 
-          {/* Desktop Sort Select */}
-          <div className="hidden md:block">
-            <select
-              className="rounded-lg md:rounded-xl border-gray-200 bg-white py-2 md:py-2.5 pl-3 md:pl-4 pr-8 md:pr-10 text-sm font-medium text-gray-900 shadow-sm focus:border-emerald-500 focus:ring-1 md:focus:ring-2 focus:ring-emerald-500/20 transition-all"
-              onChange={(e) => handleSortChange(e.target.value)}
-              value={currentSortLabel}
-            >
-              {sortOptions.map((option) => (
-                <option key={option.value} value={option.label}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                Sort
+              </span>
+              <div className="hidden md:block">
+                <select
+                  className="bg-transparent pr-6 text-sm font-medium text-gray-900 outline-none"
+                  onChange={(e) => handleSortChange(e.target.value)}
+                  value={currentSortLabel}
+                >
+                  {sortOptions.map((option) => (
+                    <option key={option.value} value={option.label}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <span className="md:hidden text-sm font-medium text-gray-900">
+                {currentSortLabel}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Results Count and View Toggle */}
-      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
           <span className="material-symbols-outlined text-emerald-600 text-sm">
             info
@@ -191,20 +208,15 @@ const ServicesList = ({
           </span>
         </div>
 
-        {/* View Toggle (Grid/List) - Optional */}
-        <div className="hidden sm:flex items-center gap-1">
-          <button className="p-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200">
-            <span className="material-symbols-outlined text-sm">grid_view</span>
-          </button>
-          <button className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100">
-            <span className="material-symbols-outlined text-sm">view_list</span>
+        <div className="hidden items-center gap-1 rounded-full border border-gray-200 bg-white p-1 shadow-sm sm:flex">
+          <button className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+            Grid View
           </button>
         </div>
       </div>
 
-      {/* Services Grid - Improved Responsive Layout */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
-        {services.map((service: any, index: number) => (
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 xl:gap-6">
+        {services.map((service: Service, index: number) => (
           <ServiceCard
             key={service.id}
             service={{
@@ -212,10 +224,10 @@ const ServicesList = ({
               name: service.title,
               category: service.category?.name || "General",
               description: service.description,
-              rating: service.rating,
-              reviews: service.reviews,
+              rating: service.rating || 0,
+              reviewCount: service.provider?.reviewCount || 0,
               startingPrice: service.price,
-              isVerified: service.provider?.isVerified || false,
+              isVerified: service.provider?.profile?.isVerified || false,
               imageUrl:
                 service.images?.[0] ||
                 service.provider?.image ||
@@ -225,6 +237,7 @@ const ServicesList = ({
                 name: service.provider?.name || "Unknown Provider",
                 image: service.provider?.image,
                 subscription: service.provider?.subscription,
+                verified: service.provider?.profile?.isVerified || false,
               },
             }}
             index={index}
@@ -251,7 +264,7 @@ const ServicesList = ({
       {/* End of list message */}
       {!hasNextPage && services.length > 0 && (
         <div className="mt-8 text-center text-gray-500 text-sm">
-          You've seen all available services
+          You&apos;ve seen all available services
         </div>
       )}
 

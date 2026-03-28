@@ -31,27 +31,55 @@ const Filters = ({ filters, onFilterChange, onClose }: FiltersProps) => {
     });
   };
 
+  const activeFilterCount = [
+    filters.minPrice ? 1 : 0,
+    filters.maxPrice ? 1 : 0,
+    filters.verified ? 1 : 0,
+    filters.minRating ? 1 : 0,
+  ].reduce((sum, value) => sum + value, 0);
+
   return (
     <div className="w-full">
-      <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 shadow-sm">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-emerald-600 text-lg sm:text-xl">
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-100 bg-[linear-gradient(180deg,#f8fafc_0%,#ffffff_100%)] p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-lg text-emerald-600 sm:text-xl">
               filter_list
-            </span>
-            <h2 className="text-base sm:text-lg font-bold text-gray-900">
-              Filters
-            </h2>
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-gray-900 sm:text-lg">Filters</h2>
+                <p className="text-xs text-gray-500 sm:text-sm">
+                  Narrow results without losing momentum
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={resetFilters}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 sm:px-3 sm:py-1.5 sm:text-sm"
+            >
+              <span className="material-symbols-outlined text-sm">refresh</span>
+              <span>Reset</span>
+            </button>
           </div>
-          <button
-            onClick={resetFilters}
-            className="text-xs sm:text-sm text-emerald-600 font-medium hover:text-emerald-700 px-2 sm:px-3 py-1 sm:py-1.5 hover:bg-emerald-50 rounded-lg transition-colors flex items-center gap-1"
-          >
-            <span className="material-symbols-outlined text-sm">refresh</span>
-            <span className="hidden sm:inline">Reset All</span>
-            <span className="inline sm:hidden">Reset</span>
-          </button>
+
+          <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                  Active filters
+                </p>
+                <p className="mt-1 text-sm text-emerald-900">
+                  {activeFilterCount === 0
+                    ? "No refinements applied yet"
+                    : `${activeFilterCount} refinements shaping these results`}
+                </p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-bold text-emerald-700 shadow-sm">
+                {activeFilterCount}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-h-[calc(100vh-200px)] sm:max-h-none overflow-y-auto">
@@ -380,12 +408,7 @@ const Filters = ({ filters, onFilterChange, onClose }: FiltersProps) => {
                   Active Filters
                 </span>
                 <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                  {[
-                    filters.minPrice ? 1 : 0,
-                    filters.maxPrice ? 1 : 0,
-                    filters.verified ? 1 : 0,
-                    filters.minRating ? 1 : 0,
-                  ].reduce((a, b) => a + b, 0)}
+                  {activeFilterCount}
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
