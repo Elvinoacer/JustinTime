@@ -36,7 +36,9 @@ const ImageCropper = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [deviceIsMobile, setDeviceIsMobile] = useState(false);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
-  const [objectFit, setObjectFit] = useState<"contain" | "cover" | "horizontal-cover" | "vertical-cover">("vertical-cover");
+  const [objectFit, setObjectFit] = useState<
+    "contain" | "cover" | "horizontal-cover" | "vertical-cover"
+  >("vertical-cover");
 
   // Detect mobile device
   useEffect(() => {
@@ -65,7 +67,7 @@ const ImageCropper = ({
     (croppedArea: Area, croppedAreaPixels: Area) => {
       setCroppedAreaPixels(croppedAreaPixels);
     },
-    []
+    [],
   );
 
   const handleCropImage = async () => {
@@ -170,9 +172,21 @@ const ImageCropper = ({
         <div
           className="relative flex-shrink-0 w-full bg-black overflow-hidden"
           style={{
-            height: finalIsMobile ? "45dvh" : isCompactViewport ? "42vh" : "60vh",
-            maxHeight: finalIsMobile ? "360px" : isCompactViewport ? "420px" : "500px",
-            minHeight: finalIsMobile ? "180px" : isCompactViewport ? "240px" : "300px",
+            height: finalIsMobile
+              ? "45dvh"
+              : isCompactViewport
+                ? "42vh"
+                : "60vh",
+            maxHeight: finalIsMobile
+              ? "360px"
+              : isCompactViewport
+                ? "420px"
+                : "500px",
+            minHeight: finalIsMobile
+              ? "180px"
+              : isCompactViewport
+                ? "240px"
+                : "300px",
           }}
         >
           {image ? (
@@ -423,19 +437,23 @@ const ImageCropper = ({
               >
                 Cancel
               </button>
-              
-               <button
-                onClick={() => setObjectFit(prev => prev === "contain" ? "cover" : "contain")}
+
+              <button
+                onClick={() =>
+                  setObjectFit((prev) =>
+                    prev === "contain" ? "cover" : "contain",
+                  )
+                }
                 className={`bg-blue-50 text-blue-700 border border-blue-200 rounded-lg font-medium hover:bg-blue-100 transition-colors active:scale-[0.98] flex items-center justify-center gap-2 ${
                   finalIsMobile
                     ? "flex-1 px-4 py-3 text-base min-h-[48px]"
                     : "flex-1 xs:flex-none px-4 py-2.5 sm:py-3 text-sm sm:text-base min-h-[44px]"
                 }`}
               >
-                 <span className="material-symbols-outlined text-sm sm:text-base">
-                   {objectFit === "contain" ? "zoom_out_map" : "fit_screen"}
-                 </span>
-                 {objectFit === "contain" ? "Fill Frame" : "Fit Image"}
+                <span className="material-symbols-outlined text-sm sm:text-base">
+                  {objectFit === "contain" ? "zoom_out_map" : "fit_screen"}
+                </span>
+                {objectFit === "contain" ? "Fill Frame" : "Fit Image"}
               </button>
 
               <button
@@ -496,7 +514,7 @@ async function getCroppedImg(
   imageSrc: string,
   pixelCrop: Area,
   rotation = 0,
-  flip = { horizontal: false, vertical: false }
+  flip = { horizontal: false, vertical: false },
 ): Promise<Blob> {
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
@@ -509,19 +527,16 @@ async function getCroppedImg(
   // Ensure pixel crop values are properly rounded and bounded
   const cropX = Math.max(0, Math.round(pixelCrop.x));
   const cropY = Math.max(0, Math.round(pixelCrop.y));
-  const cropWidth = Math.min(
-    Math.round(pixelCrop.width),
-    image.width - cropX
-  );
+  const cropWidth = Math.min(Math.round(pixelCrop.width), image.width - cropX);
   const cropHeight = Math.min(
     Math.round(pixelCrop.height),
-    image.height - cropY
+    image.height - cropY,
   );
 
-  console.log('Crop Debug Info:', {
+  console.log("Crop Debug Info:", {
     imageDimensions: { width: image.width, height: image.height },
     requestedCrop: pixelCrop,
-    actualCrop: { x: cropX, y: cropY, width: cropWidth, height: cropHeight }
+    actualCrop: { x: cropX, y: cropY, width: cropWidth, height: cropHeight },
   });
 
   // Set canvas size to the desired crop size
@@ -540,7 +555,7 @@ async function getCroppedImg(
       0,
       0,
       cropWidth,
-      cropHeight
+      cropHeight,
     );
   } else {
     // Handle rotation and flipping
@@ -550,7 +565,7 @@ async function getCroppedImg(
     const { width: bBoxWidth, height: bBoxHeight } = rotateSize(
       image.width,
       image.height,
-      rotation
+      rotation,
     );
 
     // Temporarily set canvas to full image size for rotation
@@ -571,12 +586,7 @@ async function getCroppedImg(
     tempCtx.drawImage(image, 0, 0);
 
     // extract the cropped image from the rotated image
-    const data = tempCtx.getImageData(
-      cropX,
-      cropY,
-      cropWidth,
-      cropHeight
-    );
+    const data = tempCtx.getImageData(cropX, cropY, cropWidth, cropHeight);
 
     // paste cropped data to final canvas
     ctx.putImageData(data, 0, 0);
@@ -587,14 +597,17 @@ async function getCroppedImg(
     canvas.toBlob(
       (blob) => {
         if (blob) {
-          console.log('Cropped blob created:', { size: blob.size, type: blob.type });
+          console.log("Cropped blob created:", {
+            size: blob.size,
+            type: blob.type,
+          });
           resolve(blob);
         } else {
           reject(new Error("Canvas is empty"));
         }
       },
       "image/jpeg",
-      0.95
+      0.95,
     );
   });
 }
