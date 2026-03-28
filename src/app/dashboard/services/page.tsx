@@ -381,7 +381,7 @@ const ServicesPage = () => {
                     : 0;
 
                 return (
-                  <div className="grid gap-0 lg:grid-cols-[260px_minmax(0,1fr)]">
+                  <div className="grid gap-0 lg:grid-cols-[240px_minmax(0,1fr)]">
                       <div className="relative min-h-[220px] overflow-hidden bg-gray-100 lg:min-h-[100%]">
                         {service.images && service.images.length > 0 ? (
                           <img
@@ -454,37 +454,37 @@ const ServicesPage = () => {
                         </div>
                       </div>
 
-                      <div className="flex min-w-0 flex-col gap-5 p-5 lg:p-6">
-                        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                      <div className="flex min-w-0 flex-col gap-4 p-5 lg:p-6">
+                        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
                           <div className="min-w-0 flex-1 space-y-3">
                             <div className="flex flex-wrap items-center gap-2">
                               <span
-                                className={`max-w-full truncate rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${accent.chip}`}
+                                className={`max-w-[220px] truncate rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${accent.chip}`}
                               >
                                 {service.category || "Service"}
                               </span>
-                              <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-500">
+                              <span className="shrink-0 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-500">
                                 {service.pricingUnit === "hourly" ? "Hourly" : "Fixed fee"}
                               </span>
                             </div>
                             <div className="space-y-2">
-                              <h3 className="line-clamp-1 text-2xl font-bold tracking-tight text-gray-950">
+                              <h3 className="max-w-3xl truncate text-2xl font-bold tracking-tight text-gray-950">
                                 {service.name}
                               </h3>
-                              <p className="max-w-3xl text-sm font-medium text-gray-500">
+                              <p className="line-clamp-2 max-w-2xl text-sm font-medium leading-6 text-gray-500">
                                 {service.isActive
                                   ? "Visible to clients and ready to attract bookings."
                                   : "Currently hidden from new client searches."}
                               </p>
-                              <p className="line-clamp-2 max-w-3xl text-sm leading-relaxed text-gray-600">
+                              <p className="line-clamp-2 max-w-3xl text-sm leading-6 text-gray-600">
                                 {service.description ||
                                   "Add a concise value-focused description so clients quickly understand what makes this service worth booking."}
                               </p>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3 xl:w-[360px] xl:grid-cols-2">
-                            <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+                          <div className="grid grid-cols-2 gap-3 self-start">
+                            <div className="min-w-0 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
                               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
                                 Positioning
                               </p>
@@ -492,12 +492,12 @@ const ServicesPage = () => {
                                 <span className="material-symbols-outlined text-lg text-gray-700">
                                   campaign
                                 </span>
-                                <p className="text-sm font-semibold text-gray-900">
+                                <p className="truncate text-sm font-semibold text-gray-900">
                                   {performanceLabel}
                                 </p>
                               </div>
                             </div>
-                            <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+                            <div className="min-w-0 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
                               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
                                 Save Rate
                               </p>
@@ -505,7 +505,7 @@ const ServicesPage = () => {
                                 <span className="material-symbols-outlined text-lg text-gray-700">
                                   monitoring
                                 </span>
-                                <p className="text-sm font-semibold text-gray-900">
+                                <p className="truncate text-sm font-semibold text-gray-900">
                                   {conversionRate}% interest
                                 </p>
                               </div>
@@ -513,15 +513,15 @@ const ServicesPage = () => {
                           </div>
                         </div>
 
-                        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px]">
+                        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_240px]">
                           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                             <div
-                              className={`rounded-2xl px-3 py-3 ring-1 ${accent.metric}`}
+                              className={`min-w-0 rounded-2xl px-3 py-3 ring-1 ${accent.metric}`}
                               title="Total Views"
                             >
                               <div className="flex items-center gap-1.5 text-gray-500">
                                 <span className="material-symbols-outlined text-base">visibility</span>
-                                <span className="text-xs font-medium uppercase tracking-wide">
+                                <span className="truncate text-xs font-medium uppercase tracking-wide">
                                   Views
                                 </span>
                               </div>
@@ -530,12 +530,12 @@ const ServicesPage = () => {
                               </p>
                             </div>
                             <div
-                              className={`rounded-2xl px-3 py-3 ring-1 ${accent.metric}`}
+                              className={`min-w-0 rounded-2xl px-3 py-3 ring-1 ${accent.metric}`}
                               title="Favorites"
                             >
                               <div className="flex items-center gap-1.5 text-gray-500">
                                 <span className="material-symbols-outlined text-base">favorite</span>
-                                <span className="text-xs font-medium uppercase tracking-wide">
+                                <span className="truncate text-xs font-medium uppercase tracking-wide">
                                   Favorites
                                 </span>
                               </div>
@@ -543,21 +543,21 @@ const ServicesPage = () => {
                                 {(service.favorites || 0).toLocaleString()}
                               </p>
                             </div>
-                            <div className="rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-sm">
+                            <div className="min-w-0 rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-sm">
                               <div className="flex items-center gap-1.5 text-gray-500">
                                 <span className="material-symbols-outlined text-base">sell</span>
-                                <span className="text-xs font-medium uppercase tracking-wide">
+                                <span className="truncate text-xs font-medium uppercase tracking-wide">
                                   Pricing
                                 </span>
                               </div>
-                              <p className="mt-1 text-sm font-semibold text-gray-900">
+                              <p className="mt-1 line-clamp-2 text-sm font-semibold text-gray-900">
                                 {service.pricingUnit === "hourly" ? "Hourly" : "Fixed fee"}
                               </p>
                             </div>
-                            <div className="rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-sm">
+                            <div className="min-w-0 rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-sm">
                               <div className="flex items-center gap-1.5 text-gray-500">
                                 <span className="material-symbols-outlined text-base">collections_bookmark</span>
-                                <span className="text-xs font-medium uppercase tracking-wide">
+                                <span className="truncate text-xs font-medium uppercase tracking-wide">
                                   Assets
                                 </span>
                               </div>
@@ -567,7 +567,7 @@ const ServicesPage = () => {
                             </div>
                           </div>
 
-                          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-slate-950/95">
+                          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-slate-950/95 shadow-sm">
                             {service.video ? (
                               <video
                                 src={service.video}
@@ -575,10 +575,10 @@ const ServicesPage = () => {
                                 autoPlay
                                 loop
                                 playsInline
-                                className="h-full min-h-[140px] w-full object-cover opacity-70"
+                                className="aspect-video w-full object-cover object-center opacity-80"
                               />
                             ) : (
-                              <div className="flex min-h-[140px] h-full items-center justify-center bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.28),_transparent_45%),linear-gradient(135deg,#0f172a_0%,#111827_100%)] text-white/80">
+                              <div className="flex aspect-video w-full items-center justify-center bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.28),_transparent_45%),linear-gradient(135deg,#0f172a_0%,#111827_100%)] text-white/80">
                                 <div className="text-center">
                                   <span className="material-symbols-outlined text-3xl">
                                     movie
@@ -587,11 +587,21 @@ const ServicesPage = () => {
                                 </div>
                               </div>
                             )}
+                            <div className="border-t border-white/10 bg-slate-950/90 px-3 py-2">
+                              <div className="flex items-center justify-between gap-3 text-xs text-white/70">
+                                <span className="truncate uppercase tracking-[0.18em]">
+                                  Video Preview
+                                </span>
+                                <span className="shrink-0">
+                                  {service.video ? "Muted loop" : "Optional"}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </div>
 
                         <div className="rounded-[22px] border border-gray-100 bg-[linear-gradient(135deg,#f8fafc_0%,#ffffff_100%)] p-3 shadow-sm">
-                          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
                             <button
                               onClick={() => {
                                 setPromotingService(service);
