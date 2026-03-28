@@ -4,11 +4,11 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await auth();
-    
+
     // Only admins can waive fees
     if (!session?.user?.id || session.user.role !== "ADMIN") {
       return new NextResponse("Unauthorized", { status: 401 });
@@ -26,7 +26,7 @@ export async function POST(
     if (!profile) {
       return NextResponse.json(
         { error: "User profile not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -37,6 +37,11 @@ export async function POST(
         onboardingFeeWaived: waive,
         onboardingFeeWaivedBy: waive ? session.user.id : null,
         onboardingFeeWaivedAt: waive ? new Date() : null,
+        hasPaidOnboardingFee: waive ? true : profile.hasPaidOnboardingFee,
+        verificationStatus: waive ? "VERIFIED" : profile.verificationStatus,
+        isVerified: waive ? true : profile.isVerified,
+        premiumPricingEnabled: waive ? true : profile.premiumPricingEnabled,
+        premiumMultiplier: waive ? 1.1 : profile.premiumMultiplier,
       },
     });
 
@@ -49,6 +54,7 @@ export async function POST(
         details: {
           userName: profile.user.name,
           userEmail: profile.user.email,
+          autoVerified: waive,
           waivedAt: waive ? new Date().toISOString() : null,
         },
       },
@@ -57,15 +63,17 @@ export async function POST(
     return NextResponse.json({
       success: true,
       waived: updatedProfile.onboardingFeeWaived,
-      message: waive 
-        ? "Onboarding fee has been waived" 
+      isVerified: updatedProfile.isVerified,
+      verificationStatus: updatedProfile.verificationStatus,
+      message: waive
+        ? "Onboarding fee waived. Verification access and privileges granted."
         : "Fee waiver has been revoked",
     });
   } catch (error: any) {
     console.error("[WAIVE_FEE_ERROR]", error);
     return NextResponse.json(
       { error: error.message || "Failed to update waiver status" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

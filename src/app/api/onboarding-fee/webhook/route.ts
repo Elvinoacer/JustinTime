@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   try {
     // Parse webhook payload
     const body = await req.json();
-    
+
     console.log("=== IntaSend Onboarding Webhook ===");
     console.log("Payload:", JSON.stringify(body, null, 2));
 
@@ -17,7 +17,10 @@ export async function POST(req: Request) {
         return NextResponse.json({ challenge: body.challenge });
       } else {
         console.error("❌ Challenge verification failed");
-        return NextResponse.json({ error: "Invalid challenge" }, { status: 401 });
+        return NextResponse.json(
+          { error: "Invalid challenge" },
+          { status: 401 },
+        );
       }
     }
 
@@ -29,7 +32,9 @@ export async function POST(req: Request) {
     const apiRef = body.api_ref || body.invoice?.api_ref || "";
     const invoiceId = body.invoice_id || body.id;
 
-    console.log(`Processing webhook: state=${state}, api_ref=${apiRef}, invoice=${invoiceId}`);
+    console.log(
+      `Processing webhook: state=${state}, api_ref=${apiRef}, invoice=${invoiceId}`,
+    );
 
     // Only process COMPLETE payments
     if (state !== "COMPLETE") {
@@ -40,13 +45,15 @@ export async function POST(req: Request) {
     // Check if this is an onboarding fee payment
     // New format: ONBOARD-xxxxxxxx-timestamp
     // Old format: ONBOARDING-xxxxxxxx-timestamp or ONBOARDING_xxxx_timestamp
-    const isOnboardingPayment = 
-      apiRef.startsWith("ONBOARD-") || 
+    const isOnboardingPayment =
+      apiRef.startsWith("ONBOARD-") ||
       apiRef.startsWith("ONBOARDING-") ||
       apiRef.startsWith("ONBOARDING_");
 
     if (!isOnboardingPayment) {
-      console.log(`Not an onboarding payment (api_ref: ${apiRef}), skipping...`);
+      console.log(
+        `Not an onboarding payment (api_ref: ${apiRef}), skipping...`,
+      );
       return NextResponse.json({ received: true, skipped: true });
     }
 
@@ -57,7 +64,10 @@ export async function POST(req: Request) {
 
     if (!userIdPart) {
       console.error("Could not extract userId from api_ref:", apiRef);
-      return NextResponse.json({ received: true, error: "Invalid api_ref format" });
+      return NextResponse.json({
+        received: true,
+        error: "Invalid api_ref format",
+      });
     }
 
     // Find user by matching the start of their ID
@@ -74,19 +84,36 @@ export async function POST(req: Request) {
     }
 
     // Check if already processed
-    if (user.profile?.hasPaidOnboardingFee) {
+    if (
+      user.profile?.hasPaidOnboardingFee ||
+      user.profile?.onboardingFeeWaived
+    ) {
       console.log(`Onboarding already paid for user: ${user.id}`);
-      return NextResponse.json({ received: true, message: "Already processed" });
+      return NextResponse.json({
+        received: true,
+        message: "Already processed",
+      });
     }
 
     // Process the payment
     await prisma.$transaction(async (tx) => {
-      // 1. Update profile to mark fee as paid
-      await tx.profile.update({
+      // 1. Update profile to mark fee as paid and fully activated
+      await tx.profile.upsert({
         where: { userId: user.id },
-        data: { 
-          hasPaidOnboardingFee: true, 
-          verificationStatus: "PENDING" 
+        create: {
+          userId: user.id,
+          hasPaidOnboardingFee: true,
+          verificationStatus: "VERIFIED",
+          isVerified: true,
+          premiumPricingEnabled: true,
+          premiumMultiplier: 1.1,
+        },
+        update: {
+          hasPaidOnboardingFee: true,
+          verificationStatus: "VERIFIED",
+          isVerified: true,
+          premiumPricingEnabled: true,
+          premiumMultiplier: 1.1,
         },
       });
 
@@ -113,10 +140,30 @@ export async function POST(req: Request) {
           description: `Provider Onboarding Fee Payment (Ref: ${invoiceId || apiRef})`,
         },
       });
+
+      // 4. Record access grant in audit log for admin filtering/traceability
+      await tx.adminLog.create({
+        data: {
+          adminId: user.id,
+          action: "ONBOARDING_FEE_PAID_ACCESS_GRANTED",
+          targetId: user.id,
+          details: {
+            source: "intasend_webhook",
+            invoiceId: String(invoiceId || ""),
+            apiRef,
+          },
+        },
+      });
     });
 
-    console.log(`✅ Onboarding fee processed for user: ${user.id} (${user.email})`);
-    return NextResponse.json({ received: true, success: true, userId: user.id });
+    console.log(
+      `✅ Onboarding fee processed for user: ${user.id} (${user.email})`,
+    );
+    return NextResponse.json({
+      received: true,
+      success: true,
+      userId: user.id,
+    });
   } catch (error) {
     console.error("[ONBOARDING_WEBHOOK_ERROR]", error);
     // Return 200 to prevent IntaSend from retrying
@@ -124,4 +171,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ received: true, error: "Processing error" });
   }
 }
-

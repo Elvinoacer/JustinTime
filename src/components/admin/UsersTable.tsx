@@ -27,6 +27,8 @@ interface User {
   profile?: {
     verificationStatus: string | null;
     isVerified: boolean;
+    hasPaidOnboardingFee?: boolean;
+    onboardingFeeWaived?: boolean;
   } | null;
 }
 
@@ -49,7 +51,7 @@ export default function UsersTable({
   const handleVerify = (userId: string, status: "VERIFIED" | "REJECTED") => {
     if (
       !confirm(
-        `Are you sure you want to ${status.toLowerCase()} this provider?`
+        `Are you sure you want to ${status.toLowerCase()} this provider?`,
       )
     )
       return;
@@ -63,7 +65,7 @@ export default function UsersTable({
   const handleBan = (userId: string, isBanned: boolean) => {
     if (
       !confirm(
-        `Are you sure you want to ${isBanned ? "ban" : "unban"} this user?`
+        `Are you sure you want to ${isBanned ? "ban" : "unban"} this user?`,
       )
     )
       return;
@@ -94,7 +96,7 @@ export default function UsersTable({
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                <div className="w-10 h-10 bg-linear-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
                   {(user.name || "U")[0].toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -123,8 +125,8 @@ export default function UsersTable({
                     user.role === "PROVIDER"
                       ? "bg-purple-50 text-purple-700"
                       : user.role === "ADMIN"
-                      ? "bg-slate-100 text-slate-700"
-                      : "bg-blue-50 text-blue-700"
+                        ? "bg-slate-100 text-slate-700"
+                        : "bg-blue-50 text-blue-700"
                   }`}
                 >
                   {user.role}
@@ -152,14 +154,29 @@ export default function UsersTable({
                     user.profile.verificationStatus === "VERIFIED"
                       ? "bg-emerald-50 text-emerald-700"
                       : user.profile.verificationStatus === "REJECTED"
-                      ? "bg-red-50 text-red-700"
-                      : "bg-amber-50 text-amber-700"
+                        ? "bg-red-50 text-red-700"
+                        : "bg-amber-50 text-amber-700"
                   }`}
                 >
                   <Shield className="w-3 h-3" />
                   {user.profile.verificationStatus || "PENDING"}
                 </span>
               )}
+              {user.role === "PROVIDER" &&
+                user.profile?.onboardingFeeWaived && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                    <Shield className="w-3 h-3" />
+                    Waived + Access
+                  </span>
+                )}
+              {user.role === "PROVIDER" &&
+                user.profile?.hasPaidOnboardingFee &&
+                !user.profile?.onboardingFeeWaived && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-purple-50 text-purple-700">
+                    <Shield className="w-3 h-3" />
+                    Paid Access
+                  </span>
+                )}
             </div>
 
             {/* Actions */}
@@ -244,7 +261,7 @@ export default function UsersTable({
               <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                    <div className="w-8 h-8 bg-linear-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
                       {(user.name || "U")[0].toUpperCase()}
                     </div>
                     <div className="flex flex-col">
@@ -263,8 +280,8 @@ export default function UsersTable({
                       user.role === "PROVIDER"
                         ? "bg-purple-50 text-purple-700"
                         : user.role === "ADMIN"
-                        ? "bg-slate-100 text-slate-700"
-                        : "bg-blue-50 text-blue-700"
+                          ? "bg-slate-100 text-slate-700"
+                          : "bg-blue-50 text-blue-700"
                     }`}
                   >
                     {user.role}
@@ -284,14 +301,27 @@ export default function UsersTable({
                           user.profile.verificationStatus === "VERIFIED"
                             ? "bg-emerald-50 text-emerald-700"
                             : user.profile.verificationStatus === "REJECTED"
-                            ? "bg-red-50 text-red-700"
-                            : "bg-amber-50 text-amber-700"
+                              ? "bg-red-50 text-red-700"
+                              : "bg-amber-50 text-amber-700"
                         }`}
                       >
                         <Shield className="w-3 h-3" />
                         {user.profile.verificationStatus || "PENDING"}
                       </span>
                     )}
+                    {user.role === "PROVIDER" &&
+                      user.profile?.onboardingFeeWaived && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium w-fit bg-blue-50 text-blue-700">
+                          Waived + Access
+                        </span>
+                      )}
+                    {user.role === "PROVIDER" &&
+                      user.profile?.hasPaidOnboardingFee &&
+                      !user.profile?.onboardingFeeWaived && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium w-fit bg-purple-50 text-purple-700">
+                          Paid Access
+                        </span>
+                      )}
                   </div>
                 </td>
                 <td className="px-6 py-4 text-slate-500">

@@ -10,9 +10,12 @@ export default function OnboardingCompletePage() {
 
   useEffect(() => {
     // Show success message
-    toast.success("🎉 Payment successful! Your account is now activated.", {
-      duration: 5000,
-    });
+    toast.success(
+      "🎉 Payment successful! You are now verified with full provider privileges.",
+      {
+        duration: 5000,
+      },
+    );
 
     // Redirect to dashboard after a short delay
     const timeout = setTimeout(() => {
@@ -28,10 +31,11 @@ export default function OnboardingCompletePage() {
         <CheckCircle className="h-16 w-16 text-emerald-600" />
       </div>
       <h1 className="text-2xl font-bold text-gray-900 mb-2">
-        Payment Successful!
+        Verification Activated!
       </h1>
       <p className="text-gray-600 mb-6">
-        Your provider account has been activated. You can now start accepting jobs.
+        Your account is now auto-verified with enhanced visibility, expanded
+        upload capacity, and priority support.
       </p>
       <div className="flex items-center gap-2 text-gray-500">
         <Loader2 className="h-4 w-4 animate-spin" />

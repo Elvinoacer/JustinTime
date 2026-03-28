@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";
-    
+
     // Robust numeric parsing
     const parseNum = (val: string | null) => {
       if (!val) return undefined;
@@ -17,8 +17,11 @@ export async function GET(request: NextRequest) {
     const minPrice = parseNum(searchParams.get("minPrice"));
     const maxPrice = parseNum(searchParams.get("maxPrice"));
     const page = Math.max(1, parseNum(searchParams.get("page")) || 1);
-    const limit = Math.max(1, Math.min(100, parseNum(searchParams.get("limit")) || 12));
-    
+    const limit = Math.max(
+      1,
+      Math.min(100, parseNum(searchParams.get("limit")) || 12),
+    );
+
     const sortBy = searchParams.get("sortBy") || "rating";
     const verifiedOnly = searchParams.get("verifiedOnly") === "true";
     const latitude = parseNum(searchParams.get("latitude"));
@@ -76,14 +79,18 @@ export async function GET(request: NextRequest) {
     if (providers.length === 0) {
       return successResponse({
         data: [],
-        pagination: { page, limit, total: 0, totalPages: 0 }
+        pagination: { page, limit, total: 0, totalPages: 0 },
       });
     }
 
-    // 2. Fetch Ratings 
+    // 2. Fetch Ratings
     // Using findMany + in-memory grouping is often more stable than groupBy across various Prisma versions
-    console.log("[Professionals API] Fetching reviews for", providers.length, "providers...");
-    const providerIds = providers.map(p => p.id);
+    console.log(
+      "[Professionals API] Fetching reviews for",
+      providers.length,
+      "providers...",
+    );
+    const providerIds = providers.map((p) => p.id);
     const reviews = await prisma.review.findMany({
       where: { targetId: { in: providerIds } },
       select: { targetId: true, rating: true },
@@ -91,8 +98,9 @@ export async function GET(request: NextRequest) {
 
     // Group reviews by targetId and calculate averages
     const ratingsAcc: Record<string, { sum: number; count: number }> = {};
-    reviews.forEach(r => {
-      if (!ratingsAcc[r.targetId]) ratingsAcc[r.targetId] = { sum: 0, count: 0 };
+    reviews.forEach((r) => {
+      if (!ratingsAcc[r.targetId])
+        ratingsAcc[r.targetId] = { sum: 0, count: 0 };
       ratingsAcc[r.targetId].sum += r.rating;
       ratingsAcc[r.targetId].count += 1;
     });
@@ -105,16 +113,28 @@ export async function GET(request: NextRequest) {
     // 3. Fetch categories for skill mapping
     console.log("[Professionals API] Fetching categories for mapping...");
     const categories = await prisma.category.findMany({
-      select: { id: true, name: true }
+      select: { id: true, name: true },
     });
-    const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
     // 4. Transform and Format
     const formattedProviders = providers.map((provider) => {
       const p = provider.profile;
-      const skills = Array.isArray(p?.skills) 
-        ? p!.skills.map(skillId => categoryMap.get(skillId) || skillId)
+      const skills = Array.isArray(p?.skills)
+        ? p!.skills.map((skillId) => categoryMap.get(skillId) || skillId)
         : [];
+
+      const hasPaidOrWaivedAccess =
+        Boolean(p?.hasPaidOnboardingFee) || Boolean(p?.onboardingFeeWaived);
+      const isSubscriptionPremium =
+        ["PRO", "BUSINESS"].includes(provider.subscription?.plan || "") &&
+        Boolean(provider.subscription?.isActive);
+      const visibilityBoostScore =
+        (hasPaidOrWaivedAccess ? 35 : 0) +
+        (p?.isVerified || p?.verificationStatus === "VERIFIED" ? 20 : 0) +
+        (isSubscriptionPremium ? 15 : 0) +
+        Math.min(provider._count?.providerBookings || 0, 30) * 0.5 +
+        Math.min(provider._count?.receivedReviews || 0, 20) * 0.5;
 
       return {
         id: provider.id,
@@ -129,9 +149,11 @@ export async function GET(request: NextRequest) {
         longitude: p?.longitude,
         rating: getAvg(provider.id),
         reviews: provider._count?.receivedReviews || 0,
-        completedJobs: provider._count?.providerBookings || 0, 
+        completedJobs: provider._count?.providerBookings || 0,
         memberSince: provider.createdAt,
         verified: p?.isVerified || false,
+        verificationAccessGranted: hasPaidOrWaivedAccess,
+        visibilityBoostScore,
         subscription: {
           plan: provider.subscription?.plan || "FREE",
           isActive: provider.subscription?.isActive || false,
@@ -143,47 +165,103 @@ export async function GET(request: NextRequest) {
     let filtered = formattedProviders;
     if (search) {
       const lowerSearch = search.toLowerCase();
-      filtered = formattedProviders.filter(p => 
-        (p.name || "").toLowerCase().includes(lowerSearch) ||
-        (p.bio?.toLowerCase().includes(lowerSearch)) ||
-        p.skills.some(s => s.toLowerCase().includes(lowerSearch))
+      filtered = formattedProviders.filter(
+        (p) =>
+          (p.name || "").toLowerCase().includes(lowerSearch) ||
+          p.bio?.toLowerCase().includes(lowerSearch) ||
+          p.skills.some((s) => s.toLowerCase().includes(lowerSearch)),
       );
     }
 
     // 6. Support Distance Sorting
-    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const calculateDistance = (
+      lat1: number,
+      lon1: number,
+      lat2: number,
+      lon2: number,
+    ) => {
       const R = 6371; // km
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = 
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      const a =
         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     };
 
     // 7. SortResults
     filtered.sort((a, b) => {
-      const isAPremium = ["PRO", "BUSINESS"].includes(a.subscription.plan) && a.subscription.isActive;
-      const isBPremium = ["PRO", "BUSINESS"].includes(b.subscription.plan) && b.subscription.isActive;
+      const isAPremium =
+        ["PRO", "BUSINESS"].includes(a.subscription.plan) &&
+        a.subscription.isActive;
+      const isBPremium =
+        ["PRO", "BUSINESS"].includes(b.subscription.plan) &&
+        b.subscription.isActive;
+      const boostDelta = b.visibilityBoostScore - a.visibilityBoostScore;
+
+      // Paid/waived onboarding access should produce a visible ranking lift.
+      if (Math.abs(boostDelta) >= 1) {
+        return boostDelta;
+      }
+
       if (isAPremium && !isBPremium) return -1;
       if (!isAPremium && isBPremium) return 1;
 
-      const hasCoords = (lat: any, lon: any) => typeof lat === 'number' && typeof lon === 'number';
+      const hasCoords = (lat: any, lon: any) =>
+        typeof lat === "number" && typeof lon === "number";
 
-      if (sortBy === "distance" && hasCoords(latitude, longitude) && hasCoords(a.latitude, a.longitude) && hasCoords(b.latitude, b.longitude)) {
-        const distA = calculateDistance(latitude!, longitude!, a.latitude!, a.longitude!);
-        const distB = calculateDistance(latitude!, longitude!, b.latitude!, b.longitude!);
-        return distA - distB;
+      if (
+        sortBy === "distance" &&
+        hasCoords(latitude, longitude) &&
+        hasCoords(a.latitude, a.longitude) &&
+        hasCoords(b.latitude, b.longitude)
+      ) {
+        const distA = calculateDistance(
+          latitude!,
+          longitude!,
+          a.latitude!,
+          a.longitude!,
+        );
+        const distB = calculateDistance(
+          latitude!,
+          longitude!,
+          b.latitude!,
+          b.longitude!,
+        );
+        if (Math.abs(distA - distB) > 0.3) return distA - distB;
+        return boostDelta;
       }
-      
+
       switch (sortBy) {
-        case "rating": return b.rating - a.rating;
-        case "price_asc": return a.hourlyRate - b.hourlyRate;
-        case "price_desc": return b.hourlyRate - a.hourlyRate;
-        case "newest": return new Date(b.memberSince).getTime() - new Date(a.memberSince).getTime();
-        default: return 0;
+        case "rating": {
+          const ratingDelta = b.rating - a.rating;
+          if (Math.abs(ratingDelta) > 0.1) return ratingDelta;
+          return boostDelta;
+        }
+        case "price_asc": {
+          const priceDelta = a.hourlyRate - b.hourlyRate;
+          if (Math.abs(priceDelta) > 20) return priceDelta;
+          return boostDelta;
+        }
+        case "price_desc": {
+          const priceDelta = b.hourlyRate - a.hourlyRate;
+          if (Math.abs(priceDelta) > 20) return priceDelta;
+          return boostDelta;
+        }
+        case "newest": {
+          const newestDelta =
+            new Date(b.memberSince).getTime() -
+            new Date(a.memberSince).getTime();
+          if (Math.abs(newestDelta) > 1000 * 60 * 60 * 24 * 2)
+            return newestDelta;
+          return boostDelta;
+        }
+        default:
+          return boostDelta;
       }
     });
 
@@ -197,7 +275,7 @@ export async function GET(request: NextRequest) {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
-      }
+      },
     });
   } catch (error: any) {
     console.error("[Professionals API Fatal Error]:", error);

@@ -4,7 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useProviderProfile } from "@/lib/api/hooks/useProvider";
-import { OnboardingFeeModal } from "@/components/revenue/OnboardingFeeModal";
+import { OnboardingAccessNotice } from "@/components/revenue/OnboardingAccessNotice";
 
 export default function DashboardLayoutClient({
   children,
@@ -13,16 +13,17 @@ export default function DashboardLayoutClient({
 }) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
-  
+
   const { data: session } = useSession();
 
   const isProvider = session?.user?.role === "PROVIDER";
-  const { data: profileData, isLoading: profileLoading } = useProviderProfile(isProvider);
-  const showOnboardingModal = 
-    isProvider && 
-    profileData?.data && 
+  const { data: profileData, isLoading: profileLoading } =
+    useProviderProfile(isProvider);
+  const needsVerificationActivation =
+    isProvider &&
+    profileData?.data &&
     !profileData.data.hasPaidOnboardingFee &&
-    !profileData.data.onboardingFeeWaived; // Skip modal if fee is waived by admin
+    !profileData.data.onboardingFeeWaived;
 
   return (
     <>
@@ -33,17 +34,21 @@ export default function DashboardLayoutClient({
       >
         Skip to main content
       </a>
-      
+
       <div className="fixed inset-0 flex bg-gray-50 overflow-hidden flex-col lg:flex-row">
         {/* Mobile Header */}
-        <div className="lg:hidden flex-shrink-0 flex items-center justify-between p-4 bg-white border-b border-gray-200 z-30">
+        <div className="lg:hidden shrink-0 flex items-center justify-between p-4 bg-white border-b border-gray-200 z-30">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 flex items-center justify-center">
-              <img src="/images/JustinTimeLogo.png" alt="Logo" className="w-full h-full object-contain" />
+              <img
+                src="/images/JustinTimeLogo.png"
+                alt="Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <span className="font-bold text-lg text-gray-900">JustInTime</span>
           </div>
-          <button 
+          <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
             aria-label="Open menu"
@@ -53,16 +58,16 @@ export default function DashboardLayoutClient({
         </div>
 
         {/* Sidebar Wrapper */}
-        <div 
+        <div
           className={`
             fixed inset-y-0 left-0 z-50 transform transition-all duration-300 ease-in-out lg:static lg:translate-x-0
-            ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            ${isDesktopCollapsed ? 'lg:w-20' : 'lg:w-72'}
+            ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
+            ${isDesktopCollapsed ? "lg:w-20" : "lg:w-72"}
             w-72
           `}
         >
-          <Sidebar 
-            onClose={() => setSidebarOpen(false)} 
+          <Sidebar
+            onClose={() => setSidebarOpen(false)}
             isCollapsed={isDesktopCollapsed}
             toggleCollapse={() => setIsDesktopCollapsed(!isDesktopCollapsed)}
           />
@@ -70,14 +75,14 @@ export default function DashboardLayoutClient({
 
         {/* Backdrop Overlay */}
         {isSidebarOpen && (
-          <div 
+          <div
             className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm transition-opacity"
             onClick={() => setSidebarOpen(false)}
             aria-hidden="true"
           />
         )}
 
-        <main 
+        <main
           id="main-content"
           className="flex-1 p-4 lg:p-8 overflow-y-auto w-full"
           role="main"
@@ -88,22 +93,19 @@ export default function DashboardLayoutClient({
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600 mb-4"></div>
                 <p className="text-gray-500 font-medium">Loading profile...</p>
               </div>
-            ) : showOnboardingModal ? (
-              <div className="flex h-full min-h-[50vh] items-center justify-center">
-                <p className="text-gray-500 font-medium">Please activate your account to access provider features.</p>
-              </div>
             ) : (
-              children
+              <>
+                {needsVerificationActivation && (
+                  <OnboardingAccessNotice
+                    userName={session?.user?.name?.split(" ")[0] || "Provider"}
+                  />
+                )}
+                {children}
+              </>
             )}
           </div>
         </main>
       </div>
-      
-      {/* Onboarding Fee Modal (Blocking for Providers) */}
-      <OnboardingFeeModal 
-        isOpen={!!showOnboardingModal} 
-        userName={session?.user?.name?.split(" ")[0] || "Provider"} 
-      />
     </>
   );
 }

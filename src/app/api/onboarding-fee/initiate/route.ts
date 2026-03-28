@@ -1,11 +1,11 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { 
-  getCollectionService, 
-  getBaseUrl, 
+import {
+  getCollectionService,
+  getBaseUrl,
   generateApiRef,
-  PAYMENT_AMOUNTS 
+  PAYMENT_AMOUNTS,
 } from "@/lib/intasend";
 
 export async function POST(req: Request) {
@@ -20,20 +20,28 @@ export async function POST(req: Request) {
       where: { userId: session.user.id },
     });
 
-    if (profile?.hasPaidOnboardingFee) {
+    if (
+      profile?.hasPaidOnboardingFee ||
+      profile?.onboardingFeeWaived ||
+      profile?.verificationStatus === "VERIFIED" ||
+      profile?.isVerified
+    ) {
       return NextResponse.json(
-        { error: "Onboarding fee already paid" },
-        { status: 400 }
+        {
+          error: "Verification access is already active for this account",
+          alreadyActivated: true,
+        },
+        { status: 400 },
       );
     }
 
     // Generate API reference (alphanumeric + hyphens only)
     const apiRef = generateApiRef("ONBOARD", session.user.id);
-    
+
     // Simple redirect URL without query params (IntaSend is strict about URL format)
     const baseUrl = getBaseUrl();
     const redirectUrl = `${baseUrl}/dashboard/onboarding-complete`;
-    
+
     console.log("Initiating onboarding fee payment:", {
       apiRef,
       redirectUrl,
@@ -42,7 +50,7 @@ export async function POST(req: Request) {
 
     // Use IntaSend SDK collection service
     const collection = getCollectionService();
-    
+
     // Create checkout session using SDK
     const response = await collection.charge({
       first_name: session.user.name?.split(" ")[0] || "User",
@@ -82,8 +90,7 @@ export async function POST(req: Request) {
     console.error("[ONBOARDING_FEE_INITIATE]", error);
     return NextResponse.json(
       { error: error.message || "Failed to initiate payment" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

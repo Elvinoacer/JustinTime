@@ -61,9 +61,12 @@ const DashboardPage = () => {
     const paymentType = searchParams.get("payment_type");
 
     if (paymentStatus === "success" && paymentType === "onboarding") {
-      toast.success("🎉 Payment successful! Your account is now activated.", {
-        duration: 5000,
-      });
+      toast.success(
+        "🎉 Payment successful! Verification privileges are now active.",
+        {
+          duration: 5000,
+        },
+      );
       // Clean up URL params
       router.replace("/dashboard", { scroll: false });
     }
@@ -82,7 +85,7 @@ const DashboardPage = () => {
                 timeout: 5000,
                 maximumAge: 0,
               });
-            }
+            },
           );
 
           const { latitude, longitude } = position.coords;
@@ -91,7 +94,7 @@ const DashboardPage = () => {
           // Reverse geocode to get city name
           try {
             const response = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
             );
             const data = await response.json();
             const city =
@@ -117,7 +120,7 @@ const DashboardPage = () => {
         } catch (error: any) {
           if (error.code === 1) {
             toast.info(
-              "Location access denied. You can manually enter your location in filters."
+              "Location access denied. You can manually enter your location in filters.",
             );
           } else {
             console.error("Geolocation error:", error);
@@ -168,7 +171,7 @@ const DashboardPage = () => {
 
   const handleSortChange = (
     newSortBy: string,
-    newSortOrder: "asc" | "desc"
+    newSortOrder: "asc" | "desc",
   ) => {
     setSortBy(newSortBy);
     setSortOrder(newSortOrder);
@@ -310,7 +313,7 @@ const DashboardPage = () => {
             <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
               {
                 Object.entries(filters).filter(
-                  ([key, value]) => value && key !== "status"
+                  ([key, value]) => value && key !== "status",
                 ).length
               }
             </p>
@@ -415,13 +418,13 @@ const DashboardPage = () => {
               </h3>
               <p className="text-sm lg:text-base text-gray-500 mb-6 lg:mb-8 max-w-md mx-auto">
                 {Object.entries(filters).some(
-                  ([key, value]) => value && key !== "status"
+                  ([key, value]) => value && key !== "status",
                 )
                   ? "We couldn't find any jobs matching your current filters. Try adjusting them to see more results."
                   : "There are no jobs available at the moment. Please check back later!"}
               </p>
               {Object.entries(filters).some(
-                ([key, value]) => value && key !== "status"
+                ([key, value]) => value && key !== "status",
               ) && (
                 <button
                   onClick={() => {

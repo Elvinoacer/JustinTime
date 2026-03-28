@@ -19,6 +19,7 @@ import BackgroundCheckForm from "@/components/provider/BackgroundCheckForm";
 import { getProviderBackgroundCheck } from "@/app/actions/verification";
 import TaxSettings from "@/components/dashboard/TaxSettings";
 import { getTaxProfile, getTaxFilings } from "@/app/actions/tax";
+import { useProviderProfile } from "@/lib/api/hooks/useProvider";
 
 import { useFcmToken } from "@/lib/hooks/useFcmToken";
 
@@ -131,6 +132,8 @@ const SettingsPage = () => {
   const router = useRouter();
   const { data: settingsData, isLoading } = useSettings();
   const updateSettings = useUpdateSettings();
+  const isProvider = settingsData?.settings?.account?.role === "PROVIDER";
+  const { data: providerProfileData } = useProviderProfile(isProvider);
 
   const [activeTab, setActiveTab] = useState<Tab>("account");
   const [showNotification, setShowNotification] = useState(false);
@@ -713,6 +716,84 @@ const SettingsPage = () => {
                       )}
                     </div>
                   </div>
+
+                  {settings.account.role === "PROVIDER" && (
+                    <div className="p-4 sm:p-5 bg-linear-to-br from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-200 rounded-xl">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                        <div>
+                          <h3 className="text-base sm:text-lg font-bold text-emerald-900">
+                            Verification Privileges
+                          </h3>
+                          <p className="text-xs sm:text-sm text-emerald-700 mt-1">
+                            Your access status increases discoverability and
+                            unlocks larger uploads.
+                          </p>
+                        </div>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            providerProfileData?.data?.verificationAccessGranted
+                              ? "bg-emerald-600 text-white"
+                              : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {providerProfileData?.data?.verificationAccessGranted
+                            ? "Access Active"
+                            : "Upgrade Available"}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mt-4">
+                        <div className="bg-white/70 rounded-lg border border-emerald-100 p-3">
+                          <p className="text-xs text-gray-600">
+                            Visibility Boost
+                          </p>
+                          <p className="font-semibold text-sm text-gray-900 mt-0.5">
+                            {providerProfileData?.data?.onboardingPrivileges
+                              ?.visibilityBoost
+                              ? "Enabled"
+                              : "Standard"}
+                          </p>
+                        </div>
+                        <div className="bg-white/70 rounded-lg border border-emerald-100 p-3">
+                          <p className="text-xs text-gray-600">
+                            Support Priority
+                          </p>
+                          <p className="font-semibold text-sm text-gray-900 mt-0.5">
+                            {providerProfileData?.data?.onboardingPrivileges
+                              ?.prioritySupport
+                              ? "Priority"
+                              : "Regular"}
+                          </p>
+                        </div>
+                        <div className="bg-white/70 rounded-lg border border-emerald-100 p-3">
+                          <p className="text-xs text-gray-600">
+                            Upload Capacity
+                          </p>
+                          <p className="font-semibold text-sm text-gray-900 mt-0.5">
+                            {providerProfileData?.data?.onboardingPrivileges
+                              ?.storageCapacity || "BASIC"}
+                            {" · "}
+                            {providerProfileData?.data?.onboardingPrivileges
+                              ?.storageLimitMb || 100}
+                            MB
+                          </p>
+                        </div>
+                      </div>
+
+                      {!providerProfileData?.data
+                        ?.verificationAccessGranted && (
+                        <a
+                          href="/dashboard"
+                          className="inline-flex items-center mt-4 text-sm font-semibold text-emerald-700 hover:text-emerald-800"
+                        >
+                          Activate Access from Dashboard
+                          <span className="material-symbols-outlined text-base ml-1">
+                            arrow_forward
+                          </span>
+                        </a>
+                      )}
+                    </div>
+                  )}
 
                   {/* Danger Zone */}
                   <div className="pt-4 sm:pt-6 border-t border-gray-200">

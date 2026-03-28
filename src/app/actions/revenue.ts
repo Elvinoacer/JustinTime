@@ -146,7 +146,13 @@ export async function payOnboardingFee(): Promise<{
       // 4. Update Profile
       await tx.profile.update({
         where: { userId: session.user.id },
-        data: { hasPaidOnboardingFee: true, verificationStatus: "PENDING" }, // fee paid unlocks verification process
+        data: {
+          hasPaidOnboardingFee: true,
+          verificationStatus: "VERIFIED",
+          isVerified: true,
+          premiumPricingEnabled: true,
+          premiumMultiplier: 1.1,
+        },
       });
 
       // 5. Record Transaction
@@ -156,6 +162,19 @@ export async function payOnboardingFee(): Promise<{
           amount: ONBOARDING_FEE_AMOUNT,
           type: TransactionType.ONBOARDING_FEE,
           description: "Paid Provider Onboarding Fee",
+        },
+      });
+
+      // Track access grants in admin audit logs for reporting/filtering.
+      await tx.adminLog.create({
+        data: {
+          adminId: session.user.id,
+          action: "ONBOARDING_FEE_PAID_ACCESS_GRANTED",
+          targetId: session.user.id,
+          details: {
+            source: "wallet",
+            amount: ONBOARDING_FEE_AMOUNT,
+          },
         },
       });
     });

@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 
 interface SearchParams {
   page?: string;
+  access?: string;
 }
 
 export default async function AdminLogsPage({
@@ -15,7 +16,11 @@ export default async function AdminLogsPage({
 }) {
   const params = await searchParams;
   const page = Number(params.page) || 1;
-  const data = await getAdminLogs(page, 20);
+  const accessType: "ALL" | "PAID" | "WAIVED" =
+    params.access === "PAID" || params.access === "WAIVED"
+      ? params.access
+      : "ALL";
+  const data = await getAdminLogs(page, 20, accessType);
 
   return (
     <div className="space-y-6">
@@ -38,6 +43,7 @@ export default async function AdminLogsPage({
         total={data.total}
         currentPage={data.currentPage}
         totalPages={data.totalPages}
+        accessType={data.accessType}
       />
     </div>
   );

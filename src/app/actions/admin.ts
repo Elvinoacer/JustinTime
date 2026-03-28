@@ -1,41 +1,50 @@
-'use server';
+"use server";
 
-import { prisma } from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
-import { auth } from '@/auth';
-import crypto from 'crypto';
-import { sendComprehensiveNotification, emailTemplates } from '@/lib/notifications/adminNotifications';
+import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { auth } from "@/auth";
+import crypto from "crypto";
+import {
+  sendComprehensiveNotification,
+  emailTemplates,
+} from "@/lib/notifications/adminNotifications";
 
 export async function checkAdmin() {
   const session = await auth();
-  if (session?.user?.role !== 'ADMIN') {
-    throw new Error('Unauthorized: Admin access required');
+  if (session?.user?.role !== "ADMIN") {
+    throw new Error("Unauthorized: Admin access required");
   }
   return session.user;
 }
 
-export async function getUsers(page = 1, limit = 10, search = '', role = '', verificationStatus = '') {
+export async function getUsers(
+  page = 1,
+  limit = 10,
+  search = "",
+  role = "",
+  verificationStatus = "",
+) {
   try {
     await checkAdmin();
-    
+
     const skip = (page - 1) * limit;
-    
+
     const where: any = {};
-    
+
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
       ];
     }
-    
-    if (role && role !== 'ALL') {
+
+    if (role && role !== "ALL") {
       where.role = role;
     }
 
     if (verificationStatus) {
       where.profile = {
-        verificationStatus: verificationStatus
+        verificationStatus: verificationStatus,
       };
     }
 
@@ -44,12 +53,12 @@ export async function getUsers(page = 1, limit = 10, search = '', role = '', ver
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
-          profile: true
-        }
+          profile: true,
+        },
       }),
-      prisma.user.count({ where })
+      prisma.user.count({ where }),
     ]);
 
     return {
@@ -57,11 +66,10 @@ export async function getUsers(page = 1, limit = 10, search = '', role = '', ver
       total,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
-
     };
   } catch (error) {
-    console.error('Error fetching users:', error);
-    throw new Error('Failed to fetch users');
+    console.error("Error fetching users:", error);
+    throw new Error("Failed to fetch users");
   }
 }
 
@@ -77,60 +85,64 @@ export async function getUserDetails(userId: string) {
           include: {
             transactions: {
               take: 5,
-              orderBy: { createdAt: 'desc' }
-            }
-          }
+              orderBy: { createdAt: "desc" },
+            },
+          },
         },
         bookings: {
           take: 10,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           include: {
             service: { select: { title: true } },
             provider: { select: { name: true, email: true } },
             client: { select: { name: true, email: true } },
-            payment: { select: { status: true, amount: true, method: true } }
-          }
+            payment: { select: { status: true, amount: true, method: true } },
+          },
         },
         services: {
           take: 10,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           include: {
             category: { select: { name: true } },
-            _count: { select: { bookings: true } }
-          }
+            _count: { select: { bookings: true } },
+          },
         },
         jobs: {
           take: 10,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           include: {
             category: { select: { name: true } },
-            _count: { select: { proposals: true } }
-          }
+            _count: { select: { proposals: true } },
+          },
         },
         supportTickets: {
           take: 5,
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: "desc" },
         },
         notifications: {
           take: 10,
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: "desc" },
         },
         subscription: true,
         disputes: {
           take: 5,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           include: {
-            booking: { select: { id: true, service: { select: { title: true } } } },
-            defendant: { select: { name: true, email: true } }
-          }
+            booking: {
+              select: { id: true, service: { select: { title: true } } },
+            },
+            defendant: { select: { name: true, email: true } },
+          },
         },
         disputesAgainst: {
           take: 5,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
           include: {
-            booking: { select: { id: true, service: { select: { title: true } } } },
-            creator: { select: { name: true, email: true } }
-          }
+            booking: {
+              select: { id: true, service: { select: { title: true } } },
+            },
+            creator: { select: { name: true, email: true } },
+          },
         },
         _count: {
           select: {
@@ -142,210 +154,252 @@ export async function getUserDetails(userId: string) {
             sentMessages: true,
             receivedMessages: true,
             notifications: true,
-            supportTickets: true
-          }
-        }
-      }
+            supportTickets: true,
+          },
+        },
+      },
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new Error("User not found");
     }
 
     // Fetch all categories for skill mapping
     const categories = await prisma.category.findMany({
-      select: { id: true, name: true }
+      select: { id: true, name: true },
     });
-    
-    const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+
+    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
     // Serialize Decimal fields to numbers to avoid serialization errors in Client Components
     return {
       ...user,
-      profile: user.profile ? {
-        ...user.profile,
-        hourlyRate: user.profile.hourlyRate ? Number(user.profile.hourlyRate) : null,
-        skills: user.profile.skills.map(skillId => categoryMap.get(skillId) || skillId),
-      } : null,
-      wallet: user.wallet ? {
-        ...user.wallet,
-        balance: Number(user.wallet.balance),
-        transactions: user.wallet.transactions.map(tx => ({
-          ...tx,
-          amount: Number(tx.amount),
-        })),
-      } : null,
-      bookings: user.bookings.map(booking => ({
+      profile: user.profile
+        ? {
+            ...user.profile,
+            hourlyRate: user.profile.hourlyRate
+              ? Number(user.profile.hourlyRate)
+              : null,
+            skills: user.profile.skills.map(
+              (skillId) => categoryMap.get(skillId) || skillId,
+            ),
+          }
+        : null,
+      wallet: user.wallet
+        ? {
+            ...user.wallet,
+            balance: Number(user.wallet.balance),
+            transactions: user.wallet.transactions.map((tx) => ({
+              ...tx,
+              amount: Number(tx.amount),
+            })),
+          }
+        : null,
+      bookings: user.bookings.map((booking) => ({
         ...booking,
         totalAmount: Number(booking.totalAmount),
-        proposedPrice: booking.proposedPrice ? Number(booking.proposedPrice) : null,
-        payment: booking.payment ? {
-          ...booking.payment,
-          amount: Number(booking.payment.amount),
-        } : null,
+        proposedPrice: booking.proposedPrice
+          ? Number(booking.proposedPrice)
+          : null,
+        payment: booking.payment
+          ? {
+              ...booking.payment,
+              amount: Number(booking.payment.amount),
+            }
+          : null,
       })),
-      services: user.services.map(service => ({
+      services: user.services.map((service) => ({
         ...service,
         price: Number(service.price),
       })),
-      jobs: user.jobs.map(job => ({
+      jobs: user.jobs.map((job) => ({
         ...job,
         budget: job.budget ? Number(job.budget) : null,
       })),
     };
   } catch (error) {
-    console.error('Error fetching user details:', error);
-    throw new Error('Failed to fetch user details');
+    console.error("Error fetching user details:", error);
+    throw new Error("Failed to fetch user details");
   }
 }
 
 // Admin Actions for User Management
-export async function updateUserRole(userId: string, newRole: 'CLIENT' | 'PROVIDER' | 'ADMIN') {
+export async function updateUserRole(
+  userId: string,
+  newRole: "CLIENT" | "PROVIDER" | "ADMIN",
+) {
   try {
     const admin = await checkAdmin();
-    
+
     // Get user details and old role
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, email: true, role: true }
+      select: { name: true, email: true, role: true },
     });
 
     if (!user) {
-      return { success: false, error: 'User not found' };
+      return { success: false, error: "User not found" };
     }
 
     const oldRole = user.role;
-    
+
     await prisma.user.update({
       where: { id: userId },
-      data: { role: newRole }
+      data: { role: newRole },
     });
 
     await prisma.adminLog.create({
       data: {
         adminId: admin.id,
-        action: 'UPDATED_USER_ROLE',
+        action: "UPDATED_USER_ROLE",
         targetId: userId,
-        details: { newRole, oldRole }
-      }
+        details: { newRole, oldRole },
+      },
     });
 
     // Send comprehensive notification
-    const template = emailTemplates.roleChanged(user.name || 'User', oldRole, newRole);
+    const template = emailTemplates.roleChanged(
+      user.name || "User",
+      oldRole,
+      newRole,
+    );
 
-    console.log('[Admin Action] Sending role change notification to user:', userId, 'from', oldRole, 'to', newRole);
+    console.log(
+      "[Admin Action] Sending role change notification to user:",
+      userId,
+      "from",
+      oldRole,
+      "to",
+      newRole,
+    );
     const notificationResult = await sendComprehensiveNotification({
       userId,
-      title: 'Account Role Updated',
+      title: "Account Role Updated",
       message: `Your account role has been changed from ${oldRole} to ${newRole}.`,
-      type: 'ROLE_CHANGED',
+      type: "ROLE_CHANGED",
       emailSubject: template.subject,
-      emailHtml: template.html
+      emailHtml: template.html,
     });
-    console.log('[Admin Action] Role change notification result:', notificationResult);
+    console.log(
+      "[Admin Action] Role change notification result:",
+      notificationResult,
+    );
 
     revalidatePath(`/admin/users/${userId}`);
     return { success: true };
   } catch (error) {
-    console.error('Error updating user role:', error);
-    return { success: false, error: 'Failed to update user role' };
+    console.error("Error updating user role:", error);
+    return { success: false, error: "Failed to update user role" };
   }
 }
 
-export async function updateUserPlan(userId: string, newPlan: 'FREE' | 'PRO' | 'BUSINESS') {
+export async function updateUserPlan(
+  userId: string,
+  newPlan: "FREE" | "PRO" | "BUSINESS",
+) {
   try {
     const admin = await checkAdmin();
-    
+
     // Get user details
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, email: true }
+      select: { name: true, email: true },
     });
 
     if (!user) {
-      return { success: false, error: 'User not found' };
+      return { success: false, error: "User not found" };
     }
 
     // Get current subscription to log change
     const currentSubscription = await prisma.subscription.findUnique({
-      where: { userId }
+      where: { userId },
     });
 
-    const oldPlan = currentSubscription?.plan || 'NONE';
+    const oldPlan = currentSubscription?.plan || "NONE";
 
     // Upsert subscription
     await prisma.subscription.upsert({
       where: { userId },
-      update: { 
+      update: {
         plan: newPlan,
         isActive: true,
         startDate: new Date(), // Reset start date on plan change? Maybe keep original? Let's reset for now as it's a "new" plan
-        endDate: null // Clear end date if any
+        endDate: null, // Clear end date if any
       },
       create: {
         userId,
         plan: newPlan,
         isActive: true,
-        startDate: new Date()
-      }
+        startDate: new Date(),
+      },
     });
 
     await prisma.adminLog.create({
       data: {
         adminId: admin.id,
-        action: 'UPDATED_USER_PLAN',
+        action: "UPDATED_USER_PLAN",
         targetId: userId,
-        details: { newPlan, oldPlan }
-      }
+        details: { newPlan, oldPlan },
+      },
     });
 
     // Send comprehensive notification
     // Note: We might want a specific template for plan changes, but for now we can use a generic one or adapt role changed
     // Let's use a generic system notification for now as we don't have a specific template in the import
-    
-    console.log('[Admin Action] Sending plan change notification to user:', userId, 'from', oldPlan, 'to', newPlan);
+
+    console.log(
+      "[Admin Action] Sending plan change notification to user:",
+      userId,
+      "from",
+      oldPlan,
+      "to",
+      newPlan,
+    );
     const notificationResult = await sendComprehensiveNotification({
       userId,
-      title: 'Subscription Plan Updated',
+      title: "Subscription Plan Updated",
       message: `Your subscription plan has been updated to ${newPlan}.`,
-      type: 'PLAN_CHANGED',
-      // We'll skip email template for now or use a simple one if available, 
+      type: "PLAN_CHANGED",
+      // We'll skip email template for now or use a simple one if available,
       // but since we don't have a specific one imported, we'll rely on the notification system's default behavior if emailHtml is missing
       // or we could construct a simple one.
-      emailSubject: 'Your Subscription Plan Has Changed',
+      emailSubject: "Your Subscription Plan Has Changed",
       emailHtml: `
         <div style="font-family: sans-serif; padding: 20px;">
           <h1>Subscription Plan Updated</h1>
-          <p>Hello ${user.name || 'User'},</p>
+          <p>Hello ${user.name || "User"},</p>
           <p>Your subscription plan has been updated from <strong>${oldPlan}</strong> to <strong>${newPlan}</strong>.</p>
           <p>If you have any questions, please contact support.</p>
         </div>
-      `
+      `,
     });
-    console.log('[Admin Action] Plan change notification result:', notificationResult);
+    console.log(
+      "[Admin Action] Plan change notification result:",
+      notificationResult,
+    );
 
     revalidatePath(`/admin/users/${userId}`);
     return { success: true };
   } catch (error) {
-    console.error('Error updating user plan:', error);
-    return { success: false, error: 'Failed to update user plan' };
+    console.error("Error updating user plan:", error);
+    return { success: false, error: "Failed to update user plan" };
   }
 }
 
 export async function scheduleUserDeletion(userId: string, reason: string) {
   try {
     const admin = await checkAdmin();
-    
+
     // Get user details
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, email: true }
+      select: { name: true, email: true },
     });
 
     if (!user) {
-      return { success: false, error: 'User not found' };
+      return { success: false, error: "User not found" };
     }
-    
+
     const deletionDate = new Date();
     deletionDate.setDate(deletionDate.getDate() + 30); // 30 days grace period
 
@@ -353,108 +407,127 @@ export async function scheduleUserDeletion(userId: string, reason: string) {
       where: { id: userId },
       data: {
         deletionScheduledAt: deletionDate,
-        deletionReason: reason
-      }
+        deletionReason: reason,
+      },
     });
 
     await prisma.adminLog.create({
       data: {
         adminId: admin.id,
-        action: 'SCHEDULED_USER_DELETION',
+        action: "SCHEDULED_USER_DELETION",
         targetId: userId,
-        details: { reason, deletionDate }
-      }
+        details: { reason, deletionDate },
+      },
     });
 
     // Send comprehensive notification
-    const template = emailTemplates.accountDeletionScheduled(user.name || 'User', reason, deletionDate);
+    const template = emailTemplates.accountDeletionScheduled(
+      user.name || "User",
+      reason,
+      deletionDate,
+    );
 
-    console.log('[Admin Action] Sending deletion scheduled notification to user:', userId);
+    console.log(
+      "[Admin Action] Sending deletion scheduled notification to user:",
+      userId,
+    );
     const notificationResult = await sendComprehensiveNotification({
       userId,
-      title: 'Account Deletion Scheduled',
+      title: "Account Deletion Scheduled",
       message: `Your account has been scheduled for deletion on ${deletionDate.toLocaleDateString()}. You have 30 days to appeal this decision.`,
-      type: 'ACCOUNT_DELETION_SCHEDULED',
+      type: "ACCOUNT_DELETION_SCHEDULED",
       emailSubject: template.subject,
-      emailHtml: template.html
+      emailHtml: template.html,
     });
-    console.log('[Admin Action] Deletion scheduled notification result:', notificationResult);
+    console.log(
+      "[Admin Action] Deletion scheduled notification result:",
+      notificationResult,
+    );
 
     revalidatePath(`/admin/users/${userId}`);
     return { success: true };
   } catch (error) {
-    console.error('Error scheduling user deletion:', error);
-    return { success: false, error: 'Failed to schedule user deletion' };
+    console.error("Error scheduling user deletion:", error);
+    return { success: false, error: "Failed to schedule user deletion" };
   }
 }
 
 export async function cancelUserDeletion(userId: string) {
   try {
     const admin = await checkAdmin();
-    
+
     // Get user details
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, email: true }
+      select: { name: true, email: true },
     });
 
     if (!user) {
-      return { success: false, error: 'User not found' };
+      return { success: false, error: "User not found" };
     }
-    
+
     await prisma.user.update({
       where: { id: userId },
       data: {
         deletionScheduledAt: null,
-        deletionReason: null
-      }
+        deletionReason: null,
+      },
     });
 
     await prisma.adminLog.create({
       data: {
         adminId: admin.id,
-        action: 'CANCELLED_USER_DELETION',
-        targetId: userId
-      }
+        action: "CANCELLED_USER_DELETION",
+        targetId: userId,
+      },
     });
 
     // Send comprehensive notification
-    const template = emailTemplates.accountDeletionCancelled(user.name || 'User');
+    const template = emailTemplates.accountDeletionCancelled(
+      user.name || "User",
+    );
 
-    console.log('[Admin Action] Sending deletion cancelled notification to user:', userId);
+    console.log(
+      "[Admin Action] Sending deletion cancelled notification to user:",
+      userId,
+    );
     const notificationResult = await sendComprehensiveNotification({
       userId,
-      title: 'Account Deletion Cancelled',
-      message: 'Good news! The scheduled deletion of your account has been cancelled. Your account remains active.',
-      type: 'ACCOUNT_DELETION_CANCELLED',
+      title: "Account Deletion Cancelled",
+      message:
+        "Good news! The scheduled deletion of your account has been cancelled. Your account remains active.",
+      type: "ACCOUNT_DELETION_CANCELLED",
       emailSubject: template.subject,
-      emailHtml: template.html
+      emailHtml: template.html,
     });
-    console.log('[Admin Action] Deletion cancelled notification result:', notificationResult);
+    console.log(
+      "[Admin Action] Deletion cancelled notification result:",
+      notificationResult,
+    );
 
     revalidatePath(`/admin/users/${userId}`);
     return { success: true };
   } catch (error) {
-    console.error('Error cancelling user deletion:', error);
-    return { success: false, error: 'Failed to cancel user deletion' };
+    console.error("Error cancelling user deletion:", error);
+    return { success: false, error: "Failed to cancel user deletion" };
   }
 }
 
 export async function sendPasswordReset(userId: string) {
   try {
     const admin = await checkAdmin();
-    
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, name: true }
+      select: { email: true, name: true },
     });
 
     if (!user?.email) {
-      return { success: false, error: 'User has no email address' };
+      return { success: false, error: "User has no email address" };
     }
 
     // Generate reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetToken = crypto.randomBytes(32).toString("hex");
     const resetTokenExpiry = new Date();
     resetTokenExpiry.setHours(resetTokenExpiry.getHours() + 24); // 24 hours
 
@@ -462,8 +535,8 @@ export async function sendPasswordReset(userId: string) {
       where: { id: userId },
       data: {
         resetToken,
-        resetTokenExpiry
-      }
+        resetTokenExpiry,
+      },
     });
 
     // Generate reset link
@@ -472,43 +545,52 @@ export async function sendPasswordReset(userId: string) {
     await prisma.adminLog.create({
       data: {
         adminId: admin.id,
-        action: 'SENT_PASSWORD_RESET',
-        targetId: userId
-      }
+        action: "SENT_PASSWORD_RESET",
+        targetId: userId,
+      },
     });
 
     // Send comprehensive notification
-    const template = emailTemplates.passwordResetRequested(user.name || 'User', resetLink);
+    const template = emailTemplates.passwordResetRequested(
+      user.name || "User",
+      resetLink,
+    );
 
-    console.log('[Admin Action] Sending password reset notification to user:', userId);
+    console.log(
+      "[Admin Action] Sending password reset notification to user:",
+      userId,
+    );
     const notificationResult = await sendComprehensiveNotification({
       userId,
-      title: 'Password Reset Requested',
-      message: 'A password reset has been requested for your account. Check your email for instructions.',
-      type: 'PASSWORD_RESET',
+      title: "Password Reset Requested",
+      message:
+        "A password reset has been requested for your account. Check your email for instructions.",
+      type: "PASSWORD_RESET",
       emailSubject: template.subject,
-      emailHtml: template.html
+      emailHtml: template.html,
     });
-    console.log('[Admin Action] Notification result:', notificationResult);
+    console.log("[Admin Action] Notification result:", notificationResult);
 
     revalidatePath(`/admin/users/${userId}`);
-    return { success: true, message: 'Password reset link sent to user' };
+    return { success: true, message: "Password reset link sent to user" };
   } catch (error) {
-    console.error('Error sending password reset:', error);
-    return { success: false, error: 'Failed to send password reset' };
+    console.error("Error sending password reset:", error);
+    return { success: false, error: "Failed to send password reset" };
   }
 }
 
-
-export async function verifyProvider(userId: string, status: 'VERIFIED' | 'REJECTED' | 'PENDING') {
+export async function verifyProvider(
+  userId: string,
+  status: "VERIFIED" | "REJECTED" | "PENDING",
+) {
   try {
     const admin = await checkAdmin();
-    
+
     await prisma.profile.update({
       where: { userId },
       data: {
         verificationStatus: status,
-        isVerified: status === 'VERIFIED',
+        isVerified: status === "VERIFIED",
       },
     });
 
@@ -517,31 +599,31 @@ export async function verifyProvider(userId: string, status: 'VERIFIED' | 'REJEC
         adminId: admin.id,
         action: `VERIFIED_PROVIDER_${status}`,
         targetId: userId,
-      }
+      },
     });
 
-    revalidatePath('/admin/users');
+    revalidatePath("/admin/users");
     return { success: true };
   } catch (error) {
-    console.error('Error verifying provider:', error);
-    return { success: false, error: 'Failed to verify provider' };
+    console.error("Error verifying provider:", error);
+    return { success: false, error: "Failed to verify provider" };
   }
 }
 
 export async function toggleBanUser(userId: string, isBanned: boolean) {
   try {
     const admin = await checkAdmin();
-    
+
     // Get user details for notifications
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, email: true }
+      select: { name: true, email: true },
     });
 
     if (!user) {
-      return { success: false, error: 'User not found' };
+      return { success: false, error: "User not found" };
     }
-    
+
     await prisma.user.update({
       where: { id: userId },
       data: { isBanned },
@@ -550,40 +632,46 @@ export async function toggleBanUser(userId: string, isBanned: boolean) {
     await prisma.adminLog.create({
       data: {
         adminId: admin.id,
-        action: isBanned ? 'BANNED_USER' : 'UNBANNED_USER',
+        action: isBanned ? "BANNED_USER" : "UNBANNED_USER",
         targetId: userId,
-      }
+      },
     });
 
     // Send comprehensive notification (Email + Push + Database)
-    const template = isBanned 
-      ? emailTemplates.userBanned(user.name || 'User')
-      : emailTemplates.userUnbanned(user.name || 'User');
+    const template = isBanned
+      ? emailTemplates.userBanned(user.name || "User")
+      : emailTemplates.userUnbanned(user.name || "User");
 
-    console.log(`[Admin Action] Sending ${isBanned ? 'ban' : 'unban'} notification to user:`, userId);
+    console.log(
+      `[Admin Action] Sending ${isBanned ? "ban" : "unban"} notification to user:`,
+      userId,
+    );
     const notificationResult = await sendComprehensiveNotification({
       userId,
-      title: isBanned ? 'Account Suspended' : 'Account Reinstated',
-      message: isBanned 
-        ? 'Your account has been temporarily restricted. Please check your email for more details.'
-        : 'Your account has been reinstated. You can now access all features again.',
-      type: isBanned ? 'ACCOUNT_SUSPENDED' : 'ACCOUNT_REINSTATED',
+      title: isBanned ? "Account Suspended" : "Account Reinstated",
+      message: isBanned
+        ? "Your account has been temporarily restricted. Please check your email for more details."
+        : "Your account has been reinstated. You can now access all features again.",
+      type: isBanned ? "ACCOUNT_SUSPENDED" : "ACCOUNT_REINSTATED",
       emailSubject: template.subject,
-      emailHtml: template.html
+      emailHtml: template.html,
     });
-    console.log('[Admin Action] Ban/Unban notification result:', notificationResult);
+    console.log(
+      "[Admin Action] Ban/Unban notification result:",
+      notificationResult,
+    );
 
-    revalidatePath('/admin/users');
+    revalidatePath("/admin/users");
     return { success: true };
   } catch (error) {
-    console.error('Error banning user:', error);
-    return { success: false, error: 'Failed to ban user' };
+    console.error("Error banning user:", error);
+    return { success: false, error: "Failed to ban user" };
   }
 }
 
 export async function getBookings(
-  page = 1, 
-  limit = 10, 
+  page = 1,
+  limit = 10,
   filters: {
     status?: string;
     search?: string;
@@ -591,36 +679,42 @@ export async function getBookings(
     dateTo?: string;
     minAmount?: string;
     maxAmount?: string;
-  } = {}
+  } = {},
 ) {
   try {
     await checkAdmin();
-    
+
     const skip = (page - 1) * limit;
     const where: any = {};
-    
+
     // Status filter
-    if (filters.status && filters.status !== 'ALL') {
+    if (filters.status && filters.status !== "ALL") {
       where.status = filters.status;
     }
 
     // Search filter (search in service title, client name/email, provider name/email, booking ID)
     if (filters.search) {
       where.OR = [
-        { id: { contains: filters.search, mode: 'insensitive' } },
-        { service: { title: { contains: filters.search, mode: 'insensitive' } } },
-        { client: { 
-          OR: [
-            { name: { contains: filters.search, mode: 'insensitive' } },
-            { email: { contains: filters.search, mode: 'insensitive' } }
-          ]
-        }},
-        { provider: { 
-          OR: [
-            { name: { contains: filters.search, mode: 'insensitive' } },
-            { email: { contains: filters.search, mode: 'insensitive' } }
-          ]
-        }},
+        { id: { contains: filters.search, mode: "insensitive" } },
+        {
+          service: { title: { contains: filters.search, mode: "insensitive" } },
+        },
+        {
+          client: {
+            OR: [
+              { name: { contains: filters.search, mode: "insensitive" } },
+              { email: { contains: filters.search, mode: "insensitive" } },
+            ],
+          },
+        },
+        {
+          provider: {
+            OR: [
+              { name: { contains: filters.search, mode: "insensitive" } },
+              { email: { contains: filters.search, mode: "insensitive" } },
+            ],
+          },
+        },
       ];
     }
 
@@ -651,22 +745,22 @@ export async function getBookings(
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
           client: { select: { name: true, email: true } },
           provider: { select: { name: true, email: true } },
           service: { select: { title: true } },
-        }
+        },
       }),
       prisma.booking.count({ where }),
       // Get stats for all bookings (not filtered)
       prisma.booking.groupBy({
-        by: ['status'],
+        by: ["status"],
         _count: true,
         _sum: {
-          totalAmount: true
-        }
-      })
+          totalAmount: true,
+        },
+      }),
     ]);
 
     // Calculate stats
@@ -686,24 +780,25 @@ export async function getBookings(
       stats.totalRevenue += revenue;
 
       switch (item.status) {
-        case 'PENDING':
+        case "PENDING":
           stats.pending = item._count;
           break;
-        case 'CONFIRMED':
-        case 'IN_PROGRESS':
+        case "CONFIRMED":
+        case "IN_PROGRESS":
           stats.confirmed += item._count;
           break;
-        case 'COMPLETED':
+        case "COMPLETED":
           stats.completed = item._count;
           break;
-        case 'CANCELLED':
-        case 'DISPUTED':
+        case "CANCELLED":
+        case "DISPUTED":
           stats.cancelled += item._count;
           break;
       }
     });
 
-    stats.avgBookingValue = stats.total > 0 ? Math.round(stats.totalRevenue / stats.total) : 0;
+    stats.avgBookingValue =
+      stats.total > 0 ? Math.round(stats.totalRevenue / stats.total) : 0;
 
     return {
       bookings,
@@ -713,80 +808,87 @@ export async function getBookings(
       stats,
     };
   } catch (error) {
-    console.error('Error fetching bookings:', error);
-    throw new Error('Failed to fetch bookings');
+    console.error("Error fetching bookings:", error);
+    throw new Error("Failed to fetch bookings");
   }
 }
 
 export async function getBackgroundChecks(status?: string) {
-    try {
-        await checkAdmin();
-        const where: any = {};
-        if (status && status !== 'ALL') {
-             where.status = status;
-        }
-
-        const checks = await prisma.backgroundCheck.findMany({
-            where,
-            include: {
-                provider: {
-                    include: {
-                        profile: true
-                    }
-                }
-            },
-            orderBy: { submittedAt: 'desc' }
-        });
-        return checks;
-    } catch (error) {
-        console.error("Error fetching background checks:", error);
-        return [];
+  try {
+    await checkAdmin();
+    const where: any = {};
+    if (status && status !== "ALL") {
+      where.status = status;
     }
+
+    const checks = await prisma.backgroundCheck.findMany({
+      where,
+      include: {
+        provider: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+      orderBy: { submittedAt: "desc" },
+    });
+    return checks;
+  } catch (error) {
+    console.error("Error fetching background checks:", error);
+    return [];
+  }
 }
 
-
 export async function getDisputes(
-  page = 1, 
-  limit = 10, 
+  page = 1,
+  limit = 10,
   filters: {
     status?: string;
     search?: string;
     dateFrom?: string;
     dateTo?: string;
     creatorRole?: string;
-  } = {}
+  } = {},
 ) {
   try {
     await checkAdmin();
-    
+
     const skip = (page - 1) * limit;
     const where: any = {};
-    
+
     // Status filter
-    if (filters.status && filters.status !== 'ALL') {
+    if (filters.status && filters.status !== "ALL") {
       where.status = filters.status;
     }
 
     // Search filter (dispute ID, reason, parties, booking)
     if (filters.search) {
       where.OR = [
-        { id: { contains: filters.search, mode: 'insensitive' } },
-        { reason: { contains: filters.search, mode: 'insensitive' } },
-        { creator: { 
-          OR: [
-            { name: { contains: filters.search, mode: 'insensitive' } },
-            { email: { contains: filters.search, mode: 'insensitive' } }
-          ]
-        }},
-        { defendant: { 
-          OR: [
-            { name: { contains: filters.search, mode: 'insensitive' } },
-            { email: { contains: filters.search, mode: 'insensitive' } }
-          ]
-        }},
-        { booking: {
-          service: { title: { contains: filters.search, mode: 'insensitive' } }
-        }},
+        { id: { contains: filters.search, mode: "insensitive" } },
+        { reason: { contains: filters.search, mode: "insensitive" } },
+        {
+          creator: {
+            OR: [
+              { name: { contains: filters.search, mode: "insensitive" } },
+              { email: { contains: filters.search, mode: "insensitive" } },
+            ],
+          },
+        },
+        {
+          defendant: {
+            OR: [
+              { name: { contains: filters.search, mode: "insensitive" } },
+              { email: { contains: filters.search, mode: "insensitive" } },
+            ],
+          },
+        },
+        {
+          booking: {
+            service: {
+              title: { contains: filters.search, mode: "insensitive" },
+            },
+          },
+        },
       ];
     }
 
@@ -802,48 +904,50 @@ export async function getDisputes(
     }
 
     // Creator role filter
-    if (filters.creatorRole && filters.creatorRole !== 'ALL') {
+    if (filters.creatorRole && filters.creatorRole !== "ALL") {
       where.creator = {
-        role: filters.creatorRole
+        role: filters.creatorRole,
       };
     }
 
-    const [disputes, total, statusCounts, resolvedDisputes] = await Promise.all([
-      prisma.dispute.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          booking: {
-            select: {
-              id: true,
-              date: true,
-              totalAmount: true,
-              service: { select: { title: true } }
-            }
+    const [disputes, total, statusCounts, resolvedDisputes] = await Promise.all(
+      [
+        prisma.dispute.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            booking: {
+              select: {
+                id: true,
+                date: true,
+                totalAmount: true,
+                service: { select: { title: true } },
+              },
+            },
+            creator: { select: { name: true, email: true, role: true } },
+            defendant: { select: { name: true, email: true, role: true } },
           },
-          creator: { select: { name: true, email: true, role: true } },
-          defendant: { select: { name: true, email: true, role: true } },
-        }
-      }),
-      prisma.dispute.count({ where }),
-      // Get overall stats
-      prisma.dispute.groupBy({
-        by: ['status'],
-        _count: true
-      }),
-      // Get resolved disputes for avg resolution time calculation
-      prisma.dispute.findMany({
-        where: {
-          status: { in: ['RESOLVED', 'CLOSED'] }
-        },
-        select: {
-          createdAt: true,
-          updatedAt: true
-        }
-      })
-    ]);
+        }),
+        prisma.dispute.count({ where }),
+        // Get overall stats
+        prisma.dispute.groupBy({
+          by: ["status"],
+          _count: true,
+        }),
+        // Get resolved disputes for avg resolution time calculation
+        prisma.dispute.findMany({
+          where: {
+            status: { in: ["RESOLVED", "CLOSED"] },
+          },
+          select: {
+            createdAt: true,
+            updatedAt: true,
+          },
+        }),
+      ],
+    );
 
     // Calculate stats
     const stats = {
@@ -858,13 +962,13 @@ export async function getDisputes(
     statusCounts.forEach((item: any) => {
       stats.total += item._count;
       switch (item.status) {
-        case 'OPEN':
+        case "OPEN":
           stats.open = item._count;
           break;
-        case 'RESOLVED':
+        case "RESOLVED":
           stats.resolved = item._count;
           break;
-        case 'CLOSED':
+        case "CLOSED":
           stats.closed = item._count;
           break;
       }
@@ -872,7 +976,8 @@ export async function getDisputes(
 
     // Calculate resolution rate
     const resolvedCount = stats.resolved + stats.closed;
-    stats.resolutionRate = stats.total > 0 ? Math.round((resolvedCount / stats.total) * 100) : 0;
+    stats.resolutionRate =
+      stats.total > 0 ? Math.round((resolvedCount / stats.total) * 100) : 0;
 
     // Calculate average resolution time in days
     if (resolvedDisputes.length > 0) {
@@ -881,7 +986,7 @@ export async function getDisputes(
         const resolved = new Date(dispute.updatedAt).getTime();
         return sum + (resolved - created);
       }, 0);
-      
+
       const avgTimeMs = totalResolutionTime / resolvedDisputes.length;
       stats.avgResolutionTime = Math.round(avgTimeMs / (1000 * 60 * 60 * 24)); // Convert to days
     }
@@ -894,16 +999,19 @@ export async function getDisputes(
       stats,
     };
   } catch (error) {
-    console.error('Error fetching disputes:', error);
-    throw new Error('Failed to fetch disputes');
+    console.error("Error fetching disputes:", error);
+    throw new Error("Failed to fetch disputes");
   }
 }
 
-
-export async function resolveDispute(disputeId: string, resolution: string, status: 'RESOLVED' | 'CLOSED') {
+export async function resolveDispute(
+  disputeId: string,
+  resolution: string,
+  status: "RESOLVED" | "CLOSED",
+) {
   try {
     const admin = await checkAdmin();
-    
+
     await prisma.dispute.update({
       where: { id: disputeId },
       data: {
@@ -918,20 +1026,20 @@ export async function resolveDispute(disputeId: string, resolution: string, stat
         action: `RESOLVED_DISPUTE_${status}`,
         targetId: disputeId,
         details: { resolution },
-      }
+      },
     });
 
-    revalidatePath('/admin/disputes');
+    revalidatePath("/admin/disputes");
     return { success: true };
   } catch (error) {
-    console.error('Error resolving dispute:', error);
-    return { success: false, error: 'Failed to resolve dispute' };
+    console.error("Error resolving dispute:", error);
+    return { success: false, error: "Failed to resolve dispute" };
   }
 }
 
 export async function getSupportTickets(
-  page = 1, 
-  limit = 10, 
+  page = 1,
+  limit = 10,
   filters: {
     status?: string;
     priority?: string;
@@ -939,41 +1047,43 @@ export async function getSupportTickets(
     category?: string;
     dateFrom?: string;
     dateTo?: string;
-  } = {}
+  } = {},
 ) {
   try {
     await checkAdmin();
-    
+
     const skip = (page - 1) * limit;
     const where: any = {};
-    
+
     // Status filter
-    if (filters.status && filters.status !== 'ALL') {
+    if (filters.status && filters.status !== "ALL") {
       where.status = filters.status;
     }
-    
+
     // Priority filter
-    if (filters.priority && filters.priority !== 'ALL') {
+    if (filters.priority && filters.priority !== "ALL") {
       where.priority = filters.priority;
     }
 
     // Category filter
-    if (filters.category && filters.category !== 'ALL') {
+    if (filters.category && filters.category !== "ALL") {
       where.category = filters.category;
     }
 
     // Search filter (ID, subject, description, user)
     if (filters.search) {
       where.OR = [
-        { id: { contains: filters.search, mode: 'insensitive' } },
-        { subject: { contains: filters.search, mode: 'insensitive' } },
-        { description: { contains: filters.search, mode: 'insensitive' } },
-        { user: { 
-          OR: [
-            { name: { contains: filters.search, mode: 'insensitive' } },
-            { email: { contains: filters.search, mode: 'insensitive' } }
-          ]
-        }}
+        { id: { contains: filters.search, mode: "insensitive" } },
+        { subject: { contains: filters.search, mode: "insensitive" } },
+        { description: { contains: filters.search, mode: "insensitive" } },
+        {
+          user: {
+            OR: [
+              { name: { contains: filters.search, mode: "insensitive" } },
+              { email: { contains: filters.search, mode: "insensitive" } },
+            ],
+          },
+        },
       ];
     }
 
@@ -988,38 +1098,39 @@ export async function getSupportTickets(
       }
     }
 
-    const [tickets, total, statusCounts, priorityCounts, resolvedTickets] = await Promise.all([
-      prisma.supportTicket.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: { select: { name: true, email: true, role: true } }
-        }
-      }),
-      prisma.supportTicket.count({ where }),
-      // Get status stats
-      prisma.supportTicket.groupBy({
-        by: ['status'],
-        _count: true
-      }),
-      // Get priority stats
-      prisma.supportTicket.groupBy({
-        by: ['priority'],
-        _count: true
-      }),
-      // Get resolved tickets for avg response time
-      prisma.supportTicket.findMany({
-        where: {
-          status: { in: ['RESOLVED', 'CLOSED'] }
-        },
-        select: {
-          createdAt: true,
-          updatedAt: true
-        }
-      })
-    ]);
+    const [tickets, total, statusCounts, priorityCounts, resolvedTickets] =
+      await Promise.all([
+        prisma.supportTicket.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            user: { select: { name: true, email: true, role: true } },
+          },
+        }),
+        prisma.supportTicket.count({ where }),
+        // Get status stats
+        prisma.supportTicket.groupBy({
+          by: ["status"],
+          _count: true,
+        }),
+        // Get priority stats
+        prisma.supportTicket.groupBy({
+          by: ["priority"],
+          _count: true,
+        }),
+        // Get resolved tickets for avg response time
+        prisma.supportTicket.findMany({
+          where: {
+            status: { in: ["RESOLVED", "CLOSED"] },
+          },
+          select: {
+            createdAt: true,
+            updatedAt: true,
+          },
+        }),
+      ]);
 
     // Calculate stats
     const stats = {
@@ -1034,21 +1145,21 @@ export async function getSupportTickets(
     statusCounts.forEach((item: any) => {
       stats.total += item._count;
       switch (item.status) {
-        case 'OPEN':
+        case "OPEN":
           stats.open = item._count;
           break;
-        case 'IN_PROGRESS':
+        case "IN_PROGRESS":
           stats.inProgress = item._count;
           break;
-        case 'RESOLVED':
-        case 'CLOSED':
+        case "RESOLVED":
+        case "CLOSED":
           stats.resolved += item._count;
           break;
       }
     });
 
     priorityCounts.forEach((item: any) => {
-      if (item.priority === 'URGENT') {
+      if (item.priority === "URGENT") {
         stats.urgent = item._count;
       }
     });
@@ -1060,7 +1171,7 @@ export async function getSupportTickets(
         const resolved = new Date(ticket.updatedAt).getTime();
         return sum + (resolved - created);
       }, 0);
-      
+
       const avgTimeMs = totalResponseTime / resolvedTickets.length;
       stats.avgResponseTime = Math.round(avgTimeMs / (1000 * 60 * 60)); // Convert to hours
     }
@@ -1073,19 +1184,26 @@ export async function getSupportTickets(
       stats,
     };
   } catch (error) {
-    console.error('Error fetching support tickets:', error);
-    throw new Error('Failed to fetch support tickets');
+    console.error("Error fetching support tickets:", error);
+    throw new Error("Failed to fetch support tickets");
   }
 }
 
-
-export async function updateSupportTicket(ticketId: string, data: { status?: string; priority?: string; adminNotes?: string; resolution?: string }) {
+export async function updateSupportTicket(
+  ticketId: string,
+  data: {
+    status?: string;
+    priority?: string;
+    adminNotes?: string;
+    resolution?: string;
+  },
+) {
   try {
     const admin = await checkAdmin();
-    
+
     const updateData: any = { ...data };
-    
-    if (data.status === 'RESOLVED' || data.status === 'CLOSED') {
+
+    if (data.status === "RESOLVED" || data.status === "CLOSED") {
       updateData.resolvedAt = new Date();
     }
 
@@ -1100,65 +1218,74 @@ export async function updateSupportTicket(ticketId: string, data: { status?: str
         action: `UPDATED_TICKET_${ticketId}`,
         targetId: ticketId,
         details: data,
-      }
+      },
     });
 
-    revalidatePath('/admin/support');
+    revalidatePath("/admin/support");
     return { success: true };
   } catch (error) {
-    console.error('Error updating support ticket:', error);
-    return { success: false, error: 'Failed to update support ticket' };
+    console.error("Error updating support ticket:", error);
+    return { success: false, error: "Failed to update support ticket" };
   }
 }
 
 export async function getFinanceSummary() {
   try {
     await checkAdmin();
-    
+
     // Get total revenue from completed bookings
     const completedBookings = await prisma.booking.findMany({
-      where: { status: 'COMPLETED' },
-      select: { totalAmount: true }
+      where: { status: "COMPLETED" },
+      select: { totalAmount: true },
     });
-    const totalRevenue = completedBookings.reduce((sum, b) => sum + Number(b.totalAmount), 0);
-    
+    const totalRevenue = completedBookings.reduce(
+      (sum, b) => sum + Number(b.totalAmount),
+      0,
+    );
+
     // Get successful payments
     const payments = await prisma.payment.findMany({
-      where: { status: 'COMPLETED' },
-      select: { amount: true }
+      where: { status: "COMPLETED" },
+      select: { amount: true },
     });
-    const totalPayments = payments.reduce((sum, p) => sum + Number(p.amount), 0);
-    
+    const totalPayments = payments.reduce(
+      (sum, p) => sum + Number(p.amount),
+      0,
+    );
+
     // Get pending payments
     const pendingPayments = await prisma.payment.count({
-      where: { status: 'PENDING' }
+      where: { status: "PENDING" },
     });
-    
+
     // Get total transactions
     const totalTransactions = await prisma.transaction.count();
-    
+
     // Get all wallets total balance
     const wallets = await prisma.wallet.findMany({
-      select: { balance: true }
+      select: { balance: true },
     });
-    const totalWalletBalance = wallets.reduce((sum, w) => sum + Number(w.balance), 0);
-    
+    const totalWalletBalance = wallets.reduce(
+      (sum, w) => sum + Number(w.balance),
+      0,
+    );
+
     // Calculate platform fees (assuming 10% fee - could be retrieved from SystemSettings)
-    const platformFee = totalRevenue * 0.10;
-    
+    const platformFee = totalRevenue * 0.1;
+
     // Get recent transactions for trend
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
+
     const recentTransactions = await prisma.transaction.findMany({
       where: {
-        createdAt: { gte: thirtyDaysAgo }
+        createdAt: { gte: thirtyDaysAgo },
       },
       select: {
         amount: true,
         type: true,
-        createdAt: true
-      }
+        createdAt: true,
+      },
     });
 
     return {
@@ -1168,20 +1295,20 @@ export async function getFinanceSummary() {
       totalTransactions,
       totalWalletBalance,
       platformFee,
-      recentTransactions: recentTransactions.map(t => ({
+      recentTransactions: recentTransactions.map((t) => ({
         ...t,
-        amount: Number(t.amount)
-      }))
+        amount: Number(t.amount),
+      })),
     };
   } catch (error) {
-    console.error('Error fetching finance summary:', error);
-    throw new Error('Failed to fetch finance summary');
+    console.error("Error fetching finance summary:", error);
+    throw new Error("Failed to fetch finance summary");
   }
 }
 
 export async function getTransactions(
-  page = 1, 
-  limit = 10, 
+  page = 1,
+  limit = 10,
   filters: {
     type?: string;
     search?: string;
@@ -1189,31 +1316,33 @@ export async function getTransactions(
     dateTo?: string;
     minAmount?: string;
     maxAmount?: string;
-  } = {}
+  } = {},
 ) {
   try {
     await checkAdmin();
-    
+
     const skip = (page - 1) * limit;
     const where: any = {};
-    
+
     // Type filter
-    if (filters.type && filters.type !== 'ALL') {
+    if (filters.type && filters.type !== "ALL") {
       where.type = filters.type;
     }
 
     // Search filter (Transaction ID, User Name, User Email)
     if (filters.search) {
       where.OR = [
-        { id: { contains: filters.search, mode: 'insensitive' } },
-        { wallet: {
-          user: {
-            OR: [
-              { name: { contains: filters.search, mode: 'insensitive' } },
-              { email: { contains: filters.search, mode: 'insensitive' } }
-            ]
-          }
-        }}
+        { id: { contains: filters.search, mode: "insensitive" } },
+        {
+          wallet: {
+            user: {
+              OR: [
+                { name: { contains: filters.search, mode: "insensitive" } },
+                { email: { contains: filters.search, mode: "insensitive" } },
+              ],
+            },
+          },
+        },
       ];
     }
 
@@ -1244,16 +1373,16 @@ export async function getTransactions(
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
           wallet: {
             include: {
-              user: { select: { name: true, email: true, role: true } }
-            }
-          }
-        }
+              user: { select: { name: true, email: true, role: true } },
+            },
+          },
+        },
       }),
-      prisma.transaction.count({ where })
+      prisma.transaction.count({ where }),
     ]);
 
     return {
@@ -1263,28 +1392,24 @@ export async function getTransactions(
       currentPage: page,
     };
   } catch (error) {
-    console.error('Error fetching transactions:', error);
-    throw new Error('Failed to fetch transactions');
+    console.error("Error fetching transactions:", error);
+    throw new Error("Failed to fetch transactions");
   }
 }
 
-export async function getWallets(
-  page = 1, 
-  limit = 10,
-  search = ''
-) {
+export async function getWallets(page = 1, limit = 10, search = "") {
   try {
     await checkAdmin();
-    
+
     const skip = (page - 1) * limit;
     const where: any = {};
 
     if (search) {
       where.user = {
         OR: [
-          { name: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } }
-        ]
+          { name: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+        ],
       };
     }
 
@@ -1293,12 +1418,12 @@ export async function getWallets(
         where,
         skip,
         take: limit,
-        orderBy: { balance: 'desc' },
+        orderBy: { balance: "desc" },
         include: {
-          user: { select: { name: true, email: true, role: true } }
-        }
+          user: { select: { name: true, email: true, role: true } },
+        },
       }),
-      prisma.wallet.count({ where })
+      prisma.wallet.count({ where }),
     ]);
 
     return {
@@ -1308,37 +1433,42 @@ export async function getWallets(
       currentPage: page,
     };
   } catch (error) {
-    console.error('Error fetching wallets:', error);
-    throw new Error('Failed to fetch wallets');
+    console.error("Error fetching wallets:", error);
+    throw new Error("Failed to fetch wallets");
   }
 }
-
 
 // Category Management
 export async function getCategories() {
   try {
     await checkAdmin();
-    
+
     const categories = await prisma.category.findMany({
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
       include: {
         _count: {
-          select: { services: true, jobs: true }
-        }
-      }
+          select: { services: true, jobs: true },
+        },
+      },
     });
 
     return categories;
   } catch (error) {
-    console.error('Error fetching categories:', error);
-    throw new Error('Failed to fetch categories');
+    console.error("Error fetching categories:", error);
+    throw new Error("Failed to fetch categories");
   }
 }
 
-export async function createCategory(data: { name: string; slug: string; description?: string; image?: string; parentId?: string }) {
+export async function createCategory(data: {
+  name: string;
+  slug: string;
+  description?: string;
+  image?: string;
+  parentId?: string;
+}) {
   try {
     const admin = await checkAdmin();
-    
+
     const category = await prisma.category.create({
       data: {
         name: data.name,
@@ -1346,74 +1476,77 @@ export async function createCategory(data: { name: string; slug: string; descrip
         description: data.description,
         image: data.image,
         parentId: data.parentId || null,
-      }
+      },
     });
 
     await prisma.adminLog.create({
       data: {
         adminId: admin.id,
-        action: 'CREATED_CATEGORY',
+        action: "CREATED_CATEGORY",
         targetId: category.id,
         details: { name: data.name },
-      }
+      },
     });
 
-    revalidatePath('/admin/settings');
+    revalidatePath("/admin/settings");
     return { success: true, category };
   } catch (error) {
-    console.error('Error creating category:', error);
-    return { success: false, error: 'Failed to create category' };
+    console.error("Error creating category:", error);
+    return { success: false, error: "Failed to create category" };
   }
 }
 
-export async function updateCategory(categoryId: string, data: { name?: string; slug?: string; description?: string; image?: string }) {
+export async function updateCategory(
+  categoryId: string,
+  data: { name?: string; slug?: string; description?: string; image?: string },
+) {
   try {
     const admin = await checkAdmin();
-    
+
     const category = await prisma.category.update({
       where: { id: categoryId },
-      data
+      data,
     });
 
     await prisma.adminLog.create({
       data: {
         adminId: admin.id,
-        action: 'UPDATED_CATEGORY',
+        action: "UPDATED_CATEGORY",
         targetId: categoryId,
         details: data,
-      }
+      },
     });
 
-    revalidatePath('/admin/settings');
+    revalidatePath("/admin/settings");
     return { success: true, category };
   } catch (error) {
-    console.error('Error updating category:', error);
-    return { success: false, error: 'Failed to update category' };
+    console.error("Error updating category:", error);
+    return { success: false, error: "Failed to update category" };
   }
 }
 
 export async function deleteCategory(categoryId: string) {
   try {
     const admin = await checkAdmin();
-    
+
     await prisma.category.delete({
-      where: { id: categoryId }
+      where: { id: categoryId },
     });
 
     await prisma.adminLog.create({
       data: {
         adminId: admin.id,
-        action: 'DELETED_CATEGORY',
+        action: "DELETED_CATEGORY",
         targetId: categoryId,
         details: {},
-      }
+      },
     });
 
-    revalidatePath('/admin/settings');
+    revalidatePath("/admin/settings");
     return { success: true };
   } catch (error) {
-    console.error('Error deleting category:', error);
-    return { success: false, error: 'Failed to delete category' };
+    console.error("Error deleting category:", error);
+    return { success: false, error: "Failed to delete category" };
   }
 }
 
@@ -1421,111 +1554,132 @@ export async function deleteCategory(categoryId: string) {
 export async function getSystemSettings() {
   try {
     await checkAdmin();
-    
+
     const settings = await prisma.systemSetting.findMany({
-      orderBy: { key: 'asc' }
+      orderBy: { key: "asc" },
     });
 
     return settings;
   } catch (error) {
-    console.error('Error fetching system settings:', error);
-    throw new Error('Failed to fetch system settings');
+    console.error("Error fetching system settings:", error);
+    throw new Error("Failed to fetch system settings");
   }
 }
 
-export async function updateSystemSetting(key: string, value: any, description?: string) {
+export async function updateSystemSetting(
+  key: string,
+  value: any,
+  description?: string,
+) {
   try {
     const admin = await checkAdmin();
-    
+
     const setting = await prisma.systemSetting.upsert({
       where: { key },
       update: { value, description },
-      create: { key, value, description }
+      create: { key, value, description },
     });
 
     await prisma.adminLog.create({
       data: {
         adminId: admin.id,
-        action: 'UPDATED_SYSTEM_SETTING',
+        action: "UPDATED_SYSTEM_SETTING",
         targetId: key,
         details: { value },
-      }
+      },
     });
 
-    revalidatePath('/admin/settings');
+    revalidatePath("/admin/settings");
     return { success: true, setting };
   } catch (error) {
-    console.error('Error updating system setting:', error);
-    return { success: false, error: 'Failed to update system setting' };
+    console.error("Error updating system setting:", error);
+    return { success: false, error: "Failed to update system setting" };
   }
 }
 
 // Moderation & Audit Logs
-export async function getAdminLogs(page = 1, limit = 20) {
+export async function getAdminLogs(
+  page = 1,
+  limit = 20,
+  accessType: "ALL" | "PAID" | "WAIVED" = "ALL",
+) {
   try {
     await checkAdmin();
     const skip = (page - 1) * limit;
 
+    const where: any = {};
+    if (accessType === "PAID") {
+      where.action = "ONBOARDING_FEE_PAID_ACCESS_GRANTED";
+    } else if (accessType === "WAIVED") {
+      where.action = "WAIVED_ONBOARDING_FEE";
+    }
+
     const [logs, total] = await Promise.all([
       prisma.adminLog.findMany({
+        where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         include: {
-          admin: { select: { name: true, email: true, image: true } }
-        }
+          admin: { select: { name: true, email: true, image: true } },
+        },
       }),
-      prisma.adminLog.count()
+      prisma.adminLog.count({ where }),
     ]);
 
     return {
       logs,
       total,
       totalPages: Math.ceil(total / limit),
-      currentPage: page
+      currentPage: page,
+      accessType,
     };
   } catch (error) {
-    console.error('Error fetching admin logs:', error);
-    throw new Error('Failed to fetch admin logs');
+    console.error("Error fetching admin logs:", error);
+    throw new Error("Failed to fetch admin logs");
   }
 }
 
-export async function processManualRefund(bookingId: string, amount: number, reason: string) {
+export async function processManualRefund(
+  bookingId: string,
+  amount: number,
+  reason: string,
+) {
   try {
     const admin = await checkAdmin();
-    
+
     // 1. Get booking and related payment
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
         payment: true,
         client: {
-          include: { wallet: true }
-        }
-      }
+          include: { wallet: true },
+        },
+      },
     });
 
-    if (!booking) return { success: false, error: 'Booking not found' };
-    
+    if (!booking) return { success: false, error: "Booking not found" };
+
     // 2. Perform transaction in a multi-step update (Prisma transaction)
     await prisma.$transaction(async (tx) => {
       // Update Booking status
       await tx.booking.update({
         where: { id: bookingId },
         data: {
-          status: 'CANCELLED',
+          status: "CANCELLED",
           refundAmount: amount,
           cancellationReason: `[Admin Manual Refund] ${reason}`,
           cancelledAt: new Date(),
-          cancelledBy: admin.id
-        }
+          cancelledBy: admin.id,
+        },
       });
 
       // Update Payment status if exists
       if (booking.payment) {
         await tx.payment.update({
           where: { id: booking.payment.id },
-          data: { status: 'REFUNDED' }
+          data: { status: "REFUNDED" },
         });
       }
 
@@ -1534,8 +1688,8 @@ export async function processManualRefund(bookingId: string, amount: number, rea
         await tx.wallet.update({
           where: { id: booking.client.wallet.id },
           data: {
-            balance: { increment: amount }
-          }
+            balance: { increment: amount },
+          },
         });
 
         // Record Wallet Transaction
@@ -1543,9 +1697,9 @@ export async function processManualRefund(bookingId: string, amount: number, rea
           data: {
             walletId: booking.client.wallet.id,
             amount: amount,
-            type: 'REFUND',
-            description: `Manual refund for booking ${bookingId}: ${reason}`
-          }
+            type: "REFUND",
+            description: `Manual refund for booking ${bookingId}: ${reason}`,
+          },
         });
       }
 
@@ -1553,19 +1707,19 @@ export async function processManualRefund(bookingId: string, amount: number, rea
       await tx.adminLog.create({
         data: {
           adminId: admin.id,
-          action: 'MANUAL_REFUND_PROCESSED',
+          action: "MANUAL_REFUND_PROCESSED",
           targetId: bookingId,
-          details: { amount, reason, clientId: booking.clientId }
-        }
+          details: { amount, reason, clientId: booking.clientId },
+        },
       });
     });
 
-    revalidatePath('/admin/bookings');
+    revalidatePath("/admin/bookings");
     revalidatePath(`/admin/users/${booking.clientId}`);
-    
+
     return { success: true };
   } catch (error) {
-    console.error('Error processing manual refund:', error);
-    return { success: false, error: 'Failed to process manual refund' };
+    console.error("Error processing manual refund:", error);
+    return { success: false, error: "Failed to process manual refund" };
   }
 }
