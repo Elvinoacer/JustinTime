@@ -35,12 +35,14 @@ const ImageCropper = ({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [deviceIsMobile, setDeviceIsMobile] = useState(false);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [objectFit, setObjectFit] = useState<"contain" | "cover" | "horizontal-cover" | "vertical-cover">("vertical-cover");
 
   // Detect mobile device
   useEffect(() => {
     const checkMobile = () => {
       setDeviceIsMobile(window.innerWidth < 768);
+      setIsCompactViewport(window.innerHeight < 820);
     };
     checkMobile();
     window.addEventListener("resize", checkMobile);
@@ -48,6 +50,8 @@ const ImageCropper = ({
   }, []);
 
   const finalIsMobile = isMobile || deviceIsMobile;
+  const showManualPositionControls = !finalIsMobile && !isCompactViewport;
+  const showQuickPositionButtons = finalIsMobile || isCompactViewport;
 
   const onCropChange = (crop: Point) => {
     setCrop(crop);
@@ -124,7 +128,7 @@ const ImageCropper = ({
         className={`bg-white rounded-none sm:rounded-xl md:rounded-2xl w-full ${
           finalIsMobile
             ? "h-[100dvh] max-h-[100dvh] rounded-none"
-            : "max-w-xs xs:max-w-sm sm:max-w-md md:max-w-2xl max-h-[90dvh]"
+            : "max-w-xs xs:max-w-sm sm:max-w-md md:max-w-2xl max-h-[95dvh]"
         } overflow-y-auto flex flex-col relative z-10`}
       >
         {/* Header */}
@@ -163,7 +167,14 @@ const ImageCropper = ({
         </div>
 
         {/* Cropper Area */}
-        <div className="relative flex-shrink-0 w-full bg-black overflow-hidden" style={{ height: finalIsMobile ? '50vh' : '60vh', maxHeight: finalIsMobile ? '400px' : '500px', minHeight: finalIsMobile ? '200px' : '300px' }}>
+        <div
+          className="relative flex-shrink-0 w-full bg-black overflow-hidden"
+          style={{
+            height: finalIsMobile ? "45dvh" : isCompactViewport ? "42vh" : "60vh",
+            maxHeight: finalIsMobile ? "360px" : isCompactViewport ? "420px" : "500px",
+            minHeight: finalIsMobile ? "180px" : isCompactViewport ? "240px" : "300px",
+          }}
+        >
           {image ? (
             <div className="absolute inset-0">
               <Cropper
@@ -213,7 +224,7 @@ const ImageCropper = ({
               {/* Zoom Controls */}
               <div className="space-y-1.5 sm:space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="block font-medium text-gray-900 flex items-center gap-1.5 sm:gap-2">
+                  <label className="font-medium text-gray-900 flex items-center gap-1.5 sm:gap-2">
                     <span className="material-symbols-outlined text-base sm:text-lg">
                       zoom_in
                     </span>
@@ -256,9 +267,9 @@ const ImageCropper = ({
               </div>
 
               {/* Position Controls - Hidden on mobile if too cramped */}
-              {!finalIsMobile && (
+              {showManualPositionControls && (
                 <div className="space-y-1.5 sm:space-y-2">
-                  <label className="block font-medium text-gray-900 flex items-center gap-1.5 sm:gap-2">
+                  <label className="font-medium text-gray-900 flex items-center gap-1.5 sm:gap-2">
                     <span className="material-symbols-outlined text-base sm:text-lg">
                       crop
                     </span>
@@ -316,7 +327,7 @@ const ImageCropper = ({
             </div>
 
             {/* Quick Action Buttons - For mobile touch */}
-            {finalIsMobile && (
+            {showQuickPositionButtons && (
               <div className="space-y-3 pt-1">
                 {/* Quick Zoom Buttons */}
                 <div className="flex items-center justify-between gap-1">
@@ -399,7 +410,7 @@ const ImageCropper = ({
             <div
               className={`flex flex-col xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3 ${
                 finalIsMobile ? "pt-2" : "pt-1 sm:pt-2"
-              }`}
+              } sticky bottom-0 bg-white`}
             >
               <button
                 onClick={onCancel}
