@@ -9,6 +9,17 @@ import {
 } from "@/lib/api/hooks/useServices";
 import InfiniteScrollSentinel from "@/components/shared/InfiniteScrollSentinel";
 
+/** API may return `subscription` as `{ plan, isActive }` or legacy string */
+function subscriptionPlanLabel(sub: unknown): string | null {
+  if (sub == null) return null;
+  if (typeof sub === "string") return sub === "FREE" ? null : sub;
+  if (typeof sub === "object" && sub !== null && "plan" in sub) {
+    const p = (sub as { plan?: string }).plan;
+    return p && p !== "FREE" ? p : null;
+  }
+  return null;
+}
+
 interface ServicesListProps {
   filters: ServicesFilters;
   onPageChange?: (page: number) => void;
@@ -236,7 +247,9 @@ const ServicesList = ({
               provider: {
                 name: service.provider?.name || "Unknown Provider",
                 image: service.provider?.image,
-                subscription: service.provider?.subscription,
+                subscription: subscriptionPlanLabel(
+                  (service.provider as { subscription?: unknown })?.subscription
+                ),
                 verified: service.provider?.profile?.isVerified || false,
               },
             }}

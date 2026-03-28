@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useEffect, Suspense, useMemo, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  Suspense,
+  useMemo,
+  useCallback,
+  useRef,
+  type CSSProperties,
+} from "react";
 import { motion } from "framer-motion";
 import Filters from "@/components/Filters";
 import ServicesList from "@/components/ServicesList";
@@ -140,13 +148,42 @@ function ServicesPageContent() {
     return base;
   }, [userLocation]);
 
+  const heroRef = useRef<HTMLElement | null>(null);
+  const [toolbarCompact, setToolbarCompact] = useState(false);
+
+  useEffect(() => {
+    const hero = heroRef.current;
+    if (!hero) return;
+
+    const update = () => {
+      const r = hero.getBoundingClientRect();
+      setToolbarCompact(r.bottom <= 1);
+    };
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-slate-50">
       <Header />
 
-      <div className="pt-[var(--public-header-h)]">
+      <div
+        className="pt-[var(--public-header-h)]"
+        style={
+          {
+            "--services-toolbar-h": toolbarCompact ? "6.25rem" : "9rem",
+          } as CSSProperties
+        }
+      >
         {/* Hero */}
         <section
+          ref={heroRef}
           className="relative overflow-hidden border-b border-emerald-100/60 bg-gradient-to-b from-white via-emerald-50/40 to-slate-50"
           aria-labelledby="services-page-heading"
         >
@@ -233,19 +270,29 @@ function ServicesPageContent() {
           </div>
         </section>
 
-        {/* Single sticky toolbar: search + location + categories */}
+        {/* Single sticky toolbar: search + location + categories — compacts after hero scrolls away */}
         <div
-          className="sticky z-40 border-b border-slate-200/80 bg-white/85 shadow-[0_8px_30px_-18px_rgba(15,23,42,0.25)] backdrop-blur-xl supports-[backdrop-filter]:bg-white/75"
+          className={`sticky z-40 border-b border-slate-200/80 bg-white/90 shadow-[0_8px_30px_-18px_rgba(15,23,42,0.25)] backdrop-blur-xl transition-[padding,box-shadow] duration-200 supports-[backdrop-filter]:bg-white/75 ${toolbarCompact ? "shadow-[0_4px_20px_-14px_rgba(15,23,42,0.2)]" : ""}`}
           style={{ top: "var(--public-header-h)" }}
         >
-          <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+          <div
+            className={`mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 ${toolbarCompact ? "py-2 sm:py-2.5 lg:py-2.5" : "py-3 lg:py-4"}`}
+          >
+            <div
+              className={`flex flex-col lg:flex-row lg:items-center lg:gap-4 ${toolbarCompact ? "gap-2" : "gap-3"}`}
+            >
               <div className="relative min-w-0 flex-1">
                 <label htmlFor="services-search" className="sr-only">
                   Search services
                 </label>
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                  <span className="material-symbols-outlined text-[22px]">search</span>
+                <span
+                  className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-400 ${toolbarCompact ? "left-2.5" : "left-4"}`}
+                >
+                  <span
+                    className={`material-symbols-outlined ${toolbarCompact ? "text-[20px]" : "text-[22px]"}`}
+                  >
+                    search
+                  </span>
                 </span>
                 <input
                   id="services-search"
@@ -255,13 +302,13 @@ function ServicesPageContent() {
                   placeholder="What do you need help with?"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  className="min-h-[48px] w-full rounded-2xl border border-slate-200/90 bg-slate-50/90 py-3 pl-12 pr-11 text-base text-slate-900 shadow-inner shadow-slate-200/40 outline-none ring-emerald-500/0 transition-[box-shadow,border-color,background-color] placeholder:text-slate-400 focus:border-emerald-500/80 focus:bg-white focus:ring-4 focus:ring-emerald-500/15 sm:min-h-[52px] sm:text-[17px]"
+                  className={`w-full rounded-2xl border border-slate-200/90 bg-slate-50/90 pr-10 text-slate-900 shadow-inner shadow-slate-200/40 outline-none ring-emerald-500/0 transition-[box-shadow,border-color,background-color,min-height,padding,font-size] placeholder:text-slate-400 focus:border-emerald-500/80 focus:bg-white focus:ring-4 focus:ring-emerald-500/15 ${toolbarCompact ? "min-h-10 py-2 pl-9 text-sm sm:min-h-10 sm:pl-10 sm:text-sm" : "min-h-[48px] py-3 pl-12 text-base sm:min-h-[52px] sm:text-[17px]"}`}
                 />
                 {searchInput ? (
                   <button
                     type="button"
                     onClick={() => setSearchInput("")}
-                    className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    className={`absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 ${toolbarCompact ? "h-8 w-8" : "h-9 w-9"}`}
                     aria-label="Clear search"
                   >
                     <span className="material-symbols-outlined text-[20px]">close</span>
@@ -270,14 +317,21 @@ function ServicesPageContent() {
               </div>
 
               <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-stretch lg:w-auto lg:shrink-0 lg:items-center">
-                <div className="min-w-0 flex-1 [&_button]:min-h-[48px] [&_button]:w-full sm:[&_button]:w-auto lg:[&_button]:min-h-[52px]">
+                <div
+                  className={`min-w-0 flex-1 sm:[&_button]:w-auto ${toolbarCompact ? "[&_button]:min-h-10 [&_button]:w-full lg:[&_button]:min-h-10" : "[&_button]:min-h-[48px] [&_button]:w-full lg:[&_button]:min-h-[52px]"}`}
+                >
                   <LocationPicker
                     key={locationPickerKey}
+                    compact={toolbarCompact}
                     onLocationChange={setUserLocation}
                   />
                 </div>
-                <div className="hidden items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/90 px-4 py-2.5 text-sm text-slate-600 lg:flex">
-                  <span className="material-symbols-outlined text-[20px] text-emerald-600">
+                <div
+                  className={`hidden items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/90 text-slate-600 lg:flex ${toolbarCompact ? "px-3 py-1.5 text-xs" : "px-4 py-2.5 text-sm"}`}
+                >
+                  <span
+                    className={`material-symbols-outlined text-emerald-600 ${toolbarCompact ? "text-[18px]" : "text-[20px]"}`}
+                  >
                     tune
                   </span>
                   <span className="whitespace-nowrap font-medium">
@@ -287,28 +341,35 @@ function ServicesPageContent() {
               </div>
             </div>
 
-            <div className="mt-3 flex flex-col gap-3 border-t border-slate-100 pt-3 sm:mt-4 sm:pt-4 lg:flex-row lg:items-center">
+            <div
+              className={`flex flex-col border-slate-100 lg:flex-row lg:items-center ${toolbarCompact ? "mt-2 gap-2 border-t pt-2 sm:mt-2 sm:pt-2" : "mt-3 gap-3 border-t pt-3 sm:mt-4 sm:pt-4"}`}
+            >
               <div className="w-full lg:hidden">
                 <CategoryDropdown
                   categories={allCategories}
                   selectedCategory={selectedCategory}
                   onSelectCategory={setSelectedCategory}
+                  compact={toolbarCompact}
                 />
               </div>
 
-              <div className="hidden min-w-0 flex-1 gap-2 overflow-x-auto pb-1 pt-0.5 no-scrollbar lg:flex">
+              <div className="hidden min-w-0 flex-1 gap-1.5 overflow-x-auto pb-0.5 pt-0.5 no-scrollbar lg:flex">
                 {isCategoriesLoading
                   ? Array.from({ length: 9 }).map((_, i) => (
                       <div
                         key={i}
-                        className="h-10 w-28 shrink-0 animate-pulse rounded-full bg-slate-100"
+                        className={`shrink-0 animate-pulse rounded-full bg-slate-100 ${toolbarCompact ? "h-8 w-24" : "h-10 w-28"}`}
                       />
                     ))
                   : featuredCategories.map((category) => (
                       <motion.button
                         key={category.name}
                         type="button"
-                        className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${
+                        className={`flex shrink-0 items-center rounded-full font-medium transition-colors ${
+                          toolbarCompact
+                            ? "gap-1 px-2.5 py-1.5 text-xs"
+                            : "gap-2 px-4 py-2.5 text-sm"
+                        } ${
                           selectedCategory === category.name
                             ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25"
                             : "border border-slate-200 bg-white text-slate-700 hover:border-emerald-200 hover:bg-emerald-50/80"
@@ -317,10 +378,14 @@ function ServicesPageContent() {
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
-                        <span className="material-symbols-outlined text-[18px]">
+                        <span
+                          className={`material-symbols-outlined ${toolbarCompact ? "text-[16px]" : "text-[18px]"}`}
+                        >
                           {category.icon || "apps"}
                         </span>
-                        <span className="whitespace-nowrap">{category.name}</span>
+                        <span className="max-w-[10rem] truncate sm:max-w-none sm:whitespace-nowrap">
+                          {category.name}
+                        </span>
                       </motion.button>
                     ))}
               </div>
@@ -328,12 +393,17 @@ function ServicesPageContent() {
               <motion.button
                 type="button"
                 onClick={() => setIsAllCategoriesOpen(true)}
-                className="flex w-full shrink-0 items-center justify-center gap-2 rounded-full border-2 border-emerald-200 bg-emerald-50/90 px-4 py-2.5 text-sm font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100/90 lg:w-auto lg:py-2.5"
+                className={`flex w-full shrink-0 items-center justify-center gap-2 rounded-full border-2 border-emerald-200 bg-emerald-50/90 font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-100/90 lg:w-auto ${toolbarCompact ? "px-3 py-1.5 text-xs" : "px-4 py-2.5 text-sm"}`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <span className="material-symbols-outlined text-[20px]">grid_view</span>
-                <span>All categories</span>
+                <span
+                  className={`material-symbols-outlined ${toolbarCompact ? "text-[18px]" : "text-[20px]"}`}
+                >
+                  grid_view
+                </span>
+                <span className="hidden sm:inline">All categories</span>
+                <span className="sm:hidden">All</span>
               </motion.button>
             </div>
           </div>

@@ -15,12 +15,14 @@ interface CategoryDropdownProps {
   categories: Category[];
   selectedCategory: string;
   onSelectCategory: (categoryName: string) => void;
+  compact?: boolean;
 }
 
 export default function CategoryDropdown({
   categories,
   selectedCategory,
   onSelectCategory,
+  compact = false,
 }: CategoryDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -92,7 +94,9 @@ export default function CategoryDropdown({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex min-h-[48px] w-full items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50/40 active:scale-[0.99] sm:w-auto sm:min-h-0"
+        className={`flex w-full items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50/40 active:scale-[0.99] sm:w-auto ${
+          compact ? "min-h-10 px-3 py-2 text-sm" : "min-h-[48px] px-4 py-2.5 sm:min-h-0"
+        }`}
         aria-label={isOpen ? "Close categories" : "Open categories"}
         aria-expanded={isOpen}
       >

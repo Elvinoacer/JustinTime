@@ -19,10 +19,13 @@ interface LocationPickerProps {
       address?: string;
     } | null
   ) => void;
+  /** Smaller control when the services toolbar is in compact (scrolled) mode */
+  compact?: boolean;
 }
 
 export default function LocationPicker({
   onLocationChange,
+  compact = false,
 }: LocationPickerProps) {
   const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
@@ -152,7 +155,11 @@ export default function LocationPicker({
       {/* Location Button - Responsive */}
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex min-h-[48px] min-w-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm ring-emerald-500/0 transition-all hover:border-emerald-200 hover:bg-emerald-50/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 lg:min-h-[52px] lg:min-w-[168px]"
+        className={`flex min-w-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white font-semibold text-slate-800 shadow-sm ring-emerald-500/0 transition-all hover:border-emerald-200 hover:bg-emerald-50/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
+          compact
+            ? "min-h-10 px-3 py-2 text-xs lg:min-h-10 lg:min-w-[140px]"
+            : "min-h-[48px] px-4 py-2.5 text-sm lg:min-h-[52px] lg:min-w-[168px]"
+        }`}
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.99 }}
         aria-label={currentLocation ? "Change location" : "Set location"}
