@@ -31,6 +31,11 @@ const PROXY_WINDOW_MULTIPLIER = getPositiveNumberFromEnv(
   process.env.PROXY_RATE_LIMIT_WINDOW_MULTIPLIER,
   1,
 );
+const SUPPORTED_LOCALES = new Set(["en", "sw", "sheng"]);
+const LANGUAGE_SWITCH_ENABLED = getBooleanFromEnv(
+  process.env.ENABLE_LANGUAGE_SWITCHING,
+  false,
+);
 
 const proxyLimits = {
   apiGlobalLimit: getPositiveIntegerFromEnv(
@@ -331,6 +336,30 @@ export default auth((req) => {
     }
 
     return NextResponse.next();
+  }
+
+  const requestedLocale = nextUrl.searchParams.get("locale");
+  if (requestedLocale) {
+    const cleanUrl = nextUrl.clone();
+    cleanUrl.searchParams.delete("locale");
+
+    if (!LANGUAGE_SWITCH_ENABLED) {
+      return NextResponse.redirect(cleanUrl);
+    }
+
+    if (!SUPPORTED_LOCALES.has(requestedLocale)) {
+      return NextResponse.redirect(cleanUrl);
+    }
+
+    const response = NextResponse.redirect(cleanUrl);
+    response.cookies.set("NEXT_LOCALE", requestedLocale, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    return response;
   }
 
   const isOnProviderDashboard = nextUrl.pathname.startsWith("/dashboard");

@@ -1,0 +1,204 @@
+{
+  "name": "JustInTime Language Switch",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "language-switch",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "Webhook_1",
+      "name": "Language Switch Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"event\"]}}",
+              "operation": "equal",
+              "value2": "language.switch"
+            }
+          ]
+        },
+        "combineOperation": "and"
+      },
+      "id": "If_ValidEvent",
+      "name": "Valid Event?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [520, 240]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "event",
+              "value": "={{$json.event}}",
+              "type": "string"
+            },
+            {
+              "name": "locale",
+              "value": "={{$json.locale}}",
+              "type": "string"
+            },
+            {
+              "name": "previousLocale",
+              "value": "={{$json.previousLocale || null}}",
+              "type": "string"
+            },
+            {
+              "name": "source",
+              "value": "={{$json.source || \"unknown\"}}",
+              "type": "string"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{$json.timestamp || $now}}",
+              "type": "string"
+            },
+            {
+              "name": "userId",
+              "value": "={{$json.user?.id || null}}",
+              "type": "string"
+            },
+            {
+              "name": "email",
+              "value": "={{$json.user?.email || null}}",
+              "type": "string"
+            },
+            {
+              "name": "role",
+              "value": "={{$json.user?.role || null}}",
+              "type": "string"
+            },
+            {
+              "name": "ip",
+              "value": "={{$json.request?.ip || null}}",
+              "type": "string"
+            },
+            {
+              "name": "userAgent",
+              "value": "={{$json.request?.userAgent || null}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Set_Normalize",
+      "name": "Normalize Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [760, 160]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "language_switch_events",
+        "sheetName": "events",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "GoogleSheets_Log",
+      "name": "Log To Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1020, 160]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"received\": true,\n  \"locale\": $json.locale\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "Respond_OK",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1260, 160]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": false,\n  \"error\": \"invalid event\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "Respond_Invalid",
+      "name": "Respond Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [760, 360]
+    }
+  ],
+  "connections": {
+    "Language Switch Webhook": {
+      "main": [
+        [
+          {
+            "node": "Valid Event?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Event?": {
+      "main": [
+        [
+          {
+            "node": "Normalize Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Payload": {
+      "main": [
+        [
+          {
+            "node": "Log To Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log To Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "1"
+}
