@@ -1,7 +1,34 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { createProposalSchema } from "@/lib/validations/schemas";
+import { z } from "zod";
+
+const createJobProposalSchema = z
+  .object({
+    amount: z.number().positive().optional(),
+    message: z.string().min(10).optional(),
+    price: z.number().positive().optional(),
+    coverLetter: z.string().min(10).optional(),
+    estimatedDays: z.number().int().positive().optional(),
+    attachments: z.array(z.string()).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.amount == null && value.price == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Proposal amount is required",
+        path: ["price"],
+      });
+    }
+
+    if (!value.message && !value.coverLetter) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Proposal message is required",
+        path: ["coverLetter"],
+      });
+    }
+  });
 
 export async function GET(
   request: Request,
@@ -76,6 +103,21 @@ export async function POST(
       });
     }
 
+    if (
+      typeof job.maxApplicants === "number" &&
+      job.maxApplicants > 0
+    ) {
+      const proposalCount = await prisma.proposal.count({
+        where: { jobId: id },
+      });
+
+      if (proposalCount >= job.maxApplicants) {
+        return new NextResponse("This job has reached its applicant limit", {
+          status: 409,
+        });
+      }
+    }
+
     const existingProposal = await prisma.proposal.findFirst({
       where: { jobId: id, providerId: session.user.id },
     });
@@ -88,14 +130,17 @@ export async function POST(
     }
 
     const body = await request.json();
-    const validatedData = createProposalSchema.parse(body);
+    const validatedData = createJobProposalSchema.parse(body);
 
     const proposal = await prisma.proposal.create({
       data: {
         jobId: id,
         providerId: session.user.id,
-        price: validatedData.amount,
-        coverLetter: validatedData.message,
+        price: validatedData.price ?? validatedData.amount ?? 0,
+        coverLetter:
+          validatedData.coverLetter ?? validatedData.message ?? "",
+        estimatedDays: validatedData.estimatedDays,
+        attachments: validatedData.attachments,
       },
       include: {
         provider: { select: { id: true, name: true, image: true } },

@@ -38,7 +38,7 @@ export interface ProfessionalDetail {
     categoryId: string;
     price: number;
     pricingUnit: string;
-    images: unknown;
+    images: string[];
   }[];
   reviews: {
     id: string;

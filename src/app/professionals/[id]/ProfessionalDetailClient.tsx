@@ -2,915 +2,895 @@
 
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
-import InteractionBar from "@/components/InteractionBar"; // Added import
+import InteractionBar from "@/components/InteractionBar";
 import {
   useProfessional,
-  ProfessionalDetail,
+  type ProfessionalDetail,
 } from "@/lib/api/hooks/useProfessional";
 import { AnimatePresence, motion } from "framer-motion";
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
 import { toast } from "sonner";
+
+type TabId = "about" | "services" | "reviews";
+
+type EducationItem = {
+  degree?: string;
+  field?: string;
+  institution?: string;
+  startYear?: string | number;
+  endYear?: string | number | null;
+};
+
+type CertificationItem = {
+  name?: string;
+  issuer?: string;
+  date?: string;
+  fileUrl?: string;
+};
+
+type SocialLinkItem = {
+  platform?: string;
+  url?: string;
+};
+
+const TABS: { id: TabId; label: string; icon: string }[] = [
+  { id: "about", label: "About", icon: "person" },
+  { id: "services", label: "Services", icon: "work" },
+  { id: "reviews", label: "Reviews", icon: "star" },
+];
+
+const SOCIAL_ICONS: Record<string, string> = {
+  website: "language",
+  linkedin: "work",
+  twitter: "tag",
+  facebook: "thumb_up",
+  instagram: "photo_camera",
+  github: "code",
+  youtube: "play_circle",
+  tiktok: "music_note",
+  behance: "palette",
+  dribbble: "sports_basketball",
+};
+
+function formatCurrency(value: number | null | undefined) {
+  const amount = Number(value ?? 0);
+  return `KES ${amount.toLocaleString()}`;
+}
+
+function formatDate(dateString: string) {
+  return new Date(dateString).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function getSafeUrl(url?: string) {
+  if (!url) return null;
+  try {
+    return new URL(url).toString();
+  } catch {
+    return null;
+  }
+}
 
 export default function ProfessionalDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  type TabId = "about" | "services" | "reviews";
-  type EducationItem = {
-    degree?: string;
-    field?: string;
-    institution?: string;
-    startYear?: string | number;
-    endYear?: string | number | null;
-  };
-  type CertificationItem = {
-    name?: string;
-    issuer?: string;
-    date?: string;
-    fileUrl?: string;
-  };
-  type SocialLinkItem = {
-    platform?: string;
-    url?: string;
-  };
-
   const { id } = use(params);
   const router = useRouter();
-
+  const [activeTab, setActiveTab] = useState<TabId>("about");
   const { data, isLoading, error } = useProfessional(id);
   const professional = data?.data;
 
-  console.log("Professional Data:", professional);
-  console.log("Social Links:", professional?.socialLinks);
+  const prof = professional as ProfessionalDetail | undefined;
 
-  const [activeTab, setActiveTab] = useState<TabId>("about");
-  const [showMobileContact, setShowMobileContact] = useState(false);
+  const educationItems = useMemo(
+    () => ((prof?.education || []) as EducationItem[]).filter(Boolean),
+    [prof?.education],
+  );
+  const certificationItems = useMemo(
+    () => ((prof?.certifications || []) as CertificationItem[]).filter(Boolean),
+    [prof?.certifications],
+  );
+  const socialLinks = useMemo(
+    () =>
+      ((prof?.socialLinks || []) as SocialLinkItem[])
+        .map((link) => ({
+          ...link,
+          url: getSafeUrl(link.url),
+        }))
+        .filter((link) => link.url),
+    [prof?.socialLinks],
+  );
 
-  // Handler for booking
-  const handleBookNow = () => {
-    router.push(`/booking?professional=${id}`);
+  const galleryImages = useMemo(
+    () =>
+      (prof?.services || [])
+        .flatMap((service) => service.images || [])
+        .filter((image): image is string => Boolean(image))
+        .slice(0, 5),
+    [prof?.services],
+  );
+
+  const heroImage = galleryImages[0] || prof?.image || null;
+  const headline =
+    prof?.bio?.split(".").find((part) => part.trim().length > 12)?.trim() ||
+    "Trusted professional available for booking on JustInTime.";
+  const memberSinceYear = prof
+    ? new Date(prof.memberSince).getFullYear()
+    : new Date().getFullYear();
+  const isPremium =
+    !!prof?.subscription?.isActive &&
+    ["PRO", "BUSINESS"].includes(prof.subscription.plan);
+  const hasPhone = Boolean(prof?.phone);
+  const totalRatingBars = prof?.totalReviews || 0;
+
+  const statCards = prof
+    ? [
+        {
+          label: "Starting rate",
+          value: `${formatCurrency(prof.hourlyRate)}/hr`,
+          tone: "from-emerald-500/15 to-teal-500/10 text-emerald-900",
+        },
+        {
+          label: "Completed jobs",
+          value: prof.completedJobs.toLocaleString(),
+          tone: "from-sky-500/15 to-cyan-500/10 text-slate-900",
+        },
+        {
+          label: "Reviews",
+          value: prof.totalReviews.toLocaleString(),
+          tone: "from-amber-500/15 to-orange-500/10 text-slate-900",
+        },
+        {
+          label: "Member since",
+          value: String(memberSinceYear),
+          tone: "from-slate-500/15 to-slate-700/10 text-slate-900",
+        },
+      ]
+    : [];
+
+  const handleBookNow = (serviceId?: string) => {
+    const query = serviceId
+      ? `/booking?professional=${id}&service=${serviceId}`
+      : `/booking?professional=${id}`;
+    router.push(query);
   };
 
-  // Handler for WhatsApp message
   const handleSendMessage = () => {
-    if (!professional?.phone) {
+    if (!prof?.phone) {
       toast.error("Phone number not available");
       return;
     }
-    const formattedPhone = professional.phone.replace(/[^0-9+]/g, "");
+
+    const formattedPhone = prof.phone.replace(/[^0-9+]/g, "");
     const message = encodeURIComponent(
-      `Hi ${professional.name}, I found your profile on JustInTime and would like to discuss your services.`,
+      `Hi ${prof.name}, I found your profile on JustInTime and would like to discuss your services.`,
     );
     window.open(`https://wa.me/${formattedPhone}?text=${message}`, "_blank");
   };
 
-  // Handler for sharing profile
-  const handleShareProfile = () => {
+  const handleShareProfile = async () => {
     const url = window.location.href;
-    navigator.clipboard
-      .writeText(url)
-      .then(() => {
-        toast.success("Profile link copied to clipboard!");
-      })
-      .catch(() => {
-        toast.error("Failed to copy link");
-      });
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: prof?.name || "Professional",
+          text: headline,
+          url,
+        });
+        return;
+      } catch {
+        // Fall back to clipboard.
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Profile link copied to clipboard");
+    } catch {
+      toast.error("Unable to share this profile right now");
+    }
   };
 
   if (isLoading) {
     return (
       <>
         <Header />
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 border-3 sm:border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-        </div>
+        <main className="flex min-h-screen items-center justify-center bg-slate-50 pt-[var(--public-header-h)]">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="h-12 w-12 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin" />
+            <p className="text-sm font-medium text-slate-600">
+              Loading professional profile...
+            </p>
+          </div>
+        </main>
         <Footer />
       </>
     );
   }
 
-  if (error || !professional) {
+  if (error || !prof) {
     return (
       <>
         <Header />
-        <div className="min-h-screen flex items-center justify-center px-4">
-          <div className="text-center max-w-md">
-            <span className="material-symbols-outlined text-gray-300 text-5xl sm:text-6xl md:text-8xl mb-4 sm:mb-6">
+        <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 pt-[var(--public-header-h)]">
+          <div className="max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <span className="material-symbols-outlined text-6xl text-slate-300">
               person_off
             </span>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">
+            <h1 className="mt-4 text-2xl font-bold text-slate-950">
               Professional Not Found
             </h1>
-            <p className="text-gray-600 text-sm sm:text-base mb-4 sm:mb-6">
-              This professional may no longer be available.
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              This professional may have been removed or is not currently
+              available.
             </p>
             <Link
               href="/professionals"
-              className="inline-block px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 text-white rounded-lg sm:rounded-xl font-semibold hover:bg-emerald-700 transition-colors text-sm sm:text-base"
+              className="mt-6 inline-flex rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
             >
-              Browse All Professionals
+              Browse Professionals
             </Link>
           </div>
-        </div>
+        </main>
         <Footer />
       </>
     );
   }
-
-  // Type assertion for better inference in nested components/mappings
-  const prof = professional as ProfessionalDetail;
-
-  const tabs: { id: TabId; label: string; icon: string }[] = [
-    { id: "about", label: "About", icon: "person" },
-    { id: "services", label: "Services", icon: "work" },
-    { id: "reviews", label: "Reviews", icon: "star" },
-  ];
-  const educationItems = (prof.education || []) as EducationItem[];
-  const certificationItems = (prof.certifications || []) as CertificationItem[];
-  const socialLinks = (prof.socialLinks || []) as SocialLinkItem[];
 
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-gray-50">
-        {/* Hero Section */}
-        <div className="relative bg-white pb-8 sm:pb-12">
-          {/* Cover Background */}
-          <div className="h-32 sm:h-40 md:h-48 lg:h-64 bg-linear-to-r from-emerald-900 via-emerald-800 to-teal-900 relative overflow-hidden">
-            <div className="absolute inset-0 bg-black/20" />
+      <div className="min-h-screen bg-slate-50 pb-24 lg:pb-0">
+        <section className="relative overflow-hidden border-b border-emerald-100/70 bg-gradient-to-b from-white via-emerald-50/55 to-slate-50 pt-[var(--public-header-h)]">
+          <div className="pointer-events-none absolute inset-0 opacity-80">
+            <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-emerald-300/35 blur-3xl" />
+            <div className="absolute right-0 top-16 h-72 w-72 rounded-full bg-sky-300/25 blur-3xl" />
+            <div className="absolute bottom-0 left-1/3 h-48 w-96 rounded-full bg-teal-200/30 blur-3xl" />
           </div>
+          <div className="relative mx-auto max-w-7xl px-4 pb-10 pt-8 sm:px-6 sm:pb-12 sm:pt-10 lg:px-8">
+            <Link
+              href="/professionals"
+              className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/85 px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm backdrop-blur-sm transition-colors hover:border-emerald-200 hover:text-emerald-700"
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                arrow_back
+              </span>
+              Back to professionals
+            </Link>
 
-          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-            <div className="relative flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 lg:gap-8">
-              {/* Profile Image */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="relative -mt-16 sm:-mt-20 md:-mt-24 lg:-mt-32 shrink-0"
-              >
-                <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-40 md:h-40 lg:w-52 lg:h-52 rounded-xl sm:rounded-2xl md:rounded-3xl border-3 sm:border-4 border-white shadow-xl md:shadow-2xl overflow-hidden bg-white relative z-10">
-                  {professional.image ? (
+            <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] lg:items-start">
+              <div className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/88 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.32)] backdrop-blur-sm">
+                <div className="relative min-h-[260px] overflow-hidden sm:min-h-[320px]">
+                  {heroImage ? (
                     <Image
-                      src={professional.image}
-                      alt={professional.name}
+                      src={heroImage}
+                      alt={prof.name}
                       fill
                       className="object-cover"
+                      priority
                       unoptimized
                     />
                   ) : (
-                    <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400 text-3xl sm:text-4xl md:text-6xl font-bold">
-                      {(professional.name || "U").charAt(0)}
-                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
                   )}
-                </div>
-                {(professional.isVerified ||
-                  (["PRO", "BUSINESS"].includes(
-                    professional.subscription?.plan || "",
-                  ) &&
-                    professional.subscription?.isActive === true)) && (
-                  <div
-                    className={`absolute -bottom-1 -right-1 sm:bottom-0 sm:right-0 md:bottom-2 md:-right-2 z-20 p-1 sm:p-1.5 md:p-2 rounded-full border-2 sm:border-3 md:border-4 border-white shadow-md md:shadow-lg ${
-                      ["PRO", "BUSINESS"].includes(
-                        professional.subscription?.plan || "",
-                      ) && professional.subscription?.isActive === true
-                        ? "bg-amber-500 text-white"
-                        : "bg-blue-500 text-white"
-                    }`}
-                    title={
-                      ["PRO", "BUSINESS"].includes(
-                        professional.subscription?.plan || "",
-                      ) && professional.subscription?.isActive === true
-                        ? "Premium Professional"
-                        : "Verified Professional"
-                    }
-                  >
-                    <span className="material-symbols-outlined text-xs sm:text-sm md:text-lg lg:text-xl">
-                      verified
-                    </span>
-                  </div>
-                )}
-              </motion.div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/55 to-slate-950/15" />
+                  <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-950/35 to-transparent" />
 
-              {/* Profile Info */}
-              <div className="flex-1 w-full md:w-auto text-center md:text-left pt-2 md:pt-4">
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 md:gap-4">
-                  <div className="flex-1">
-                    <motion.h1
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1 }}
-                      className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-1 sm:mb-2"
-                    >
-                      {professional.name}
-                    </motion.h1>
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 md:gap-4 text-xs sm:text-sm md:text-base text-gray-700"
-                    >
-                      {professional.location && (
-                        <div className="flex items-center gap-1 sm:gap-1.5">
-                          <span className="material-symbols-outlined text-emerald-600 text-xs sm:text-sm">
-                            location_on
+                  <div className="relative flex h-full min-h-[260px] flex-col justify-between p-5 text-white sm:min-h-[320px] sm:p-7">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {prof.isVerified ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/92 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-900 shadow-sm">
+                          <span className="material-symbols-outlined text-[16px]">
+                            verified
                           </span>
-                          <span className="truncate max-w-30 sm:max-w-none">
-                            {professional.location}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1 sm:gap-1.5">
-                        <span className="material-symbols-outlined text-emerald-600 text-xs sm:text-sm">
-                          schedule
+                          Verified
                         </span>
-                        <span className="whitespace-nowrap">
-                          Since{" "}
-                          {new Date(professional.memberSince).getFullYear()}
+                      ) : null}
+                      {isPremium ? (
+                        <span className="rounded-full bg-amber-400/95 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-amber-950 shadow-sm">
+                          {prof.subscription?.plan}
                         </span>
-                      </div>
-                      <div className="flex items-center gap-0.5 sm:gap-1">
-                        <span className="material-symbols-outlined text-amber-400 fill-current text-xs sm:text-sm">
-                          star
+                      ) : null}
+                      {prof.location ? (
+                        <span className="rounded-full border border-white/15 bg-black/25 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm">
+                          {prof.location}
                         </span>
-                        <span className="font-bold text-gray-900 text-xs sm:text-sm">
-                          {professional.averageRating.toFixed(1)}
-                        </span>
-                        <span className="text-gray-500 text-xs sm:text-sm">
-                          ({professional.totalReviews})
-                        </span>
-                      </div>
-                    </motion.div>
-                    {/* Added InteractionBar here */}
-                    <div className="mt-4">
-                      <InteractionBar
-                        id={professional.id}
-                        type="professional"
-                        initialViews={professional.views || 0}
-                        initialFavorites={professional.favorites || 0}
-                      />
+                      ) : null}
                     </div>
-                  </div>
 
-                  {/* Desktop Action Buttons */}
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="hidden md:flex items-center justify-center md:justify-start gap-2 lg:gap-3"
-                  >
-                    <button
-                      onClick={handleShareProfile}
-                      className="p-2 sm:p-3 rounded-lg md:rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-                      title="Share Profile"
-                    >
-                      <span className="material-symbols-outlined text-sm md:text-base">
-                        share
-                      </span>
-                    </button>
-                    <button
-                      onClick={handleSendMessage}
-                      className="px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 rounded-lg md:rounded-xl border border-emerald-600 text-emerald-600 font-semibold hover:bg-emerald-50 transition-colors flex items-center gap-1.5 sm:gap-2 text-sm md:text-base whitespace-nowrap"
-                    >
-                      <span className="material-symbols-outlined text-sm md:text-base">
-                        chat
-                      </span>
-                      <span className="hidden sm:inline">Message</span>
-                    </button>
-                    <button
-                      onClick={handleBookNow}
-                      className="px-5 py-2.5 sm:px-6 sm:py-3 md:px-8 md:py-3 rounded-lg md:rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-md md:shadow-lg shadow-emerald-200 transition-all hover:-translate-y-0.5 flex items-center gap-1.5 sm:gap-2 text-sm md:text-base whitespace-nowrap"
-                    >
-                      <span className="material-symbols-outlined text-sm md:text-base">
-                        event_available
-                      </span>
-                      <span className="hidden sm:inline">Book Now</span>
-                    </button>
-                  </motion.div>
-                </div>
+                    <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+                      <div className="flex items-start gap-4">
+                        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-3xl border-4 border-white/90 bg-white shadow-xl sm:h-28 sm:w-28">
+                          {prof.image ? (
+                            <Image
+                              src={prof.image}
+                              alt={prof.name}
+                              fill
+                              className="object-cover"
+                              sizes="112px"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-100 to-teal-100 text-3xl font-bold text-emerald-700">
+                              {prof.name.charAt(0)}
+                            </div>
+                          )}
+                        </div>
 
-                {/* Mobile Contact Bar */}
-                <div className="md:hidden mt-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <button
-                      onClick={() => setShowMobileContact(!showMobileContact)}
-                      className="flex-1 px-4 py-3 bg-emerald-600 text-white rounded-xl font-bold flex items-center justify-center gap-2"
-                    >
-                      <span className="material-symbols-outlined">
-                        contact_phone
-                      </span>
-                      Contact
-                    </button>
-                    <button
-                      onClick={handleShareProfile}
-                      className="p-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50"
-                      title="Share Profile"
-                    >
-                      <span className="material-symbols-outlined">share</span>
-                    </button>
-                  </div>
-
-                  <AnimatePresence>
-                    {showMobileContact && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="mt-2 overflow-hidden"
-                      >
-                        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-lg">
-                          <div className="grid grid-cols-2 gap-3">
-                            <button
-                              onClick={handleSendMessage}
-                              className="px-4 py-3 bg-emerald-50 text-emerald-700 rounded-lg font-semibold flex items-center justify-center gap-2 border border-emerald-100"
-                            >
-                              <span className="material-symbols-outlined">
-                                chat
+                        <div className="min-w-0 self-end">
+                          <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
+                            {prof.name}
+                          </h1>
+                          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/82 sm:text-base">
+                            {headline}
+                          </p>
+                          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-white/84">
+                            <span className="inline-flex items-center gap-1">
+                              <span
+                                className="material-symbols-outlined text-[18px] text-amber-300"
+                                style={{ fontVariationSettings: '"FILL" 1' }}
+                              >
+                                star
                               </span>
-                              WhatsApp
-                            </button>
-                            <button
-                              onClick={handleBookNow}
-                              className="px-4 py-3 bg-emerald-600 text-white rounded-lg font-bold flex items-center justify-center gap-2"
-                            >
-                              <span className="material-symbols-outlined">
-                                event_available
-                              </span>
-                              Book Now
-                            </button>
+                              {prof.averageRating.toFixed(1)} rating
+                            </span>
+                            <span className="text-white/30">•</span>
+                            <span>{prof.totalReviews.toLocaleString()} reviews</span>
+                            <span className="text-white/30">•</span>
+                            <span>{prof.completedJobs.toLocaleString()} jobs completed</span>
                           </div>
                         </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 sm:min-w-[240px]">
+                        {statCards.slice(0, 2).map((card) => (
+                          <div
+                            key={card.label}
+                            className={`rounded-2xl border border-white/10 bg-gradient-to-br ${card.tone} px-4 py-3 shadow-sm backdrop-blur-sm`}
+                          >
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
+                              {card.label}
+                            </p>
+                            <p className="mt-1 text-sm font-bold text-white sm:text-base">
+                              {card.value}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              <aside className="rounded-[2rem] border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.35)] sm:p-6">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  Book this professional
+                </p>
+                <div className="mt-3">
+                  <p className="text-sm text-slate-600">Starting from</p>
+                  <p className="mt-1 text-3xl font-bold tracking-tight text-emerald-800">
+                    {formatCurrency(prof.hourlyRate)}
+                    <span className="ml-1 text-base font-semibold text-slate-500">
+                      /hr
+                    </span>
+                  </p>
+                </div>
+
+                <div className="mt-5 flex flex-col gap-3">
+                  <button
+                    onClick={() => handleBookNow()}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      event_available
+                    </span>
+                    Book now
+                  </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={!hasPhone}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        chat
+                      </span>
+                      Message
+                    </button>
+                    <button
+                      onClick={handleShareProfile}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">
+                        share
+                      </span>
+                      Share
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50/90 p-4">
+                  <InteractionBar
+                    id={prof.id}
+                    type="professional"
+                    initialViews={prof.views || 0}
+                    initialFavorites={prof.favorites || 0}
+                  />
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {statCards.slice(2).map((card) => (
+                    <div
+                      key={card.label}
+                      className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3"
+                    >
+                      <span className="text-sm font-medium text-slate-600">
+                        {card.label}
+                      </span>
+                      <span className="text-sm font-bold text-slate-950">
+                        {card.value}
+                      </span>
+                    </div>
+                  ))}
+                  {prof.totalEarnings > 0 ? (
+                    <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
+                      <span className="text-sm font-medium text-slate-600">
+                        Earned on JustInTime
+                      </span>
+                      <span className="text-sm font-bold text-slate-950">
+                        {formatCurrency(prof.totalEarnings)}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              </aside>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 md:py-12">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
-            {/* Left Column - Main Content */}
-            <div className="lg:col-span-2 space-y-4 sm:space-y-6 md:space-y-8">
-              {/* Tabs */}
-              <div className="border-b border-gray-200 overflow-x-auto">
-                <div className="flex gap-4 sm:gap-6 md:gap-8 min-w-max">
-                  {tabs.map((tab) => (
+        <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="min-w-0">
+              <div className="mb-6 overflow-x-auto">
+                <div className="inline-flex min-w-full gap-2 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm sm:min-w-0">
+                  {TABS.map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`pb-3 font-medium text-sm sm:text-base transition-all relative whitespace-nowrap ${
+                      className={`relative inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
                         activeTab === tab.id
-                          ? "text-emerald-600"
-                          : "text-gray-500 hover:text-gray-800"
+                          ? "bg-emerald-600 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                       }`}
                     >
-                      <div className="flex items-center gap-1.5 sm:gap-2">
-                        <span className="material-symbols-outlined text-sm sm:text-base">
-                          {tab.icon}
-                        </span>
-                        {tab.label}
-                      </div>
-                      {activeTab === tab.id && (
-                        <motion.div
-                          layoutId="activeTab"
-                          className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 rounded-full"
-                        />
-                      )}
+                      <span className="material-symbols-outlined text-[18px]">
+                        {tab.icon}
+                      </span>
+                      {tab.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="min-h-75 sm:min-h-100">
-                <AnimatePresence mode="wait">
-                  {activeTab === "about" && (
-                    <motion.div
-                      key="about"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                      className="space-y-4 sm:space-y-6 md:space-y-8"
-                    >
-                      {/* Bio */}
-                      <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm border border-gray-100">
-                        <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-3 sm:mb-4">
-                          About Me
-                        </h3>
-                        <p className="text-gray-600 leading-relaxed text-sm sm:text-base md:text-lg">
-                          {professional.bio || "No bio available."}
-                        </p>
-                      </div>
+              <AnimatePresence mode="wait">
+                {activeTab === "about" ? (
+                  <motion.div
+                    key="about"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    className="space-y-6"
+                  >
+                    <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
+                      <h2 className="text-xl font-bold tracking-tight text-slate-950">
+                        About
+                      </h2>
+                      <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
+                        {prof.bio || "This professional has not added a full bio yet."}
+                      </p>
+                    </section>
 
-                      {/* Skills */}
-                      {professional.skills.length > 0 && (
-                        <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm border border-gray-100">
-                          <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-4 sm:mb-6">
-                            Skills & Expertise
-                          </h3>
-                          <div className="flex flex-wrap gap-2 sm:gap-3">
-                            {prof.skills.map((skill: string, idx: number) => (
-                              <span
-                                key={idx}
-                                className="px-3 py-1.5 sm:px-4 sm:py-2 bg-gray-50 text-gray-700 rounded-lg sm:rounded-xl font-medium border border-gray-200 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 transition-all cursor-default text-xs sm:text-sm"
-                              >
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
+                    {prof.skills.length > 0 ? (
+                      <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
+                        <h2 className="text-xl font-bold tracking-tight text-slate-950">
+                          Skills & Expertise
+                        </h2>
+                        <div className="mt-4 flex flex-wrap gap-2.5">
+                          {prof.skills.map((skill, idx) => (
+                            <span
+                              key={`${skill}-${idx}`}
+                              className="rounded-full border border-emerald-100 bg-emerald-50 px-3.5 py-2 text-sm font-medium text-emerald-800"
+                            >
+                              {skill}
+                            </span>
+                          ))}
                         </div>
-                      )}
+                      </section>
+                    ) : null}
 
-                      {/* Education & Certifications Grid */}
-                      <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
-                        {educationItems.length > 0 && (
-                          <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm border border-gray-100">
-                            <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2">
-                              <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
+                    {educationItems.length > 0 || certificationItems.length > 0 ? (
+                      <div className="grid gap-6 md:grid-cols-2">
+                        {educationItems.length > 0 ? (
+                          <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
+                            <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-950">
+                              <span className="material-symbols-outlined text-emerald-600">
                                 school
                               </span>
                               Education
-                            </h3>
-                            <div className="space-y-4 sm:space-y-6">
+                            </h2>
+                            <div className="mt-5 space-y-5">
                               {educationItems.map((edu, idx) => (
                                 <div
-                                  key={idx}
-                                  className="relative pl-4 sm:pl-6 border-l-2 border-gray-100 last:border-0"
+                                  key={`${edu.institution || "edu"}-${idx}`}
+                                  className="relative border-l-2 border-emerald-100 pl-4"
                                 >
-                                  <div className="absolute -left-1.25 top-1.5 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-200 border-2 border-white ring-1 ring-emerald-100" />
-                                  <div className="font-bold text-gray-900 text-sm sm:text-base">
-                                    {edu.degree}
-                                  </div>
-                                  <div className="text-emerald-600 font-medium text-xs sm:text-sm mb-1">
-                                    {edu.field}
-                                  </div>
-                                  <div className="text-gray-500 text-xs sm:text-sm">
-                                    {edu.institution}
-                                  </div>
-                                  <div className="text-xs text-gray-400 mt-1">
-                                    {edu.startYear} - {edu.endYear || "Present"}
-                                  </div>
+                                  <div className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                                  <p className="text-sm font-semibold text-slate-950">
+                                    {edu.degree || edu.field || "Education"}
+                                  </p>
+                                  {edu.field ? (
+                                    <p className="mt-1 text-sm text-emerald-700">
+                                      {edu.field}
+                                    </p>
+                                  ) : null}
+                                  {edu.institution ? (
+                                    <p className="mt-1 text-sm text-slate-600">
+                                      {edu.institution}
+                                    </p>
+                                  ) : null}
+                                  {(edu.startYear || edu.endYear) ? (
+                                    <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+                                      {edu.startYear || "Start"} - {edu.endYear || "Present"}
+                                    </p>
+                                  ) : null}
                                 </div>
                               ))}
                             </div>
-                          </div>
-                        )}
+                          </section>
+                        ) : null}
 
-                        {certificationItems.length > 0 && (
-                          <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm border border-gray-100">
-                            <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2">
-                              <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
+                        {certificationItems.length > 0 ? (
+                          <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
+                            <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-950">
+                              <span className="material-symbols-outlined text-emerald-600">
                                 workspace_premium
                               </span>
                               Certifications
-                            </h3>
-                            <div className="space-y-3 sm:space-y-4">
+                            </h2>
+                            <div className="mt-5 space-y-4">
                               {certificationItems.map((cert, idx) => (
                                 <div
-                                  key={idx}
-                                  className="flex items-start gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl hover:bg-emerald-50/50 transition-colors group"
+                                  key={`${cert.name || "cert"}-${idx}`}
+                                  className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4"
                                 >
-                                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white flex items-center justify-center shadow-sm text-emerald-600">
-                                    <span className="material-symbols-outlined text-sm sm:text-base">
-                                      verified
-                                    </span>
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <p className="text-sm font-semibold text-slate-950">
+                                        {cert.name || "Certification"}
+                                      </p>
+                                      {cert.issuer ? (
+                                        <p className="mt-1 text-sm text-slate-600">
+                                          {cert.issuer}
+                                        </p>
+                                      ) : null}
+                                      {cert.date ? (
+                                        <p className="mt-1 text-xs uppercase tracking-wide text-slate-400">
+                                          {cert.date}
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                    {cert.fileUrl ? (
+                                      <a
+                                        href={cert.fileUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-emerald-200 hover:text-emerald-700"
+                                      >
+                                        View
+                                        <span className="material-symbols-outlined text-[16px]">
+                                          open_in_new
+                                        </span>
+                                      </a>
+                                    ) : null}
                                   </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-bold text-gray-900 text-sm sm:text-base group-hover:text-emerald-700 transition-colors truncate">
-                                      {cert.name}
-                                    </div>
-                                    <div className="text-gray-500 text-xs sm:text-sm truncate">
-                                      {cert.issuer}
-                                    </div>
-                                    <div className="text-xs text-gray-400 mt-1">
-                                      {cert.date}
-                                    </div>
-                                  </div>
-                                  {cert.fileUrl && (
-                                    <a
-                                      href={cert.fileUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="p-1.5 sm:p-2 text-gray-400 hover:text-emerald-600 hover:bg-white rounded-lg transition-all shrink-0"
-                                      title="View Certificate"
-                                    >
-                                      <span className="material-symbols-outlined text-sm sm:text-base">
-                                        visibility
-                                      </span>
-                                    </a>
-                                  )}
                                 </div>
                               ))}
                             </div>
-                          </div>
-                        )}
+                          </section>
+                        ) : null}
                       </div>
-                    </motion.div>
-                  )}
+                    ) : null}
+                  </motion.div>
+                ) : null}
 
-                  {activeTab === "services" && (
-                    <motion.div
-                      key="services"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      {professional.services.length === 0 ? (
-                        <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl p-6 sm:p-8 md:p-12 text-center border border-gray-100 border-dashed">
-                          <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                            <span className="material-symbols-outlined text-gray-300 text-xl sm:text-2xl md:text-3xl">
-                              construction
-                            </span>
-                          </div>
-                          <h3 className="text-base sm:text-lg md:text-lg font-medium text-gray-900 mb-1">
-                            No services listed
-                          </h3>
-                          <p className="text-gray-500 text-sm sm:text-base">
-                            This professional has not added any services yet.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="grid sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-                          {prof.services.map(
-                            (service: ProfessionalDetail["services"][0]) => (
-                              <div
-                                key={service.id}
-                                className="group bg-white rounded-lg sm:rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
-                              >
-                                {/* Service Image */}
-                                <div className="h-32 sm:h-40 md:h-48 bg-gray-100 relative overflow-hidden">
-                                  {service.images &&
-                                  service.images.length > 0 ? (
-                                    <Image
-                                      src={service.images[0] as string}
-                                      alt={service.title}
-                                      fill
-                                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                                      unoptimized
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                                      <span className="material-symbols-outlined text-gray-300 text-3xl sm:text-4xl md:text-5xl">
-                                        construction
-                                      </span>
-                                    </div>
-                                  )}
-                                  <div className="absolute top-2 right-2">
-                                    <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-white/90 backdrop-blur-sm text-gray-900 text-xs font-bold rounded-full shadow-sm">
-                                      {service.pricingUnit === "hourly"
-                                        ? "Hourly"
-                                        : "Fixed"}
+                {activeTab === "services" ? (
+                  <motion.div
+                    key="services"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                  >
+                    {prof.services.length === 0 ? (
+                      <div className="rounded-[1.75rem] border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+                        <span className="material-symbols-outlined text-5xl text-slate-300">
+                          construction
+                        </span>
+                        <h2 className="mt-4 text-xl font-bold text-slate-950">
+                          No services listed yet
+                        </h2>
+                        <p className="mt-2 text-sm text-slate-600">
+                          This professional has not published services yet.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        {prof.services.map((service) => (
+                          <article
+                            key={service.id}
+                            className="group overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white shadow-sm transition-[transform,box-shadow] hover:-translate-y-1 hover:shadow-lg"
+                          >
+                            <div className="relative h-48 overflow-hidden">
+                              {service.images?.[0] ? (
+                                <Image
+                                  src={service.images[0]}
+                                  alt={service.title}
+                                  fill
+                                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                  sizes="(max-width: 768px) 100vw, 50vw"
+                                  unoptimized
+                                />
+                              ) : (
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
+                              )}
+                              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent" />
+                              <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-2">
+                                <span className="rounded-full bg-white/92 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-900 shadow-sm">
+                                  {service.pricingUnit === "hourly" ? "Hourly" : service.pricingUnit}
+                                </span>
+                              </div>
+                              <div className="absolute bottom-4 left-4 right-4">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/65">
+                                  Starting from
+                                </p>
+                                <p className="mt-1 text-2xl font-bold text-white">
+                                  {formatCurrency(service.price)}
+                                  {service.pricingUnit === "hourly" ? (
+                                    <span className="ml-1 text-sm font-semibold text-white/70">
+                                      /hr
                                     </span>
-                                  </div>
-                                </div>
+                                  ) : null}
+                                </p>
+                              </div>
+                            </div>
 
-                                <div className="p-3 sm:p-4 md:p-6">
-                                  <h4 className="text-base sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2 line-clamp-1 group-hover:text-emerald-600 transition-colors">
-                                    {service.title}
-                                  </h4>
-                                  <p className="text-gray-500 text-xs sm:text-sm leading-relaxed line-clamp-2 mb-3 sm:mb-4 h-8 sm:h-10">
-                                    {service.description}
+                            <div className="p-5">
+                              <h3 className="text-lg font-bold text-slate-950">
+                                {service.title}
+                              </h3>
+                              <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
+                                {service.description || "No service description provided yet."}
+                              </p>
+                              <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                                <button
+                                  onClick={() => handleBookNow(service.id)}
+                                  className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                                >
+                                  Book service
+                                  <span className="material-symbols-outlined text-[18px]">
+                                    arrow_forward
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                ) : null}
+
+                {activeTab === "reviews" ? (
+                  <motion.div
+                    key="reviews"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    className="space-y-4"
+                  >
+                    {prof.reviews.length === 0 ? (
+                      <div className="rounded-[1.75rem] border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+                        <span className="material-symbols-outlined text-5xl text-slate-300">
+                          rate_review
+                        </span>
+                        <h2 className="mt-4 text-xl font-bold text-slate-950">
+                          No reviews yet
+                        </h2>
+                        <p className="mt-2 text-sm text-slate-600">
+                          Be the first client to leave feedback after a booking.
+                        </p>
+                      </div>
+                    ) : (
+                      prof.reviews.map((review) => (
+                        <article
+                          key={review.id}
+                          className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
+                              {review.reviewer.image ? (
+                                <Image
+                                  src={review.reviewer.image}
+                                  alt={review.reviewer.name || "Reviewer"}
+                                  fill
+                                  className="object-cover"
+                                  sizes="48px"
+                                  unoptimized
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-lg font-bold text-slate-500">
+                                  {(review.reviewer.name || "U").charAt(0)}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-slate-950">
+                                    {review.reviewer.name || "Anonymous"}
                                   </p>
-
-                                  <div className="flex items-end justify-between pt-3 sm:pt-4 border-t border-gray-50">
-                                    <div>
-                                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-0.5">
-                                        Price
-                                      </p>
-                                      <div className="flex items-baseline gap-0.5">
-                                        <span className="text-lg sm:text-xl font-bold text-gray-900">
-                                          KES{" "}
-                                          {Number(
-                                            service.price ?? 0,
-                                          ).toLocaleString()}
-                                        </span>
-                                        {service.pricingUnit === "hourly" && (
-                                          <span className="text-xs sm:text-sm text-gray-500 font-medium">
-                                            /hr
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <button
-                                      onClick={() =>
-                                        router.push(
-                                          `/booking?professional=${id}&service=${service.id}`,
-                                        )
-                                      }
-                                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-50 text-gray-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all"
-                                      title="Book this service"
-                                    >
-                                      <span className="material-symbols-outlined text-sm sm:text-base">
-                                        arrow_forward
-                                      </span>
-                                    </button>
-                                  </div>
+                                  <p className="text-xs uppercase tracking-wide text-slate-400">
+                                    {formatDate(review.createdAt)}
+                                  </p>
+                                </div>
+                                <div className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
+                                  <span
+                                    className="material-symbols-outlined text-[18px]"
+                                    style={{ fontVariationSettings: '"FILL" 1' }}
+                                  >
+                                    star
+                                  </span>
+                                  {review.rating.toFixed(1)}
                                 </div>
                               </div>
-                            ),
-                          )}
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-
-                  {activeTab === "reviews" && (
-                    <motion.div
-                      key="reviews"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                      className="space-y-4 sm:space-y-6"
-                    >
-                      {professional.reviews.length === 0 ? (
-                        <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl p-6 sm:p-8 md:p-12 text-center border border-gray-100 border-dashed">
-                          <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                            <span className="material-symbols-outlined text-gray-300 text-xl sm:text-2xl md:text-3xl">
-                              rate_review
-                            </span>
+                              {review.comment ? (
+                                <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm leading-7 text-slate-600">
+                                  {review.comment}
+                                </p>
+                              ) : null}
+                            </div>
                           </div>
-                          <h3 className="text-base sm:text-lg md:text-lg font-medium text-gray-900 mb-1">
-                            No reviews yet
-                          </h3>
-                          <p className="text-gray-500 text-sm sm:text-base">
-                            Be the first to review this professional.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="grid gap-3 sm:gap-4">
-                          {prof.reviews.map(
-                            (review: ProfessionalDetail["reviews"][0]) => (
-                              <div
-                                key={review.id}
-                                className="p-4 sm:p-6 bg-white rounded-lg sm:rounded-xl border border-gray-100 hover:shadow-md transition-all"
-                              >
-                                <div className="flex items-start gap-3 sm:gap-4">
-                                  {review.reviewer.image ? (
-                                    <Image
-                                      src={review.reviewer.image}
-                                      alt={review.reviewer.name || "User"}
-                                      width={48}
-                                      height={48}
-                                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-gray-100"
-                                      unoptimized
-                                    />
-                                  ) : (
-                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center text-gray-500 font-bold text-base sm:text-lg ring-2 ring-gray-100">
-                                      {(review.reviewer.name || "U").charAt(0)}
-                                    </div>
-                                  )}
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-1 sm:gap-2">
-                                      <div className="min-w-0">
-                                        <div className="font-bold text-gray-900 text-sm sm:text-base truncate">
-                                          {review.reviewer.name || "Anonymous"}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                          {new Date(
-                                            review.createdAt,
-                                          ).toLocaleDateString("en-US", {
-                                            month: "short",
-                                            day: "numeric",
-                                            year: "numeric",
-                                          })}
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-0.5 bg-amber-50 px-2 py-1 rounded-lg self-start sm:self-auto">
-                                        {[...Array(5)].map((_, i) => (
-                                          <span
-                                            key={i}
-                                            className="material-symbols-outlined text-xs sm:text-sm"
-                                            style={{
-                                              color:
-                                                i < review.rating
-                                                  ? "#F59E0B"
-                                                  : "#E5E7EB",
-                                              fontVariationSettings: "'FILL' 1",
-                                            }}
-                                          >
-                                            star
-                                          </span>
-                                        ))}
-                                        <span className="ml-1 text-xs sm:text-sm font-bold text-amber-700">
-                                          {review.rating}.0
-                                        </span>
-                                      </div>
-                                    </div>
-                                    {review.comment && (
-                                      <p className="text-gray-600 leading-relaxed text-sm sm:text-base bg-gray-50 p-3 sm:p-4 rounded-lg sm:rounded-xl rounded-tl-none">
-                                        {review.comment}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ),
-                          )}
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                        </article>
+                      ))
+                    )}
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
             </div>
 
-            {/* Right Column - Sidebar */}
-            <div className="space-y-4 sm:space-y-6">
-              {/* Quick Stats */}
-              <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4 sm:mb-6">
-                  Performance Metrics
-                </h3>
-                <div className="space-y-4 sm:space-y-6">
-                  <div className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                        <span className="material-symbols-outlined text-sm sm:text-base">
-                          timer
-                        </span>
-                      </div>
-                      <span className="text-gray-600 font-medium text-xs sm:text-sm">
-                        Response Time
-                      </span>
-                    </div>
-                    <span className="font-bold text-gray-900 text-sm sm:text-base">
-                      &lt; 2 hrs
+            <aside className="space-y-5">
+              <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-slate-950">Review summary</h2>
+                  <div className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
+                    <span
+                      className="material-symbols-outlined text-[18px]"
+                      style={{ fontVariationSettings: '"FILL" 1' }}
+                    >
+                      star
                     </span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
-                        <span className="material-symbols-outlined text-sm sm:text-base">
-                          check_circle
-                        </span>
-                      </div>
-                      <span className="text-gray-600 font-medium text-xs sm:text-sm">
-                        Job Success
-                      </span>
-                    </div>
-                    <span className="font-bold text-gray-900 text-sm sm:text-base">
-                      98%
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg sm:rounded-xl">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
-                        <span className="material-symbols-outlined text-sm sm:text-base">
-                          repeat
-                        </span>
-                      </div>
-                      <span className="text-gray-600 font-medium text-xs sm:text-sm">
-                        Repeat Hire
-                      </span>
-                    </div>
-                    <span className="font-bold text-gray-900 text-sm sm:text-base">
-                      95%
-                    </span>
+                    {prof.averageRating.toFixed(1)}
                   </div>
                 </div>
-              </div>
+                <div className="mt-4 space-y-3">
+                  {prof.ratingDistribution.map((dist) => (
+                    <div key={dist.stars} className="flex items-center gap-3">
+                      <div className="w-10 text-sm font-medium text-slate-600">
+                        {dist.stars} star
+                      </div>
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{
+                            width: `${
+                              totalRatingBars > 0
+                                ? (dist.count / totalRatingBars) * 100
+                                : 0
+                            }%`,
+                          }}
+                          transition={{ duration: 0.6 }}
+                          className="h-full rounded-full bg-amber-400"
+                        />
+                      </div>
+                      <div className="w-8 text-right text-sm text-slate-500">
+                        {dist.count}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
 
-              {/* Social Links & Portfolio */}
-              {socialLinks.length > 0 && (
-                <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-emerald-600">
-                      link
-                    </span>
-                    Portfolio & Socials
-                  </h3>
-                  <div className="flex flex-wrap gap-3">
+              {socialLinks.length > 0 ? (
+                <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+                  <h2 className="text-lg font-bold text-slate-950">
+                    Portfolio & Links
+                  </h2>
+                  <div className="mt-4 flex flex-wrap gap-3">
                     {socialLinks.map((link, idx) => {
-                      const icons: Record<string, string> = {
-                        Website: "language",
-                        LinkedIn: "work",
-                        Twitter: "tag",
-                        Facebook: "thumb_up",
-                        Instagram: "photo_camera",
-                        GitHub: "code",
-                        YouTube: "play_circle",
-                        TikTok: "music_note",
-                        Behance: "palette",
-                        Dribbble: "sports_basketball",
-                      };
-                      const icon = icons[link.platform || ""] || "link";
+                      const platform = link.platform || "Website";
+                      const icon =
+                        SOCIAL_ICONS[platform.toLowerCase()] || "link";
 
                       return (
                         <a
-                          key={idx}
+                          key={`${platform}-${idx}`}
                           href={link.url || "#"}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-emerald-50 text-gray-700 hover:text-emerald-700 rounded-lg border border-gray-200 hover:border-emerald-200 transition-all text-sm font-medium group"
+                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
                         >
-                          <span className="material-symbols-outlined text-lg group-hover:scale-110 transition-transform">
+                          <span className="material-symbols-outlined text-[18px]">
                             {icon}
                           </span>
-                          {link.platform || "Link"}
+                          {platform}
                         </a>
                       );
                     })}
                   </div>
-                </div>
-              )}
+                </section>
+              ) : null}
 
-              {/* Rating Distribution */}
-              <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h3 className="text-base sm:text-lg font-bold text-gray-900">
-                    Reviews
-                  </h3>
-                  <div className="flex items-center gap-0.5 sm:gap-1 text-amber-500">
-                    <span className="font-bold text-lg sm:text-xl">
-                      {professional.averageRating.toFixed(1)}
+              <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+                <h2 className="text-lg font-bold text-slate-950">Trust details</h2>
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                    <span className="text-sm text-slate-600">Verification</span>
+                    <span className="text-sm font-semibold text-slate-950">
+                      {prof.isVerified ? "Verified" : "Standard"}
                     </span>
-                    <span className="material-symbols-outlined fill-current text-sm sm:text-base">
-                      star
+                  </div>
+                  <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                    <span className="text-sm text-slate-600">Plan</span>
+                    <span className="text-sm font-semibold text-slate-950">
+                      {isPremium ? prof.subscription?.plan : "FREE"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                    <span className="text-sm text-slate-600">Location</span>
+                    <span className="max-w-[10rem] truncate text-sm font-semibold text-slate-950">
+                      {prof.location || "Mobile service"}
                     </span>
                   </div>
                 </div>
+              </section>
+            </aside>
+          </div>
+        </main>
 
-                <div className="space-y-2 sm:space-y-3">
-                  {prof.ratingDistribution.map(
-                    (dist: { stars: number; count: number }) => (
-                      <div
-                        key={dist.stars}
-                        className="flex items-center gap-2 text-xs sm:text-sm"
-                      >
-                        <div className="flex items-center gap-0.5 sm:gap-1 w-10 sm:w-12 font-medium text-gray-600">
-                          {dist.stars}{" "}
-                          <span className="material-symbols-outlined text-gray-300 text-xs">
-                            star
-                          </span>
-                        </div>
-                        <div className="flex-1 h-1.5 sm:h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{
-                              width: `${
-                                professional.totalReviews > 0
-                                  ? (dist.count / professional.totalReviews) *
-                                    100
-                                  : 0
-                              }%`,
-                            }}
-                            transition={{ duration: 1, delay: 0.5 }}
-                            className="h-full bg-amber-400 rounded-full"
-                          />
-                        </div>
-                        <span className="text-gray-500 w-6 sm:w-8 text-right">
-                          {dist.count}
-                        </span>
-                      </div>
-                    ),
-                  )}
-                </div>
-              </div>
-
-              {/* Safety Badge */}
-              <div className="bg-linear-to-br from-gray-900 to-gray-800 rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 text-white text-center">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 backdrop-blur-sm">
-                  <span className="material-symbols-outlined text-xl sm:text-2xl">
-                    security
-                  </span>
-                </div>
-                <h4 className="font-bold text-base sm:text-lg mb-1 sm:mb-2">
-                  Verified Professional
-                </h4>
-                <p className="text-gray-300 text-xs sm:text-sm leading-relaxed">
-                  Identity verified, background checked, and skills assessed by
-                  JustInTime.
-                </p>
-              </div>
-
-              {/* Mobile-only CTA */}
-              <div className="lg:hidden bg-linear-to-r from-emerald-600 to-teal-600 rounded-xl p-4 text-white">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="font-bold text-lg">Ready to Book?</p>
-                    <p className="text-emerald-100 text-sm">
-                      Get started today
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleBookNow}
-                    className="px-4 py-2 bg-white text-emerald-700 rounded-lg font-bold hover:bg-emerald-50 transition-colors text-sm"
-                  >
-                    Book Now
-                  </button>
-                </div>
-              </div>
-            </div>
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/96 px-4 py-3 backdrop-blur lg:hidden">
+          <div className="mx-auto flex max-w-7xl items-center gap-3">
+            <button
+              onClick={handleSendMessage}
+              disabled={!hasPhone}
+              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-800 disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[20px]">chat</span>
+            </button>
+            <button
+              onClick={() => handleBookNow()}
+              className="flex-1 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white"
+            >
+              Book {formatCurrency(prof.hourlyRate)}/hr
+            </button>
           </div>
         </div>
       </div>

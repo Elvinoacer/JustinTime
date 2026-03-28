@@ -5,6 +5,53 @@ import { createJobSchema } from "@/lib/validations/schemas";
 
 type CreateJobInput = z.infer<typeof createJobSchema>;
 
+export interface JobDetail {
+  id: string;
+  title: string;
+  description: string;
+  budget: number | null;
+  location: string | null;
+  deadline: string | null;
+  createdAt: string;
+  updatedAt: string;
+  status: "OPEN" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | string;
+  maxApplicants: number | null;
+  images: string[];
+  category: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
+  client: {
+    id: string;
+    name: string | null;
+    email?: string | null;
+    image: string | null;
+    phone?: string | null;
+    isVerified?: boolean;
+  } | null;
+  _count?: {
+    proposals: number;
+  };
+}
+
+export interface JobProposal {
+  id: string;
+  jobId: string;
+  providerId: string;
+  coverLetter: string;
+  price: number;
+  estimatedDays: number | null;
+  attachments: string[] | null;
+  status: string;
+  createdAt: string;
+  provider?: {
+    id: string;
+    name: string | null;
+    image: string | null;
+  };
+}
+
 export const useCreateJob = () => {
   const queryClient = useQueryClient();
 
@@ -35,7 +82,7 @@ export function useProviderJobs(tab: string = "available", page: number = 1) {
 
 // Fetch single job details
 export function useJob(id: string) {
-  return useQuery({
+  return useQuery<JobDetail>({
     queryKey: ["job", id],
     queryFn: async () => {
       const response = await apiClient.get(`/jobs/${id}`);
@@ -46,7 +93,7 @@ export function useJob(id: string) {
 }
 
 // Submit a proposal to a job
-export function useSubmitProposal(jobId?: string, p0?: () => void) {
+export function useSubmitProposal() {
   const queryClient = useQueryClient();
   
   return useMutation({
@@ -55,15 +102,31 @@ export function useSubmitProposal(jobId?: string, p0?: () => void) {
       coverLetter: string;
       price: number;
       estimatedDays?: number;
+      attachments?: string[];
     }) => {
       const response = await apiClient.post("/proposals", data);
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["provider-jobs"] });
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
-      queryClient.invalidateQueries({ queryKey: ["job", data.jobId] });
+      queryClient.invalidateQueries({ queryKey: ["job", variables.jobId] });
+      queryClient.invalidateQueries({
+        queryKey: ["job", variables.jobId, "proposals"],
+      });
     },
+  });
+}
+
+export function useJobProposals(jobId: string, enabled: boolean = true) {
+  return useQuery<JobProposal[]>({
+    queryKey: ["job", jobId, "proposals"],
+    queryFn: async () => {
+      const response = await apiClient.get(`/jobs/${jobId}/proposals`);
+      return response.data;
+    },
+    enabled: enabled && !!jobId,
+    retry: false,
   });
 }
 

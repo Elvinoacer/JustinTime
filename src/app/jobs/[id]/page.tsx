@@ -3,16 +3,17 @@
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import apiClient from "@/lib/api/client";
-import { useJob, useSubmitProposal } from "@/lib/api/hooks/useJobs";
+import {
+  useJob,
+  useJobProposals,
+  useSubmitProposal,
+} from "@/lib/api/hooks/useJobs";
 import { useProviderProfile } from "@/lib/api/hooks/useProvider";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertCircle,
   ArrowLeft,
-  Briefcase,
   Calendar,
-  Check,
-  CheckCircle,
   Clock,
   DollarSign,
   FileText,
@@ -26,15 +27,53 @@ import {
   X,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-const JobDetailPage = () => {
+function formatCurrency(value: number | null | undefined) {
+  const amount = Number(value ?? 0);
+  return `KES ${amount.toLocaleString()}`;
+}
+
+function formatDate(dateString?: string | null) {
+  if (!dateString) return "Flexible";
+  return new Date(dateString).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function getErrorMessage(error: unknown) {
+  if (typeof error === "object" && error !== null) {
+    const maybeError = error as {
+      response?: {
+        data?: {
+          message?: string;
+          error?: string;
+        };
+      };
+      message?: string;
+    };
+
+    return (
+      maybeError.response?.data?.message ||
+      maybeError.response?.data?.error ||
+      maybeError.message ||
+      "Failed to submit proposal"
+    );
+  }
+
+  return "Failed to submit proposal";
+}
+
+export default function JobDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status: authStatus } = useSession();
   const jobId = params.id as string;
 
   const [coverLetter, setCoverLetter] = useState("");
@@ -48,33 +87,72 @@ const JobDetailPage = () => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isProvider = session?.user?.role === "PROVIDER";
 
-  // Fetch job details
-  const { data: job, isLoading } = useJob(jobId);
-
-  // Fetch provider profile (only if user is a provider)
-  const { data: profile } = useProviderProfile();
-
-  // Submit proposal mutation
+  const { data: job, isLoading, error } = useJob(jobId);
+  const { data: profile } = useProviderProfile(Boolean(session?.user?.id && isProvider));
+  const { data: myProposals } = useJobProposals(
+    jobId,
+    Boolean(session?.user?.id && isProvider),
+  );
   const submitProposal = useSubmitProposal();
+  const providerProfile = profile?.data;
 
-  // Auto-populate form when useProfile is toggled
+  const existingProposal = myProposals?.[0];
+  const isJobOwner = Boolean(session?.user?.id && session.user.id === job?.client?.id);
+  const isGuest = authStatus !== "authenticated";
+  const isMaxApplicantsReached =
+    !!job?.maxApplicants &&
+    Number(job?._count?.proposals || 0) >= Number(job.maxApplicants);
+  const isJobClosed = !!job && job.status !== "OPEN";
+  const canAutofill = Boolean(
+    isProvider &&
+      providerProfile &&
+      (providerProfile.bio || providerProfile.hourlyRate),
+  );
+
   useEffect(() => {
-    if (useProfile && profile) {
-      if (profile.bio) {
-        setCoverLetter(profile.bio);
-      }
-      if (profile.hourlyRate) {
-        setProposedPrice(profile.hourlyRate.toString());
-      }
+    if (!useProfile || !providerProfile) return;
+
+    if (providerProfile.bio) {
+      setCoverLetter(providerProfile.bio);
     }
-  }, [useProfile, profile]);
+    if (providerProfile.hourlyRate) {
+      setProposedPrice(String(providerProfile.hourlyRate));
+    }
+  }, [providerProfile, useProfile]);
+
+  const heroImage = job?.images?.[0] || null;
+  const proposalsCount = Number(job?._count?.proposals || 0);
+  const overviewItems = [
+    {
+      label: "Budget",
+      value: job?.budget ? formatCurrency(job.budget) : "Open to proposals",
+      icon: DollarSign,
+    },
+    {
+      label: "Location",
+      value: job?.location || "Remote / flexible",
+      icon: MapPin,
+    },
+    {
+      label: "Deadline",
+      value: formatDate(job?.deadline),
+      icon: Clock,
+    },
+    {
+      label: "Applications",
+      value: job?.maxApplicants
+        ? `${proposalsCount} / ${job.maxApplicants}`
+        : `${proposalsCount}`,
+      icon: MessageSquare,
+    },
+  ];
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (e.g., 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("File size must be less than 5MB");
       return;
@@ -83,16 +161,17 @@ const JobDetailPage = () => {
     setIsUploading(true);
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("folder", "uploads");
 
     try {
       const response = await apiClient.post("/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setAttachments((prev) => [...prev, response.data.url]);
-      toast.success("File uploaded successfully");
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast.error("Failed to upload file");
+      toast.success("Attachment uploaded");
+    } catch (uploadError) {
+      console.error("Upload error:", uploadError);
+      toast.error("Failed to upload attachment");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -101,31 +180,86 @@ const JobDetailPage = () => {
     }
   };
 
-  const removeAttachment = (index: number) => {
+  const removeAttachment = async (index: number) => {
+    const fileUrl = attachments[index];
     setAttachments((prev) => prev.filter((_, i) => i !== index));
+
+    try {
+      await apiClient.delete(`/upload?url=${encodeURIComponent(fileUrl)}`);
+    } catch (removeError) {
+      console.error("Attachment delete error:", removeError);
+    }
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: job?.title || "Job",
+          text: job?.description || "View this job on JustInTime",
+          url,
+        });
+        return;
+      } catch {
+        // Fall back to clipboard below.
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Job link copied to clipboard");
+    } catch {
+      toast.error("Unable to share this job right now");
+    }
+  };
+
+  const openApplyFlow = () => {
+    if (!session) {
+      router.push(`/auth/login?callbackUrl=/jobs/${jobId}`);
+      return;
+    }
+
+    if (!isProvider) {
+      toast.error("Only providers can submit proposals");
+      return;
+    }
+
+    if (isJobOwner) {
+      toast.error("You cannot apply to your own job");
+      return;
+    }
+
+    if (existingProposal) {
+      toast.info("You already submitted a proposal for this job");
+      return;
+    }
+
+    setShowForm(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!session) {
-      router.push("/auth/signin");
+      router.push(`/auth/login?callbackUrl=/jobs/${jobId}`);
       return;
     }
 
     const price = parseFloat(proposedPrice);
-    if (isNaN(price) || price <= 0) {
-      toast.error("Please enter a valid price");
+    if (Number.isNaN(price) || price <= 0) {
+      toast.error("Please enter a valid proposal price");
       return;
     }
 
-    const days = estimatedDays ? parseInt(estimatedDays) : undefined;
-    if (estimatedDays && (isNaN(days!) || days! <= 0)) {
+    const days = estimatedDays ? parseInt(estimatedDays, 10) : undefined;
+    if (estimatedDays && (!days || days <= 0)) {
       toast.error("Please enter a valid duration");
       return;
     }
 
-    if (coverLetter.length < 50) {
+    if (coverLetter.trim().length < 50) {
       toast.error("Cover letter must be at least 50 characters long");
       return;
     }
@@ -133,9 +267,10 @@ const JobDetailPage = () => {
     submitProposal.mutate(
       {
         jobId,
-        coverLetter,
+        coverLetter: coverLetter.trim(),
         price,
         estimatedDays: days,
+        attachments,
       },
       {
         onSuccess: () => {
@@ -144,25 +279,26 @@ const JobDetailPage = () => {
           setEstimatedDays("");
           setAttachments([]);
           setShowForm(false);
-          toast.success("Proposal submitted successfully!");
+          setUseProfile(false);
+          toast.success("Proposal submitted successfully");
         },
-        onError: (error: any) => {
-          toast.error(
-            error.response?.data?.message || "Failed to submit proposal"
-          );
+        onError: (mutationError: unknown) => {
+          toast.error(getErrorMessage(mutationError));
         },
-      }
+      },
     );
   };
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50">
+      <div className="flex min-h-screen flex-col bg-slate-50">
         <Header />
-        <main className="flex-1 flex items-center justify-center py-12">
-          <div className="text-center">
-            <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mx-auto mb-3" />
-            <p className="text-gray-600 text-sm">Loading job details...</p>
+        <main className="flex flex-1 items-center justify-center pt-[var(--public-header-h)]">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
+            <p className="text-sm font-medium text-slate-600">
+              Loading job details...
+            </p>
           </div>
         </main>
         <Footer />
@@ -170,25 +306,26 @@ const JobDetailPage = () => {
     );
   }
 
-  if (!job) {
+  if (error || !job) {
     return (
-      <div className="flex min-h-screen flex-col bg-gray-50">
+      <div className="flex min-h-screen flex-col bg-slate-50">
         <Header />
-        <main className="flex-1 flex items-center justify-center py-12">
-          <div className="text-center">
-            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
+        <main className="flex flex-1 items-center justify-center px-4 pt-[var(--public-header-h)]">
+          <div className="max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <AlertCircle className="mx-auto h-12 w-12 text-slate-300" />
+            <h1 className="mt-4 text-2xl font-bold text-slate-950">
               Job Not Found
-            </h2>
-            <p className="text-gray-600 text-sm mb-6">
-              The job you're looking for doesn't exist.
+            </h1>
+            <p className="mt-2 text-sm text-slate-600">
+              The job you&apos;re looking for may have been removed or is no longer
+              available.
             </p>
             <Link
               href="/jobs"
-              className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-semibold text-sm"
+              className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
             >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Jobs
+              <ArrowLeft className="h-4 w-4" />
+              Back to jobs
             </Link>
           </div>
         </main>
@@ -197,610 +334,607 @@ const JobDetailPage = () => {
     );
   }
 
-  const isMaxApplicantsReached =
-    job.maxApplicants && (job._count?.proposals || 0) >= job.maxApplicants;
-
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
+    <div className="flex min-h-screen flex-col bg-slate-50">
       <Header />
 
-      {/* Mobile Back Button */}
-      <div className="lg:hidden fixed top-16 left-0 right-0 bg-white border-b border-gray-200 px-4 py-3 z-30">
-        <div className="flex items-center justify-between">
-          <Link
-            href="/jobs"
-            className="flex items-center gap-2 text-gray-700 hover:text-emerald-600"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">Jobs</span>
-          </Link>
-          <div className="text-right">
-            {job.budget && (
-              <div className="text-sm font-bold text-emerald-600">
-                Kes {job.budget.toLocaleString()}
-              </div>
-            )}
-          </div>
+      <section className="relative overflow-hidden border-b border-emerald-100/70 bg-gradient-to-b from-white via-emerald-50/50 to-slate-50 pt-[var(--public-header-h)]">
+        <div className="pointer-events-none absolute inset-0 opacity-75">
+          <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-emerald-300/30 blur-3xl" />
+          <div className="absolute right-0 top-14 h-72 w-72 rounded-full bg-sky-300/25 blur-3xl" />
+          <div className="absolute bottom-0 left-1/3 h-48 w-96 rounded-full bg-teal-200/30 blur-3xl" />
         </div>
-      </div>
 
-      <main className="px-3 sm:px-4 py-6 sm:py-8 md:py-12 pt-20 sm:pt-24">
-        <div className="max-w-7xl mx-auto">
-          {/* Desktop Back Button */}
-          <div className="hidden lg:block mb-6">
+        <div className="relative mx-auto max-w-7xl px-4 pb-10 pt-8 sm:px-6 sm:pb-12 sm:pt-10 lg:px-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <Link
               href="/jobs"
-              className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-semibold text-sm"
+              className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm backdrop-blur-sm transition-colors hover:border-emerald-200 hover:text-emerald-700"
             >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Jobs
+              <ArrowLeft className="h-4 w-4" />
+              Back to jobs
             </Link>
+            <button
+              onClick={handleShare}
+              className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm backdrop-blur-sm transition-colors hover:border-emerald-200 hover:text-emerald-700"
+            >
+              <span className="material-symbols-outlined text-[18px]">share</span>
+              Share
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-              {/* Job Header */}
-              <motion.div
-                className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 lg:p-8 border border-gray-100"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <div className="mb-4 sm:mb-6">
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">
-                    {job.title}
-                  </h1>
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-gray-600 text-xs sm:text-sm">
-                    <span className="flex items-center gap-1.5">
-                      <Briefcase className="w-3 h-3 sm:w-4 sm:h-4" />
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] lg:items-start">
+            <div className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.32)] backdrop-blur-sm">
+              <div className="relative min-h-[280px] overflow-hidden sm:min-h-[340px]">
+                {heroImage ? (
+                  <Image
+                    src={heroImage}
+                    alt={job.title}
+                    fill
+                    className="object-cover"
+                    priority
+                    unoptimized
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-950/88 via-slate-950/58 to-slate-950/16" />
+                <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-950/25 to-transparent" />
+
+                <div className="relative flex h-full min-h-[280px] flex-col justify-between p-5 text-white sm:min-h-[340px] sm:p-7">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full bg-white/92 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-900 shadow-sm">
                       {job.category?.name || "General"}
                     </span>
-                    <span className="hidden sm:flex items-center gap-1.5">
-                      <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
-                      Posted {new Date(job.createdAt).toLocaleDateString()}
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] shadow-sm ${
+                        job.status === "OPEN"
+                          ? "bg-emerald-400/95 text-emerald-950"
+                          : "bg-slate-900/65 text-white"
+                      }`}
+                    >
+                      {job.status.replace("_", " ")}
                     </span>
-                    {job.location && (
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
+                    {job.location ? (
+                      <span className="rounded-full border border-white/15 bg-black/25 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm">
                         {job.location}
                       </span>
-                    )}
+                    ) : null}
                   </div>
-                </div>
 
-                <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm">
-                  {job.deadline && (
-                    <div className="flex items-center gap-1.5 text-gray-600">
-                      <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span>
-                        Deadline: {new Date(job.deadline).toLocaleDateString()}
+                  <div>
+                    <h1 className="max-w-3xl text-balance text-3xl font-bold tracking-tight sm:text-4xl lg:text-[2.8rem] lg:leading-[1.05]">
+                      {job.title}
+                    </h1>
+                    <p className="mt-4 max-w-2xl text-sm leading-7 text-white/82 sm:text-base">
+                      {job.description}
+                    </p>
+
+                    <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-white/80">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Calendar className="h-4 w-4 text-emerald-300" />
+                        Posted {formatDate(job.createdAt)}
                       </span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-1.5 text-gray-600">
-                    <MessageSquare className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span>
-                      {job._count?.proposals || 0}{" "}
-                      {job.maxApplicants ? `/ ${job.maxApplicants}` : ""}{" "}
-                      proposals
-                    </span>
-                  </div>
-                </div>
-
-                {/* Budget - Desktop */}
-                {job.budget && (
-                  <div className="hidden lg:block mt-6">
-                    <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-5 border border-emerald-200">
-                      <p className="text-sm text-emerald-700 font-medium mb-1">
-                        Client's Budget
-                      </p>
-                      <p className="text-2xl font-bold text-emerald-800">
-                        Kes {job.budget.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-
-              {/* Job Description */}
-              <motion.div
-                className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 lg:p-8 border border-gray-100"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">
-                  Job Description
-                </h2>
-                <p className="text-gray-700 text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
-                  {job.description}
-                </p>
-              </motion.div>
-
-              {/* Images */}
-              {job.images && job.images.length > 0 && (
-                <motion.div
-                  className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 lg:p-8 border border-gray-100"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
-                    <ImageIcon className="w-5 h-5" />
-                    Job Photos
-                  </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
-                    {job.images
-                      .slice(0, 3)
-                      .map((image: string, index: number) => (
-                        <button
-                          key={index}
-                          onClick={() => {
-                            setSelectedImageIndex(index);
-                            setShowImageGallery(true);
-                          }}
-                          className="relative w-full aspect-square rounded-lg sm:rounded-xl overflow-hidden group"
-                        >
-                          <img
-                            src={image}
-                            alt={`Job attachment ${index + 1}`}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                          {job.images.length > 3 && index === 2 && (
-                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                              <span className="text-white font-semibold">
-                                +{job.images.length - 3} more
-                              </span>
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Requirements & Timeline - Desktop */}
-              <div className="hidden lg:grid grid-cols-2 gap-8">
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-blue-600" />
-                    Requirements
-                  </h3>
-                  <ul className="space-y-2">
-                    <li className="flex items-start gap-2 text-gray-700">
-                      <Check className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                      <span>Detailed proposal with portfolio</span>
-                    </li>
-                    <li className="flex items-start gap-2 text-gray-700">
-                      <Check className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                      <span>Professional experience in field</span>
-                    </li>
-                    <li className="flex items-start gap-2 text-gray-700">
-                      <Check className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                      <span>Clear timeline and milestones</span>
-                    </li>
-                  </ul>
-                </div>
-                <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-2xl p-6 border border-emerald-100">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-emerald-600" />
-                    Timeline
-                  </h3>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="text-sm text-gray-600">
-                        Proposal Deadline
-                      </div>
-                      <div className="font-semibold text-gray-900">
-                        {job.deadline
-                          ? new Date(job.deadline).toLocaleDateString()
-                          : "Flexible"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-gray-600">Project Start</div>
-                      <div className="font-semibold text-gray-900">
-                        Within 1-2 weeks
-                      </div>
+                      <span className="text-white/30">•</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Clock className="h-4 w-4 text-emerald-300" />
+                        Deadline {formatDate(job.deadline)}
+                      </span>
+                      <span className="text-white/30">•</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <MessageSquare className="h-4 w-4 text-emerald-300" />
+                        {proposalsCount} proposals
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Sidebar */}
-            <div className="space-y-4 sm:space-y-6">
-              {/* Client Info */}
-              <motion.div
-                className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-              >
-                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">
-                  About the Client
-                </h3>
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
-                    {job.client?.image ? (
-                      <img
-                        src={job.client.image}
-                        alt={job.client.name || "Client"}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-emerald-100 text-emerald-600 font-bold text-lg sm:text-xl">
-                        {job.client?.name?.[0] || "?"}
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">
-                        {job.client?.name || "Anonymous"}
+            <aside className="rounded-[2rem] border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.35)] sm:p-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                Budget overview
+              </p>
+              <div className="mt-3">
+                <p className="text-sm text-slate-600">Client budget</p>
+                <p className="mt-1 text-3xl font-bold tracking-tight text-emerald-800">
+                  {job.budget ? formatCurrency(job.budget) : "Open to proposals"}
+                </p>
+              </div>
+
+              <div className="mt-5 space-y-3">
+                {overviewItems.map((item) => (
+                  <div
+                    key={item.label}
+                    className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-3"
+                  >
+                    <item.icon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        {item.label}
                       </p>
-                      {job.client?.isVerified && (
-                        <Shield className="w-4 h-4 text-emerald-500" />
-                      )}
-                    </div>
-                    <p className="text-xs sm:text-sm text-gray-600">Client</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                        <span className="text-xs text-gray-500 ml-1">
-                          Active now
-                        </span>
-                      </div>
+                      <p className="mt-1 text-sm font-semibold text-slate-950">
+                        {item.value}
+                      </p>
                     </div>
                   </div>
-                </div>
-              </motion.div>
+                ))}
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
 
-              {/* Budget - Mobile */}
-              {job.budget && (
-                <div className="lg:hidden">
-                  <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-200">
-                    <p className="text-sm text-emerald-700 font-medium mb-1">
-                      Client's Budget
-                    </p>
-                    <p className="text-2xl font-bold text-emerald-800">
-                      Kes {job.budget.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              )}
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0 space-y-6">
+            <motion.section
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7"
+            >
+              <h2 className="text-xl font-bold tracking-tight text-slate-950">
+                Project brief
+              </h2>
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-600 sm:text-base">
+                {job.description}
+              </p>
+            </motion.section>
 
-              {/* Apply Section */}
-              <motion.div
-                className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-100"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 }}
+            {job.images?.length > 0 ? (
+              <motion.section
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+                className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7"
               >
-                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4">
-                  Submit Proposal
-                </h3>
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-950">
+                    <ImageIcon className="h-5 w-5 text-emerald-600" />
+                    Project photos
+                  </h2>
+                  {job.images.length > 1 ? (
+                    <button
+                      onClick={() => setShowImageGallery(true)}
+                      className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-emerald-200 hover:text-emerald-700"
+                    >
+                      Open gallery
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {job.images.map((image, index) => (
+                    <button
+                      key={`${image}-${index}`}
+                      onClick={() => {
+                        setSelectedImageIndex(index);
+                        setShowImageGallery(true);
+                      }}
+                      className="group relative aspect-[1.1] overflow-hidden rounded-2xl bg-slate-100"
+                    >
+                      <Image
+                        src={image}
+                        alt={`Job photo ${index + 1}`}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        sizes="(max-width: 1024px) 50vw, 33vw"
+                        unoptimized
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/50 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                    </button>
+                  ))}
+                </div>
+              </motion.section>
+            ) : null}
+
+            <motion.section
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7"
+            >
+              <h2 className="text-xl font-bold tracking-tight text-slate-950">
+                Before you apply
+              </h2>
+              <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                  <p className="text-sm font-semibold text-slate-950">
+                    Share your approach
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Explain how you would handle the work and why you are a fit.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                  <p className="text-sm font-semibold text-slate-950">
+                    Price clearly
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Send your proposed amount and, if needed, your estimated time.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                  <p className="text-sm font-semibold text-slate-950">
+                    Add proof of work
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Attach a resume, portfolio, or sample files to strengthen your pitch.
+                  </p>
+                </div>
+              </div>
+            </motion.section>
+          </div>
+
+          <div className="space-y-6">
+            <motion.section
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
+            >
+              <h2 className="text-lg font-bold text-slate-950">About the client</h2>
+              <div className="mt-4 flex items-center gap-4">
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
+                  {job.client?.image ? (
+                    <Image
+                      src={job.client.image}
+                      alt={job.client.name || "Client"}
+                      fill
+                      className="object-cover"
+                      sizes="56px"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-emerald-100 text-xl font-bold text-emerald-700">
+                      {(job.client?.name || "?").charAt(0)}
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-slate-950">
+                      {job.client?.name || "Anonymous client"}
+                    </p>
+                    {job.client?.isVerified ? (
+                      <Shield className="h-4 w-4 text-emerald-500" />
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600">Client on JustInTime</p>
+                </div>
+              </div>
+            </motion.section>
+
+            <motion.section
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.05 }}
+              className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
+            >
+              <h2 className="text-lg font-bold text-slate-950">Submit proposal</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Apply directly from this page with your pricing, message, and
+                optional attachments.
+              </p>
+
+              <div className="mt-5 space-y-4">
+                {isJobClosed ? (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    This job is currently <strong>{job.status.toLowerCase()}</strong> and
+                    is not accepting new proposals.
+                  </div>
+                ) : null}
 
                 {isMaxApplicantsReached ? (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg sm:rounded-xl p-3 sm:p-4 text-amber-800">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                      <span className="font-bold text-sm sm:text-base">
-                        Applications Closed
-                      </span>
-                    </div>
-                    <p className="text-xs sm:text-sm">
-                      This job has reached its maximum number of applicants (
-                      {job.maxApplicants}). The client is currently reviewing
-                      the existing proposals.
-                    </p>
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                    This job has reached its applicant limit of {job.maxApplicants}.
+                    The client is reviewing existing proposals.
                   </div>
-                ) : !showForm ? (
-                  <button
-                    onClick={() => setShowForm(true)}
-                    className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-2.5 sm:py-3 px-4 rounded-lg sm:rounded-xl font-semibold hover:from-emerald-600 hover:to-green-700 transition-all shadow-lg text-sm sm:text-base flex items-center justify-center gap-2"
-                  >
-                    <Send className="w-4 h-4 sm:w-5 sm:h-5" />
-                    Apply for this Job
-                  </button>
-                ) : (
-                  <form
-                    onSubmit={handleSubmit}
-                    className="space-y-3 sm:space-y-4"
-                  >
-                    {/* Use Profile Toggle */}
-                    {session?.user?.role === "PROVIDER" &&
-                      profile &&
-                      (profile.bio || profile.hourlyRate) && (
-                        <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-lg sm:rounded-xl p-3 sm:p-4">
-                          <div className="flex items-center justify-between mb-2 sm:mb-3">
-                            <label
-                              htmlFor="useProfile"
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                id="useProfile"
-                                checked={useProfile}
-                                onChange={(e) =>
-                                  setUseProfile(e.target.checked)
-                                }
-                                className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
-                              />
-                              <span className="text-xs sm:text-sm font-semibold text-gray-900">
-                                Use My Profile Information
-                              </span>
-                            </label>
-                          </div>
+                ) : null}
 
-                          {useProfile && (
-                            <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-emerald-200 space-y-2">
-                              {profile.bio && (
-                                <div>
-                                  <p className="text-xs font-medium text-emerald-700 mb-1">
-                                    Bio Preview:
-                                  </p>
-                                  <p className="text-xs text-gray-700 line-clamp-2">
-                                    {profile.bio}
-                                  </p>
-                                </div>
-                              )}
-                              {profile.skills && profile.skills.length > 0 && (
-                                <div>
-                                  <p className="text-xs font-medium text-emerald-700 mb-1">
-                                    Skills:
-                                  </p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {profile.skills
-                                      .slice(0, 3)
-                                      .map((skill: string, idx: number) => (
-                                        <span
-                                          key={idx}
-                                          className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded"
-                                        >
-                                          {skill}
-                                        </span>
-                                      ))}
-                                    {profile.skills.length > 3 && (
-                                      <span className="text-xs text-emerald-600">
-                                        +{profile.skills.length - 3} more
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                    <div>
-                      <label
-                        htmlFor="coverLetter"
-                        className="block text-xs sm:text-sm font-medium text-gray-700 mb-2"
-                      >
-                        Cover Letter *
-                      </label>
-                      <textarea
-                        id="coverLetter"
-                        required
-                        rows={4}
-                        value={coverLetter}
-                        onChange={(e) => setCoverLetter(e.target.value)}
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all resize-none text-sm sm:text-base"
-                        placeholder="Explain why you're the best fit for this job..."
-                      />
-                      <p className="text-xs text-gray-500 mt-1 text-right">
-                        {coverLetter.length} / 50 characters min
+                {existingProposal ? (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <p className="text-sm font-semibold text-emerald-900">
+                      You already applied to this job
+                    </p>
+                    <div className="mt-3 space-y-2 text-sm text-emerald-800">
+                      <p>
+                        Status: <strong>{existingProposal.status}</strong>
+                      </p>
+                      <p>
+                        Price: <strong>{formatCurrency(existingProposal.price)}</strong>
+                      </p>
+                      <p>
+                        Submitted: <strong>{formatDate(existingProposal.createdAt)}</strong>
                       </p>
                     </div>
+                  </div>
+                ) : null}
 
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                {isGuest ? (
+                  <button
+                    onClick={openApplyFlow}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                  >
+                    <Send className="h-4 w-4" />
+                    Log in to apply
+                  </button>
+                ) : !isProvider ? (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    Only provider accounts can submit proposals for jobs.
+                  </div>
+                ) : isJobOwner ? (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    This is your own job posting, so you can&apos;t apply to it.
+                  </div>
+                ) : !showForm && !existingProposal && !isJobClosed && !isMaxApplicantsReached ? (
+                  <button
+                    onClick={openApplyFlow}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                  >
+                    <Send className="h-4 w-4" />
+                    Apply for this job
+                  </button>
+                ) : null}
+
+                <AnimatePresence initial={false}>
+                  {showForm && !existingProposal && !isJobClosed && !isMaxApplicantsReached ? (
+                    <motion.form
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      onSubmit={handleSubmit}
+                      className="overflow-hidden space-y-4 border-t border-slate-100 pt-4"
+                    >
+                      {canAutofill ? (
+                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                          <label
+                            htmlFor="useProfile"
+                            className="flex items-center gap-3 text-sm font-semibold text-slate-900"
+                          >
+                            <input
+                              id="useProfile"
+                              type="checkbox"
+                              checked={useProfile}
+                              onChange={(e) => setUseProfile(e.target.checked)}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            Use my profile details as a starting point
+                          </label>
+                        </div>
+                      ) : null}
+
                       <div>
                         <label
-                          htmlFor="proposedPrice"
-                          className="block text-xs sm:text-sm font-medium text-gray-700 mb-2"
+                          htmlFor="coverLetter"
+                          className="block text-sm font-semibold text-slate-800"
                         >
-                          Price (Kes) *
+                          Cover letter
                         </label>
-                        <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <textarea
+                          id="coverLetter"
+                          rows={6}
+                          required
+                          value={coverLetter}
+                          onChange={(e) => setCoverLetter(e.target.value)}
+                          className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                          placeholder="Explain why you are a strong fit, how you would approach the work, and any relevant experience."
+                        />
+                        <p className="mt-2 text-right text-xs text-slate-500">
+                          {coverLetter.trim().length} / 50 characters minimum
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                          <label
+                            htmlFor="proposedPrice"
+                            className="block text-sm font-semibold text-slate-800"
+                          >
+                            Proposed price
+                          </label>
+                          <div className="relative mt-2">
+                            <DollarSign className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                            <input
+                              id="proposedPrice"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              required
+                              value={proposedPrice}
+                              onChange={(e) => setProposedPrice(e.target.value)}
+                              className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-9 pr-4 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label
+                            htmlFor="estimatedDays"
+                            className="block text-sm font-semibold text-slate-800"
+                          >
+                            Estimated days
+                          </label>
                           <input
+                            id="estimatedDays"
                             type="number"
-                            id="proposedPrice"
-                            required
-                            min="0"
-                            step="0.01"
-                            value={proposedPrice}
-                            onChange={(e) => setProposedPrice(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-sm sm:text-base"
-                            placeholder="0.00"
+                            min="1"
+                            step="1"
+                            value={estimatedDays}
+                            onChange={(e) => setEstimatedDays(e.target.value)}
+                            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                            placeholder="Optional"
                           />
                         </div>
                       </div>
+
                       <div>
-                        <label
-                          htmlFor="estimatedDays"
-                          className="block text-xs sm:text-sm font-medium text-gray-700 mb-2"
-                        >
-                          Duration (Days)
+                        <label className="block text-sm font-semibold text-slate-800">
+                          Attachments
                         </label>
-                        <input
-                          type="number"
-                          id="estimatedDays"
-                          min="1"
-                          step="1"
-                          value={estimatedDays}
-                          onChange={(e) => setEstimatedDays(e.target.value)}
-                          className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-sm sm:text-base"
-                          placeholder="e.g. 7"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                        Attachments
-                      </label>
-                      <div className="space-y-2 sm:space-y-3">
-                        {attachments.map((url, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between bg-gray-50 p-2 sm:p-3 rounded-lg border border-gray-100"
-                          >
-                            <div className="flex items-center gap-2 overflow-hidden">
-                              <FileText className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                              <span className="text-xs text-gray-600 truncate max-w-[120px] sm:max-w-[150px]">
-                                {url.split("/").pop()}
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => removeAttachment(index)}
-                              className="text-red-500 hover:text-red-700 p-1"
+                        <div className="mt-2 space-y-3">
+                          {attachments.map((url, index) => (
+                            <div
+                              key={`${url}-${index}`}
+                              className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
                             >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
+                              <div className="flex min-w-0 items-center gap-3">
+                                <FileText className="h-4 w-4 shrink-0 text-slate-500" />
+                                <span className="truncate text-sm text-slate-600">
+                                  {url.split("/").pop()}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => void removeAttachment(index)}
+                                className="rounded-full p-1 text-slate-500 transition-colors hover:bg-white hover:text-red-600"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ))}
 
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileUpload}
-                          className="hidden"
-                          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploading}
-                          className="w-full border-2 border-dashed border-gray-300 rounded-lg sm:rounded-xl p-3 sm:p-4 text-gray-500 hover:border-emerald-500 hover:text-emerald-500 transition-all flex items-center justify-center gap-2 text-sm"
-                        >
-                          {isUploading ? (
-                            <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />
-                          ) : (
-                            <>
-                              <Upload className="w-4 h-4" />
-                              Upload Resume or Portfolio
-                            </>
-                          )}
-                        </button>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 px-4 py-4 text-sm font-medium text-slate-600 transition-colors hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-60"
+                          >
+                            {isUploading ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Uploading...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-4 w-4" />
+                                Upload resume or portfolio
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
-                    </div>
 
-                    {submitProposal.isError && (
-                      <div className="bg-red-50 border border-red-100 rounded-lg sm:rounded-xl p-3 sm:p-4 text-red-700 text-xs sm:text-sm">
-                        <div className="flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      {submitProposal.isError ? (
+                        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                           {submitProposal.error instanceof Error
                             ? submitProposal.error.message
                             : "Failed to submit proposal"}
                         </div>
+                      ) : null}
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowForm(false)}
+                          disabled={submitProposal.isPending}
+                          className="rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-200 disabled:opacity-60"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submitProposal.isPending || isUploading}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+                        >
+                          {submitProposal.isPending ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="h-4 w-4" />
+                              Submit proposal
+                            </>
+                          )}
+                        </button>
                       </div>
-                    )}
-
-                    <div className="flex gap-2 sm:gap-3 pt-1 sm:pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowForm(false)}
-                        className="flex-1 bg-gray-100 text-gray-700 py-2.5 sm:py-3 px-4 rounded-lg sm:rounded-xl font-semibold hover:bg-gray-200 transition-all text-sm sm:text-base"
-                        disabled={submitProposal.isPending}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={submitProposal.isPending || isUploading}
-                        className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 text-white py-2.5 sm:py-3 px-4 rounded-lg sm:rounded-xl font-semibold hover:from-emerald-600 hover:to-green-700 transition-all shadow-lg disabled:opacity-70 disabled:cursor-not-allowed text-sm sm:text-base flex items-center justify-center gap-2"
-                      >
-                        {submitProposal.isPending ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Submitting...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-4 h-4" />
-                            Submit Proposal
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </motion.div>
-
-              {/* Quick Tips - Mobile */}
-              <div className="lg:hidden">
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
-                  <h4 className="font-bold text-blue-900 text-sm mb-2 flex items-center gap-2">
-                    <Briefcase className="w-4 h-4" />
-                    Application Tips
-                  </h4>
-                  <ul className="text-blue-700 text-xs space-y-1.5">
-                    <li className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1" />
-                      <span>Be specific about your approach to the job</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1" />
-                      <span>Include relevant portfolio samples</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1" />
-                      <span>Respond promptly to client messages</span>
-                    </li>
-                  </ul>
-                </div>
+                    </motion.form>
+                  ) : null}
+                </AnimatePresence>
               </div>
-            </div>
+            </motion.section>
           </div>
         </div>
       </main>
 
-      {/* Image Gallery Modal */}
-      {showImageGallery && job.images && job.images.length > 0 && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+      {showImageGallery && job.images?.length > 0 ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 p-4">
           <button
             onClick={() => setShowImageGallery(false)}
-            className="absolute top-4 right-4 text-white hover:text-gray-300 z-10 p-2"
+            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
           >
-            <X className="w-6 h-6" />
+            <X className="h-6 w-6" />
           </button>
 
-          <div className="w-full max-w-4xl">
-            <img
-              src={job.images[selectedImageIndex]}
-              alt={`Job image ${selectedImageIndex + 1}`}
-              className="w-full h-auto max-h-[70vh] object-contain rounded-lg"
-            />
+          <div className="w-full max-w-5xl">
+            <div className="relative aspect-[1.25] overflow-hidden rounded-3xl bg-slate-900">
+              <Image
+                src={job.images[selectedImageIndex]}
+                alt={`Job image ${selectedImageIndex + 1}`}
+                fill
+                className="object-contain"
+                sizes="100vw"
+                unoptimized
+              />
+            </div>
 
-            <div className="mt-4 flex overflow-x-auto gap-2 no-scrollbar">
-              {job.images.map((image: string, index: number) => (
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+              {job.images.map((image, index) => (
                 <button
-                  key={index}
+                  key={`${image}-${index}`}
                   onClick={() => setSelectedImageIndex(index)}
-                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 ${
+                  className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-2 ${
                     selectedImageIndex === index
-                      ? "border-emerald-500"
+                      ? "border-emerald-400"
                       : "border-transparent"
                   }`}
                 >
-                  <img
+                  <Image
                     src={image}
                     alt={`Thumbnail ${index + 1}`}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
+                    sizes="64px"
+                    unoptimized
                   />
                 </button>
               ))}
             </div>
           </div>
         </div>
-      )}
+      ) : null}
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/96 px-4 py-3 backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-7xl items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Client budget
+            </p>
+            <p className="truncate text-sm font-bold text-slate-950">
+              {job.budget ? formatCurrency(job.budget) : "Open to proposals"}
+            </p>
+          </div>
+          <button
+            onClick={openApplyFlow}
+            disabled={Boolean(existingProposal) || isJobClosed || isMaxApplicantsReached}
+            className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {existingProposal ? "Applied" : "Apply"}
+          </button>
+        </div>
+      </div>
 
       <Footer />
     </div>
   );
-};
-
-export default JobDetailPage;
+}
