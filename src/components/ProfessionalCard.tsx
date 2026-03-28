@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -58,6 +59,16 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional }) => 
     typeof professional.coverImage === "string" && professional.coverImage
       ? professional.coverImage
       : null;
+  const [coverAvailable, setCoverAvailable] = useState(Boolean(cover));
+  const [avatarAvailable, setAvatarAvailable] = useState(Boolean(professional.image));
+
+  useEffect(() => {
+    setCoverAvailable(Boolean(cover));
+  }, [cover]);
+
+  useEffect(() => {
+    setAvatarAvailable(Boolean(professional.image));
+  }, [professional.image]);
 
   const formatDistance = (km?: number) => {
     if (km == null || !Number.isFinite(km)) return null;
@@ -77,13 +88,15 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional }) => 
       <article className="flex min-h-[158px] max-h-[220px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_36px_-24px_rgba(15,23,42,0.45)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-emerald-200/70 hover:shadow-[0_16px_44px_-22px_rgba(16,185,129,0.22)] sm:max-h-none sm:min-h-[168px] sm:flex-row">
         {/* Cover / work sample */}
         <div className="relative h-28 w-full shrink-0 overflow-hidden sm:h-auto sm:w-[42%] sm:min-w-[140px] sm:max-w-[220px]">
-          {cover ? (
+          {cover && coverAvailable ? (
             <Image
               src={cover}
               alt=""
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
               sizes="(max-width: 640px) 100vw, 220px"
+              unoptimized
+              onError={() => setCoverAvailable(false)}
             />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
@@ -113,13 +126,15 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional }) => 
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3">
           <div className="flex gap-2.5 sm:gap-3">
             <div className="relative -mt-9 h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 border-white bg-white shadow-md ring-1 ring-slate-200/80 sm:mt-0 sm:h-[3.25rem] sm:w-[3.25rem]">
-              {professional.image ? (
+              {professional.image && avatarAvailable ? (
                 <Image
                   src={professional.image}
                   alt=""
                   fill
                   className="object-cover"
                   sizes="52px"
+                  unoptimized
+                  onError={() => setAvatarAvailable(false)}
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-100 to-teal-100 text-lg font-bold text-emerald-700">

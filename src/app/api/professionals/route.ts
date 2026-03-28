@@ -5,11 +5,33 @@ import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import type { ProfessionalListItem } from "@/lib/api/contracts/public-listings";
 
 const MAX_PROVIDERS_RANK = 4000;
+const IMAGE_FILE_PATTERN =
+  /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
 
 function parseNum(val: string | null): number | undefined {
   if (!val) return undefined;
   const n = Number(val);
   return Number.isNaN(n) ? undefined : n;
+}
+
+function isLikelyImageUrl(url: string) {
+  if (!url) return false;
+
+  try {
+    const parsed = new URL(url);
+    const pathname = parsed.pathname.toLowerCase();
+
+    if (IMAGE_FILE_PATTERN.test(pathname)) return true;
+
+    const format = parsed.searchParams.get("format");
+    const fm = parsed.searchParams.get("fm");
+    return Boolean(
+      (format && IMAGE_FILE_PATTERN.test(`file.${format}`)) ||
+        (fm && IMAGE_FILE_PATTERN.test(`file.${fm}`)),
+    );
+  } catch {
+    return IMAGE_FILE_PATTERN.test(url);
+  }
 }
 
 function calculateDistance(
@@ -186,7 +208,10 @@ export async function GET(request: NextRequest) {
         const portfolio =
           Array.isArray(p?.portfolio) && p.portfolio.length > 0
             ? (p!.portfolio.find(
-                (url) => typeof url === "string" && url.length > 0,
+                (url) =>
+                  typeof url === "string" &&
+                  url.trim().length > 0 &&
+                  isLikelyImageUrl(url),
               ) ?? null)
             : null;
 
