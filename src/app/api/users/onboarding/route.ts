@@ -6,7 +6,7 @@ import { VALIDATION } from "@/lib/constants/validation";
 export const POST = auth(async (req) => {
   try {
     const session = req.auth;
-    if (!session?.user?.id) {
+    if (!session?.user?.id && !session?.user?.email) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -97,9 +97,32 @@ export const POST = auth(async (req) => {
       }
     }
 
+    // Resolve the acting user robustly. If session id is stale, fall back to email.
+    const actingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(session?.user?.id ? [{ id: session.user.id }] : []),
+          ...(session?.user?.email
+            ? [{ email: session.user.email.trim().toLowerCase() }]
+            : []),
+        ],
+      },
+      select: { id: true, email: true },
+    });
+
+    if (!actingUser) {
+      return NextResponse.json(
+        {
+          error:
+            "Account not found for current session. Please sign out and sign in again.",
+        },
+        { status: 404 },
+      );
+    }
+
     // Update user with common fields
     const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: actingUser.id },
       data: {
         role,
         onboardingCompleted,
@@ -127,9 +150,9 @@ export const POST = auth(async (req) => {
       };
 
       await prisma.profile.upsert({
-        where: { userId: session.user.id },
+        where: { userId: actingUser.id },
         create: {
-          userId: session.user.id,
+          userId: actingUser.id,
           skills: skills || [],
           location,
           latitude,
@@ -183,9 +206,33 @@ export const POST = auth(async (req) => {
 
     // Check for specific Prisma errors (e.g., unique constraint)
     if (error?.code === "P2002") {
+      const target = Array.isArray(error?.meta?.target)
+        ? error.meta.target.join(", ")
+        : String(error?.meta?.target || "field");
+
+      if (target.includes("phone")) {
+        return NextResponse.json(
+          {
+            error:
+              "That phone number is already linked to another account. Use a different number.",
+          },
+          { status: 409 },
+        );
+      }
+
       return NextResponse.json(
         {
-          error: `A user with this ${error.meta?.target?.join(", ") || "field"} already exists.`,
+          error: `A user with this ${target} already exists.`,
+        },
+        { status: 409 },
+      );
+    }
+
+    if (error?.code === "P2025") {
+      return NextResponse.json(
+        {
+          error:
+            "Your session is out of sync with the account record. Please sign out and sign in again.",
         },
         { status: 409 },
       );

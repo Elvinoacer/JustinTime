@@ -15,6 +15,7 @@ import {
 import crypto from "crypto";
 import {
   AUTH_RATE_LIMIT_ERROR,
+  clearRateLimitEntries,
   enforceRateLimits,
   getClientIpFromHeaders,
 } from "@/lib/auth/rate-limit";
@@ -130,6 +131,21 @@ export async function POST(request: NextRequest) {
       user.name || "User",
       verificationUrl,
     );
+
+    // Allow immediate first login attempt after successful signup.
+    clearRateLimitEntries("auth.verify-credentials", [
+      `ip:${clientIp}`,
+      `ip:${clientIp}:email:${rawEmail || "missing"}`,
+    ]);
+    clearRateLimitEntries("auth.login-action", [
+      `ip:${clientIp}`,
+      `ip:${clientIp}:email:${rawEmail || "missing"}`,
+    ]);
+    clearRateLimitEntries("auth.nextauth", [
+      `ip:${clientIp}`,
+      `ip:${clientIp}:credentials-callback`,
+      `ip:${clientIp}:signin`,
+    ]);
 
     // Return success - client will then sign in with NextAuth
     return successResponse(

@@ -236,5 +236,14 @@ export function enforceRateLimits(
   return { ok: true };
 }
 
+export function clearRateLimitEntries(scope: string, suffixes: string[]): void {
+  if (!scope || !suffixes.length) return;
+
+  for (const suffix of suffixes) {
+    const key = `${scope}:${normalizeKeyPart(suffix)}`;
+    rateLimitStore.delete(key);
+  }
+}
+
 export const AUTH_RATE_LIMIT_ERROR =
   "Too many authentication requests. Please try again shortly.";
