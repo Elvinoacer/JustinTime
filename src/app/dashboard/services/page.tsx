@@ -354,7 +354,7 @@ const ServicesPage = () => {
       </div>
 
       {/* Services Grid */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 lg:gap-6">
+      <div className="grid grid-cols-1 gap-5 lg:gap-6">
         <AnimatePresence>
           {servicesList.map((service, index: number) => (
             <motion.article
@@ -381,10 +381,8 @@ const ServicesPage = () => {
                     : 0;
 
                 return (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-[280px_minmax(0,1fr)]">
-                      {/* Service Preview Image */}
-                      <div className="relative h-56 overflow-hidden bg-gray-100 md:h-full md:min-h-[420px]">
+                  <div className="grid gap-0 lg:grid-cols-[260px_minmax(0,1fr)]">
+                      <div className="relative min-h-[220px] overflow-hidden bg-gray-100 lg:min-h-[100%]">
                         {service.images && service.images.length > 0 ? (
                           <img
                             src={service.images[0]}
@@ -397,7 +395,7 @@ const ServicesPage = () => {
                           >
                             <span
                               className={`material-symbols-outlined text-gray-300 ${
-                                isMobile ? "text-3xl" : "text-4xl sm:text-5xl"
+                                isMobile ? "text-4xl" : "text-5xl"
                               }`}
                             >
                               construction
@@ -405,244 +403,238 @@ const ServicesPage = () => {
                           </div>
                         )}
 
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/20 to-transparent" />
                         <div className={`absolute inset-0 bg-gradient-to-br ${accent.wash}`} />
 
-                        {/* Media Indicators */}
-                        <div className="absolute bottom-3 right-3 flex flex-wrap justify-end gap-1.5">
-                          {service.images?.length > 0 && (
-                            <span className="flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-                              <span className="material-symbols-outlined text-[12px]">
-                                photo_library
-                              </span>
-                              {service.images.length}
-                            </span>
-                          )}
-                          {service.video && (
-                            <span className="flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-                              <span className="material-symbols-outlined text-[12px]">
-                                videocam
-                              </span>
-                              1
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Status Badge */}
-                        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+                        <div className="absolute left-4 top-4 flex flex-wrap gap-2">
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-bold shadow-sm backdrop-blur-md ${accent.badge}`}
                           >
                             {service.isActive ? "Active" : "Inactive"}
                           </span>
-                          <span className="rounded-full border border-white/30 bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-md">
+                          <span className="rounded-full border border-white/25 bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-md">
                             {performanceLabel}
                           </span>
                         </div>
 
-                        <div className="absolute bottom-3 left-3 right-3">
-                          <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-white backdrop-blur-md">
-                            <div className="flex items-end justify-between gap-3">
+                        <div className="absolute bottom-4 left-4 right-4">
+                          <div className="rounded-2xl border border-white/15 bg-black/20 p-4 text-white backdrop-blur-md">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/70">
+                              Starting at
+                            </p>
+                            <div className="mt-1 flex items-end justify-between gap-3">
                               <div className="min-w-0">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
-                                  Starting at
+                                <p className="truncate text-2xl font-bold">
+                                  KES {service.price.toLocaleString()}
                                 </p>
-                                <div className="mt-1 flex items-baseline gap-2">
-                                  <p className="truncate text-2xl font-bold">
-                                    KES {service.price.toLocaleString()}
-                                  </p>
-                                  <span className="text-sm font-medium text-white/80">
-                                    {formatPriceLabel(service)}
-                                  </span>
-                                </div>
+                                <p className="text-sm font-medium text-white/75">
+                                  {formatPriceLabel(service)}
+                                </p>
                               </div>
-                              <div className="rounded-xl bg-black/20 px-3 py-2 text-right">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
-                                  Saves
-                                </p>
-                                <p className="text-sm font-semibold">
-                                  {service.video ? "Video pitch" : "Photo-ready"}
-                                </p>
+                              <div className="flex flex-wrap justify-end gap-1.5">
+                                {service.images?.length > 0 && (
+                                  <span className="flex items-center gap-1 rounded-full bg-white/12 px-2.5 py-1 text-xs font-medium text-white">
+                                    <span className="material-symbols-outlined text-[12px]">
+                                      photo_library
+                                    </span>
+                                    {service.images.length}
+                                  </span>
+                                )}
+                                {service.video && (
+                                  <span className="flex items-center gap-1 rounded-full bg-white/12 px-2.5 py-1 text-xs font-medium text-white">
+                                    <span className="material-symbols-outlined text-[12px]">
+                                      videocam
+                                    </span>
+                                    Preview
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Service Content */}
-                      <div className="space-y-5 p-5">
-                      <div className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className={`max-w-[75%] truncate rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${accent.chip}`}
-                          >
-                            {service.category || "Service"}
-                          </span>
-                          <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-500">
-                            {service.pricingUnit === "hourly" ? "Hourly" : "Fixed fee"}
-                          </span>
+                      <div className="flex min-w-0 flex-col gap-5 p-5 lg:p-6">
+                        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                          <div className="min-w-0 flex-1 space-y-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`max-w-full truncate rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${accent.chip}`}
+                              >
+                                {service.category || "Service"}
+                              </span>
+                              <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-500">
+                                {service.pricingUnit === "hourly" ? "Hourly" : "Fixed fee"}
+                              </span>
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="line-clamp-1 text-2xl font-bold tracking-tight text-gray-950">
+                                {service.name}
+                              </h3>
+                              <p className="max-w-3xl text-sm font-medium text-gray-500">
+                                {service.isActive
+                                  ? "Visible to clients and ready to attract bookings."
+                                  : "Currently hidden from new client searches."}
+                              </p>
+                              <p className="line-clamp-2 max-w-3xl text-sm leading-relaxed text-gray-600">
+                                {service.description ||
+                                  "Add a concise value-focused description so clients quickly understand what makes this service worth booking."}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 xl:w-[360px] xl:grid-cols-2">
+                            <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
+                                Positioning
+                              </p>
+                              <div className="mt-2 flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg text-gray-700">
+                                  campaign
+                                </span>
+                                <p className="text-sm font-semibold text-gray-900">
+                                  {performanceLabel}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
+                                Save Rate
+                              </p>
+                              <div className="mt-2 flex items-center gap-2">
+                                <span className="material-symbols-outlined text-lg text-gray-700">
+                                  monitoring
+                                </span>
+                                <p className="text-sm font-semibold text-gray-900">
+                                  {conversionRate}% interest
+                                </p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="line-clamp-1 text-xl font-bold tracking-tight text-gray-950">
-                            {service.name}
-                          </h3>
-                          <p className="mt-1 text-sm font-medium text-gray-500">
-                            {service.isActive
-                              ? "Visible to clients and ready to attract bookings."
-                              : "Currently hidden from new client searches."}
-                          </p>
+
+                        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px]">
+                          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                            <div
+                              className={`rounded-2xl px-3 py-3 ring-1 ${accent.metric}`}
+                              title="Total Views"
+                            >
+                              <div className="flex items-center gap-1.5 text-gray-500">
+                                <span className="material-symbols-outlined text-base">visibility</span>
+                                <span className="text-xs font-medium uppercase tracking-wide">
+                                  Views
+                                </span>
+                              </div>
+                              <p className="mt-1 text-lg font-semibold text-gray-900">
+                                {(service.views || 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div
+                              className={`rounded-2xl px-3 py-3 ring-1 ${accent.metric}`}
+                              title="Favorites"
+                            >
+                              <div className="flex items-center gap-1.5 text-gray-500">
+                                <span className="material-symbols-outlined text-base">favorite</span>
+                                <span className="text-xs font-medium uppercase tracking-wide">
+                                  Favorites
+                                </span>
+                              </div>
+                              <p className="mt-1 text-lg font-semibold text-gray-900">
+                                {(service.favorites || 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-sm">
+                              <div className="flex items-center gap-1.5 text-gray-500">
+                                <span className="material-symbols-outlined text-base">sell</span>
+                                <span className="text-xs font-medium uppercase tracking-wide">
+                                  Pricing
+                                </span>
+                              </div>
+                              <p className="mt-1 text-sm font-semibold text-gray-900">
+                                {service.pricingUnit === "hourly" ? "Hourly" : "Fixed fee"}
+                              </p>
+                            </div>
+                            <div className="rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-sm">
+                              <div className="flex items-center gap-1.5 text-gray-500">
+                                <span className="material-symbols-outlined text-base">collections_bookmark</span>
+                                <span className="text-xs font-medium uppercase tracking-wide">
+                                  Assets
+                                </span>
+                              </div>
+                              <p className="mt-1 text-sm font-semibold text-gray-900">
+                                {(service.images?.length || 0) + (service.video ? 1 : 0)} attached
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-slate-950/95">
+                            {service.video ? (
+                              <video
+                                src={service.video}
+                                muted
+                                autoPlay
+                                loop
+                                playsInline
+                                className="h-full min-h-[140px] w-full object-cover opacity-70"
+                              />
+                            ) : (
+                              <div className="flex min-h-[140px] h-full items-center justify-center bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.28),_transparent_45%),linear-gradient(135deg,#0f172a_0%,#111827_100%)] text-white/80">
+                                <div className="text-center">
+                                  <span className="material-symbols-outlined text-3xl">
+                                    movie
+                                  </span>
+                                  <p className="mt-2 text-sm font-medium">No video preview</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <p className="line-clamp-3 min-h-[4rem] text-sm leading-relaxed text-gray-600">
-                          {service.description ||
-                            "Add a concise value-focused description so clients quickly understand what makes this service worth booking."}
-                        </p>
+
+                        <div className="rounded-[22px] border border-gray-100 bg-[linear-gradient(135deg,#f8fafc_0%,#ffffff_100%)] p-3 shadow-sm">
+                          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+                            <button
+                              onClick={() => {
+                                setPromotingService(service);
+                                setShowPromoteModal(true);
+                              }}
+                              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-fuchsia-600 via-violet-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
+                            >
+                              <span className="material-symbols-outlined text-sm">rocket_launch</span>
+                              <span>Boost Visibility</span>
+                            </button>
+                            <button
+                              onClick={() => openEditModal(service)}
+                              className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition-colors active:scale-95 ${accent.action}`}
+                            >
+                              <span className="material-symbols-outlined text-sm">edit</span>
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              onClick={() => handleToggleStatus(service.id, service.isActive)}
+                              className={`flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors active:scale-95 ${
+                                service.isActive
+                                  ? "bg-orange-50 text-orange-700 hover:bg-orange-100"
+                                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                              }`}
+                            >
+                              <span className="material-symbols-outlined text-sm">
+                                {service.isActive ? "pause" : "play_arrow"}
+                              </span>
+                              <span className="truncate">
+                                {service.isActive ? "Pause" : "Activate"}
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirm(service.id)}
+                              className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-red-600 opacity-80 transition-colors hover:bg-red-50 hover:opacity-100 active:scale-95"
+                            >
+                              <span className="material-symbols-outlined text-sm">delete</span>
+                              <span className="truncate">Delete</span>
+                            </button>
+                          </div>
+                        </div>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                        <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
-                            Positioning
-                          </p>
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-lg text-gray-700">
-                              campaign
-                            </span>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {performanceLabel}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
-                            Interest Rate
-                          </p>
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-lg text-gray-700">
-                              monitoring
-                            </span>
-                            <p className="text-sm font-semibold text-gray-900">
-                              {conversionRate}% save rate
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Stats */}
-                      <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-5 xl:grid-cols-4">
-                        <div
-                          className={`rounded-2xl px-3 py-3 ring-1 ${accent.metric}`}
-                          title="Total Views"
-                        >
-                          <div className="flex items-center gap-1.5 text-gray-500">
-                            <span className="material-symbols-outlined text-base">visibility</span>
-                            <span className="text-xs font-medium uppercase tracking-wide">
-                              Views
-                            </span>
-                          </div>
-                          <p className="mt-1 text-lg font-semibold text-gray-900">
-                            {(service.views || 0).toLocaleString()}
-                          </p>
-                        </div>
-                        <div
-                          className={`rounded-2xl px-3 py-3 ring-1 ${accent.metric}`}
-                          title="Favorites"
-                        >
-                          <div className="flex items-center gap-1.5 text-gray-500">
-                            <span className="material-symbols-outlined text-base">favorite</span>
-                            <span className="text-xs font-medium uppercase tracking-wide">
-                              Favorites
-                            </span>
-                          </div>
-                          <p className="mt-1 text-lg font-semibold text-gray-900">
-                            {(service.favorites || 0).toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-sm">
-                          <div className="flex items-center gap-1.5 text-gray-500">
-                            <span className="material-symbols-outlined text-base">sell</span>
-                            <span className="text-xs font-medium uppercase tracking-wide">
-                              Pricing
-                            </span>
-                          </div>
-                          <p className="mt-1 text-sm font-semibold text-gray-900">
-                            {service.pricingUnit === "hourly" ? "Hourly" : "Fixed fee"}
-                          </p>
-                        </div>
-                        <div className="rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-sm">
-                          <div className="flex items-center gap-1.5 text-gray-500">
-                            <span className="material-symbols-outlined text-base">collections_bookmark</span>
-                            <span className="text-xs font-medium uppercase tracking-wide">
-                              Assets
-                            </span>
-                          </div>
-                          <p className="mt-1 text-sm font-semibold text-gray-900">
-                            {(service.images?.length || 0) + (service.video ? 1 : 0)} attached
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="rounded-[22px] border border-gray-100 bg-[linear-gradient(135deg,#f8fafc_0%,#ffffff_100%)] p-3 shadow-sm">
-                        <div className="mb-3 flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
-                              Quick actions
-                            </p>
-                            <p className="mt-1 text-sm text-gray-600">
-                              Keep this listing sharp and easy to discover.
-                            </p>
-                          </div>
-                          <span className="material-symbols-outlined text-xl text-gray-300">
-                            tune
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)]">
-                          <button
-                            onClick={() => {
-                              setPromotingService(service);
-                              setShowPromoteModal(true);
-                            }}
-                            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-fuchsia-600 via-violet-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
-                          >
-                            <span className="material-symbols-outlined text-sm">rocket_launch</span>
-                            <span>Boost Visibility</span>
-                          </button>
-
-                          <button
-                            onClick={() => openEditModal(service)}
-                            className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition-colors active:scale-95 ${accent.action}`}
-                          >
-                            <span className="material-symbols-outlined text-sm">edit</span>
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            onClick={() => handleToggleStatus(service.id, service.isActive)}
-                            className={`flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors active:scale-95 ${
-                              service.isActive
-                                ? "bg-orange-50 text-orange-700 hover:bg-orange-100"
-                                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                            }`}
-                          >
-                            <span className="material-symbols-outlined text-sm">
-                              {service.isActive ? "pause" : "play_arrow"}
-                            </span>
-                            <span className="truncate">
-                              {service.isActive ? "Pause" : "Activate"}
-                            </span>
-                          </button>
-                        </div>
-
-                        <button
-                          onClick={() => setDeleteConfirm(service.id)}
-                          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-red-600 opacity-80 transition-colors hover:bg-red-50 hover:opacity-100 active:scale-95 xl:justify-start"
-                        >
-                          <span className="material-symbols-outlined text-sm">delete</span>
-                          <span className="truncate">Delete</span>
-                        </button>
-                      </div>
-                    </div>
-                    </div>
-                  </>
+                  </div>
                 );
               })()}
             </motion.article>
