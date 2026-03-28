@@ -90,9 +90,11 @@ export default function CategoryDropdown({
     <div className="relative w-full sm:w-auto" ref={dropdownRef}>
       {/* Trigger Button - Responsive */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 w-full sm:w-auto px-3 sm:px-4 py-2.5 bg-white rounded-lg sm:rounded-xl border-2 border-gray-200 hover:border-emerald-500 transition-all shadow-sm hover:shadow-md justify-between active:scale-[0.98]"
+        className="flex min-h-[48px] w-full items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50/40 active:scale-[0.99] sm:w-auto sm:min-h-0"
         aria-label={isOpen ? "Close categories" : "Open categories"}
+        aria-expanded={isOpen}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
@@ -290,10 +292,9 @@ export default function CategoryDropdown({
 
       {/* Quick Stats - Optional */}
       {!isOpen && (
-        <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-          <span className="material-symbols-outlined text-xs">info</span>
-          <span>{categories.length} categories available</span>
-        </div>
+        <p className="mt-1.5 text-xs text-slate-500">
+          {categories.length} categories · tap to search
+        </p>
       )}
     </div>
   );

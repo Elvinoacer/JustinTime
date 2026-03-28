@@ -105,6 +105,10 @@ nav::-webkit-scrollbar-thumb:hover {
 }
 
 :root {
+  /* Fixed public header + iOS safe area — use for padding-top & sticky offsets */
+  --public-header-h: calc(3.75rem + env(safe-area-inset-top, 0px));
+  /* Approx. height of services page sticky toolbar (search + categories) */
+  --services-toolbar-h: 9rem;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.13 0.028 261.692);
@@ -180,4 +184,13 @@ nav::-webkit-scrollbar-thumb:hover {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Hide scrollbar but keep scroll (category rails, horizontal filters) */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

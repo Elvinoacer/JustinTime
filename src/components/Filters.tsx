@@ -40,17 +40,17 @@ const Filters = ({ filters, onFilterChange, onClose }: FiltersProps) => {
 
   return (
     <div className="w-full">
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-gray-100 bg-[linear-gradient(180deg,#f8fafc_0%,#ffffff_100%)] p-4 sm:p-6">
+      <div className="overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-[0_20px_50px_-28px_rgba(15,23,42,0.2)]">
+        <div className="border-b border-slate-100 bg-gradient-to-b from-slate-50/90 to-white p-4 sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-lg text-emerald-600 sm:text-xl">
               filter_list
               </span>
               <div>
-                <h2 className="text-base font-bold text-gray-900 sm:text-lg">Filters</h2>
-                <p className="text-xs text-gray-500 sm:text-sm">
-                  Narrow results without losing momentum
+                <h2 className="text-base font-bold text-slate-900 sm:text-lg">Refine results</h2>
+                <p className="text-xs text-slate-500 sm:text-sm">
+                  Price, trust, and rating—without leaving the page
                 </p>
               </div>
             </div>
@@ -63,26 +63,26 @@ const Filters = ({ filters, onFilterChange, onClose }: FiltersProps) => {
             </button>
           </div>
 
-          <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3">
+          <div className="mt-4 rounded-2xl border border-emerald-100/80 bg-emerald-50/60 p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                  Active filters
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
+                  In this panel
                 </p>
-                <p className="mt-1 text-sm text-emerald-900">
+                <p className="mt-1 text-sm text-emerald-950/90">
                   {activeFilterCount === 0
-                    ? "No refinements applied yet"
-                    : `${activeFilterCount} refinements shaping these results`}
+                    ? "No price or trust filters yet"
+                    : `${activeFilterCount} filter${activeFilterCount === 1 ? "" : "s"} applied`}
                 </p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-bold text-emerald-700 shadow-sm">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-bold text-emerald-700 shadow-sm ring-1 ring-emerald-100">
                 {activeFilterCount}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-h-[calc(100vh-200px)] sm:max-h-none overflow-y-auto">
+        <div className="max-h-[calc(100vh-200px)] space-y-4 overflow-y-auto p-4 sm:space-y-6 sm:p-6 sm:max-h-none">
           {/* Price Range - Two Column Layout */}
           <div className="space-y-3">
             <button
@@ -470,14 +470,15 @@ const Filters = ({ filters, onFilterChange, onClose }: FiltersProps) => {
         </div>
 
         {/* Footer with Apply Button (Mobile) */}
-        <div className="lg:hidden p-4 border-t border-gray-100 bg-gray-50">
+        <div className="border-t border-slate-100 bg-slate-50/80 p-4 lg:hidden">
           <button
+            type="button"
             onClick={() => {
               onClose?.();
             }}
-            className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors text-sm shadow-sm"
+            className="min-h-[48px] w-full rounded-2xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
           >
-            Apply Filters
+            Done
           </button>
         </div>
       </div>

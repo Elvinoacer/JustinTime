@@ -135,7 +135,7 @@ export default function AllCategoriesModal({
             }}
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-emerald-600 to-green-600 p-4 sm:p-6 text-white">
+            <div className="bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-700 p-4 sm:p-6 text-white">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white/10 flex items-center justify-center">

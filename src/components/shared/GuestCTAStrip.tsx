@@ -24,7 +24,7 @@ const GuestCTAStrip: React.FC<GuestCTAStripProps> = ({
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className="mt-12 p-6 sm:p-10 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-700 rounded-2xl sm:rounded-3xl text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-emerald-600/20 relative overflow-hidden"
+      className="relative mt-12 flex flex-col items-center justify-between gap-6 overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 p-6 text-white shadow-[0_24px_60px_-28px_rgba(5,150,105,0.55)] sm:p-10 md:flex-row"
     >
       {/* Background Decor */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none" />
@@ -40,13 +40,13 @@ const GuestCTAStrip: React.FC<GuestCTAStripProps> = ({
       <div className="relative z-10 flex flex-col sm:flex-row gap-3 w-full md:w-auto">
         <Link
           href="/auth/signup"
-          className="px-8 py-3.5 bg-white text-emerald-700 rounded-xl font-bold hover:bg-emerald-50 transition-all text-center shadow-lg shadow-white/10 hover:shadow-white/20 hover:-translate-y-0.5 active:translate-y-0"
+          className="min-h-[48px] w-full rounded-2xl bg-white px-8 py-3.5 text-center text-sm font-bold text-emerald-800 shadow-lg shadow-black/10 transition hover:bg-emerald-50 sm:w-auto"
         >
           {buttonText}
         </Link>
         <Link
           href="/auth/login"
-          className="px-8 py-3.5 bg-emerald-500/30 backdrop-blur-md text-white border border-white/20 rounded-xl font-bold hover:bg-emerald-500/40 transition-all text-center hover:-translate-y-0.5 active:translate-y-0"
+          className="min-h-[48px] w-full rounded-2xl border border-white/25 bg-white/10 px-8 py-3.5 text-center text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/15 sm:w-auto"
         >
           Sign In
         </Link>

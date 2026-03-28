@@ -49,8 +49,8 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, index = 0 }) => {
       className="group h-full"
     >
       <Link href={`/services/${service.id}`} className="block h-full">
-        <div className="flex h-full flex-col overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-[0_18px_45px_-28px_rgba(15,23,42,0.26)] transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-[0_28px_70px_-34px_rgba(16,185,129,0.28)]">
-          <div className="relative h-56 overflow-hidden sm:h-60">
+        <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-[0_20px_50px_-32px_rgba(15,23,42,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-200/80 hover:shadow-[0_28px_60px_-30px_rgba(16,185,129,0.22)]">
+          <div className="relative aspect-[16/10] min-h-[200px] overflow-hidden sm:min-h-[220px]">
             <Image
               src={service.imageUrl}
               alt={service.name}

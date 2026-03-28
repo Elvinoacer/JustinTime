@@ -152,21 +152,23 @@ export default function LocationPicker({
       {/* Location Button - Responsive */}
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border-2 border-emerald-200 text-emerald-700 rounded-xl font-semibold hover:bg-emerald-100 hover:border-emerald-400 transition-all whitespace-nowrap text-sm min-w-[160px]"
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
+        className="flex min-h-[48px] min-w-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm ring-emerald-500/0 transition-all hover:border-emerald-200 hover:bg-emerald-50/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 lg:min-h-[52px] lg:min-w-[168px]"
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
         aria-label={currentLocation ? "Change location" : "Set location"}
       >
-        <span className="material-symbols-outlined text-emerald-600">
+        <span className="material-symbols-outlined shrink-0 text-emerald-600">
           my_location
         </span>
         {currentLocation ? (
-          <span className="truncate max-w-[120px]">{currentLocation.address || 'Location Set'}</span>
+          <span className="min-w-0 truncate text-left">
+            {currentLocation.address || "Location set"}
+          </span>
         ) : (
-          <span>Set my location</span>
+          <span className="text-slate-700">Near me</span>
         )}
         {currentLocation && (
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+          <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-500" />
         )}
       </motion.button>
 

@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import Link from "next/link";
 import ServiceCard from "./ServiceCard";
 import {
   useServicesInfinite,
@@ -12,24 +13,24 @@ interface ServicesListProps {
   filters: ServicesFilters;
   onPageChange?: (page: number) => void;
   onSortChange: (sort: ServicesFilters["sort"]) => void;
+  onBrowseAll?: () => void;
 }
 
 const ServicesList = ({
   filters,
   onSortChange,
+  onBrowseAll,
 }: ServicesListProps) => {
-  // Fetch services from API
-  const { 
-    data, 
-    isLoading, 
-    isError, 
+  const {
+    data,
+    isLoading,
+    isError,
     error,
     fetchNextPage,
     hasNextPage,
-    isFetchingNextPage
+    isFetchingNextPage,
   } = useServicesInfinite(filters);
 
-  // Handle sort change
   const handleSortChange = (sort: string) => {
     const sortMap: Record<string, ServicesFilters["sort"]> = {
       Relevance: "relevance",
@@ -41,45 +42,46 @@ const ServicesList = ({
     onSortChange(sortMap[sort] || "relevance");
   };
 
-  // Loading State
   if (isLoading) {
     return (
       <div className="flex-1">
-        <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20">
+        <div className="flex flex-col items-center justify-center py-16 sm:py-20">
           <motion.div
-            className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 border-3 sm:border-4 border-emerald-200 border-t-emerald-600 rounded-full"
+            className="h-12 w-12 rounded-full border-4 border-emerald-200/80 border-t-emerald-600 sm:h-14 sm:w-14"
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            role="status"
+            aria-label="Loading services"
           />
-          <p className="mt-3 sm:mt-4 text-gray-600 font-medium text-sm sm:text-base">
-            Loading services...
+          <p className="mt-4 text-sm font-medium text-slate-600 sm:text-base">
+            Loading services…
           </p>
         </div>
       </div>
     );
   }
 
-  // Error State
   if (isError) {
     return (
       <div className="flex-1">
-        <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20 px-4">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full bg-red-100 flex items-center justify-center mb-3 sm:mb-4">
-            <span className="material-symbols-outlined text-red-600 text-xl sm:text-2xl md:text-3xl">
+        <div className="flex flex-col items-center justify-center px-4 py-16 sm:py-20">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50">
+            <span className="material-symbols-outlined text-2xl text-red-600">
               error
             </span>
           </div>
-          <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-1 sm:mb-2 text-center">
-            Failed to Load Services
+          <h3 className="mb-2 text-center text-lg font-bold text-slate-900 sm:text-xl">
+            Couldn&apos;t load services
           </h3>
-          <p className="text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base text-center">
-            {error?.message || "Something went wrong"}
+          <p className="mb-6 max-w-md text-center text-sm text-slate-600 sm:text-base">
+            {error?.message || "Check your connection and try again."}
           </p>
           <button
+            type="button"
             onClick={() => window.location.reload()}
-            className="px-4 sm:px-6 py-2 sm:py-3 bg-emerald-600 text-white rounded-lg sm:rounded-xl font-semibold hover:bg-emerald-700 transition-colors text-sm sm:text-base"
+            className="min-h-[48px] rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
           >
-            Try Again
+            Retry
           </button>
         </div>
       </div>
@@ -89,45 +91,45 @@ const ServicesList = ({
   const services = data?.pages.flatMap((page: ServicesResponse) => page.services) || [];
   const pagination = data?.pages[0]?.pagination;
 
-  // Empty State
   if (services.length === 0) {
     return (
       <div className="flex-1">
-        <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20 px-4">
-          <div className="w-16 h-16 sm:w-18 sm:h-18 md:w-20 md:h-20 rounded-full bg-gray-100 flex items-center justify-center mb-3 sm:mb-4">
-            <span className="material-symbols-outlined text-gray-400 text-2xl sm:text-3xl md:text-4xl">
+        <div className="flex flex-col items-center justify-center px-4 py-16 sm:py-20">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
+            <span className="material-symbols-outlined text-3xl text-slate-400">
               search_off
             </span>
           </div>
-          <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2 text-center">
-            No Services Found
+          <h3 className="mb-2 text-center text-xl font-bold text-slate-900 sm:text-2xl">
+            No services match
           </h3>
-          <p className="text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base text-center max-w-md mx-auto">
-            Try adjusting your filters or search criteria
+          <p className="mb-8 max-w-md text-center text-sm text-slate-600 sm:text-base">
+            Loosen your filters, try another category, or start fresh to see more
+            listings.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex w-full max-w-sm flex-col gap-3 sm:flex-row sm:justify-center">
             <button
+              type="button"
               onClick={() => {
-                // Reset filters logic
-                onSortChange("relevance");
+                if (onBrowseAll) onBrowseAll();
+                else window.location.reload();
               }}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm"
+              className="min-h-[48px] rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
             >
-              Clear Filters
+              Reset search & filters
             </button>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors text-sm"
+            <Link
+              href="/contact"
+              className="flex min-h-[48px] items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-center text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
             >
-              Browse All
-            </button>
+              Get help
+            </Link>
           </div>
         </div>
       </div>
     );
   }
 
-  // Sort options for mobile
   const sortOptions = [
     { label: "Relevance", value: "relevance" },
     { label: "Rating: High to Low", value: "rating" },
@@ -138,84 +140,82 @@ const ServicesList = ({
       : []),
   ];
 
-  // Get current sort label
   const currentSortLabel =
     sortOptions.find((opt) => opt.value === filters.sort)?.label || "Relevance";
 
   return (
     <div className="flex-1">
-      <div className="mb-6 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
-              <span className="material-symbols-outlined text-sm">bolt</span>
-              Curated results
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl">
-              Available services tailored to your current filters
-            </h2>
-            <p className="max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">
-              Compare trusted providers faster with clearer prices, ratings, and
-              location-aware sorting.
-            </p>
+      <header className="mb-6 flex flex-col gap-4 border-b border-slate-200/80 pb-6 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
+            Results
+          </p>
+          <h2 className="mt-1 text-pretty text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+            Services for you
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-[15px]">
+            Tap a card for full details, reviews, and booking. Sort and filters stay
+            in sync across desktop and mobile.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm">
+            <span className="material-symbols-outlined text-[20px] text-emerald-600">
+              dataset
+            </span>
+            <span>
+              <span className="font-semibold tabular-nums text-slate-950">
+                {pagination?.total ?? 0}
+              </span>{" "}
+              <span className="text-slate-600">total</span>
+            </span>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-              <span className="material-symbols-outlined text-base text-emerald-600">
-                dataset
-              </span>
-              <span>
-                <strong className="text-gray-950">{pagination?.total || 0}</strong> results
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                Sort
-              </span>
-              <div className="hidden md:block">
-                <select
-                  className="bg-transparent pr-6 text-sm font-medium text-gray-900 outline-none"
-                  onChange={(e) => handleSortChange(e.target.value)}
-                  value={currentSortLabel}
-                >
-                  {sortOptions.map((option) => (
-                    <option key={option.value} value={option.label}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <span className="md:hidden text-sm font-medium text-gray-900">
-                {currentSortLabel}
-              </span>
-            </div>
+          <div className="hidden items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/90 px-2 py-1.5 pl-3 shadow-sm md:flex">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Sort
+            </span>
+            <label htmlFor="services-sort" className="sr-only">
+              Sort results
+            </label>
+            <select
+              id="services-sort"
+              className="max-w-[14rem] cursor-pointer bg-transparent py-2 pr-8 text-sm font-medium text-slate-900 outline-none"
+              onChange={(e) => handleSortChange(e.target.value)}
+              value={currentSortLabel}
+            >
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.label}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-          <span className="material-symbols-outlined text-emerald-600 text-sm">
-            info
-          </span>
-          <span>
-            Showing <strong className="text-gray-900">{services.length}</strong>{" "}
-            of{" "}
-            <strong className="text-gray-900">{pagination?.total || 0}</strong>{" "}
-            results
-          </span>
-        </div>
+      <p className="mb-5 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+        <span className="material-symbols-outlined text-[18px] text-emerald-600">
+          info
+        </span>
+        <span>
+          Showing{" "}
+          <strong className="font-semibold text-slate-900">{services.length}</strong>{" "}
+          loaded
+          {pagination?.total != null ? (
+            <>
+              {" "}
+              of{" "}
+              <strong className="font-semibold text-slate-900">
+                {pagination.total}
+              </strong>
+            </>
+          ) : null}
+        </span>
+      </p>
 
-        <div className="hidden items-center gap-1 rounded-full border border-gray-200 bg-white p-1 shadow-sm sm:flex">
-          <button className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-            Grid View
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 xl:gap-6">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 xl:gap-6">
         {services.map((service: Service, index: number) => (
           <ServiceCard
             key={service.id}
@@ -245,41 +245,42 @@ const ServicesList = ({
         ))}
       </div>
 
-      {/* Load More via Infinite Scroll Sentinel */}
       <InfiniteScrollSentinel
         hasNextPage={!!hasNextPage}
         isFetchingNextPage={isFetchingNextPage}
         fetchNextPage={fetchNextPage}
       >
-        <div className="flex items-center gap-2 text-emerald-600 font-medium">
+        <div className="flex items-center gap-2 font-medium text-emerald-700">
           <motion.div
-            className="w-5 h-5 border-2 border-emerald-200 border-t-emerald-600 rounded-full"
+            className="h-5 w-5 rounded-full border-2 border-emerald-200 border-t-emerald-600"
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            aria-hidden
           />
-          Loading more services...
+          Loading more…
         </div>
       </InfiniteScrollSentinel>
 
-      {/* End of list message */}
-      {!hasNextPage && services.length > 0 && (
-        <div className="mt-8 text-center text-gray-500 text-sm">
-          You&apos;ve seen all available services
-        </div>
-      )}
+      {!hasNextPage && services.length > 0 ? (
+        <p className="mt-10 text-center text-sm text-slate-500">
+          You&apos;ve reached the end of the list
+        </p>
+      ) : null}
 
-      {/* Mobile CTA */}
-      <div className="lg:hidden mt-8 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl p-4 text-white">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <p className="font-bold text-sm">Need Help?</p>
-            <p className="text-emerald-100 text-xs mt-0.5">
-              Contact our support team
+      <div className="mt-10 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:hidden">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="font-semibold text-slate-900">Questions?</p>
+            <p className="mt-0.5 text-xs text-slate-600">
+              Our team can help you choose a service.
             </p>
           </div>
-          <button className="px-4 py-2 bg-white text-emerald-700 rounded-lg font-bold hover:bg-emerald-50 transition-colors text-xs">
-            Get Help
-          </button>
+          <Link
+            href="/contact"
+            className="shrink-0 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800"
+          >
+            Contact
+          </Link>
         </div>
       </div>
     </div>
