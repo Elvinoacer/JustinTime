@@ -15,48 +15,56 @@ const sortOptions = [
     label: "Recommended",
     icon: "stars",
     mobileLabel: "Recommended",
+    helpText: "Best match for your profile",
   },
   {
     value: "distance-asc",
     label: "Nearest First",
     icon: "near_me",
     mobileLabel: "Nearest",
+    helpText: "Closest jobs to your location",
   },
   {
     value: "createdAt-desc",
     label: "Newest First",
     icon: "schedule",
     mobileLabel: "Newest",
+    helpText: "Recently posted opportunities",
   },
   {
     value: "createdAt-asc",
     label: "Oldest First",
     icon: "history",
     mobileLabel: "Oldest",
+    helpText: "Earlier posts first",
   },
   {
     value: "budget-desc",
     label: "Budget: High to Low",
     icon: "trending_down",
     mobileLabel: "High Budget",
+    helpText: "Highest paying first",
   },
   {
     value: "budget-asc",
     label: "Budget: Low to High",
     icon: "trending_up",
     mobileLabel: "Low Budget",
+    helpText: "Lower budget opportunities first",
   },
   {
     value: "location-asc",
     label: "Location (A-Z)",
     icon: "location_on",
     mobileLabel: "Location",
+    helpText: "Alphabetical by location",
   },
   {
     value: "proposals-desc",
     label: "Most Applicants",
     icon: "groups",
     mobileLabel: "Popular",
+    helpText: "See where demand is highest",
   },
 ];
 
@@ -128,6 +136,7 @@ const JobSort: React.FC<JobSortProps> = ({
             } hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm active:scale-[0.98]`}
             aria-haspopup="dialog"
             aria-expanded={isOpen}
+            aria-label={`Sort jobs. Current: ${currentOption.label}`}
           >
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-base text-emerald-600">
@@ -224,7 +233,7 @@ const JobSort: React.FC<JobSortProps> = ({
                           {option.mobileLabel}
                         </span>
                         <span className="text-xs text-gray-500 mt-0.5">
-                          {option.label}
+                          {option.helpText}
                         </span>
                       </div>
                       {option.value === currentValue && (
@@ -242,7 +251,7 @@ const JobSort: React.FC<JobSortProps> = ({
                     onClick={() => setIsOpen(false)}
                     className="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200 active:scale-[0.98]"
                   >
-                    Apply Sort
+                    Done
                   </button>
                 </div>
               </motion.div>
@@ -259,12 +268,13 @@ const JobSort: React.FC<JobSortProps> = ({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 ${
-          isMobile ? "rounded-lg w-full" : "rounded-xl min-w-[200px]"
+          isMobile ? "rounded-lg w-full" : "rounded-xl min-w-50"
         } hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm hover:shadow-md ${
           isMobile ? "text-sm" : "text-sm"
         } font-semibold text-gray-700 justify-between`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        aria-label={`Sort jobs. Current: ${currentOption.label}`}
       >
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-base text-emerald-600">
@@ -292,7 +302,7 @@ const JobSort: React.FC<JobSortProps> = ({
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.15 }}
             className={`absolute right-0 mt-2 ${
-              isMobile ? "w-full" : "min-w-[240px]"
+              isMobile ? "w-full" : "min-w-60"
             } bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50`}
             role="listbox"
           >
@@ -318,6 +328,11 @@ const JobSort: React.FC<JobSortProps> = ({
                   {option.icon}
                 </span>
                 <span className="text-sm">{option.label}</span>
+                {option.value !== currentValue && (
+                  <span className="text-xs text-gray-400 ml-auto">
+                    {option.helpText}
+                  </span>
+                )}
                 {option.value === currentValue && (
                   <span className="material-symbols-outlined text-base ml-auto text-emerald-600">
                     check

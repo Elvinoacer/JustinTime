@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -14,6 +14,21 @@ import Link from "next/link";
 import { toast } from "sonner";
 import NotificationPermissionOverlay from "@/components/NotificationPermissionOverlay";
 import { useSearchParams, useRouter } from "next/navigation";
+
+type DashboardFilters = {
+  search: string;
+  category: string;
+  location: string;
+  budgetMin: string;
+  budgetMax: string;
+  status: string;
+};
+
+type DashboardJob = {
+  id: string;
+  status?: string;
+  [key: string]: unknown;
+};
 
 const DashboardPage = () => {
   const { data: session } = useSession();
@@ -30,7 +45,7 @@ const DashboardPage = () => {
   const [locationLoading, setLocationLoading] = useState(false);
 
   // Filter and sort state
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<DashboardFilters>({
     search: "",
     category: "",
     location: "",
@@ -118,8 +133,13 @@ const DashboardPage = () => {
           } catch (error) {
             console.error("Reverse geocoding error:", error);
           }
-        } catch (error: any) {
-          if (error.code === 1) {
+        } catch (error: unknown) {
+          if (
+            typeof error === "object" &&
+            error !== null &&
+            "code" in error &&
+            (error as { code?: number }).code === 1
+          ) {
             toast.info(
               "Location access denied. You can manually enter your location in filters.",
             );
@@ -155,20 +175,37 @@ const DashboardPage = () => {
     },
   });
 
-  const rawJobs = jobsData?.items || [];
+  const rawJobs = useMemo<DashboardJob[]>(
+    () => (Array.isArray(jobsData?.items) ? jobsData.items : []),
+    [jobsData?.items],
+  );
   const totalJobs = jobsData?.total || 0;
   const hasMore = jobsData?.hasMore || false;
   const categories = categoriesData?.data || [];
 
+  const activeFilterCount = useMemo(
+    () =>
+      Object.entries(filters).filter(
+        ([key, value]) => value && key !== "status",
+      ).length,
+    [filters],
+  );
+
+  const openJobsCount = useMemo(
+    () => rawJobs.filter((job) => job.status === "OPEN").length,
+    [rawJobs],
+  );
+
   // Get recommendations
-  const { recommendations, isModelLoading } = useRecommendations(rawJobs, {
+  const { recommendations } = useRecommendations(rawJobs, {
     interests: session?.user?.clientInterests || [],
     skills: [],
     bio: "",
   });
 
   // Determine which jobs to display based on sort
-  const jobs = sortBy === "recommended" ? recommendations : rawJobs;
+  const jobs: DashboardJob[] =
+    sortBy === "recommended" ? recommendations : rawJobs;
   const { data: providerServicesData } = useProviderServices();
   const providerServices = Array.isArray(providerServicesData?.data)
     ? providerServicesData.data
@@ -187,80 +224,129 @@ const DashboardPage = () => {
     setCurrentPage(1);
   };
 
-  const handleFilterChange = (newFilters: any) => {
+  const handleFilterChange = (newFilters: DashboardFilters) => {
     setFilters(newFilters);
+    setCurrentPage(1);
+    if (isMobile) setShowFilters(false);
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      search: "",
+      category: "",
+      location: "",
+      budgetMin: "",
+      budgetMax: "",
+      status: "",
+    });
     setCurrentPage(1);
     if (isMobile) setShowFilters(false);
   };
 
   return (
     <div
-      className="space-y-4 lg:space-y-8 pb-8 lg:pb-12 px-4 sm:px-6 lg:px-0"
+      className="relative space-y-4 lg:space-y-8 pb-8 lg:pb-12 px-4 sm:px-6 lg:px-0"
       style={{ fontFamily: '"Work Sans", "Noto Sans", sans-serif' }}
     >
+      <div className="pointer-events-none absolute -top-10 right-0 h-44 w-44 rounded-full bg-emerald-100/60 blur-3xl" />
+      <div className="pointer-events-none absolute top-56 -left-8 h-40 w-40 rounded-full bg-cyan-100/50 blur-3xl" />
+
       {/* Mobile Filter Toggle */}
       {isMobile && (
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-emerald-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-emerald-700 transition-colors"
+          className="fixed bottom-6 right-6 z-50 h-14 rounded-full bg-linear-to-r from-emerald-600 to-teal-600 text-white shadow-2xl flex items-center justify-center hover:from-emerald-700 hover:to-teal-700 transition-colors px-5"
           aria-label={showFilters ? "Hide filters" : "Show filters"}
         >
-          <span className="material-symbols-outlined text-2xl">
+          <span className="material-symbols-outlined text-2xl mr-1">
             {showFilters ? "close" : "filter_list"}
           </span>
+          <span className="text-sm font-semibold">Filters</span>
         </button>
       )}
 
       {/* Header */}
-      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 lg:gap-6 pb-4 lg:pb-6 border-b border-gray-100">
-        <div className="space-y-2 lg:space-y-3">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-gray-900 tracking-tight">
-            Find Jobs
-          </h1>
-          <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-2xl">
-            Welcome back,{" "}
-            <span className="font-semibold text-emerald-600">
-              {session?.user?.name}
-            </span>
-            ! Discover your next opportunity.
-            {userLocation?.city && (
-              <span className="ml-2 inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs sm:text-sm font-medium">
-                <span className="material-symbols-outlined text-xs sm:text-sm">
-                  location_on
-                </span>
-                {userLocation.city}
+      <header className="relative overflow-hidden rounded-3xl border border-emerald-100 bg-linear-to-br from-white via-emerald-50/40 to-cyan-50/60 p-5 sm:p-7 lg:p-8 shadow-sm">
+        <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-emerald-200/40" />
+        <div className="absolute right-16 bottom-0 h-16 w-16 rounded-full bg-cyan-200/40" />
+
+        <div className="relative flex flex-col lg:flex-row lg:items-end justify-between gap-4 lg:gap-6">
+          <div className="space-y-2 lg:space-y-3">
+            <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-emerald-700 font-semibold">
+              Provider Command Center
+            </p>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-gray-900 tracking-tight">
+              Find Jobs
+            </h1>
+            <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-2xl">
+              Welcome back,{" "}
+              <span className="font-semibold text-emerald-600">
+                {session?.user?.name}
               </span>
-            )}
-          </p>
-        </div>
-        {/* Only show Post Job button for CLIENT role */}
-        {session?.user?.role === "CLIENT" && (
-          <Link
-            href="/client/post-job"
-            className="flex items-center justify-center gap-2 bg-gray-900 text-white px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl active:transform active:scale-95 group w-full sm:w-auto"
-          >
-            <span
-              className="material-symbols-outlined text-lg sm:text-xl group-hover:rotate-90 transition-transform"
-              aria-hidden="true"
+              ! Discover your next opportunity.
+              {userLocation?.city && (
+                <span className="ml-2 inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs sm:text-sm font-medium">
+                  <span className="material-symbols-outlined text-xs sm:text-sm">
+                    location_on
+                  </span>
+                  {userLocation.city}
+                </span>
+              )}
+            </p>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {locationLoading && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-white border border-emerald-200 text-emerald-700">
+                  <span className="material-symbols-outlined text-sm animate-spin">
+                    progress_activity
+                  </span>
+                  Detecting location
+                </span>
+              )}
+              {activeFilterCount > 0 && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-white border border-gray-200 text-gray-700">
+                  {activeFilterCount} active filter
+                  {activeFilterCount > 1 ? "s" : ""}
+                </span>
+              )}
+              {sortBy === "recommended" && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-white border border-indigo-200 text-indigo-700">
+                  Personalized order
+                </span>
+              )}
+            </div>
+          </div>
+          {/* Only show Post Job button for CLIENT role */}
+          {session?.user?.role === "CLIENT" && (
+            <Link
+              href="/client/post-job"
+              className="flex items-center justify-center gap-2 bg-gray-900 text-white px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl active:transform active:scale-95 group w-full sm:w-auto"
             >
-              add
-            </span>
-            <span className="font-bold text-sm sm:text-base lg:text-lg">
-              Post a Job
-            </span>
-          </Link>
-        )}
+              <span
+                className="material-symbols-outlined text-lg sm:text-xl group-hover:rotate-90 transition-transform"
+                aria-hidden="true"
+              >
+                add
+              </span>
+              <span className="font-bold text-sm sm:text-base lg:text-lg">
+                Post a Job
+              </span>
+            </Link>
+          )}
+        </div>
       </header>
 
       {shouldShowServiceSetupPrompt && (
-        <section className="bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 border border-amber-200 rounded-2xl p-5 sm:p-6 lg:p-7">
+        <section className="bg-linear-to-r from-amber-50 via-orange-50 to-yellow-50 border border-amber-200 rounded-2xl p-5 sm:p-6 lg:p-7">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
               <h2 className="text-lg sm:text-xl font-bold text-amber-900">
                 Set up your profile before taking jobs
               </h2>
               <p className="text-sm sm:text-base text-amber-800 mt-1 max-w-2xl">
-                You do not have any services yet. Add your first service and set your availability so clients can book you without scheduling friction.
+                You do not have any services yet. Add your first service and set
+                your availability so clients can book you without scheduling
+                friction.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -275,7 +361,9 @@ const DashboardPage = () => {
                 href="/dashboard/availability"
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-amber-900 border border-amber-300 rounded-xl font-semibold hover:bg-amber-100 transition-colors"
               >
-                <span className="material-symbols-outlined text-base">schedule</span>
+                <span className="material-symbols-outlined text-base">
+                  schedule
+                </span>
                 Set Availability
               </Link>
             </div>
@@ -327,7 +415,7 @@ const DashboardPage = () => {
               </p>
             </div>
             <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-              {filters.status === "OPEN" ? totalJobs : "—"}
+              {filters.status === "OPEN" ? totalJobs : openJobsCount}
             </p>
           </div>
         </motion.div>
@@ -351,11 +439,7 @@ const DashboardPage = () => {
               </p>
             </div>
             <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-              {
-                Object.entries(filters).filter(
-                  ([key, value]) => value && key !== "status",
-                ).length
-              }
+              {activeFilterCount}
             </p>
           </div>
         </motion.div>
@@ -415,7 +499,7 @@ const DashboardPage = () => {
         >
           {/* Sort and Results Count */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 lg:gap-4 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
-            <div className="text-xs sm:text-sm text-gray-600">
+            <div className="text-xs sm:text-sm text-gray-600 flex items-center gap-2 flex-wrap">
               {jobsLoading ? (
                 <span>Loading jobs...</span>
               ) : (
@@ -425,6 +509,11 @@ const DashboardPage = () => {
                   of{" "}
                   <span className="font-bold text-gray-900">{totalJobs}</span>{" "}
                   jobs
+                </span>
+              )}
+              {filters.status && (
+                <span className="inline-flex items-center rounded-full border border-gray-200 px-2 py-0.5 text-[11px] font-semibold text-gray-600 bg-gray-50">
+                  Status: {filters.status.replace("_", " ")}
                 </span>
               )}
             </div>
@@ -442,7 +531,7 @@ const DashboardPage = () => {
               {[...Array(isMobile ? 3 : 6)].map((_, i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-xl lg:rounded-2xl h-40 sm:h-48 animate-pulse shadow-sm border border-gray-100"
+                  className="bg-white rounded-xl lg:rounded-2xl h-44 sm:h-52 animate-pulse shadow-sm border border-gray-100 relative overflow-hidden"
                 />
               ))}
             </div>
@@ -457,27 +546,13 @@ const DashboardPage = () => {
                 No Jobs Found
               </h3>
               <p className="text-sm lg:text-base text-gray-500 mb-6 lg:mb-8 max-w-md mx-auto">
-                {Object.entries(filters).some(
-                  ([key, value]) => value && key !== "status",
-                )
+                {activeFilterCount > 0
                   ? "We couldn't find any jobs matching your current filters. Try adjusting them to see more results."
                   : "There are no jobs available at the moment. Please check back later!"}
               </p>
-              {Object.entries(filters).some(
-                ([key, value]) => value && key !== "status",
-              ) && (
+              {activeFilterCount > 0 && (
                 <button
-                  onClick={() => {
-                    setFilters({
-                      search: "",
-                      category: "",
-                      location: "",
-                      budgetMin: "",
-                      budgetMax: "",
-                      status: "", // Reset to ALL
-                    });
-                    if (isMobile) setShowFilters(false);
-                  }}
+                  onClick={resetFilters}
                   className="px-6 lg:px-8 py-2.5 lg:py-3 bg-emerald-600 text-white rounded-lg lg:rounded-xl hover:bg-emerald-700 transition-colors font-bold shadow-lg shadow-emerald-200 text-sm lg:text-base"
                 >
                   Clear All Filters
@@ -487,7 +562,7 @@ const DashboardPage = () => {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
-                {jobs.map((job: any, index: number) => (
+                {jobs.map((job, index) => (
                   <JobCard
                     key={job.id}
                     job={job}
