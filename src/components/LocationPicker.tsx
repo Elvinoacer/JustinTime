@@ -21,11 +21,14 @@ interface LocationPickerProps {
   ) => void;
   /** Smaller control when the services toolbar is in compact (scrolled) mode */
   compact?: boolean;
+  /** Calmer browse toolbar: no hover scale, no pulsing dot, tighter copy */
+  quiet?: boolean;
 }
 
 export default function LocationPicker({
   onLocationChange,
   compact = false,
+  quiet = false,
 }: LocationPickerProps) {
   const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
@@ -150,34 +153,67 @@ export default function LocationPicker({
     setIsOpen(false);
   };
 
+  const compactH =
+    quiet || compact
+      ? "min-h-10 px-3 py-2 text-xs sm:text-sm lg:min-h-10"
+      : "min-h-[48px] px-4 py-2.5 text-sm lg:min-h-[52px] lg:min-w-[168px]";
+  const rounded = quiet ? "rounded-xl" : "rounded-2xl";
+  const labelClass = quiet ? "font-medium text-slate-700" : "font-semibold text-slate-800";
+  const shadow = quiet
+    ? "shadow-inner shadow-slate-200/30"
+    : "shadow-sm shadow-slate-200/40";
+
+  const buttonClass = `flex min-w-0 max-w-full items-center gap-2 border border-slate-200/90 bg-white ${labelClass} ${shadow} ring-emerald-500/0 transition-[border-color,background-color,box-shadow] hover:border-emerald-300/60 hover:bg-emerald-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${rounded} ${compactH} ${quiet ? "sm:max-w-[200px] lg:max-w-[220px]" : ""}`;
+
   return (
     <div className="relative location-picker">
-      {/* Location Button - Responsive */}
-      <motion.button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`flex min-w-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white font-semibold text-slate-800 shadow-sm ring-emerald-500/0 transition-all hover:border-emerald-200 hover:bg-emerald-50/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${
-          compact
-            ? "min-h-10 px-3 py-2 text-xs lg:min-h-10 lg:min-w-[140px]"
-            : "min-h-[48px] px-4 py-2.5 text-sm lg:min-h-[52px] lg:min-w-[168px]"
-        }`}
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.99 }}
-        aria-label={currentLocation ? "Change location" : "Set location"}
-      >
-        <span className="material-symbols-outlined shrink-0 text-emerald-600">
-          my_location
-        </span>
-        {currentLocation ? (
-          <span className="min-w-0 truncate text-left">
-            {currentLocation.address || "Location set"}
+      {quiet ? (
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={buttonClass}
+          aria-label={currentLocation ? "Change location" : "Set location for distance sorting"}
+        >
+          <span className="material-symbols-outlined shrink-0 text-[20px] text-emerald-600">
+            my_location
           </span>
-        ) : (
-          <span className="text-slate-700">Near me</span>
-        )}
-        {currentLocation && (
-          <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-500" />
-        )}
-      </motion.button>
+          {currentLocation ? (
+            <span className="min-w-0 flex-1 truncate text-left">
+              {currentLocation.address || "Location set"}
+            </span>
+          ) : (
+            <span className="text-slate-600">Near me</span>
+          )}
+          {currentLocation ? (
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
+              aria-hidden
+            />
+          ) : null}
+        </button>
+      ) : (
+        <motion.button
+          onClick={() => setIsOpen(!isOpen)}
+          className={buttonClass}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          aria-label={currentLocation ? "Change location" : "Set location"}
+        >
+          <span className="material-symbols-outlined shrink-0 text-emerald-600">
+            my_location
+          </span>
+          {currentLocation ? (
+            <span className="min-w-0 truncate text-left">
+              {currentLocation.address || "Location set"}
+            </span>
+          ) : (
+            <span className="text-slate-700">Near me</span>
+          )}
+          {currentLocation ? (
+            <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-500" />
+          ) : null}
+        </motion.button>
+      )}
 
       {/* Mobile Full-screen Overlay */}
       {isMobile && isOpen && <div className="fixed inset-0 bg-black/50 z-40" />}
