@@ -98,6 +98,11 @@ export default function DashboardLayoutClient({
                 {needsVerificationActivation && (
                   <OnboardingAccessNotice
                     userName={session?.user?.name?.split(" ")[0] || "Provider"}
+                    storageKey={
+                      session?.user?.id
+                        ? `jit:onboarding-access-notice:${session.user.id}`
+                        : undefined
+                    }
                   />
                 )}
                 {children}
