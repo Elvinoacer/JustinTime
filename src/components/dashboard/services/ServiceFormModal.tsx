@@ -10,6 +10,10 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
+const MAX_SERVICE_IMAGES = 5;
+const MAX_IMAGE_SIZE_MB = 2;
+const MAX_VIDEO_SIZE_MB = 30;
+
 // Validation Schema
 const serviceFormSchema = z.object({
   name: z.string().min(2, "Service name must be at least 2 characters"),
@@ -17,7 +21,10 @@ const serviceFormSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters"),
   price: z.number().min(0, "Price must be positive"),
   pricingUnit: z.enum(["fixed", "hourly"]),
-  images: z.array(z.string()).max(10, "Maximum 10 images allowed"),
+  images: z
+    .array(z.string())
+    .min(1, "Add at least one image before creating this service")
+    .max(MAX_SERVICE_IMAGES, `Maximum ${MAX_SERVICE_IMAGES} images allowed`),
   video: z.string().optional(),
 });
 
@@ -116,6 +123,7 @@ const ServiceFormModal = ({
 
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const currentStepMeta = STEP_META[step - 1];
 
   // Reset state when modal opens/closes or service changes
@@ -133,6 +141,7 @@ const ServiceFormModal = ({
       });
       setErrors({});
       setUploadingFiles([]);
+      setIsFullscreen(false);
     }
   }, [isOpen, service]);
 
@@ -170,13 +179,15 @@ const ServiceFormModal = ({
 
     // Validation
     if (type === "image") {
-      if (formData.images.length + files.length > 10) {
-        toast.error("Maximum 10 images allowed");
+      if (formData.images.length + files.length > MAX_SERVICE_IMAGES) {
+        toast.error(`Maximum ${MAX_SERVICE_IMAGES} images allowed`);
         return;
       }
       for (let i = 0; i < files.length; i++) {
-        if (files[i].size > 2 * 1024 * 1024) {
-          toast.error(`Image ${files[i].name} exceeds 2MB limit`);
+        if (files[i].size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+          toast.error(
+            `Image ${files[i].name} exceeds ${MAX_IMAGE_SIZE_MB}MB limit`,
+          );
           return;
         }
       }
@@ -185,8 +196,8 @@ const ServiceFormModal = ({
         toast.error("Only 1 video allowed");
         return;
       }
-      if (files[0].size > 30 * 1024 * 1024) {
-        toast.error("Video exceeds 30MB limit");
+      if (files[0].size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
+        toast.error(`Video exceeds ${MAX_VIDEO_SIZE_MB}MB limit`);
         return;
       }
     }
@@ -280,6 +291,11 @@ const ServiceFormModal = ({
     } else if (currentStep === 2) {
       if (!formData.description || formData.description.length < 10) {
         newErrors.description = "Description must be at least 10 characters";
+        isValid = false;
+      }
+    } else if (currentStep === 3) {
+      if (formData.images.length < 1) {
+        newErrors.images = "Add at least one image before creating this service";
         isValid = false;
       }
     }
@@ -798,7 +814,11 @@ const ServiceFormModal = ({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 10 }}
           onClick={(e) => e.stopPropagation()}
-          className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+          className={`flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl transition-all ${
+            isFullscreen
+              ? "h-[96vh] w-[96vw] max-w-none"
+              : "max-h-[92vh] w-full max-w-4xl"
+          }`}
         >
           {/* Header */}
           <div className="border-b border-gray-100 bg-[linear-gradient(135deg,#f7fffb_0%,#ffffff_58%,#f4f8ff_100%)] px-6 py-4 lg:px-8 lg:py-4">
@@ -817,13 +837,27 @@ const ServiceFormModal = ({
                   {currentStepMeta.title}
                 </p>
               </div>
-              <button
-                onClick={onClose}
-                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-700"
-                aria-label="Close modal"
-              >
-                <span className="material-symbols-outlined text-xl">close</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsFullscreen((prev) => !prev)}
+                  className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-700"
+                  aria-label={
+                    isFullscreen ? "Exit fullscreen editor" : "Expand editor"
+                  }
+                >
+                  <span className="material-symbols-outlined text-xl">
+                    {isFullscreen ? "fullscreen_exit" : "fullscreen"}
+                  </span>
+                </button>
+                <button
+                  onClick={onClose}
+                  className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-700"
+                  aria-label="Close modal"
+                >
+                  <span className="material-symbols-outlined text-xl">close</span>
+                </button>
+              </div>
             </div>
 
             <div className="mt-3">
@@ -1092,13 +1126,15 @@ const ServiceFormModal = ({
                   <div className="mb-4 flex items-center justify-between">
                     <div>
                       <label className="block text-sm font-semibold text-gray-800">
-                        Gallery Images ({formData.images.length}/10)
+                        Gallery Images ({formData.images.length}/{MAX_SERVICE_IMAGES})
                       </label>
                       <p className="mt-1 text-xs text-gray-500">
-                        Add clear photos that show the quality of your work.
+                        Add clear photos that show the quality of your work. At least one image is required.
                       </p>
                     </div>
-                    <span className="text-sm text-gray-500">Max 2MB</span>
+                    <span className="text-sm text-gray-500">
+                      {MAX_SERVICE_IMAGES} max, {MAX_IMAGE_SIZE_MB}MB each
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-4 gap-4">
@@ -1125,7 +1161,7 @@ const ServiceFormModal = ({
                       </div>
                     ))}
 
-                    {formData.images.length < 10 && (
+                    {formData.images.length < MAX_SERVICE_IMAGES && (
                       <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 transition-all hover:border-emerald-500 hover:bg-emerald-50">
                         <input
                           type="file"
@@ -1143,6 +1179,9 @@ const ServiceFormModal = ({
                       </label>
                     )}
                   </div>
+                  {errors.images && (
+                    <p className="mt-3 text-sm text-red-500">{errors.images}</p>
+                  )}
                 </div>
 
                 {/* Video Upload */}
@@ -1156,7 +1195,9 @@ const ServiceFormModal = ({
                         A short clip can help clients understand the service faster.
                       </p>
                     </div>
-                    <span className="text-sm text-gray-500">Max 30MB</span>
+                    <span className="text-sm text-gray-500">
+                      Max {MAX_VIDEO_SIZE_MB}MB
+                    </span>
                   </div>
 
                   {formData.video ? (

@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import prisma from "@/lib/prisma";
 
 type CredentialsUserPayload = {
   role?: string;
@@ -38,20 +39,23 @@ async function fetchDbUserByEmail(
   if (!email) return null;
 
   try {
-    const baseUrl = getBaseUrl();
-    const response = await fetch(
-      `${baseUrl}/api/users/me?email=${encodeURIComponent(email)}`,
-      {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        role: true,
+        onboardingCompleted: true,
+        clientInterests: true,
+        emailVerified: true,
       },
-    );
+    });
 
-    if (!response.ok) {
+    if (!user) {
       return null;
     }
 
-    return (await response.json()) as DbUserSnapshot;
+    return user;
   } catch (error) {
     console.error("[JWT Sync Error]", error);
     return null;
@@ -121,33 +125,43 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user, account }) {
       // For Google sign-in, create/update user with verified email
       if (account?.provider === "google") {
+        const normalizedEmail = user.email?.trim().toLowerCase();
+        if (!normalizedEmail) {
+          return false;
+        }
+
         try {
-          const baseUrl = getBaseUrl();
-          const response = await fetch(`${baseUrl}/api/auth/google-signin`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: user.email,
-              name: user.name,
-              image: user.image,
-            }),
+          const existingUser = await prisma.user.findUnique({
+            where: { email: normalizedEmail },
+            select: { id: true, image: true },
           });
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(
-              "[Google Sign-In API Error]",
-              response.status,
-              errorText,
-            );
-            // Log but don't block — user already authenticated with Google.
-            // The JWT callback will fetch user data separately and handle
-            // missing DB records gracefully.
+          if (existingUser) {
+            await prisma.user.update({
+              where: { email: normalizedEmail },
+              data: {
+                emailVerified: new Date(),
+                name: user.name?.trim() || null,
+                ...(!existingUser.image && user.image
+                  ? { image: user.image.trim() }
+                  : {}),
+              },
+            });
+          } else {
+            await prisma.user.create({
+              data: {
+                email: normalizedEmail,
+                name: user.name?.trim() || null,
+                image: user.image?.trim() || null,
+                emailVerified: new Date(),
+                role: "CLIENT",
+                onboardingCompleted: false,
+              },
+            });
           }
         } catch (error) {
           console.error("[Google Sign-In Error]", error);
-          // Network/fetch errors are common with internal API calls.
-          // Don't block sign-in — let the JWT callback handle it.
+          return false;
         }
         return true;
       }

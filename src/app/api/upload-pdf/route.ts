@@ -1,40 +1,59 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import { uploadFile, deleteFile } from '@/lib/s3';
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { uploadFile, deleteFile } from "@/lib/s3";
+
+function extractObjectKey(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname.replace(/^\//, "");
+  } catch {
+    return null;
+  }
+}
+
+function isOwnedObjectKey(key: string, userId: string): boolean {
+  return key.startsWith(`certifications/${userId}/`);
+}
 
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    
+
     if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const formData = await request.formData();
-    const file = formData.get('file') as File;
+    const file = formData.get("file") as File;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
     // Validate file type (PDFs only)
-    if (file.type !== 'application/pdf') {
-      return NextResponse.json({ error: 'Only PDF files are allowed' }, { status: 400 });
+    if (file.type !== "application/pdf") {
+      return NextResponse.json(
+        { error: "Only PDF files are allowed" },
+        { status: 400 },
+      );
     }
 
     // Validate file size (max 10MB)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      return NextResponse.json({ error: 'File size must be less than 10MB' }, { status: 400 });
+      return NextResponse.json(
+        { error: "File size must be less than 10MB" },
+        { status: 400 },
+      );
     }
 
     // Upload to Vercel Blob
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    
+
     // Generate a unique filename
     const timestamp = Date.now();
-    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
     const fileName = `certifications/${session.user.id}/${timestamp}-${safeName}`;
 
     const url = await uploadFile(buffer, fileName, file.type);
@@ -46,10 +65,10 @@ export async function POST(request: NextRequest) {
       uploadedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error("Upload error:", error);
     return NextResponse.json(
-      { error: 'Failed to upload file' },
-      { status: 500 }
+      { error: "Failed to upload file" },
+      { status: 500 },
     );
   }
 }
@@ -57,16 +76,21 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const session = await auth();
-    
+
     if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const url = searchParams.get('url');
+    const url = searchParams.get("url");
 
     if (!url) {
-      return NextResponse.json({ error: 'No URL provided' }, { status: 400 });
+      return NextResponse.json({ error: "No URL provided" }, { status: 400 });
+    }
+
+    const key = extractObjectKey(url);
+    if (!key || !isOwnedObjectKey(key, session.user.id)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Delete from storage
@@ -74,10 +98,10 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Delete error:', error);
+    console.error("Delete error:", error);
     return NextResponse.json(
-      { error: 'Failed to delete file' },
-      { status: 500 }
+      { error: "Failed to delete file" },
+      { status: 500 },
     );
   }
 }

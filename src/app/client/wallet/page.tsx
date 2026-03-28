@@ -49,7 +49,7 @@ function ClientWalletPageContent() {
     const apiRef = searchParams.get("ref");
 
     if (paymentStatus === "success" && apiRef) {
-      verifyMutation.mutate({ apiRef, amount: 1000 });
+      verifyMutation.mutate({ apiRef });
       router.replace("/client/wallet");
     }
   }, [searchParams, router, verifyMutation]);

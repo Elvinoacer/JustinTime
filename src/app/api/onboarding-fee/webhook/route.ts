@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyWebhookChallenge, PAYMENT_AMOUNTS } from "@/lib/intasend";
+import {
+  verifyWebhookChallenge,
+  verifyWebhookSignature,
+  PAYMENT_AMOUNTS,
+} from "@/lib/intasend";
 
 export async function POST(req: Request) {
   try {
-    // Parse webhook payload
-    const body = await req.json();
+    const rawBody = await req.text();
+    const signature = req.headers.get("x-intasend-signature");
+    const body = JSON.parse(rawBody);
 
     console.log("=== IntaSend Onboarding Webhook ===");
     console.log("Payload:", JSON.stringify(body, null, 2));
@@ -15,13 +20,18 @@ export async function POST(req: Request) {
       if (verifyWebhookChallenge(body.challenge)) {
         console.log("✅ Challenge verified successfully");
         return NextResponse.json({ challenge: body.challenge });
-      } else {
-        console.error("❌ Challenge verification failed");
-        return NextResponse.json(
-          { error: "Invalid challenge" },
-          { status: 401 },
-        );
       }
+
+      console.error("❌ Challenge verification failed");
+      return NextResponse.json(
+        { error: "Invalid challenge" },
+        { status: 401 },
+      );
+    }
+
+    if (!verifyWebhookSignature(rawBody, signature)) {
+      console.error("❌ Invalid IntaSend webhook signature");
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     // Acknowledge receipt immediately (IntaSend expects quick 200 response)
@@ -31,6 +41,16 @@ export async function POST(req: Request) {
     const state = body.state || body.invoice?.state;
     const apiRef = body.api_ref || body.invoice?.api_ref || "";
     const invoiceId = body.invoice_id || body.id;
+    const amount = Number(
+      body.value || body.invoice?.value || body.amount || 0,
+    );
+
+    if (Number.isFinite(amount) && amount < PAYMENT_AMOUNTS.ONBOARDING_FEE) {
+      return NextResponse.json(
+        { error: "Invalid payment amount" },
+        { status: 400 },
+      );
+    }
 
     console.log(
       `Processing webhook: state=${state}, api_ref=${apiRef}, invoice=${invoiceId}`,
@@ -62,7 +82,7 @@ export async function POST(req: Request) {
     const parts = apiRef.split(/[-_]/);
     const userIdPart = parts[1]; // Second part is the user ID portion
 
-    if (!userIdPart) {
+    if (!userIdPart || userIdPart.length < 16) {
       console.error("Could not extract userId from api_ref:", apiRef);
       return NextResponse.json({
         received: true,
@@ -70,11 +90,8 @@ export async function POST(req: Request) {
       });
     }
 
-    // Find user by matching the start of their ID
-    const user = await prisma.user.findFirst({
-      where: {
-        id: { startsWith: userIdPart },
-      },
+    const user = await prisma.user.findUnique({
+      where: { id: userIdPart },
       include: { profile: true },
     });
 
@@ -97,6 +114,22 @@ export async function POST(req: Request) {
 
     // Process the payment
     await prisma.$transaction(async (tx) => {
+      const idempotencyRef = String(invoiceId || apiRef);
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${idempotencyRef}))`;
+
+      const existingTx = await tx.transaction.findFirst({
+        where: {
+          description: {
+            contains: `Ref: ${idempotencyRef}`,
+          },
+          type: "ONBOARDING_FEE",
+        },
+      });
+
+      if (existingTx) {
+        return;
+      }
+
       // 1. Update profile to mark fee as paid and fully activated
       await tx.profile.upsert({
         where: { userId: user.id },
@@ -137,7 +170,7 @@ export async function POST(req: Request) {
           walletId: wallet.id,
           amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
           type: "ONBOARDING_FEE",
-          description: `Provider Onboarding Fee Payment (Ref: ${invoiceId || apiRef})`,
+          description: `Provider Onboarding Fee Payment (Ref: ${idempotencyRef})`,
         },
       });
 
@@ -149,7 +182,7 @@ export async function POST(req: Request) {
           targetId: user.id,
           details: {
             source: "intasend_webhook",
-            invoiceId: String(invoiceId || ""),
+            invoiceId: String(idempotencyRef),
             apiRef,
           },
         },
@@ -166,8 +199,6 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("[ONBOARDING_WEBHOOK_ERROR]", error);
-    // Return 200 to prevent IntaSend from retrying
-    // Log the error for debugging
-    return NextResponse.json({ received: true, error: "Processing error" });
+    return NextResponse.json({ error: "Processing error" }, { status: 500 });
   }
 }

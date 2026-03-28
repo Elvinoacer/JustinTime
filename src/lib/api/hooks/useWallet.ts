@@ -32,13 +32,14 @@ export const useTopUpWallet = () => {
 export const useVerifyTopUp = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { apiRef: string; amount: number }) => {
-      const response = await apiClient.post("/wallet/verify", data);
-      return response.data;
+    mutationFn: async (data: { apiRef: string }) => {
+      void data;
+      // Wallet credits are applied asynchronously by signed webhooks.
+      return { accepted: true };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
-      toast.success("Wallet topped up successfully!");
+      toast.success("Payment received. Wallet balance will update shortly.");
     },
     onError: (error: any) => {
       toast.error("Failed to verify payment");

@@ -5,7 +5,7 @@ import { createProposalSchema } from "@/lib/validations/schemas";
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -14,13 +14,27 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const job = await prisma.job.findUnique({ where: { id } });
+    const job = await prisma.job.findUnique({
+      where: { id },
+      select: { id: true, clientId: true },
+    });
     if (!job) {
       return new NextResponse("Job not found", { status: 404 });
     }
 
+    const isAdmin = session.user.role === "ADMIN";
+    const isJobOwner = job.clientId === session.user.id;
+    const isProvider = session.user.role === "PROVIDER";
+
+    if (!isAdmin && !isJobOwner && !isProvider) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
     const proposals = await prisma.proposal.findMany({
-      where: { jobId: id },
+      where: {
+        jobId: id,
+        ...(isAdmin || isJobOwner ? {} : { providerId: session.user.id }),
+      },
       include: {
         provider: { select: { id: true, name: true, image: true } },
       },
@@ -36,7 +50,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -46,7 +60,9 @@ export async function POST(
     }
 
     if (session.user.role !== "PROVIDER") {
-      return new NextResponse("Only providers can submit proposals", { status: 403 });
+      return new NextResponse("Only providers can submit proposals", {
+        status: 403,
+      });
     }
 
     const job = await prisma.job.findUnique({ where: { id } });
@@ -55,7 +71,9 @@ export async function POST(
     }
 
     if (job.status !== "OPEN") {
-      return new NextResponse("This job is no longer accepting proposals", { status: 409 });
+      return new NextResponse("This job is no longer accepting proposals", {
+        status: 409,
+      });
     }
 
     const existingProposal = await prisma.proposal.findFirst({
@@ -63,7 +81,10 @@ export async function POST(
     });
 
     if (existingProposal) {
-      return new NextResponse("You have already submitted a proposal for this job", { status: 409 });
+      return new NextResponse(
+        "You have already submitted a proposal for this job",
+        { status: 409 },
+      );
     }
 
     const body = await request.json();

@@ -1,18 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendSubscriptionActivationEmail } from "@/lib/email";
+import { verifyWebhookSignature } from "@/lib/intasend";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const rawBody = await req.text();
+    const body = JSON.parse(rawBody);
 
     // Verify webhook signature (IntaSend sends signature in headers)
     const signature = req.headers.get("x-intasend-signature");
-    
+    if (!verifyWebhookSignature(rawBody, signature)) {
+      console.error("Invalid IntaSend webhook signature");
+      return NextResponse.json(
+        { error: "Invalid webhook signature" },
+        { status: 401 },
+      );
+    }
+
     // Log webhook for debugging
     console.log("=== IntaSend Webhook Received ===");
     console.log("Payload:", JSON.stringify(body, null, 2));
-    
+
     const {
       state,
       checkout_id,
@@ -27,12 +36,12 @@ export async function POST(req: NextRequest) {
 
     // CRITICAL: Validate challenge token
     const expectedChallenge = process.env.INTASEND_WEBHOOK_CHALLENGE;
-    
+
     if (!expectedChallenge) {
       console.error("INTASEND_WEBHOOK_CHALLENGE not configured in environment");
       return NextResponse.json(
         { error: "Webhook not properly configured" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -41,7 +50,7 @@ export async function POST(req: NextRequest) {
       console.error(`Expected: ${expectedChallenge}, Received: ${challenge}`);
       return NextResponse.json(
         { error: "Invalid challenge token" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -65,7 +74,7 @@ export async function POST(req: NextRequest) {
       console.error("Missing userId or plan in webhook metadata:", metadata);
       return NextResponse.json(
         { error: "Invalid webhook data - missing userId or plan" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -79,10 +88,7 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       console.error(`User not found: ${userId}`);
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // Calculate subscription end date (30 days from now)
@@ -90,7 +96,9 @@ export async function POST(req: NextRequest) {
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + 30); // 1 month = 30 days
 
-    console.log(`Subscription period: ${startDate.toISOString()} to ${endDate.toISOString()}`);
+    console.log(
+      `Subscription period: ${startDate.toISOString()} to ${endDate.toISOString()}`,
+    );
 
     // Check if subscription already exists and is active to prevent duplicate processing
     const existingSubscription = await prisma.subscription.findUnique({
@@ -98,7 +106,9 @@ export async function POST(req: NextRequest) {
     });
 
     if (existingSubscription?.plan === plan && existingSubscription?.isActive) {
-      console.log(`⚠️  Subscription already active for user ${userId} with plan ${plan}. Skipping duplicate webhook.`);
+      console.log(
+        `⚠️  Subscription already active for user ${userId} with plan ${plan}. Skipping duplicate webhook.`,
+      );
       return NextResponse.json({
         message: "Subscription already active - webhook already processed",
         subscription: existingSubscription,
@@ -141,7 +151,7 @@ export async function POST(req: NextRequest) {
         user.email,
         user.name,
         plan,
-        endDate
+        endDate,
       );
       console.log(`Activation email sent to ${user.email}`);
     }
@@ -160,7 +170,7 @@ export async function POST(req: NextRequest) {
     console.error("Error processing webhook:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

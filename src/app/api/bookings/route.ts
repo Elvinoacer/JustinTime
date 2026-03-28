@@ -7,12 +7,16 @@ import {
   sendBookingConfirmationEmail,
   sendProviderBookingNotificationEmail,
 } from "@/lib/email";
-import { sendComprehensiveNotification, emailTemplates } from "@/lib/notifications/adminNotifications";
+import {
+  sendComprehensiveNotification,
+  emailTemplates,
+} from "@/lib/notifications/adminNotifications";
 import { calculateBookingBreakdown } from "@/lib/financials";
 import { createInvoiceForBooking } from "@/app/actions/invoice";
 import { validatePromoCode } from "@/lib/promo";
 import { getDynamicPrice } from "@/lib/pricing-engine";
 import { VALIDATION } from "@/lib/constants/validation";
+import { Prisma } from "@/generated/prisma/client";
 
 export async function GET(request: Request) {
   try {
@@ -60,8 +64,8 @@ export async function GET(request: Request) {
           },
           slots: true,
           invoice: {
-            select: { id: true }
-          }
+            select: { id: true },
+          },
         },
         orderBy: { createdAt: "desc" },
       }),
@@ -101,7 +105,7 @@ export async function POST(request: Request) {
       notes,
       clientPhone,
       clientAddress,
-      promoCode, 
+      promoCode,
     } = body;
 
     // Sanitize inputs
@@ -113,21 +117,44 @@ export async function POST(request: Request) {
 
     // Validate required fields
     if (!professionalId || !serviceId) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 },
+      );
     }
 
     // Validate lengths
     if (notes && notes.length > VALIDATION.MAX_NOTES_LENGTH) {
-      return NextResponse.json({ error: `Notes cannot exceed ${VALIDATION.MAX_NOTES_LENGTH} characters` }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: `Notes cannot exceed ${VALIDATION.MAX_NOTES_LENGTH} characters`,
+        },
+        { status: 400 },
+      );
     }
     if (location && location.length > VALIDATION.MAX_LOCATION_LENGTH) {
-      return NextResponse.json({ error: `Location cannot exceed ${VALIDATION.MAX_LOCATION_LENGTH} characters` }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: `Location cannot exceed ${VALIDATION.MAX_LOCATION_LENGTH} characters`,
+        },
+        { status: 400 },
+      );
     }
     if (clientPhone && clientPhone.length > VALIDATION.MAX_PHONE_LENGTH) {
-      return NextResponse.json({ error: `Phone cannot exceed ${VALIDATION.MAX_PHONE_LENGTH} characters` }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: `Phone cannot exceed ${VALIDATION.MAX_PHONE_LENGTH} characters`,
+        },
+        { status: 400 },
+      );
     }
     if (clientAddress && clientAddress.length > VALIDATION.MAX_ADDRESS_LENGTH) {
-      return NextResponse.json({ error: `Address cannot exceed ${VALIDATION.MAX_ADDRESS_LENGTH} characters` }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: `Address cannot exceed ${VALIDATION.MAX_ADDRESS_LENGTH} characters`,
+        },
+        { status: 400 },
+      );
     }
 
     // Get service details
@@ -149,11 +176,17 @@ export async function POST(request: Request) {
     }
 
     if (service.providerId !== professionalId) {
-      return NextResponse.json({ error: "Service does not belong to this provider" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Service does not belong to this provider" },
+        { status: 400 },
+      );
     }
 
     if (professionalId === session.user.id) {
-      return NextResponse.json({ error: "You cannot book your own service" }, { status: 400 });
+      return NextResponse.json(
+        { error: "You cannot book your own service" },
+        { status: 400 },
+      );
     }
 
     // Prepare slots
@@ -174,7 +207,10 @@ export async function POST(request: Request) {
         const totalMinutes = hours * 60 + minutes + duration;
         finalEndTime = `${Math.floor(totalMinutes / 60)
           .toString()
-          .padStart(2, "0")}:${(totalMinutes % 60).toString().padStart(2, "0")}`;
+          .padStart(
+            2,
+            "0",
+          )}:${(totalMinutes % 60).toString().padStart(2, "0")}`;
       }
       bookingSlots.push({
         date: new Date(date),
@@ -182,7 +218,10 @@ export async function POST(request: Request) {
         endTime: finalEndTime,
       });
     } else {
-      return NextResponse.json({ error: "Missing date/time or slots" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing date/time or slots" },
+        { status: 400 },
+      );
     }
 
     // Sort slots by date and time
@@ -200,7 +239,7 @@ export async function POST(request: Request) {
           slot.date,
           slot.startTime,
           slot.endTime,
-          serviceId
+          serviceId,
         );
 
         if (!availabilityCheck.available) {
@@ -210,7 +249,7 @@ export async function POST(request: Request) {
               reason: availabilityCheck.reason,
               slot: slot,
             },
-            { status: 409 }
+            { status: 409 },
           );
         }
       }
@@ -238,11 +277,15 @@ export async function POST(request: Request) {
     let validPromoCodeId = undefined;
 
     if (promoCode) {
-      const promoValidation = await validatePromoCode(promoCode, session.user.id, baseAmount);
+      const promoValidation = await validatePromoCode(
+        promoCode,
+        session.user.id,
+        baseAmount,
+      );
       if (!promoValidation.isValid) {
         return NextResponse.json(
-            { error: promoValidation.error || "Invalid promo code" },
-            { status: 400 }
+          { error: promoValidation.error || "Invalid promo code" },
+          { status: 400 },
         );
       }
       discountAmount = promoValidation.discountAmount;
@@ -257,64 +300,87 @@ export async function POST(request: Request) {
     const pricingResult = await getDynamicPrice(serviceId, firstSlot.date);
     const basePrice = Number(service.price) * bookingSlots.length;
     const finalPrice = basePrice * pricingResult.multiplier;
-    
-    const { exciseDuty, trustFee, totalAmount, netAmount } = calculateBookingBreakdown(finalPrice, discountAmount);
+
+    const { exciseDuty, trustFee, totalAmount, netAmount } =
+      calculateBookingBreakdown(finalPrice, discountAmount);
 
     // Create booking and slots
 
-    const booking = await prisma.$transaction(async (tx) => {
-        const newBooking = await tx.booking.create({
-            data: {
-                clientId: session.user.id,
+    const booking = await prisma.$transaction(
+      async (tx) => {
+        for (const slot of bookingSlots) {
+          const existingConflict = await tx.bookingSlot.findFirst({
+            where: {
+              date: slot.date,
+              booking: {
                 providerId: professionalId,
-                serviceId,
-                date: firstSlot.date,
-                startTime: firstSlot.startTime,
-                endTime: lastSlot.endTime, 
-                totalAmount: totalAmount,
-                exciseDutyAmount: exciseDuty,
-                insuranceFee: trustFee,
-                netAmount: netAmount, 
-                totalTaxAmount: exciseDuty,
-                discountAmount: discountAmount > 0 ? discountAmount : undefined,
-                promoCodeId: validPromoCodeId,
-                location: bookingLocation,
-                notes,
-                clientPhone,
-                clientAddress,
-                basePrice: basePrice,
-                surgeMultiplier: pricingResult.multiplier,
-                finalPrice: finalPrice,
-                surgeReason: pricingResult.reason,
-                status: "PENDING",
-                slots: {
-                create: bookingSlots.map(slot => ({
-                    date: slot.date,
-                    startTime: slot.startTime,
-                    endTime: slot.endTime,
-                })),
-                },
+                status: { in: ["PENDING", "CONFIRMED", "IN_PROGRESS"] },
+              },
+              startTime: { lt: slot.endTime },
+              endTime: { gt: slot.startTime },
             },
-            include: {
-                client: {
-                select: {
-                    name: true,
-                    email: true,
-                },
-                },
-                slots: true,
+            select: { id: true },
+          });
+
+          if (existingConflict) {
+            throw new Error("BOOKING_SLOT_CONFLICT");
+          }
+        }
+
+        const newBooking = await tx.booking.create({
+          data: {
+            clientId: session.user.id,
+            providerId: professionalId,
+            serviceId,
+            date: firstSlot.date,
+            startTime: firstSlot.startTime,
+            endTime: lastSlot.endTime,
+            totalAmount: totalAmount,
+            exciseDutyAmount: exciseDuty,
+            insuranceFee: trustFee,
+            netAmount: netAmount,
+            totalTaxAmount: exciseDuty,
+            discountAmount: discountAmount > 0 ? discountAmount : undefined,
+            promoCodeId: validPromoCodeId,
+            location: bookingLocation,
+            notes,
+            clientPhone,
+            clientAddress,
+            basePrice: basePrice,
+            surgeMultiplier: pricingResult.multiplier,
+            finalPrice: finalPrice,
+            surgeReason: pricingResult.reason,
+            status: "PENDING",
+            slots: {
+              create: bookingSlots.map((slot) => ({
+                date: slot.date,
+                startTime: slot.startTime,
+                endTime: slot.endTime,
+              })),
             },
+          },
+          include: {
+            client: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+            slots: true,
+          },
         });
 
         if (validPromoCodeId) {
-            await tx.promoCode.update({
-                where: { id: validPromoCodeId },
-                data: { usageCount: { increment: 1 } }
-            });
+          await tx.promoCode.update({
+            where: { id: validPromoCodeId },
+            data: { usageCount: { increment: 1 } },
+          });
         }
 
         return newBooking;
-    });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
 
     // Create notifications for both parties
     await createBookingNotifications(
@@ -322,29 +388,37 @@ export async function POST(request: Request) {
       session.user.id,
       professionalId,
       "CREATED",
-      service.title
+      service.title,
     );
 
     // Send notifications and emails
     try {
       // Validate required fields before attempting to send emails
-      const providerName = service.provider.name || 'Professional';
+      const providerName = service.provider.name || "Professional";
       const providerEmail = service.provider.email;
-      const clientName = booking.client.name || 'Client';
+      const clientName = booking.client.name || "Client";
       const clientEmail = booking.client.email;
 
       // Log warning if critical data is missing
       if (!service.provider.name) {
-        console.warn(`[BOOKING ${booking.id}] Provider name is missing for user ${professionalId}`);
+        console.warn(
+          `[BOOKING ${booking.id}] Provider name is missing for user ${professionalId}`,
+        );
       }
       if (!service.provider.email) {
-        console.error(`[BOOKING ${booking.id}] Provider email is missing for user ${professionalId} - cannot send provider notification`);
+        console.error(
+          `[BOOKING ${booking.id}] Provider email is missing for user ${professionalId} - cannot send provider notification`,
+        );
       }
       if (!booking.client.name) {
-        console.warn(`[BOOKING ${booking.id}] Client name is missing for user ${session.user.id}`);
+        console.warn(
+          `[BOOKING ${booking.id}] Client name is missing for user ${session.user.id}`,
+        );
       }
       if (!booking.client.email) {
-        console.error(`[BOOKING ${booking.id}] Client email is missing for user ${session.user.id} - cannot send client confirmation`);
+        console.error(
+          `[BOOKING ${booking.id}] Client email is missing for user ${session.user.id} - cannot send client confirmation`,
+        );
       }
 
       // 1. Send comprehensive notification to provider (Push + Email + DB)
@@ -359,27 +433,35 @@ export async function POST(request: Request) {
             firstSlot.endTime,
             bookingLocation,
             totalAmount,
-            notes || '',
-            booking.id
+            notes || "",
+            booking.id,
           );
 
           await sendComprehensiveNotification({
             userId: professionalId,
             title: `New Booking: ${service.title}`,
             message: `${clientName} has booked your service for ${firstSlot.date.toLocaleDateString()}`,
-            type: 'BOOKING_CREATED',
+            type: "BOOKING_CREATED",
             emailSubject: bookingTemplate.subject,
-            emailHtml: bookingTemplate.html
+            emailHtml: bookingTemplate.html,
           });
-          
-          console.log(`[BOOKING ${booking.id}] Provider notification sent successfully to ${providerEmail}`);
+
+          console.log(
+            `[BOOKING ${booking.id}] Provider notification sent successfully to ${providerEmail}`,
+          );
         } catch (providerNotifError) {
-          console.error(`[BOOKING ${booking.id}] Failed to send provider notification:`, {
-            error: providerNotifError instanceof Error ? providerNotifError.message : String(providerNotifError),
-            providerId: professionalId,
-            providerEmail,
-            providerName
-          });
+          console.error(
+            `[BOOKING ${booking.id}] Failed to send provider notification:`,
+            {
+              error:
+                providerNotifError instanceof Error
+                  ? providerNotifError.message
+                  : String(providerNotifError),
+              providerId: professionalId,
+              providerEmail,
+              providerName,
+            },
+          );
         }
       }
 
@@ -397,36 +479,54 @@ export async function POST(request: Request) {
             firstSlot.endTime,
             bookingLocation,
             totalAmount,
-            booking.id
+            booking.id,
           );
-          
-          console.log(`[BOOKING ${booking.id}] Client confirmation sent successfully to ${clientEmail}`);
+
+          console.log(
+            `[BOOKING ${booking.id}] Client confirmation sent successfully to ${clientEmail}`,
+          );
         } catch (clientEmailError) {
-          console.error(`[BOOKING ${booking.id}] Failed to send client confirmation:`, {
-            error: clientEmailError instanceof Error ? clientEmailError.message : String(clientEmailError),
-            clientEmail,
-            clientName,
-            providerEmail,
-            providerName
-          });
+          console.error(
+            `[BOOKING ${booking.id}] Failed to send client confirmation:`,
+            {
+              error:
+                clientEmailError instanceof Error
+                  ? clientEmailError.message
+                  : String(clientEmailError),
+              clientEmail,
+              clientName,
+              providerEmail,
+              providerName,
+            },
+          );
         }
       }
     } catch (emailError) {
-      console.error(`[BOOKING ${booking.id}] Unexpected error in notification block:`, emailError);
+      console.error(
+        `[BOOKING ${booking.id}] Unexpected error in notification block:`,
+        emailError,
+      );
       // Don't fail the booking if notifications fail
     }
 
     // Generate eTIMS Invoice
     try {
-        await createInvoiceForBooking(booking.id);
+      await createInvoiceForBooking(booking.id);
     } catch (invoiceError) {
-        console.error("Failed to auto-generate invoice:", invoiceError);
-        // We don't fail the request, but we should log it.
-        // In a real system, we'd have a retry queue.
+      console.error("Failed to auto-generate invoice:", invoiceError);
+      // We don't fail the request, but we should log it.
+      // In a real system, we'd have a retry queue.
     }
 
     return NextResponse.json(booking, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message === "BOOKING_SLOT_CONFLICT") {
+      return NextResponse.json(
+        { error: "One or more selected time slots are no longer available." },
+        { status: 409 },
+      );
+    }
+
     console.error("[BOOKINGS_POST]", error);
     return NextResponse.json({ error: "Internal Error" }, { status: 500 });
   }

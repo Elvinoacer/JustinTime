@@ -4,10 +4,19 @@ import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
 import { sendComprehensiveNotification } from "@/lib/notifications/adminNotifications";
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    
+
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -17,7 +26,7 @@ export async function POST(request: NextRequest) {
     if (!receiverId || (!content && !fileUrl)) {
       return NextResponse.json(
         { error: "Receiver ID and content (or file) are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -27,7 +36,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (!receiver) {
-      return NextResponse.json({ error: "Receiver not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Receiver not found" },
+        { status: 404 },
+      );
     }
 
     // Create message
@@ -61,22 +73,29 @@ export async function POST(request: NextRequest) {
 
     // Send notification to receiver
     try {
+      const safeSenderName = escapeHtml(session.user.name || "Someone");
+      const safeContent = content ? escapeHtml(content) : "<i>Sent a file</i>";
+
       await sendComprehensiveNotification({
         userId: receiverId,
-        title: `New Message from ${session.user.name}`,
-        message: content ? (content.length > 50 ? content.substring(0, 50) + "..." : content) : "Sent a file",
+        title: `New Message from ${session.user.name || "Someone"}`,
+        message: content
+          ? content.length > 50
+            ? content.substring(0, 50) + "..."
+            : content
+          : "Sent a file",
         type: "MESSAGE",
-        emailSubject: `New Message from ${session.user.name} - JustInTime`,
+        emailSubject: `New Message from ${session.user.name || "Someone"} - JustInTime`,
         emailHtml: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #10b981;">New Message</h2>
-            <p><strong>${session.user.name}</strong> sent you a message:</p>
+            <p><strong>${safeSenderName}</strong> sent you a message:</p>
             <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-              ${content || "<i>Sent a file</i>"}
+              ${safeContent}
             </div>
             <a href="${process.env.NEXTAUTH_URL}/dashboard/messages?conversation=${session.user.id}" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Reply Now</a>
           </div>
-        `
+        `,
       });
     } catch (notifError) {
       console.error("Failed to send message notification:", notifError);

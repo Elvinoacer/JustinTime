@@ -3,6 +3,27 @@ import { auth } from "@/auth";
 import { uploadFile, deleteFile } from "@/lib/s3";
 import { prisma } from "@/lib/prisma";
 
+function extractObjectKey(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname.replace(/^\//, "");
+  } catch {
+    return null;
+  }
+}
+
+function isOwnedObjectKey(key: string, userId: string): boolean {
+  const allowedPrefixes = [
+    `messages/${userId}/`,
+    `identity/${userId}/`,
+    `services/${userId}/`,
+    `avatars/${userId}/`,
+    `uploads/${userId}/`,
+  ];
+
+  return allowedPrefixes.some((prefix) => key.startsWith(prefix));
+}
+
 export const POST = auth(async (request) => {
   try {
     const session = request.auth;
@@ -94,6 +115,11 @@ export const DELETE = auth(async (request) => {
     const url = searchParams.get("url");
 
     if (url) {
+      const key = extractObjectKey(url);
+      if (!key || !isOwnedObjectKey(key, session.user.id)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
       await deleteFile(url);
     } else {
       return NextResponse.json({ error: "No url provided" }, { status: 400 });

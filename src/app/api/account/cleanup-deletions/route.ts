@@ -1,10 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { sendAccountDeletionConfirmedEmail } from "@/lib/email";
+import { auth } from "@/auth";
+
+function hasValidCronSecret(req: NextRequest): boolean {
+  const configuredSecret = process.env.ACCOUNT_CLEANUP_SECRET;
+  if (!configuredSecret) {
+    return false;
+  }
+
+  const providedSecret = req.headers.get("x-cleanup-secret");
+  return Boolean(providedSecret && providedSecret === configuredSecret);
+}
 
 // This endpoint can be called by a cron job or manually to clean up expired account deletions
 export async function POST(req: NextRequest) {
   try {
+    const session = await auth();
+    const isAdmin = session?.user?.role === "ADMIN";
+    const isAuthorizedCron = hasValidCronSecret(req);
+
+    if (!isAdmin && !isAuthorizedCron) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // Find all users with deletion scheduled in the past
     const usersToDelete = await prisma.user.findMany({
       where: {
@@ -62,7 +81,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const successCount = deletionResults.filter(r => r.success).length;
+    const successCount = deletionResults.filter((r) => r.success).length;
 
     return NextResponse.json({
       message: `Processed ${usersToDelete.length} account deletions`,
@@ -74,7 +93,7 @@ export async function POST(req: NextRequest) {
     console.error("Error in cleanup-deletions:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

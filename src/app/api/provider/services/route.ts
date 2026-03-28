@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import { z } from "zod";
-import { uploadFile, deleteFile } from '@/lib/s3';
+import { uploadFile, deleteFile } from "@/lib/s3";
 
 // Schema for service creation/update
 const serviceSchema = z.object({
@@ -20,7 +20,7 @@ const serviceSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    
+
     if (!session || !session.user || session.user.role !== "PROVIDER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    const formattedServices = services.map(service => ({
+    const formattedServices = services.map((service) => ({
       id: service.id,
       name: service.title,
       description: service.description,
@@ -59,13 +59,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    
+
     if (!session || !session.user || session.user.role !== "PROVIDER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const userId = session.user.id;
-    
+
     // Check service limit (max 5)
     const serviceCount = await prisma.service.count({
       where: { providerId: userId },
@@ -74,12 +74,12 @@ export async function POST(request: NextRequest) {
     if (serviceCount >= 5) {
       return NextResponse.json(
         { error: "You have reached the maximum limit of 5 services." },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     const body = await request.json();
-    
+
     const validatedData = serviceSchema.parse(body);
 
     // Find category by ID
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     if (!category) {
       return NextResponse.json(
         { error: "Invalid category selected." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const session = await auth();
-    
+
     if (!session || !session.user || session.user.role !== "PROVIDER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -138,25 +138,33 @@ export async function PUT(request: NextRequest) {
     const serviceId = searchParams.get("id");
 
     if (!serviceId) {
-      return NextResponse.json({ error: "Service ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Service ID is required" },
+        { status: 400 },
+      );
     }
 
     const body = await request.json();
-    
+
     // Check ownership
     const existingService = await prisma.service.findUnique({
       where: { id: serviceId },
     });
 
     if (!existingService || existingService.providerId !== userId) {
-      return NextResponse.json({ error: "Service not found or unauthorized" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Service not found or unauthorized" },
+        { status: 404 },
+      );
     }
 
     const updateData: any = {};
     if (body.name) updateData.title = body.name;
-    if (body.description !== undefined) updateData.description = body.description;
+    if (body.description !== undefined)
+      updateData.description = body.description;
     if (body.price !== undefined) updateData.price = body.price;
-    if (body.pricingUnit !== undefined) updateData.pricingUnit = body.pricingUnit;
+    if (body.pricingUnit !== undefined)
+      updateData.pricingUnit = body.pricingUnit;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
     if (body.images !== undefined) updateData.images = body.images;
     if (body.video !== undefined) updateData.video = body.video;
@@ -169,7 +177,7 @@ export async function PUT(request: NextRequest) {
       if (!category) {
         return NextResponse.json(
           { error: "Invalid category selected." },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updateData.categoryId = category.id;
@@ -179,16 +187,20 @@ export async function PUT(request: NextRequest) {
     if (body.images) {
       const oldImages = existingService.images;
       const newImages = body.images;
-      const imagesToDelete = oldImages.filter(img => !newImages.includes(img));
-      
-      for (const imgUrl of imagesToDelete) {
+      const imagesToDelete = oldImages.filter(
+        (img) => !newImages.includes(img),
+      );
+
       for (const imgUrl of imagesToDelete) {
         await deleteFile(imgUrl);
       }
-      }
     }
 
-    if (body.video !== undefined && existingService.video && existingService.video !== body.video) {
+    if (
+      body.video !== undefined &&
+      existingService.video &&
+      existingService.video !== body.video
+    ) {
       await deleteFile(existingService.video);
     }
 
@@ -218,7 +230,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const session = await auth();
-    
+
     if (!session || !session.user || session.user.role !== "PROVIDER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -228,7 +240,10 @@ export async function DELETE(request: NextRequest) {
     const serviceId = searchParams.get("id");
 
     if (!serviceId) {
-      return NextResponse.json({ error: "Service ID is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Service ID is required" },
+        { status: 400 },
+      );
     }
 
     // Check ownership
@@ -237,7 +252,10 @@ export async function DELETE(request: NextRequest) {
     });
 
     if (!existingService || existingService.providerId !== userId) {
-      return NextResponse.json({ error: "Service not found or unauthorized" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Service not found or unauthorized" },
+        { status: 404 },
+      );
     }
 
     // Delete media from Cloudinary
