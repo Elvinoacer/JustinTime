@@ -17,6 +17,6 @@ export default defineConfig({
     seed: "tsx prisma/seed.ts",
   },
   datasource: {
-    url: directUrl ?? pooledUrl!,
+    url: directUrl || pooledUrl!,
   },
 });
