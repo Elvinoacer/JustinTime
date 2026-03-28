@@ -6,7 +6,7 @@ import { useCreateService, useUpdateService } from "@/lib/api/hooks/useProvider"
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -23,10 +23,21 @@ const serviceFormSchema = z.object({
 
 type ServiceFormData = z.infer<typeof serviceFormSchema>;
 
+type EditableService = {
+  id: string;
+  name?: string;
+  categoryId?: string;
+  description?: string;
+  price?: number;
+  pricingUnit?: "fixed" | "hourly";
+  images?: string[];
+  video?: string;
+};
+
 interface ServiceFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  service?: any; // If provided, we are in edit mode
+  service?: EditableService;
   isMobile?: boolean;
 }
 
@@ -46,6 +57,30 @@ interface Category {
   icon: string;
   count: number;
 }
+
+const STEP_META = [
+  {
+    label: "Basic Info",
+    title: "Name it, categorize it, and set pricing",
+    description:
+      "Give clients the essentials they need to recognize and compare your service.",
+    icon: "inventory_2",
+  },
+  {
+    label: "Details",
+    title: "Explain what the client gets",
+    description:
+      "A clear description reduces confusion and helps the right clients book faster.",
+    icon: "description",
+  },
+  {
+    label: "Media",
+    title: "Add visuals that build trust",
+    description:
+      "Photos and short video help your listing feel real and improve confidence.",
+    icon: "photo_library",
+  },
+] as const;
 
 const ServiceFormModal = ({
   isOpen,
@@ -81,6 +116,7 @@ const ServiceFormModal = ({
 
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const currentStepMeta = STEP_META[step - 1];
 
   // Reset state when modal opens/closes or service changes
   React.useEffect(() => {
@@ -273,11 +309,13 @@ const ServiceFormModal = ({
         toast.success("Service created successfully");
       }
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to save service", error);
-      // Error is handled by global error handler or mutation error
-      if (error.response?.data?.error) {
-        toast.error(error.response.data.error);
+      const knownError = error as {
+        response?: { data?: { error?: string } };
+      };
+      if (knownError.response?.data?.error) {
+        toast.error(knownError.response.data.error);
       }
     }
   };
@@ -760,168 +798,292 @@ const ServiceFormModal = ({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 10 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-white rounded-xl lg:rounded-2xl shadow-xl lg:shadow-2xl w-full max-w-lg lg:max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
         >
           {/* Header */}
-          <div className="px-6 lg:px-8 py-4 lg:py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-xl lg:text-2xl font-bold text-gray-900 truncate">
-                {isEditMode ? "Edit Service" : "Create New Service"}
-              </h2>
-              <p className="text-sm text-gray-500 mt-1 truncate">
-                Step {step} of 3:{" "}
-                {step === 1 ? "Basic Info" : step === 2 ? "Details" : "Media"}
-              </p>
+          <div className="border-b border-gray-100 bg-[linear-gradient(135deg,#f7fffb_0%,#ffffff_58%,#f4f8ff_100%)] px-6 py-5 lg:px-8 lg:py-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                  <span className="material-symbols-outlined text-sm">
+                    {currentStepMeta.icon}
+                  </span>
+                  Step {step} of 3
+                </div>
+                <h2 className="truncate text-2xl font-bold text-gray-900">
+                  {isEditMode ? "Edit Service" : "Create New Service"}
+                </h2>
+                <p className="mt-1 text-sm font-medium text-gray-700">
+                  {currentStepMeta.title}
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  {currentStepMeta.description}
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-700"
+                aria-label="Close modal"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600 flex-shrink-0 ml-2"
-              aria-label="Close modal"
-            >
-              <span className="material-symbols-outlined text-xl">close</span>
-            </button>
+
+            <div className="mt-5">
+              <div className="mb-2 flex items-center justify-between text-xs font-medium text-gray-500">
+                <span>{currentStepMeta.label}</span>
+                <span>{Math.round((step / STEP_META.length) * 100)}% complete</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(step / STEP_META.length) * 100}%` }}
+                  transition={{ duration: 0.35, ease: "easeOut" }}
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
+                />
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                {STEP_META.map((item, index) => {
+                  const stepNumber = index + 1;
+                  const isActive = stepNumber === step;
+                  const isDone = stepNumber < step;
+
+                  return (
+                    <div
+                      key={item.label}
+                      className={`rounded-2xl border px-3 py-3 ${
+                        isActive
+                          ? "border-emerald-200 bg-white shadow-sm"
+                          : isDone
+                            ? "border-emerald-100 bg-emerald-50/60"
+                            : "border-gray-100 bg-white/70"
+                      }`}
+                    >
+                      <div
+                        className={`mb-2 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+                          isActive || isDone
+                            ? "bg-emerald-500 text-white"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
+                      >
+                        {isDone ? (
+                          <span className="material-symbols-outlined text-sm">
+                            check
+                          </span>
+                        ) : (
+                          stepNumber
+                        )}
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {item.label}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           {/* Body */}
-          <div className="p-6 lg:p-8 overflow-y-auto flex-1">
+          <div className="flex-1 overflow-y-auto px-6 py-6 lg:px-8 lg:py-7">
             {step === 1 && (
-              <div className="space-y-5 lg:space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Service Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    className={`w-full px-4 py-3 rounded-xl border ${
-                      errors.name
-                        ? "border-red-300 focus:ring-red-500"
-                        : "border-gray-200 focus:ring-emerald-500"
-                    } focus:ring-2 focus:border-transparent transition-all text-base text-gray-900 placeholder:text-gray-500`}
-                    placeholder="e.g. Professional House Cleaning"
-                  />
-                  {errors.name && (
-                    <p className="text-red-500 text-sm mt-1">{errors.name}</p>
-                  )}
-                </div>
-
-                <div>
-                  <CategorySelector
-                    categories={categoriesData}
-                    selectedIds={formData.category ? [formData.category] : []}
-                    onToggle={(id) =>
-                      setFormData({ ...formData, category: id })
-                    }
-                    isLoading={isLoadingCategories}
-                    error={errors.category}
-                    label="Category"
-                    compact={true}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Price (KES) <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-base font-medium">
-                      KES
-                    </span>
-                    <input
-                      type="number"
-                      value={formData.price}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          price: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      className={`w-full pl-12 pr-4 py-3 rounded-xl border ${
-                        errors.price
-                          ? "border-red-300 focus:ring-red-500"
-                          : "border-gray-200 focus:ring-emerald-500"
-                      } focus:ring-2 focus:border-transparent transition-all text-base text-gray-900 placeholder:text-gray-500`}
-                      placeholder="0.00"
-                    />
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-sky-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm">
+                      <span className="material-symbols-outlined">location_on</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-blue-900">
+                        Your service location comes from your profile
+                      </p>
+                      <p className="mt-1 text-sm text-blue-700">
+                        Clients will see this service in the area set on your
+                        provider profile. Update your profile if you want this
+                        service to appear somewhere else.
+                      </p>
+                      <button
+                        onClick={() => {
+                          onClose();
+                          router.push("/dashboard/profile");
+                        }}
+                        className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-blue-800 hover:text-blue-900"
+                      >
+                        Update profile location
+                        <span className="material-symbols-outlined text-sm">
+                          arrow_forward
+                        </span>
+                      </button>
+                    </div>
                   </div>
-                  {errors.price && (
-                    <p className="text-red-500 text-sm mt-1">{errors.price}</p>
-                  )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Pricing Model <span className="text-red-500">*</span>
-                  </label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, pricingUnit: "fixed" })
-                      }
-                      className={`px-4 py-3 rounded-xl border-2 font-medium text-sm transition-all flex items-center justify-center gap-2 ${
-                        formData.pricingUnit === "fixed"
-                          ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                          : "border-gray-200 text-gray-600 hover:border-gray-300"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-lg">
-                        payments
-                      </span>
-                      <span>Fixed Price</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, pricingUnit: "hourly" })
-                      }
-                      className={`px-4 py-3 rounded-xl border-2 font-medium text-sm transition-all flex items-center justify-center gap-2 ${
-                        formData.pricingUnit === "hourly"
-                          ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                          : "border-gray-200 text-gray-600 hover:border-gray-300"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-lg">
-                        schedule
-                      </span>
-                      <span>Hourly Rate</span>
-                    </button>
+                <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+                  <div className="space-y-6">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                      <label className="mb-2 block text-sm font-semibold text-gray-800">
+                        Service Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) =>
+                          setFormData({ ...formData, name: e.target.value })
+                        }
+                        className={`w-full rounded-xl border px-4 py-3 text-base text-gray-900 transition-all placeholder:text-gray-500 ${
+                          errors.name
+                            ? "border-red-300 focus:ring-red-500"
+                            : "border-gray-200 focus:ring-emerald-500"
+                        } focus:border-transparent focus:ring-2`}
+                        placeholder="e.g. Professional House Cleaning"
+                      />
+                      <p className="mt-2 text-xs text-gray-500">
+                        Keep it short, specific, and easy for a client to understand quickly.
+                      </p>
+                      {errors.name && (
+                        <p className="mt-1 text-sm text-red-500">{errors.name}</p>
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                      <CategorySelector
+                        categories={categoriesData}
+                        selectedIds={formData.category ? [formData.category] : []}
+                        onToggle={(id) =>
+                          setFormData({ ...formData, category: id })
+                        }
+                        isLoading={isLoadingCategories}
+                        error={errors.category}
+                        label="Choose the service category"
+                        compact={true}
+                      />
+                      <p className="mt-3 text-xs text-gray-500">
+                        Pick the category clients would naturally browse when looking for this service.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                      <label className="mb-2 block text-sm font-semibold text-gray-800">
+                        Price (KES) <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-semibold text-gray-500">
+                          KES
+                        </span>
+                        <input
+                          type="number"
+                          value={formData.price}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              price: parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          className={`w-full rounded-xl border py-3 pl-14 pr-4 text-base text-gray-900 transition-all placeholder:text-gray-500 ${
+                            errors.price
+                              ? "border-red-300 focus:ring-red-500"
+                              : "border-gray-200 focus:ring-emerald-500"
+                          } focus:border-transparent focus:ring-2`}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500">
+                        Enter the starting price clients should expect for this service.
+                      </p>
+                      {errors.price && (
+                        <p className="mt-1 text-sm text-red-500">{errors.price}</p>
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                      <label className="mb-3 block text-sm font-semibold text-gray-800">
+                        Pricing Model <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-1 gap-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData({ ...formData, pricingUnit: "fixed" })
+                          }
+                          className={`flex items-start gap-3 rounded-2xl border-2 px-4 py-4 text-left transition-all ${
+                            formData.pricingUnit === "fixed"
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                              : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm">
+                            <span className="material-symbols-outlined text-lg">payments</span>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold">Fixed Price</p>
+                            <p className="mt-1 text-xs text-gray-500">
+                              Best when the job has a clear total cost.
+                            </p>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData({ ...formData, pricingUnit: "hourly" })
+                          }
+                          className={`flex items-start gap-3 rounded-2xl border-2 px-4 py-4 text-left transition-all ${
+                            formData.pricingUnit === "hourly"
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                              : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm">
+                            <span className="material-symbols-outlined text-lg">schedule</span>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold">Hourly Rate</p>
+                            <p className="mt-1 text-xs text-gray-500">
+                              Best when time or scope can vary from one job to another.
+                            </p>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
             {step === 2 && (
-              <div className="space-y-5 lg:space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                  <label className="mb-2 block text-sm font-semibold text-gray-800">
                     Description <span className="text-red-500">*</span>
                   </label>
                   <textarea
-                    rows={4}
+                    rows={6}
                     value={formData.description}
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    className={`w-full px-4 py-3 rounded-xl border ${
+                    className={`w-full resize-none rounded-xl border px-4 py-3 text-base text-gray-900 transition-all placeholder:text-gray-500 ${
                       errors.description
                         ? "border-red-300 focus:ring-red-500"
                         : "border-gray-200 focus:ring-emerald-500"
-                    } focus:ring-2 focus:border-transparent transition-all resize-none text-base text-gray-900 placeholder:text-gray-500`}
-                    placeholder="Describe your service in detail..."
+                    } focus:border-transparent focus:ring-2`}
+                    placeholder="Describe exactly what is included, how the service works, and anything clients should know before booking."
                     maxLength={500}
                   />
                   {errors.description && (
-                    <p className="text-red-500 text-sm mt-1">
+                    <p className="mt-1 text-sm text-red-500">
                       {errors.description}
                     </p>
                   )}
-                  <p className="text-sm text-gray-500 mt-2 text-right">
-                    {formData.description.length}/500 characters
-                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-4">
+                    <p className="text-xs text-gray-500">
+                      Tip: mention deliverables, turnaround time, and what makes your service stand out.
+                    </p>
+                    <p className="shrink-0 text-sm text-gray-500">
+                      {formData.description.length}/500
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -929,11 +1091,16 @@ const ServiceFormModal = ({
             {step === 3 && (
               <div className="space-y-6 lg:space-y-8">
                 {/* Image Upload */}
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 truncate">
-                      Gallery Images ({formData.images.length}/10)
-                    </label>
+                <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-800">
+                        Gallery Images ({formData.images.length}/10)
+                      </label>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Add clear photos that show the quality of your work.
+                      </p>
+                    </div>
                     <span className="text-sm text-gray-500">Max 2MB</span>
                   </div>
 
@@ -941,7 +1108,7 @@ const ServiceFormModal = ({
                     {formData.images.map((url, idx) => (
                       <div
                         key={idx}
-                        className="relative aspect-square rounded-xl overflow-hidden group border border-gray-100"
+                        className="group relative aspect-square overflow-hidden rounded-xl border border-gray-100"
                       >
                         <img
                           src={url}
@@ -951,7 +1118,7 @@ const ServiceFormModal = ({
                         />
                         <button
                           onClick={() => removeImage(idx)}
-                          className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 text-sm"
+                          className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white opacity-0 transition-all group-hover:opacity-100"
                           aria-label={`Remove image ${idx + 1}`}
                         >
                           <span className="material-symbols-outlined text-sm">
@@ -962,7 +1129,7 @@ const ServiceFormModal = ({
                     ))}
 
                     {formData.images.length < 10 && (
-                      <label className="aspect-square rounded-xl border-2 border-dashed border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 group">
+                      <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 transition-all hover:border-emerald-500 hover:bg-emerald-50">
                         <input
                           type="file"
                           accept="image/*"
@@ -982,16 +1149,21 @@ const ServiceFormModal = ({
                 </div>
 
                 {/* Video Upload */}
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 truncate">
-                      Service Video (Optional)
-                    </label>
+                <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-800">
+                        Service Video (Optional)
+                      </label>
+                      <p className="mt-1 text-xs text-gray-500">
+                        A short clip can help clients understand the service faster.
+                      </p>
+                    </div>
                     <span className="text-sm text-gray-500">Max 30MB</span>
                   </div>
 
                   {formData.video ? (
-                    <div className="relative rounded-xl overflow-hidden bg-black aspect-video group">
+                    <div className="group relative aspect-video overflow-hidden rounded-xl bg-black">
                       <video
                         src={formData.video}
                         controls
@@ -999,7 +1171,7 @@ const ServiceFormModal = ({
                       />
                       <button
                         onClick={removeVideo}
-                        className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110 z-10 text-sm"
+                        className="absolute right-2 top-2 z-10 rounded-full bg-red-500 p-1.5 text-white opacity-0 transition-all group-hover:opacity-100"
                         aria-label="Remove video"
                       >
                         <span className="material-symbols-outlined text-sm">
@@ -1008,7 +1180,7 @@ const ServiceFormModal = ({
                       </button>
                     </div>
                   ) : (
-                    <label className="w-full h-32 rounded-xl border-2 border-dashed border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer flex flex-col items-center justify-center gap-2 group p-2">
+                    <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 p-2 transition-all hover:border-emerald-500 hover:bg-emerald-50">
                       <input
                         type="file"
                         accept="video/*"
@@ -1027,11 +1199,15 @@ const ServiceFormModal = ({
 
                 {/* Upload Progress */}
                 {uploadingFiles.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                    <p className="mb-3 text-sm font-semibold text-gray-800">
+                      Upload Progress
+                    </p>
+                    <div className="space-y-2">
                     {uploadingFiles.map((file, idx) => (
                       <div
                         key={idx}
-                        className="bg-gray-50 rounded-lg p-3 flex items-center gap-3"
+                        className="flex items-center gap-3 rounded-xl bg-gray-50 p-3"
                       >
                         <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
                           <span className="material-symbols-outlined text-gray-500 text-sm">
@@ -1056,6 +1232,7 @@ const ServiceFormModal = ({
                         </div>
                       </div>
                     ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1063,48 +1240,59 @@ const ServiceFormModal = ({
           </div>
 
           {/* Footer */}
-          <div className="px-6 lg:px-8 py-4 lg:py-6 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center">
-            {step > 1 ? (
-              <button
-                onClick={() => setStep((prev) => prev - 1)}
-                className="px-5 py-2.5 text-gray-600 text-sm font-medium hover:bg-gray-100 rounded-xl transition-colors flex items-center gap-1.5"
-              >
-                <span className="material-symbols-outlined text-lg">
-                  arrow_back
-                </span>
-                <span>Back</span>
-              </button>
-            ) : (
-              <button
-                onClick={onClose}
-                className="px-5 py-2.5 text-gray-600 text-sm font-medium hover:bg-gray-100 rounded-xl transition-colors flex items-center gap-1.5"
-              >
-                <span className="material-symbols-outlined text-lg">close</span>
-                <span>Cancel</span>
-              </button>
-            )}
+          <div className="border-t border-gray-100 bg-white px-6 py-4 lg:px-8">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-gray-500">
+                {step === 1
+                  ? "Complete the basics to continue."
+                  : step === 2
+                    ? "Add enough detail so clients know what to expect."
+                    : "Review your media, then publish the service."}
+              </p>
+              <div className="flex items-center gap-3">
+                {step > 1 ? (
+                  <button
+                    onClick={() => setStep((prev) => prev - 1)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      arrow_back
+                    </span>
+                    Back
+                  </button>
+                ) : (
+                  <button
+                    onClick={onClose}
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                  >
+                    <span className="material-symbols-outlined text-base">close</span>
+                    Cancel
+                  </button>
+                )}
 
-            <button
-              onClick={step === 3 ? handleSubmit : handleNext}
-              disabled={
-                createServiceMutation.isPending ||
-                updateServiceMutation.isPending ||
-                uploadingFiles.length > 0
-              }
-              className="px-6 py-2.5 lg:px-8 lg:py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[120px]"
-            >
-              {(createServiceMutation.isPending ||
-                updateServiceMutation.isPending) && (
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin flex-shrink-0" />
-              )}
-              <span>
-                {step === 3
-                  ? isEditMode
-                    ? "Save Changes"
-                    : "Create Service"
-                  : "Continue"}
-              </span>
-            </button>
+                <button
+                  onClick={step === 3 ? handleSubmit : handleNext}
+                  disabled={
+                    createServiceMutation.isPending ||
+                    updateServiceMutation.isPending ||
+                    uploadingFiles.length > 0
+                  }
+                  className="inline-flex min-w-[160px] items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {(createServiceMutation.isPending ||
+                    updateServiceMutation.isPending) && (
+                    <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  )}
+                  <span>
+                    {step === 3
+                      ? isEditMode
+                        ? "Save Changes"
+                        : "Create Service"
+                      : "Continue"}
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
         </motion.div>
       </motion.div>
