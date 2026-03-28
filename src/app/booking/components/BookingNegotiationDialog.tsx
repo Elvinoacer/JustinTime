@@ -1,6 +1,9 @@
 import React, { Dispatch, SetStateAction } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, DollarSign } from "lucide-react";
+import type { ProfessionalDetail } from "@/lib/api/hooks/useProfessional";
+
+type BookingService = ProfessionalDetail["services"][number];
 
 interface BookingNegotiationDialogProps {
   showNegotiationDialog: boolean;
@@ -10,8 +13,14 @@ interface BookingNegotiationDialogProps {
     proposedLocation: string;
     message: string;
   };
-  setNegotiationData: Dispatch<SetStateAction<any>>;
-  selectedServiceData: any;
+  setNegotiationData: Dispatch<
+    SetStateAction<{
+      proposedPrice: string;
+      proposedLocation: string;
+      message: string;
+    }>
+  >;
+  selectedServiceData?: BookingService;
   handleSubmit: (withNegotiation?: boolean) => void;
 }
 
@@ -34,7 +43,7 @@ export default function BookingNegotiationDialog({
           onClick={() => setShowNegotiationDialog(false)}
         >
           <motion.div
-            className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-md w-full p-4 sm:p-6"
+            className="w-full max-w-md rounded-[1.75rem] bg-white p-5 shadow-2xl sm:p-6"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
@@ -52,18 +61,25 @@ export default function BookingNegotiationDialog({
               </button>
             </div>
 
-            <p className="text-gray-600 text-sm sm:text-base mb-4 sm:mb-6">
+            <p className="mb-4 text-sm leading-6 text-slate-600 sm:mb-6">
               Propose alternative pricing or location. The provider will review
               and respond.
             </p>
 
+            <div className="mb-4 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-800">
+              Current service price: Kes{" "}
+              {selectedServiceData?.price?.toLocaleString() || "0"}.
+              Use negotiation only if you need to suggest a different budget or
+              meeting setup.
+            </div>
+
             <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   Proposed Price (Optional)
                 </label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+                  <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                   <input
                     type="number"
                     value={negotiationData.proposedPrice}
@@ -74,17 +90,17 @@ export default function BookingNegotiationDialog({
                       })
                     }
                     placeholder={selectedServiceData?.price.toString()}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                    className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition-colors focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 sm:text-base"
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="mt-1 text-xs text-slate-500">
                   Current price: Kes{" "}
                   {selectedServiceData?.price.toLocaleString() || "0"}
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   Proposed Location (Optional)
                 </label>
                 <input
@@ -97,12 +113,12 @@ export default function BookingNegotiationDialog({
                     })
                   }
                   placeholder="Alternative meeting location"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 sm:text-base"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   Message (Optional)
                 </label>
                 <textarea
@@ -115,7 +131,7 @@ export default function BookingNegotiationDialog({
                   }
                   placeholder="Explain your proposed changes..."
                   rows={3}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base resize-none"
+                  className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-sky-500 focus:ring-4 focus:ring-sky-500/10 sm:text-base"
                 />
               </div>
 

@@ -38,6 +38,9 @@ export interface ProfessionalDetail {
     categoryId: string;
     price: number;
     pricingUnit: string;
+    defaultDuration?: number | null;
+    locationType?: string | null;
+    location?: string | null;
     images: string[];
   }[];
   reviews: {

@@ -130,6 +130,9 @@ export async function GET(
         categoryId: service.categoryId,
         price: Number(service.price),
         pricingUnit: service.pricingUnit,
+        defaultDuration: service.defaultDuration,
+        locationType: service.locationType,
+        location: service.location,
         images: service.images,
       })),
       reviews: provider.receivedReviews.map(review => ({

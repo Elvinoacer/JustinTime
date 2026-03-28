@@ -1,6 +1,12 @@
 import React, { Dispatch, SetStateAction } from "react";
 import { format, isBefore, startOfDay } from "date-fns";
-import { ChevronRight, Calendar as CalendarIcon, CheckCircle, AlertCircle, Clock, CalendarClock } from "lucide-react";
+import {
+  AlertCircle,
+  Calendar as CalendarIcon,
+  CalendarClock,
+  CheckCircle,
+  Clock,
+} from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -14,7 +20,6 @@ interface BookingDateTimeSelectionProps {
   availableSlotsPerDate: Record<string, string[]>;
   disabledDates: string[];
   disabledReasons: Record<string, string>;
-  setShowMobileDatePicker: Dispatch<SetStateAction<boolean>>;
   fetchMonthlyAvailability: (monthStr: string) => void;
   totalSlots: number;
 }
@@ -28,42 +33,41 @@ export default function BookingDateTimeSelection({
   availableSlotsPerDate,
   disabledDates,
   disabledReasons,
-  setShowMobileDatePicker,
   fetchMonthlyAvailability,
   totalSlots,
 }: BookingDateTimeSelectionProps) {
+  type CalendarDayButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    day: { date: Date };
+  };
+
   return (
     <>
-      {/* Date Selection */}
-      <div className="space-y-3">
-        <label className="block text-base sm:text-lg font-bold text-gray-900">
-          Select Date <span className="text-red-600">*</span>
-        </label>
-
-        {/* Mobile Date Picker Button */}
-        <button
-          type="button"
-          onClick={() => setShowMobileDatePicker(true)}
-          className="lg:hidden w-full p-4 bg-white border-2 border-dashed border-gray-300 rounded-xl hover:border-emerald-400 transition-colors flex items-center justify-between"
-        >
-          <div className="flex items-center gap-3">
-            <CalendarIcon className="w-5 h-5 text-gray-400" />
-            <div className="text-left">
-              <div className="text-sm font-medium text-gray-900">
-                {selectedDates.length > 0
-                  ? `${selectedDates.length} date${
-                      selectedDates.length > 1 ? "s" : ""
-                    } selected`
-                  : "Tap to select dates"}
-              </div>
-              <div className="text-xs text-gray-500">Select available dates</div>
-            </div>
+      <div className="space-y-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <label className="block text-lg font-bold text-slate-950">
+              Choose date
+            </label>
+            <p className="mt-1 text-sm text-slate-600">
+              Select one or more available dates for this service.
+            </p>
           </div>
-          <ChevronRight className="w-5 h-5 text-gray-400" />
-        </button>
+          {selectedDates.length > 0 ? (
+            <span className="inline-flex items-center gap-2 self-start rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-800">
+              <CalendarIcon className="h-3.5 w-3.5" />
+              {selectedDates.length} date{selectedDates.length > 1 ? "s" : ""} selected
+            </span>
+          ) : null}
+        </div>
 
-        {/* Desktop Calendar */}
-        <div className="hidden lg:block bg-white border border-gray-300 rounded-2xl shadow-sm p-6">
+        {!selectedService ? (
+          <div className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            Select a service first to unlock availability.
+          </div>
+        ) : null}
+
+        <div className="rounded-[1.5rem] border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
           <Calendar
             mode="multiple"
             selected={selectedDates}
@@ -79,20 +83,15 @@ export default function BookingDateTimeSelection({
                       ? disabledReasons[dateStr] || "This date is not available"
                       : "Cannot select past dates";
                     toast.error(reason, {
-                      description: "Please select a different date",
+                      description: "Please choose another date",
                     });
                     return false;
                   }
+
                   return true;
                 });
+
                 setSelectedDates(validDates);
-                if (validDates.length > 0) {
-                  toast.success(
-                    `${validDates.length} date${
-                      validDates.length > 1 ? "s" : ""
-                    } selected`
-                  );
-                }
               } else {
                 setSelectedDates([]);
               }
@@ -102,33 +101,36 @@ export default function BookingDateTimeSelection({
               (date) => disabledDates.includes(format(date, "yyyy-MM-dd")),
             ]}
             onMonthChange={(month) => {
-              const monthStr = format(month, "yyyy-MM");
-              fetchMonthlyAvailability(monthStr);
+              fetchMonthlyAvailability(format(month, "yyyy-MM"));
             }}
             className="w-full"
             classNames={{
               months: "w-full",
               month: "w-full space-y-4",
-              month_caption: "flex justify-center pt-1 relative items-center h-9 mb-4",
-              caption_label: "text-lg font-bold text-gray-900",
-              button_previous: "absolute left-0 h-9 w-9",
-              button_next: "absolute right-0 h-9 w-9",
-              weekdays: "flex w-full justify-between px-1",
-              weekday: "text-gray-900 font-medium text-sm w-14 text-center",
-              week: "flex w-full justify-between px-1 mt-2",
-              day: "w-14",
+              month_caption:
+                "flex justify-center pt-1 relative items-center h-9 mb-4",
+              caption_label: "text-lg font-bold text-slate-950",
+              button_previous:
+                "absolute left-0 h-9 w-9 rounded-full border border-slate-200 bg-white",
+              button_next:
+                "absolute right-0 h-9 w-9 rounded-full border border-slate-200 bg-white",
+              weekdays: "grid grid-cols-7 gap-1 sm:gap-2",
+              weekday:
+                "text-slate-500 font-semibold text-[11px] sm:text-xs uppercase tracking-wide text-center",
+              week: "grid grid-cols-7 gap-1 sm:gap-2 mt-2",
+              day: "w-full",
             }}
             components={{
-              DayButton: ({ day, ...props }: any) => {
+              DayButton: ({ day, ...props }: CalendarDayButtonProps) => {
                 const dateStr = format(day.date, "yyyy-MM-dd");
-                const isOutside = props["data-outside"];
                 const isPast = isBefore(day.date, startOfDay(new Date()));
                 const isInDisabledList = disabledDates.includes(dateStr);
                 const isDisabled = isPast || isInDisabledList;
                 const isSelected =
                   !isDisabled &&
                   selectedDates.some(
-                    (d) => format(d, "yyyy-MM-dd") === dateStr
+                    (selectedDate) =>
+                      format(selectedDate, "yyyy-MM-dd") === dateStr,
                   );
                 const isToday =
                   day.date.toDateString() === new Date().toDateString();
@@ -137,20 +139,20 @@ export default function BookingDateTimeSelection({
                   <button
                     {...props}
                     disabled={isDisabled}
-                    className={`relative w-full h-12 text-sm font-medium rounded-full transition-all duration-200 ${
+                    className={`relative h-11 w-full rounded-2xl text-sm font-semibold transition-all sm:h-12 ${
                       isDisabled
-                        ? "text-gray-400 line-through opacity-50 cursor-not-allowed bg-gray-100"
+                        ? "cursor-not-allowed bg-slate-100 text-slate-300 line-through"
                         : isSelected
-                        ? "bg-gradient-to-br from-emerald-500 to-emerald-600 text-white border-[3px] border-emerald-700 shadow-[0_0_0_4px_rgba(16,185,129,0.2)]"
-                        : isToday
-                        ? "bg-emerald-50 font-bold text-emerald-600 border-2 border-emerald-300"
-                        : "text-gray-900 hover:bg-gray-100"
-                    } ${isOutside ? "text-gray-400" : ""}`}
+                          ? "bg-emerald-600 text-white shadow-[0_0_0_4px_rgba(16,185,129,0.18)]"
+                          : isToday
+                            ? "border-2 border-emerald-300 bg-emerald-50 text-emerald-700"
+                            : "bg-slate-50 text-slate-800 hover:bg-slate-100"
+                    }`}
                   >
                     {day.date.getDate()}
-                    {isSelected && !isDisabled && (
-                      <CheckCircle className="absolute -top-1 -right-1 w-4 h-4 bg-white text-emerald-600 rounded-full p-0.5 shadow-md" />
-                    )}
+                    {isSelected && !isDisabled ? (
+                      <CheckCircle className="absolute -right-1 -top-1 h-4 w-4 rounded-full bg-white text-emerald-600" />
+                    ) : null}
                   </button>
                 );
               },
@@ -158,26 +160,26 @@ export default function BookingDateTimeSelection({
           />
         </div>
 
-        {selectedDates.length > 0 && (
-          <div className="p-3 sm:p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-            <p className="text-sm font-bold text-emerald-900 mb-2">
-              {selectedDates.length} Date
-              {selectedDates.length > 1 ? "s" : ""} Selected
+        {selectedDates.length > 0 ? (
+          <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50/80 p-4">
+            <p className="text-sm font-bold text-emerald-900">
+              Selected dates
             </p>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="mt-3 flex flex-wrap gap-2">
               {selectedDates.map((date, idx) => (
                 <span
-                  key={idx}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-emerald-300 rounded-full text-xs font-medium text-emerald-700"
+                  key={`${format(date, "yyyy-MM-dd")}-${idx}`}
+                  className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-medium text-emerald-800"
                 >
-                  {format(date, "MMM d")}
+                  {format(date, "EEE, MMM d")}
                   <button
+                    type="button"
                     onClick={() => {
                       setSelectedDates((prev) =>
-                        prev.filter((_, i) => i !== idx)
+                        prev.filter((_, i) => i !== idx),
                       );
                     }}
-                    className="ml-0.5 hover:text-emerald-900"
+                    className="text-emerald-700 hover:text-emerald-900"
                   >
                     ×
                   </button>
@@ -185,26 +187,31 @@ export default function BookingDateTimeSelection({
               ))}
             </div>
           </div>
-        )}
-
-        {!selectedService && (
-          <div className="flex items-center gap-2 text-sm text-amber-700 font-medium p-3 bg-amber-50 rounded-lg">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            Please select a service first to view available dates.
-          </div>
-        )}
+        ) : null}
       </div>
 
-      {/* Time Selection */}
-      {selectedDates.length > 0 && (
+      {selectedDates.length > 0 ? (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
-          className="overflow-hidden space-y-3 sm:space-y-4 pt-4"
+          className="overflow-hidden space-y-4 pt-2"
         >
-          <label className="block text-base sm:text-lg font-bold text-gray-900">
-            Select Time Slots <span className="text-red-600">*</span>
-          </label>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <label className="block text-lg font-bold text-slate-950">
+                Pick time slots
+              </label>
+              <p className="mt-1 text-sm text-slate-600">
+                Choose one or more available times for each selected day.
+              </p>
+            </div>
+            {totalSlots > 0 ? (
+              <span className="inline-flex items-center gap-2 self-start rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                <Clock className="h-3.5 w-3.5" />
+                {totalSlots} slot{totalSlots > 1 ? "s" : ""} selected
+              </span>
+            ) : null}
+          </div>
 
           {selectedDates.map((date) => {
             const dateStr = format(date, "yyyy-MM-dd");
@@ -214,22 +221,29 @@ export default function BookingDateTimeSelection({
             return (
               <div
                 key={dateStr}
-                className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-3 sm:p-4 space-y-2 sm:space-y-3"
+                className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
               >
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-gray-900 text-sm sm:text-base">
-                    {format(date, "EEE, MMM d")}
-                  </h3>
-                  <span className="text-xs sm:text-sm font-medium text-emerald-600">
-                    {selectedSlots.length} slot
-                    {selectedSlots.length !== 1 ? "s" : ""} selected
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-950">
+                      {format(date, "EEEE, MMM d")}
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {slots.length > 0
+                        ? `${slots.length} available slot${slots.length > 1 ? "s" : ""}`
+                        : "No currently available slots"}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                    {selectedSlots.length} chosen
                   </span>
                 </div>
 
                 {slots.length > 0 ? (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-1.5 sm:gap-2">
-                    {slots.map((time: string) => {
+                  <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+                    {slots.map((time) => {
                       const isSelected = selectedSlots.includes(time);
+
                       return (
                         <button
                           key={time}
@@ -238,18 +252,19 @@ export default function BookingDateTimeSelection({
                             setSelectedTimeSlots((prev) => {
                               const currentSlots = prev[dateStr] || [];
                               const newSlots = isSelected
-                                ? currentSlots.filter((t) => t !== time)
+                                ? currentSlots.filter((slot) => slot !== time)
                                 : [...currentSlots, time];
+
                               return {
                                 ...prev,
                                 [dateStr]: newSlots,
                               };
                             });
                           }}
-                          className={`py-1.5 sm:py-2 px-1.5 sm:px-2 rounded-md sm:rounded-lg font-semibold text-xs sm:text-sm transition-all ${
+                          className={`rounded-xl px-2 py-2.5 text-sm font-semibold transition-all ${
                             isSelected
-                              ? "bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-sm"
-                              : "bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200"
+                              ? "bg-emerald-600 text-white shadow-sm"
+                              : "border border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
                           }`}
                         >
                           {time}
@@ -258,10 +273,10 @@ export default function BookingDateTimeSelection({
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-4 bg-gray-50 rounded-lg">
-                    <Clock className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-600 text-xs sm:text-sm">
-                      No available slots for this date
+                  <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-5 text-center">
+                    <Clock className="mx-auto h-5 w-5 text-slate-400" />
+                    <p className="mt-2 text-sm text-slate-600">
+                      No available slots for this date.
                     </p>
                   </div>
                 )}
@@ -269,44 +284,43 @@ export default function BookingDateTimeSelection({
             );
           })}
 
-          {/* Summary of selected slots */}
-          {totalSlots > 0 && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg sm:rounded-xl p-3 sm:p-4 mt-4">
-              <h4 className="font-bold text-emerald-900 text-sm sm:text-base mb-2 flex items-center gap-1.5">
-                <CalendarClock className="w-4 h-4 sm:w-5 sm:h-5" />
-                Selected Appointments ({totalSlots})
+          {totalSlots > 0 ? (
+            <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50/80 p-4">
+              <h4 className="flex items-center gap-2 text-sm font-bold text-emerald-900">
+                <CalendarClock className="h-4 w-4" />
+                Selected appointments
               </h4>
-              <div className="space-y-1.5">
+              <div className="mt-3 space-y-2.5">
                 {Object.entries(selectedTimeSlots).map(([dateStr, slots]) => {
                   if (slots.length === 0) return null;
                   const date = selectedDates.find(
-                    (d) => format(d, "yyyy-MM-dd") === dateStr
+                    (selectedDate) =>
+                      format(selectedDate, "yyyy-MM-dd") === dateStr,
                   );
+
                   return (
-                    <div
-                      key={dateStr}
-                      className="flex flex-wrap gap-1.5 sm:gap-2 items-center"
-                    >
-                      <span className="text-xs sm:text-sm font-medium text-emerald-800 min-w-[60px] sm:min-w-[80px]">
-                        {date && format(date, "MMM d")}:
-                      </span>
-                      <div className="flex flex-wrap gap-1">
+                    <div key={dateStr} className="rounded-2xl bg-white p-3">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {date ? format(date, "EEE, MMM d") : dateStr}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
                         {slots.map((time) => (
                           <span
                             key={time}
-                            className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-white border border-emerald-300 rounded text-xs font-medium text-emerald-700"
+                            className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800"
                           >
                             {time}
                             <button
+                              type="button"
                               onClick={() => {
                                 setSelectedTimeSlots((prev) => ({
                                   ...prev,
                                   [dateStr]: prev[dateStr].filter(
-                                    (t) => t !== time
+                                    (slot) => slot !== time,
                                   ),
                                 }));
                               }}
-                              className="hover:text-emerald-900 text-xs"
+                              className="hover:text-emerald-950"
                             >
                               ×
                             </button>
@@ -318,9 +332,9 @@ export default function BookingDateTimeSelection({
                 })}
               </div>
             </div>
-          )}
+          ) : null}
         </motion.div>
-      )}
+      ) : null}
     </>
   );
 }

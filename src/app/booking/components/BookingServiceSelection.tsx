@@ -1,11 +1,28 @@
 import React, { Dispatch, SetStateAction } from "react";
-import { CheckCircle, AlertCircle } from "lucide-react";
+import Image from "next/image";
+import { CheckCircle, Clock3, MapPin } from "lucide-react";
 import { formatCurrency } from "@/lib/financials";
+import type { ProfessionalDetail } from "@/lib/api/hooks/useProfessional";
 
 interface BookingServiceSelectionProps {
-  professional: any;
+  professional: ProfessionalDetail;
   selectedService: string;
   setSelectedService: Dispatch<SetStateAction<string>>;
+}
+
+function getLocationLabel(locationType?: string | null) {
+  switch (locationType) {
+    case "CLIENT_LOCATION":
+      return "At your location";
+    case "PROVIDER_LOCATION":
+      return "At provider location";
+    case "REMOTE":
+      return "Remote";
+    case "NEGOTIABLE":
+      return "Location negotiable";
+    default:
+      return "Flexible location";
+  }
 }
 
 export default function BookingServiceSelection({
@@ -14,50 +31,92 @@ export default function BookingServiceSelection({
   setSelectedService,
 }: BookingServiceSelectionProps) {
   return (
-    <div className="space-y-3">
-      <label className="block text-base sm:text-lg font-bold text-gray-900">
-        Select Service <span className="text-red-600">*</span>
-      </label>
+    <div className="space-y-4">
+      <div>
+        <label className="block text-lg font-bold text-slate-950">
+          Choose a service
+        </label>
+        <p className="mt-1 text-sm text-slate-600">
+          Pick the exact service you want to schedule so pricing and timing stay
+          accurate.
+        </p>
+      </div>
+
       <div className="space-y-3">
         {professional.services.length === 0 ? (
-          <p className="text-gray-500 text-sm">No services available</p>
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+            No services available right now.
+          </div>
         ) : (
-          professional.services.map((service: any) => (
-            <div
-              key={service.id}
-              onClick={() => setSelectedService(service.id)}
-              className={`p-3 sm:p-4 border-2 rounded-lg sm:rounded-xl cursor-pointer transition-all ${
-                selectedService === service.id
-                  ? "border-emerald-500 bg-emerald-50"
-                  : "border-gray-200 hover:border-emerald-300"
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1 pr-2">
-                  <h3 className="font-bold text-gray-900 text-sm sm:text-base mb-1">
-                    {service.title}
-                  </h3>
-                  <p className="text-gray-600 text-xs sm:text-sm mb-2 line-clamp-2">
-                    {service.description}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                    <span className="text-emerald-600 font-bold">
-                      {formatCurrency(service.price)}
-                    </span>
-                    <span className="text-gray-500">{service.pricingUnit}</span>
-                    {service.defaultDuration && (
-                      <span className="text-gray-500">
-                        · {service.defaultDuration} min
-                      </span>
+          professional.services.map((service) => {
+            const isSelected = selectedService === service.id;
+
+            return (
+              <button
+                key={service.id}
+                type="button"
+                onClick={() => setSelectedService(service.id)}
+                className={`w-full overflow-hidden rounded-[1.5rem] border text-left transition-all ${
+                  isSelected
+                    ? "border-emerald-400 bg-emerald-50/70 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
+                    : "border-slate-200 bg-white hover:border-emerald-200 hover:shadow-sm"
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row">
+                  <div className="relative h-40 shrink-0 overflow-hidden sm:h-auto sm:w-44">
+                    {service.images?.[0] ? (
+                      <Image
+                        src={service.images[0]}
+                        alt={service.title}
+                        fill
+                        className="object-cover"
+                        sizes="176px"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
                     )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 to-transparent" />
+                    <div className="absolute bottom-3 left-3 rounded-full bg-white/92 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-900">
+                      {service.pricingUnit}
+                    </div>
+                  </div>
+
+                  <div className="flex min-w-0 flex-1 flex-col justify-between p-4 sm:p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="text-base font-bold text-slate-950 sm:text-lg">
+                          {service.title}
+                        </h3>
+                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
+                          {service.description}
+                        </p>
+                      </div>
+                      {isSelected ? (
+                        <CheckCircle className="h-6 w-6 shrink-0 text-emerald-600" />
+                      ) : null}
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2.5 text-xs sm:text-sm">
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800">
+                        {formatCurrency(service.price)}
+                      </span>
+                      {service.defaultDuration ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700">
+                          <Clock3 className="h-3.5 w-3.5" />
+                          {service.defaultDuration} min
+                        </span>
+                      ) : null}
+                      <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700">
+                        <MapPin className="h-3.5 w-3.5" />
+                        {getLocationLabel(service.locationType)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                {selectedService === service.id && (
-                  <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 flex-shrink-0" />
-                )}
-              </div>
-            </div>
-          ))
+              </button>
+            );
+          })
         )}
       </div>
     </div>

@@ -1,15 +1,26 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useProfessional } from "@/lib/api/hooks/useProfessional";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
+import { useCallback } from "react";
+import { motion } from "framer-motion";
+import { format } from "date-fns";
+import { useProfessional, type ProfessionalDetail } from "@/lib/api/hooks/useProfessional";
+import { calculateBookingBreakdown, formatCurrency } from "@/lib/financials";
 import { useSearchParams, useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
-import { format } from "date-fns";
-import { Loader2, ChevronLeft, Handshake, CheckCircle, ChevronRight, User } from "lucide-react";
+import {
+  CalendarClock,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Handshake,
+  Loader2,
+  ShieldCheck,
+  User,
+} from "lucide-react";
 import { useBookingFormState } from "./hooks/useBookingFormState";
 
 import BookingServiceSelection from "./components/BookingServiceSelection";
@@ -17,6 +28,41 @@ import BookingDateTimeSelection from "./components/BookingDateTimeSelection";
 import BookingLocationDetails from "./components/BookingLocationDetails";
 import BookingSummarySidebar from "./components/BookingSummarySidebar";
 import BookingNegotiationDialog from "./components/BookingNegotiationDialog";
+
+type BookingService = ProfessionalDetail["services"][number];
+
+const STEPS = [
+  {
+    step: 1,
+    title: "Service & schedule",
+    description: "Pick what you need and when you want it done.",
+  },
+  {
+    step: 2,
+    title: "Location & contact",
+    description: "Add the details the professional needs to prepare.",
+  },
+  {
+    step: 3,
+    title: "Review & confirm",
+    description: "Double-check the request and submit it.",
+  },
+];
+
+function getLocationLabel(locationType?: string | null) {
+  switch (locationType) {
+    case "CLIENT_LOCATION":
+      return "At your location";
+    case "PROVIDER_LOCATION":
+      return "At provider location";
+    case "REMOTE":
+      return "Remote";
+    case "NEGOTIABLE":
+      return "Location negotiable";
+    default:
+      return "Flexible location";
+  }
+}
 
 function BookingPageContent() {
   const searchParams = useSearchParams();
@@ -28,9 +74,9 @@ function BookingPageContent() {
   const { data, isLoading } = useProfessional(professionalId || "");
   const professional = data?.data;
 
-  const { state, setters, actions, isInitialized } = useBookingFormState(professionalId);
-  
-  // Destructure state for easier access
+  const { state, setters, actions, isInitialized } =
+    useBookingFormState(professionalId);
+
   const {
     serviceId: selectedService,
     selectedDates,
@@ -39,7 +85,7 @@ function BookingPageContent() {
     notes,
     clientPhone,
     clientAddress,
-    promoCode
+    promoCode,
   } = state;
 
   const {
@@ -50,14 +96,17 @@ function BookingPageContent() {
     setNotes,
     setClientPhone,
     setClientAddress,
-    setPromoCode
+    setPromoCode,
   } = setters;
 
-  // Additional component states
   const [currentStep, setCurrentStep] = useState(1);
-  const [availableSlotsPerDate, setAvailableSlotsPerDate] = useState<Record<string, string[]>>({});
+  const [availableSlotsPerDate, setAvailableSlotsPerDate] = useState<
+    Record<string, string[]>
+  >({});
   const [disabledDates, setDisabledDates] = useState<string[]>([]);
-  const [disabledReasons, setDisabledReasons] = useState<Record<string, string>>({});
+  const [disabledReasons, setDisabledReasons] = useState<Record<string, string>>(
+    {},
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showNegotiationDialog, setShowNegotiationDialog] = useState(false);
   const [negotiationData, setNegotiationData] = useState({
@@ -65,88 +114,167 @@ function BookingPageContent() {
     proposedLocation: "",
     message: "",
   });
-  const [showMobileDatePicker, setShowMobileDatePicker] = useState(false);
   const [appliedPromo, setAppliedPromo] = useState("");
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
   const [promoError, setPromoError] = useState("");
 
-  // Set initial service from URL if provided and not already set by draft
   useEffect(() => {
     if (serviceIdParam && isInitialized && !selectedService) {
       setSelectedService(serviceIdParam);
     }
   }, [serviceIdParam, isInitialized, selectedService, setSelectedService]);
 
-  // Fetch available slots when dates change
-  useEffect(() => {
-    if (selectedDates.length > 0 && selectedService && professionalId) {
-      selectedDates.forEach((date) => {
-        const dateStr = format(date, "yyyy-MM-dd");
-        if (!availableSlotsPerDate[dateStr]) {
-          fetchAvailableSlotsForDate(dateStr);
-        }
-      });
-    }
-  }, [selectedDates, selectedService, professionalId]);
+  const selectedServiceData = useMemo<BookingService | undefined>(
+    () => professional?.services.find((service) => service.id === selectedService),
+    [professional?.services, selectedService],
+  );
 
-  // Fetch monthly availability when professional loads
-  useEffect(() => {
-    if (professionalId) {
-      const currentMonth = new Date().toISOString().slice(0, 7);
-      fetchMonthlyAvailability(currentMonth);
-    }
-  }, [professionalId]);
+  const totalSlots = useMemo(
+    () =>
+      Object.values(selectedTimeSlots).reduce(
+        (sum, slots) => sum + slots.length,
+        0,
+      ),
+    [selectedTimeSlots],
+  );
 
-  const fetchMonthlyAvailability = async (month: string) => {
+  const totalMinutes = totalSlots * (selectedServiceData?.defaultDuration || 60);
+  const baseAmount = totalSlots * Number(selectedServiceData?.price || 0);
+  const breakdown = calculateBookingBreakdown(baseAmount, promoDiscount);
+  const yearsActive = professional
+    ? Math.max(
+        1,
+        new Date().getFullYear() -
+          new Date(professional.memberSince).getFullYear(),
+      )
+    : 0;
+
+  const canProceedToStep2 =
+    Boolean(selectedService) && selectedDates.length > 0 && totalSlots > 0;
+  const canProceedToStep3 =
+    clientPhone.trim().length > 0 &&
+    clientAddress.trim().length > 0 &&
+    (selectedServiceData?.locationType !== "CLIENT_LOCATION" ||
+      location.trim().length > 0);
+
+  const heroStats = [
+    {
+      label: "Rating",
+      value: professional ? professional.averageRating.toFixed(1) : "0.0",
+      hint: professional ? `${professional.totalReviews} reviews` : "No reviews yet",
+    },
+    {
+      label: "Completed jobs",
+      value: professional ? String(professional.completedJobs) : "0",
+      hint: "Completed on JustInTime",
+    },
+    {
+      label: "Years active",
+      value: String(yearsActive),
+      hint: "Based on member since date",
+    },
+  ];
+
+  const bookingInsights = useMemo(() => {
+    const items: string[] = [];
+
+    if (selectedServiceData) {
+      items.push(
+        `${getLocationLabel(selectedServiceData.locationType)} for ${selectedServiceData.title}.`,
+      );
+    }
+    if (totalSlots > 0) {
+      items.push(
+        `You have selected ${totalSlots} slot${
+          totalSlots > 1 ? "s" : ""
+        } totaling ${
+          totalMinutes >= 60
+            ? `${(totalMinutes / 60).toFixed(totalMinutes % 60 === 0 ? 0 : 1)} hours`
+            : `${totalMinutes} minutes`
+        }.`,
+      );
+    }
+    if (baseAmount > 0) {
+      items.push(
+        `Current estimate is ${formatCurrency(
+          breakdown.totalAmount,
+        )}, including taxes and the Happiness Pledge.`,
+      );
+    }
+
+    return items;
+  }, [selectedServiceData, totalSlots, totalMinutes, baseAmount, breakdown.totalAmount]);
+
+  const fetchMonthlyAvailability = useCallback(async (month: string) => {
     try {
       const url = `/api/provider/availability/month?providerId=${professionalId}&month=${month}&serviceId=${selectedService || ""}`;
       const response = await fetch(url);
+
       if (response.ok) {
-        const data = await response.json();
-        setDisabledDates(data.disabledDates || []);
-        setDisabledReasons(data.reasons || {});
+        const availability = await response.json();
+        setDisabledDates(availability.disabledDates || []);
+        setDisabledReasons(availability.reasons || {});
       }
     } catch (error) {
       console.error("Error fetching monthly availability:", error);
     }
-  };
+  }, [professionalId, selectedService]);
 
-  const fetchAvailableSlotsForDate = async (dateStr: string) => {
+  const fetchAvailableSlotsForDate = useCallback(async (dateStr: string) => {
     try {
-      const service = professional?.services.find((s: any) => s.id === selectedService);
-      const duration = (service as any)?.defaultDuration || 60;
+      const duration = selectedServiceData?.defaultDuration || 60;
       const response = await fetch(
-        `/api/provider/availability/check?providerId=${professionalId}&date=${dateStr}&duration=${duration}&serviceId=${selectedService}`
+        `/api/provider/availability/check?providerId=${professionalId}&date=${dateStr}&duration=${duration}&serviceId=${selectedService}`,
       );
+
       if (response.ok) {
-        const data = await response.json();
+        const result = await response.json();
         setAvailableSlotsPerDate((prev) => ({
           ...prev,
-          [dateStr]: data.slots || [],
+          [dateStr]: result.slots || [],
         }));
       }
     } catch (error) {
       console.error(`Error fetching slots for ${dateStr}:`, error);
     }
-  };
+  }, [professionalId, selectedService, selectedServiceData?.defaultDuration]);
 
-  const totalSlots = Object.values(selectedTimeSlots).reduce((sum, slots) => sum + slots.length, 0);
-  const selectedServiceData = professional?.services.find((s: any) => s.id === selectedService);
+  useEffect(() => {
+    if (selectedDates.length > 0 && selectedService && professionalId) {
+      selectedDates.forEach((date) => {
+        const dateStr = format(date, "yyyy-MM-dd");
+        if (!availableSlotsPerDate[dateStr]) {
+          void fetchAvailableSlotsForDate(dateStr);
+        }
+      });
+    }
+  }, [
+    selectedDates,
+    selectedService,
+    professionalId,
+    availableSlotsPerDate,
+    fetchAvailableSlotsForDate,
+  ]);
 
-  const canProceedToStep2 = selectedService && selectedDates.length > 0 && totalSlots > 0;
-  const canProceedToStep3 = clientPhone.trim() && clientAddress.trim() && 
-    ((selectedServiceData as any)?.locationType !== "CLIENT_LOCATION" || location.trim());
+  useEffect(() => {
+    if (professionalId) {
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      void fetchMonthlyAvailability(currentMonth);
+    }
+  }, [professionalId, fetchMonthlyAvailability]);
 
   const handleNextStep = () => {
     if (currentStep === 1 && !canProceedToStep2) {
-      toast.error("Please select a service, date, and time slot.");
+      toast.error("Choose a service, date, and time slot first.");
       return;
     }
+
     if (currentStep === 2 && !canProceedToStep3) {
-      toast.error("Please fill in all required contact and location fields.");
+      toast.error("Add your contact and location details to continue.");
       return;
     }
+
     setCurrentStep((prev) => Math.min(prev + 1, 3));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -157,7 +285,9 @@ function BookingPageContent() {
   };
 
   const handleLoginRedirect = () => {
-    router.push(`/auth/login?callbackUrl=/booking?professional=${professionalId}`);
+    router.push(
+      `/auth/login?callbackUrl=/booking?professional=${professionalId}${serviceIdParam ? `&service=${serviceIdParam}` : ""}`,
+    );
   };
 
   const handleSubmit = async (withNegotiation = false) => {
@@ -170,17 +300,22 @@ function BookingPageContent() {
     setIsSubmitting(true);
 
     try {
-      const service = professional?.services.find((s: any) => s.id === selectedService);
-      const duration = (service as any)?.defaultDuration || 60;
+      const duration = selectedServiceData?.defaultDuration || 60;
 
       const slots = [];
       for (const [dateStr, timeSlots] of Object.entries(selectedTimeSlots)) {
         for (const startTime of timeSlots) {
-          const date = selectedDates.find((d) => format(d, "yyyy-MM-dd") === dateStr);
+          const date = selectedDates.find(
+            (selectedDate) => format(selectedDate, "yyyy-MM-dd") === dateStr,
+          );
           if (!date) continue;
+
           const [hours, mins] = startTime.split(":").map(Number);
           const endMinutes = hours * 60 + mins + duration;
-          const endTime = `${Math.floor(endMinutes / 60).toString().padStart(2, "0")}:${(endMinutes % 60).toString().padStart(2, "0")}`;
+          const endTime = `${Math.floor(endMinutes / 60)
+            .toString()
+            .padStart(2, "0")}:${(endMinutes % 60).toString().padStart(2, "0")}`;
+
           slots.push({
             date: new Date(`${dateStr}T${startTime}`).toISOString(),
             startTime,
@@ -194,14 +329,21 @@ function BookingPageContent() {
         serviceId: selectedService,
         slots,
         location: location || undefined,
-        notes: withNegotiation && negotiationData.message ? `[Negotiation]: ${negotiationData.message}\n${notes}` : notes,
+        notes:
+          withNegotiation && negotiationData.message
+            ? `[Negotiation]: ${negotiationData.message}\n${notes}`
+            : notes,
         clientPhone: clientPhone || undefined,
         clientAddress: clientAddress || undefined,
         promoCode: appliedPromo || undefined,
-        negotiation: withNegotiation ? {
-           proposedPrice: negotiationData.proposedPrice ? parseFloat(negotiationData.proposedPrice) : undefined,
-           proposedLocation: negotiationData.proposedLocation || undefined
-        } : undefined
+        negotiation: withNegotiation
+          ? {
+              proposedPrice: negotiationData.proposedPrice
+                ? parseFloat(negotiationData.proposedPrice)
+                : undefined,
+              proposedLocation: negotiationData.proposedLocation || undefined,
+            }
+          : undefined,
       };
 
       const response = await fetch("/api/bookings", {
@@ -216,10 +358,13 @@ function BookingPageContent() {
         throw new Error(result.error || result.reason || "Failed to create booking");
       }
 
-      toast.success(withNegotiation ? "Negotiation proposal sent!" : "Booking created successfully!", {
-        description: "Redirecting to your bookings...",
-      });
-      
+      toast.success(
+        withNegotiation ? "Negotiation proposal sent" : "Booking created successfully",
+        {
+          description: "Redirecting to your bookings...",
+        },
+      );
+
       actions.clearDraft();
 
       setTimeout(() => {
@@ -227,7 +372,9 @@ function BookingPageContent() {
       }, 1500);
     } catch (error) {
       console.error("Error creating booking:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to create booking");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create booking",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -237,10 +384,10 @@ function BookingPageContent() {
     return (
       <>
         <Header />
-        <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 pt-[var(--public-header-h)]">
           <div className="text-center">
-            <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mx-auto mb-4" />
-            <p className="text-gray-600 text-sm">Loading professional details...</p>
+            <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-emerald-600" />
+            <p className="text-sm text-slate-600">Loading booking details...</p>
           </div>
         </div>
         <Footer />
@@ -252,14 +399,14 @@ function BookingPageContent() {
     return (
       <>
         <Header />
-        <div className="min-h-screen flex items-center justify-center px-4">
-          <div className="text-center">
-            <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+        <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 pt-[var(--public-header-h)]">
+          <div className="max-w-md rounded-[1.75rem] border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <User className="mx-auto mb-4 h-16 w-16 text-slate-300" />
+            <h1 className="text-2xl font-bold text-slate-950">
               Professional Not Found
             </h1>
-            <p className="text-gray-600 text-sm sm:text-base">
-              Please select a valid professional to book.
+            <p className="mt-2 text-sm text-slate-600">
+              Please return and select a valid professional before booking.
             </p>
           </div>
         </div>
@@ -271,242 +418,367 @@ function BookingPageContent() {
   return (
     <>
       <Header />
-      
-      {/* Mobile Top Bar */}
-      <div className="lg:hidden fixed top-16 left-0 right-0 bg-white border-b border-gray-200 px-4 py-3 z-40">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-             <div className="flex flex-col">
-                 <span className="text-xs text-gray-500 font-medium">Step {currentStep} of 3</span>
-                 <div className="w-24 h-1.5 bg-gray-200 rounded-full mt-1">
-                     <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(currentStep / 3) * 100}%` }} />
-                 </div>
-             </div>
-          </div>
-          <div className="text-right">
-            {selectedServiceData && (
-              <div className="text-sm font-bold text-emerald-600">
-                Kes {selectedServiceData.price.toLocaleString()}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
-      <div className="min-h-screen bg-gray-50 pt-32 lg:pt-24 pb-24 lg:pb-12">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
-          
-          {/* Header */}
-          <motion.div
-            className="mb-6 lg:mb-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <div className="flex justify-between items-end">
-                <div>
-                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
-                    Book a Service
-                    </h1>
-                    <p className="text-gray-600 text-sm sm:text-base">
-                    Schedule your appointment with {professional.name}
+      <div className="min-h-screen bg-slate-50 pb-24 pt-[var(--public-header-h)] lg:pb-12">
+        <section className="relative overflow-hidden border-b border-emerald-100/70 bg-gradient-to-b from-white via-emerald-50/55 to-slate-50">
+          <div className="pointer-events-none absolute inset-0 opacity-80">
+            <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-emerald-300/35 blur-3xl" />
+            <div className="absolute right-0 top-16 h-72 w-72 rounded-full bg-sky-300/25 blur-3xl" />
+            <div className="absolute bottom-0 left-1/3 h-48 w-96 rounded-full bg-teal-200/30 blur-3xl" />
+          </div>
+
+          <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-8 sm:px-6 sm:pb-10 lg:px-8">
+            <motion.div
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)] lg:items-start"
+            >
+              <div className="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.35)] backdrop-blur-sm sm:p-7">
+                <p className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-800">
+                  <CalendarClock className="h-4 w-4" />
+                  Guided booking
+                </p>
+                <h1 className="mt-4 text-balance text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                  Book with {professional.name}
+                </h1>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+                  Choose the service, reserve the right time slots, and send one
+                  clean request with your location and notes. The provider gets
+                  notified as soon as you confirm.
+                </p>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  {heroStats.map((stat) => (
+                    <div
+                      key={stat.label}
+                      className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4"
+                    >
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        {stat.label}
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-slate-950">
+                        {stat.value}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">{stat.hint}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {bookingInsights.length > 0 ? (
+                  <div className="mt-6 rounded-[1.5rem] border border-emerald-200 bg-emerald-50/80 p-4">
+                    <p className="text-sm font-bold text-emerald-900">
+                      Helpful booking info
                     </p>
-                </div>
-                
-                {/* Desktop Progress Tracker */}
-                <div className="hidden lg:flex items-center gap-2">
-                    {[1, 2, 3].map((step) => (
-                        <div key={step} className="flex items-center">
-                            <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${currentStep >= step ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
-                                {step}
-                            </div>
-                            {step < 3 && <div className={`w-12 h-1 ${currentStep > step ? 'bg-emerald-600' : 'bg-gray-200'}`} />}
+                    <div className="mt-3 space-y-2">
+                      {bookingInsights.map((item, index) => (
+                        <div
+                          key={`${item}-${index}`}
+                          className="flex items-start gap-2 text-sm text-emerald-900"
+                        >
+                          <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                          <span>{item}</span>
                         </div>
-                    ))}
-                </div>
-            </div>
-          </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            {/* Main Form Area */}
+              <div className="rounded-[2rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                    <ShieldCheck className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-950">
+                      Booking progress
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      Step {currentStep} of 3
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {STEPS.map((step) => {
+                    const isActive = step.step === currentStep;
+                    const isComplete = currentStep > step.step;
+
+                    return (
+                      <div
+                        key={step.step}
+                        className={`rounded-2xl border px-4 py-3 transition-colors ${
+                          isActive
+                            ? "border-emerald-200 bg-emerald-50"
+                            : isComplete
+                              ? "border-slate-200 bg-slate-50"
+                              : "border-slate-100 bg-white"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+                              isComplete || isActive
+                                ? "bg-emerald-600 text-white"
+                                : "bg-slate-200 text-slate-500"
+                            }`}
+                          >
+                            {step.step}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-950">
+                              {step.title}
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">
+                              {step.description}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          <div className="grid gap-6 lg:grid-cols-3 lg:gap-8">
             <div className="lg:col-span-2">
               <motion.div
-                className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6"
-                initial={{ opacity: 0, x: -20 }}
+                className="space-y-6 rounded-[2rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7"
+                initial={{ opacity: 0, x: -16 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
               >
-                    {currentStep === 1 && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                            <h2 className="text-xl font-bold border-b pb-2">Activity & Availability</h2>
-                            <BookingServiceSelection 
-                                professional={professional} 
-                                selectedService={selectedService} 
-                                setSelectedService={setSelectedService} 
-                            />
-                            <BookingDateTimeSelection 
-                                selectedService={selectedService}
-                                selectedDates={selectedDates}
-                                setSelectedDates={setSelectedDates}
-                                selectedTimeSlots={selectedTimeSlots}
-                                setSelectedTimeSlots={setSelectedTimeSlots}
-                                availableSlotsPerDate={availableSlotsPerDate}
-                                disabledDates={disabledDates}
-                                disabledReasons={disabledReasons}
-                                setShowMobileDatePicker={setShowMobileDatePicker}
-                                fetchMonthlyAvailability={fetchMonthlyAvailability}
-                                totalSlots={totalSlots}
-                            />
-                        </motion.div>
-                    )}
-
-                    {currentStep === 2 && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                            <h2 className="text-xl font-bold border-b pb-2">Location & Details</h2>
-                            <BookingLocationDetails 
-                                selectedServiceData={selectedServiceData}
-                                location={location}
-                                setLocation={setLocation}
-                                clientPhone={clientPhone}
-                                setClientPhone={setClientPhone}
-                                clientAddress={clientAddress}
-                                setClientAddress={setClientAddress}
-                                notes={notes}
-                                setNotes={setNotes}
-                            />
-                        </motion.div>
-                    )}
-
-                    {currentStep === 3 && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                            <h2 className="text-xl font-bold border-b pb-2">Review & Confirm</h2>
-                            
-                            {status === "unauthenticated" ? (
-                                <div className="p-6 bg-blue-50 border border-blue-200 rounded-xl text-center space-y-4">
-                                    <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto">
-                                        <User className="w-8 h-8" />
-                                    </div>
-                                    <h3 className="text-lg font-bold text-gray-900">Sign in required</h3>
-                                    <p className="text-gray-600 max-w-sm mx-auto">
-                                        You need to have an account and be signed in to confirm your booking. Your progress has been saved.
-                                    </p>
-                                    <button
-                                        onClick={handleLoginRedirect}
-                                        className="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors"
-                                    >
-                                        Continue to Sign In
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-6">
-                                     <p className="text-gray-600">Please review your booking summary on the right. Once everything looks good, you may confirm your booking or propose alternative terms.</p>
-                                     
-                                     <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100">
-                                         <button
-                                            type="button"
-                                            onClick={() => setShowNegotiationDialog(true)}
-                                            disabled={isSubmitting}
-                                            className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-semibold text-base hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                                         >
-                                            <Handshake className="w-5 h-5" />
-                                            Negotiate Terms
-                                         </button>
-                                         <button
-                                            type="button"
-                                            onClick={() => handleSubmit(false)}
-                                            disabled={isSubmitting}
-                                            className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-teal-500 text-white rounded-xl font-semibold text-base hover:from-emerald-700 hover:to-teal-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                                         >
-                                            {isSubmitting ? (
-                                                <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>
-                                            ) : (
-                                                <><CheckCircle className="w-5 h-5" /> Confirm Booking</>
-                                            )}
-                                         </button>
-                                     </div>
-                                </div>
-                            )}
-                        </motion.div>
-                    )}
-
-                    {/* Navigation Buttons */}
-                    <div className="pt-6 mt-6 border-t border-gray-100 flex justify-between items-center">
-                        {currentStep > 1 ? (
-                            <button
-                                onClick={handlePrevStep}
-                                className="px-4 py-2 flex items-center gap-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors font-medium text-sm"
-                            >
-                                <ChevronLeft className="w-4 h-4" /> Back
-                            </button>
-                        ) : <div />}
-                        
-                        {currentStep < 3 && (
-                            <button
-                                onClick={handleNextStep}
-                                disabled={currentStep === 1 ? !canProceedToStep2 : !canProceedToStep3}
-                                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-1.5 font-bold transition-colors"
-                            >
-                                Continue <ChevronRight className="w-4 h-4" />
-                            </button>
-                        )}
+                {currentStep === 1 ? (
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="text-2xl font-bold tracking-tight text-slate-950">
+                        Service & availability
+                      </h2>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        Start by selecting the service, then choose the dates and
+                        time slots that work best for you.
+                      </p>
                     </div>
+
+                    <BookingServiceSelection
+                      professional={professional}
+                      selectedService={selectedService}
+                      setSelectedService={setSelectedService}
+                    />
+
+                    <BookingDateTimeSelection
+                      selectedService={selectedService}
+                      selectedDates={selectedDates}
+                      setSelectedDates={setSelectedDates}
+                      selectedTimeSlots={selectedTimeSlots}
+                      setSelectedTimeSlots={setSelectedTimeSlots}
+                      availableSlotsPerDate={availableSlotsPerDate}
+                      disabledDates={disabledDates}
+                      disabledReasons={disabledReasons}
+                      fetchMonthlyAvailability={fetchMonthlyAvailability}
+                      totalSlots={totalSlots}
+                    />
+                  </div>
+                ) : null}
+
+                {currentStep === 2 ? (
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="text-2xl font-bold tracking-tight text-slate-950">
+                        Location & booking details
+                      </h2>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        Add the information the professional needs to confirm the
+                        request and arrive prepared.
+                      </p>
+                    </div>
+
+                    <BookingLocationDetails
+                      selectedServiceData={selectedServiceData}
+                      location={location}
+                      setLocation={setLocation}
+                      clientPhone={clientPhone}
+                      setClientPhone={setClientPhone}
+                      clientAddress={clientAddress}
+                      setClientAddress={setClientAddress}
+                      notes={notes}
+                      setNotes={setNotes}
+                    />
+                  </div>
+                ) : null}
+
+                {currentStep === 3 ? (
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="text-2xl font-bold tracking-tight text-slate-950">
+                        Review & confirm
+                      </h2>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        Your summary is on the right. If everything looks good,
+                        confirm the request or send a negotiation proposal.
+                      </p>
+                    </div>
+
+                    {status === "unauthenticated" ? (
+                      <div className="rounded-[1.5rem] border border-sky-200 bg-sky-50 p-6 text-center">
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+                          <User className="h-8 w-8" />
+                        </div>
+                        <h3 className="mt-4 text-lg font-bold text-slate-950">
+                          Sign in to finish your booking
+                        </h3>
+                        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
+                          Your booking draft is already saved. Sign in and return
+                          to submit it without losing progress.
+                        </p>
+                        <button
+                          onClick={handleLoginRedirect}
+                          className="mt-5 rounded-2xl bg-sky-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-sky-700"
+                        >
+                          Continue to sign in
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4 text-sm leading-6 text-slate-600">
+                          Confirming creates a pending booking request and
+                          notifies the professional immediately. If you need to
+                          adjust price or location first, use the negotiation
+                          option below.
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowNegotiationDialog(true)}
+                            disabled={isSubmitting}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-sky-700 disabled:opacity-50"
+                          >
+                            <Handshake className="h-4 w-4" />
+                            Negotiate first
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleSubmit(false)}
+                            disabled={isSubmitting}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+                          >
+                            {isSubmitting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4" />
+                                Confirm booking
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-between border-t border-slate-100 pt-6">
+                  {currentStep > 1 ? (
+                    <button
+                      onClick={handlePrevStep}
+                      className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Back
+                    </button>
+                  ) : (
+                    <div />
+                  )}
+
+                  {currentStep < 3 ? (
+                    <button
+                      onClick={handleNextStep}
+                      disabled={
+                        currentStep === 1 ? !canProceedToStep2 : !canProceedToStep3
+                      }
+                      className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      Continue
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
               </motion.div>
             </div>
 
-            {/* Sidebar */}
-            <div className="lg:block hidden">
-                <BookingSummarySidebar 
-                    professional={professional}
-                    selectedServiceData={selectedServiceData}
-                    selectedDates={selectedDates}
-                    selectedTimeSlots={selectedTimeSlots}
-                    totalSlots={totalSlots}
-                    promoCode={promoCode}
-                    setPromoCode={setPromoCode}
-                    appliedPromo={appliedPromo}
-                    setAppliedPromo={setAppliedPromo}
-                    promoDiscount={promoDiscount}
-                    setPromoDiscount={setPromoDiscount}
-                    isApplyingPromo={isApplyingPromo}
-                    setIsApplyingPromo={setIsApplyingPromo}
-                    promoError={promoError}
-                    setPromoError={setPromoError}
-                />
-            </div>
-            
-            {/* Mobile Bottom Sheet Summary (Visible on Step 3) */}
-            {currentStep === 3 && (
-                <div className="lg:hidden mt-4">
-                     <BookingSummarySidebar 
-                        professional={professional}
-                        selectedServiceData={selectedServiceData}
-                        selectedDates={selectedDates}
-                        selectedTimeSlots={selectedTimeSlots}
-                        totalSlots={totalSlots}
-                        promoCode={promoCode}
-                        setPromoCode={setPromoCode}
-                        appliedPromo={appliedPromo}
-                        setAppliedPromo={setAppliedPromo}
-                        promoDiscount={promoDiscount}
-                        setPromoDiscount={setPromoDiscount}
-                        isApplyingPromo={isApplyingPromo}
-                        setIsApplyingPromo={setIsApplyingPromo}
-                        promoError={promoError}
-                        setPromoError={setPromoError}
-                    />
+            <div className="space-y-6">
+              <BookingSummarySidebar
+                professional={professional}
+                selectedServiceData={selectedServiceData}
+                selectedDates={selectedDates}
+                selectedTimeSlots={selectedTimeSlots}
+                totalSlots={totalSlots}
+                promoCode={promoCode}
+                setPromoCode={setPromoCode}
+                appliedPromo={appliedPromo}
+                setAppliedPromo={setAppliedPromo}
+                promoDiscount={promoDiscount}
+                setPromoDiscount={setPromoDiscount}
+                isApplyingPromo={isApplyingPromo}
+                setIsApplyingPromo={setIsApplyingPromo}
+                promoError={promoError}
+                setPromoError={setPromoError}
+              />
+
+              {selectedServiceData ? (
+                <div className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm">
+                  <p className="text-sm font-bold text-slate-950">
+                    Quick facts
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3">
+                      <span className="text-sm text-slate-600">Location mode</span>
+                      <span className="text-right text-sm font-semibold text-slate-950">
+                        {getLocationLabel(selectedServiceData.locationType)}
+                      </span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3">
+                      <span className="text-sm text-slate-600">Time selected</span>
+                      <span className="text-right text-sm font-semibold text-slate-950">
+                        {totalSlots > 0
+                          ? totalMinutes >= 60
+                            ? `${(totalMinutes / 60).toFixed(
+                                totalMinutes % 60 === 0 ? 0 : 1,
+                              )} hrs`
+                            : `${totalMinutes} mins`
+                          : "Not selected yet"}
+                      </span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3">
+                      <span className="text-sm text-slate-600">Estimated total</span>
+                      <span className="text-right text-sm font-semibold text-slate-950">
+                        {baseAmount > 0
+                          ? formatCurrency(breakdown.totalAmount)
+                          : "Select slots first"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-            )}
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
 
-      <BookingNegotiationDialog 
-         showNegotiationDialog={showNegotiationDialog}
-         setShowNegotiationDialog={setShowNegotiationDialog}
-         negotiationData={negotiationData}
-         setNegotiationData={setNegotiationData}
-         selectedServiceData={selectedServiceData}
-         handleSubmit={handleSubmit}
+      <BookingNegotiationDialog
+        showNegotiationDialog={showNegotiationDialog}
+        setShowNegotiationDialog={setShowNegotiationDialog}
+        negotiationData={negotiationData}
+        setNegotiationData={setNegotiationData}
+        selectedServiceData={selectedServiceData}
+        handleSubmit={handleSubmit}
       />
 
       <Footer />
@@ -516,14 +788,16 @@ function BookingPageContent() {
 
 export default function BookingPage() {
   return (
-    <Suspense fallback={
-        <div className="min-h-screen flex items-center justify-center">
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-slate-50">
           <div className="text-center">
-            <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mx-auto mb-3" />
-            <p className="text-gray-600 text-sm">Loading booking page...</p>
+            <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-emerald-600" />
+            <p className="text-sm text-slate-600">Loading booking page...</p>
           </div>
         </div>
-    }>
+      }
+    >
       <BookingPageContent />
     </Suspense>
   );
