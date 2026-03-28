@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
+import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
 
 // Step Components
 import OnboardingShell from "./components/OnboardingShell";
@@ -120,16 +121,65 @@ export default function OnboardingPage() {
 
   // Phone number formatter for Kenyan numbers
   const formatPhoneNumber = useCallback((input: string): string => {
-    const cleaned = input.replace(/\D/g, "");
-    if (cleaned.startsWith("254")) {
-      return cleaned;
-    } else if (cleaned.startsWith("0")) {
-      return "254" + cleaned.substring(1);
-    } else if (cleaned.startsWith("7") || cleaned.startsWith("1")) {
-      return "254" + cleaned;
-    }
-    return cleaned;
+    return normalizeKenyanPhone(input);
   }, []);
+
+  const validatePhone = useCallback(
+    async (
+      phone: string,
+    ): Promise<{ ok: boolean; normalizedPhone?: string; message?: string }> => {
+      const normalizedPhone = normalizeKenyanPhone(phone);
+
+      if (!normalizedPhone) {
+        return {
+          ok: false,
+          normalizedPhone,
+          message: "Phone number is required",
+        };
+      }
+
+      if (!isValidKenyanPhone(normalizedPhone)) {
+        return {
+          ok: false,
+          normalizedPhone,
+          message:
+            "Use a valid Kenyan phone number format, for example 254712345678.",
+        };
+      }
+
+      try {
+        const response = await apiClient.post(
+          "/users/onboarding/validate-phone",
+          {
+            phone: normalizedPhone,
+          },
+        );
+
+        return {
+          ok: Boolean(response?.data?.available),
+          normalizedPhone: response?.data?.normalizedPhone || normalizedPhone,
+          message: response?.data?.message,
+        };
+      } catch (error: unknown) {
+        const known = error as {
+          status?: number;
+          message?: string;
+          data?: { error?: string; message?: string; normalizedPhone?: string };
+        };
+
+        return {
+          ok: false,
+          normalizedPhone: known?.data?.normalizedPhone || normalizedPhone,
+          message:
+            known?.data?.error ||
+            known?.data?.message ||
+            known?.message ||
+            "Unable to validate phone number right now.",
+        };
+      }
+    },
+    [],
+  );
 
   // File upload helper
   const uploadFile = async (
@@ -326,6 +376,7 @@ export default function OnboardingPage() {
             onNext={handleClientSubmit}
             isLoading={isLoading}
             formatPhoneNumber={formatPhoneNumber}
+            validatePhone={validatePhone}
           />
         )}
 
@@ -338,6 +389,7 @@ export default function OnboardingPage() {
             onBack={() => setCurrentStep(1)}
             onNext={handleProviderDetailsNext}
             formatPhoneNumber={formatPhoneNumber}
+            validatePhone={validatePhone}
           />
         )}
 

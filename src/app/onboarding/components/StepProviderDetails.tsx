@@ -33,6 +33,11 @@ interface StepProviderDetailsProps {
   onBack: () => void;
   onNext: () => void;
   formatPhoneNumber: (input: string) => string;
+  validatePhone: (phone: string) => Promise<{
+    ok: boolean;
+    normalizedPhone?: string;
+    message?: string;
+  }>;
 }
 
 export default function StepProviderDetails({
@@ -43,9 +48,12 @@ export default function StepProviderDetails({
   onBack,
   onNext,
   formatPhoneNumber,
+  validatePhone,
 }: StepProviderDetailsProps) {
   const loc = useLocation();
   const [showDeniedModal, setShowDeniedModal] = React.useState(false);
+  const [phoneError, setPhoneError] = React.useState<string | null>(null);
+  const [isCheckingPhone, setIsCheckingPhone] = React.useState(false);
 
   const handleGetLocation = async () => {
     await loc.getLocation("provider");
@@ -89,7 +97,38 @@ export default function StepProviderDetails({
 
   const handlePhoneChange = (value: string) => {
     const formatted = formatPhoneNumber(value);
+    if (phoneError) {
+      setPhoneError(null);
+    }
     setProviderData((prev) => ({ ...prev, phone: formatted }));
+  };
+
+  const handlePhoneBlur = async () => {
+    if (!providerData.phone) {
+      setPhoneError("Phone number is required");
+      return;
+    }
+
+    setIsCheckingPhone(true);
+    const result = await validatePhone(providerData.phone);
+
+    if (
+      result.normalizedPhone &&
+      result.normalizedPhone !== providerData.phone
+    ) {
+      setProviderData((prev) => ({
+        ...prev,
+        phone: result.normalizedPhone || prev.phone,
+      }));
+    }
+
+    if (!result.ok) {
+      setPhoneError(result.message || "Unable to validate phone number");
+    } else {
+      setPhoneError(null);
+    }
+
+    setIsCheckingPhone(false);
   };
 
   const locationSourceBadge = () => {
@@ -228,11 +267,28 @@ export default function StepProviderDetails({
               type="tel"
               value={providerData.phone}
               onChange={(e) => handlePhoneChange(e.target.value)}
+              onBlur={handlePhoneBlur}
               className="w-full pl-9 sm:pl-11 pr-3 sm:pr-4 py-3 sm:py-4 rounded-lg sm:rounded-xl bg-gray-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium text-sm sm:text-base"
               placeholder="254712345678"
               required
             />
           </div>
+          {isCheckingPhone && (
+            <p className="mt-1.5 text-xs text-emerald-600">
+              Checking phone number...
+            </p>
+          )}
+          {phoneError && (
+            <div className="mt-1.5 flex items-center gap-2 text-xs text-red-600">
+              <span>{phoneError}</span>
+              <a
+                href="/support"
+                className="font-semibold underline underline-offset-2 hover:text-red-700"
+              >
+                Contact support
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Hourly Rate */}
@@ -410,6 +466,8 @@ export default function StepProviderDetails({
           disabled={
             providerData.skills.length === 0 ||
             providerData.skills.length > VALIDATION.MAX_PROVIDER_SKILLS ||
+            isCheckingPhone ||
+            !!phoneError ||
             !providerData.phone ||
             !providerData.hourlyRate ||
             !providerData.bio.trim() ||

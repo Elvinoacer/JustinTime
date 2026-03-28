@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { VALIDATION } from "@/lib/constants/validation";
+import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
 
 export const POST = auth(async (req) => {
   try {
@@ -33,7 +34,7 @@ export const POST = auth(async (req) => {
     // Sanitize string inputs
     location = location?.trim();
     bio = bio?.trim();
-    phone = phone?.trim();
+    phone = phone ? normalizeKenyanPhone(phone.trim()) : "";
     address = address?.trim();
 
     // B12 Fix: Robust validation
@@ -68,6 +69,15 @@ export const POST = auth(async (req) => {
           { status: 400 },
         );
       }
+      if (!isValidKenyanPhone(phone)) {
+        return NextResponse.json(
+          {
+            error:
+              "Use a valid Kenyan phone number format, for example 254712345678.",
+          },
+          { status: 400 },
+        );
+      }
       if (
         hourlyRate !== undefined &&
         (isNaN(Number(hourlyRate)) || Number(hourlyRate) < 0)
@@ -81,6 +91,15 @@ export const POST = auth(async (req) => {
       if (!phone) {
         return NextResponse.json(
           { error: "Phone number is required" },
+          { status: 400 },
+        );
+      }
+      if (!isValidKenyanPhone(phone)) {
+        return NextResponse.json(
+          {
+            error:
+              "Use a valid Kenyan phone number format, for example 254712345678.",
+          },
           { status: 400 },
         );
       }
@@ -118,6 +137,28 @@ export const POST = auth(async (req) => {
         },
         { status: 404 },
       );
+    }
+
+    // Fail fast with a precise error when phone is already used by another user.
+    if (phone) {
+      const phoneOwner = await prisma.user.findFirst({
+        where: {
+          phone,
+          NOT: { id: actingUser.id },
+        },
+        select: { id: true },
+      });
+
+      if (phoneOwner) {
+        return NextResponse.json(
+          {
+            error:
+              "That phone number is already linked to another account. Use a different number.",
+            conflictField: "phone",
+          },
+          { status: 409 },
+        );
+      }
     }
 
     // Update user with common fields
@@ -208,13 +249,49 @@ export const POST = auth(async (req) => {
     if (error?.code === "P2002") {
       const target = Array.isArray(error?.meta?.target)
         ? error.meta.target.join(", ")
-        : String(error?.meta?.target || "field");
+        : String(error?.meta?.target || "");
+      const rawErrorMessage = String(error?.message || "").toLowerCase();
 
-      if (target.includes("phone")) {
+      const inferredField = target
+        ? target
+        : rawErrorMessage.includes("phone") ||
+            rawErrorMessage.includes("user_phone_key")
+          ? "phone"
+          : rawErrorMessage.includes("email") ||
+              rawErrorMessage.includes("user_email_key")
+            ? "email"
+            : rawErrorMessage.includes("userid") ||
+                rawErrorMessage.includes("profile_userid_key")
+              ? "profile.userId"
+              : "field";
+
+      if (inferredField.includes("phone")) {
         return NextResponse.json(
           {
             error:
               "That phone number is already linked to another account. Use a different number.",
+            conflictField: "phone",
+          },
+          { status: 409 },
+        );
+      }
+
+      if (inferredField.includes("email")) {
+        return NextResponse.json(
+          {
+            error: "That email is already linked to another account.",
+            conflictField: "email",
+          },
+          { status: 409 },
+        );
+      }
+
+      if (inferredField.includes("profile.userId")) {
+        return NextResponse.json(
+          {
+            error:
+              "Your profile already exists but was not linked correctly. Please sign out and sign in again.",
+            conflictField: "profile",
           },
           { status: 409 },
         );
@@ -222,7 +299,9 @@ export const POST = auth(async (req) => {
 
       return NextResponse.json(
         {
-          error: `A user with this ${target} already exists.`,
+          error:
+            "A conflicting account field already exists. Please verify your details and try again.",
+          conflictField: inferredField,
         },
         { status: 409 },
       );
