@@ -4,7 +4,7 @@ import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -14,44 +14,24 @@ export async function GET(
       include: {
         category: true,
         provider: {
-            include: {
-                // Include profile to show verification, subscription etc (if needed for select, but include mixes fields)
-                // Actually since we used select: before, we should be consistent.
-                // But prisma doesn't allow mixing select and include at the same level easily without nested include.
-                // Let's use include for everything to be safe, or just stick to select and add backgroundChecks to select.
-                // Reverting to robust select:
-                profile: {
-                    select: {
-                        bio: true,
-                        location: true,
-                        hourlyRate: true,
-                        portfolio: true,
-                        isVerified: true,
-                    }
+          include: {
+            profile: true,
+            subscription: true,
+            receivedReviews: {
+              orderBy: { createdAt: "desc" },
+              take: 5,
+              include: {
+                author: {
+                  select: { name: true, image: true },
                 },
-                subscription: {
-                    select: {
-                        plan: true,
-                        isActive: true,
-                    }
-                },
-                receivedReviews: {
-                    select: {
-                        id: true,
-                        rating: true,
-                        comment: true,
-                        createdAt: true,
-                        author: { select: { name: true, image: true } }
-                    },
-                    orderBy: { createdAt: "desc" },
-                    take: 5
-                },
-                backgroundChecks: {
-                    where: { status: 'CLEARED' },
-                    select: { id: true, status: true, clearedAt: true }
-                }
-            }
-        }
+              },
+            },
+            backgroundChecks: {
+              where: { status: "CLEARED" },
+              take: 1,
+            },
+          },
+        },
       },
     });
 
@@ -59,9 +39,19 @@ export async function GET(
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
     }
 
+    if (!service.provider) {
+      return NextResponse.json(
+        { error: "Service provider not found" },
+        { status: 404 },
+      );
+    }
+
     // Calculate average rating
-    const reviews = service.provider.receivedReviews;
-    const totalRating = reviews.reduce((acc, review) => acc + review.rating, 0);
+    const reviews = service.provider.receivedReviews || [];
+    const totalRating = reviews.reduce(
+      (acc: number, review: (typeof reviews)[number]) => acc + review.rating,
+      0,
+    );
     const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
 
     // Fetch other services by the same provider
@@ -83,17 +73,37 @@ export async function GET(
       ...service,
       price: Number(service.price),
       provider: {
-        ...service.provider,
-        profile: {
-          ...service.provider.profile,
-          hourlyRate: service.provider.profile?.hourlyRate ? Number(service.provider.profile.hourlyRate) : null,
-        },
+        id: service.provider.id,
+        name: service.provider.name,
+        email: service.provider.email,
+        image: service.provider.image,
+        phone: service.provider.phone,
+        role: service.provider.role,
+        profile: service.provider.profile
+          ? {
+              bio: service.provider.profile.bio,
+              location: service.provider.profile.location,
+              hourlyRate: service.provider.profile.hourlyRate
+                ? Number(service.provider.profile.hourlyRate)
+                : null,
+              portfolio: service.provider.profile.portfolio,
+              isVerified: service.provider.profile.isVerified,
+            }
+          : null,
         subscription: {
           plan: service.provider.subscription?.plan || "FREE",
           isActive: service.provider.subscription?.isActive || false,
         },
+        backgroundChecks: service.provider.backgroundChecks || [],
         rating: averageRating,
         reviewCount: reviews.length,
+        reviews: reviews.map((review: (typeof reviews)[number]) => ({
+          id: review.id,
+          rating: review.rating,
+          comment: review.comment,
+          createdAt: review.createdAt,
+          author: review.author,
+        })),
       },
       otherServices,
     };
