@@ -1,8 +1,18 @@
 "use client";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import React from "react";
 
-export default function StepComplete() {
+type Role = "CLIENT" | "PROVIDER";
+
+interface StepCompleteProps {
+  role?: Role | null;
+  redirectPath?: string;
+}
+
+export default function StepComplete({ role, redirectPath }: StepCompleteProps) {
+  const isProvider = role === "PROVIDER";
+
   return (
     <motion.div
       key="step-complete"
@@ -19,9 +29,29 @@ export default function StepComplete() {
       <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mb-2 sm:mb-3 md:mb-4">
         All Set!
       </h2>
-      <p className="text-sm sm:text-base md:text-lg text-gray-600">
-        Redirecting you to your dashboard...
+      <p className="text-sm sm:text-base md:text-lg text-gray-600 max-w-xl mx-auto">
+        {isProvider
+          ? "You're ready to start getting booked. Redirecting you to create your first service."
+          : "Your account is ready. Redirecting you to your dashboard..."}
       </p>
+      {isProvider && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link
+            href={redirectPath || "/dashboard/services?create=true"}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors"
+          >
+            <span className="material-symbols-outlined text-base">add</span>
+            Create Service
+          </Link>
+          <Link
+            href="/dashboard/availability"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 rounded-xl font-semibold border border-gray-200 hover:bg-gray-50 transition-colors"
+          >
+            <span className="material-symbols-outlined text-base">schedule</span>
+            Set Availability
+          </Link>
+        </div>
+      )}
     </motion.div>
   );
 }

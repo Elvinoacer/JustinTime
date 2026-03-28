@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useProviderServices,
@@ -11,6 +11,7 @@ import { useSubscriptionStatus } from "@/lib/api/hooks/useSubscription";
 import ServiceFormModal from "@/components/dashboard/services/ServiceFormModal";
 import { PromoteServiceModal } from "@/components/revenue/PromoteServiceModal";
 import { toast } from "sonner";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const PLAN_LIMITS = {
   FREE: 5,
@@ -19,6 +20,8 @@ const PLAN_LIMITS = {
 };
 
 const ServicesPage = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: servicesData, isLoading } = useProviderServices();
   const { data: subscriptionData } = useSubscriptionStatus();
   const deleteServiceMutation = useDeleteService();
@@ -36,6 +39,7 @@ const ServicesPage = () => {
   const [promotingService, setPromotingService] = useState<any | null>(null);
   const [showPromoteModal, setShowPromoteModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [hasHandledCreateIntent, setHasHandledCreateIntent] = useState(false);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -78,7 +82,7 @@ const ServicesPage = () => {
     setShowAddModal(true);
   };
 
-  const openAddModal = () => {
+  const openAddModal = useCallback(() => {
     const currentPlan = subscriptionData?.subscription?.plan || "FREE";
     const limit = PLAN_LIMITS[currentPlan as keyof typeof PLAN_LIMITS] || 5;
 
@@ -90,7 +94,30 @@ const ServicesPage = () => {
     }
     setEditingService(null);
     setShowAddModal(true);
-  };
+  }, [servicesList.length, subscriptionData?.subscription?.plan]);
+
+  useEffect(() => {
+    if (isLoading || hasHandledCreateIntent) return;
+
+    const shouldAutoOpenCreate = searchParams.get("create") === "true";
+    if (!shouldAutoOpenCreate) return;
+
+    setHasHandledCreateIntent(true);
+    openAddModal();
+
+    if (searchParams.get("from") === "onboarding") {
+      toast.success(
+        "Welcome aboard! Add your first service, then set your availability to start receiving smooth bookings.",
+      );
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("create");
+    const query = params.toString();
+    router.replace(query ? `/dashboard/services?${query}` : "/dashboard/services", {
+      scroll: false,
+    });
+  }, [hasHandledCreateIntent, isLoading, openAddModal, router, searchParams]);
 
   const activeServices = servicesList.filter((s: any) => s.isActive).length;
   const inactiveServices = servicesList.filter((s: any) => !s.isActive).length;
@@ -148,6 +175,14 @@ const ServicesPage = () => {
           {isMobile ? "Add Service" : "Add New Service"}
         </button>
       </div>
+
+      {searchParams.get("from") === "onboarding" && (
+        <div className="mb-4 sm:mb-6 lg:mb-8 bg-emerald-50 border border-emerald-200 rounded-xl p-3 sm:p-4">
+          <p className="text-sm text-emerald-800">
+            Next step: create at least one service and then set your availability to reduce missed requests and booking friction.
+          </p>
+        </div>
+      )}
 
       {/* Stats Cards - Mobile Optimized */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6 lg:mb-8">

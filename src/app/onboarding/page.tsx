@@ -114,7 +114,9 @@ export default function OnboardingPage() {
 
       const role = session.user.role;
       const redirectPath =
-        role === "PROVIDER" ? "/dashboard" : "/client/dashboard";
+        role === "PROVIDER"
+          ? "/dashboard/services?create=true&from=onboarding"
+          : "/client/dashboard";
       router.push(redirectPath);
     }
   }, [session, router, currentStep, selectedRole]);
@@ -338,7 +340,10 @@ export default function OnboardingPage() {
       setIsLoading(false);
       setCurrentStep(4); // Success step
       router.refresh(); // Flush cache and re-read session cookie
-      setTimeout(() => router.push("/dashboard"), 3000);
+      setTimeout(
+        () => router.push("/dashboard/services?create=true&from=onboarding"),
+        3000,
+      );
     } catch (error: unknown) {
       console.error("Onboarding failed:", error);
 
@@ -402,7 +407,16 @@ export default function OnboardingPage() {
           />
         )}
 
-        {isFinalStep && <StepComplete />}
+        {isFinalStep && (
+          <StepComplete
+            role={selectedRole}
+            redirectPath={
+              selectedRole === "PROVIDER"
+                ? "/dashboard/services?create=true&from=onboarding"
+                : "/client/dashboard"
+            }
+          />
+        )}
       </AnimatePresence>
     </OnboardingShell>
   );
