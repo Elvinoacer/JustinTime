@@ -55,13 +55,21 @@ export default function StepClientDetails({
   validatePhone,
 }: StepClientDetailsProps) {
   const loc = useLocation();
+  const { prefillIfPermitted } = loc;
   const [showDeniedModal, setShowDeniedModal] = React.useState(false);
   const [phoneError, setPhoneError] = React.useState<string | null>(null);
   const [isCheckingPhone, setIsCheckingPhone] = React.useState(false);
+  const hasAutoPrefilledRef = React.useRef(false);
 
   const handleGetLocation = async () => {
     await loc.getLocation("client");
   };
+
+  React.useEffect(() => {
+    if (hasAutoPrefilledRef.current) return;
+    hasAutoPrefilledRef.current = true;
+    void prefillIfPermitted();
+  }, [prefillIfPermitted]);
 
   // Sync location hook results to clientData
   React.useEffect(() => {
@@ -261,8 +269,8 @@ export default function StepClientDetails({
                 Precise Location
               </h3>
               <p className="text-xs sm:text-sm text-gray-600">
-                Click below to use your current location for better service
-                matching
+                Use your current location to pre-fill your address and improve
+                service matching
               </p>
             </div>
           </div>
@@ -283,7 +291,7 @@ export default function StepClientDetails({
                 <span className="material-symbols-outlined text-sm sm:text-base">
                   my_location
                 </span>
-                Get My Current Location
+                Use my current location
               </>
             )}
           </button>

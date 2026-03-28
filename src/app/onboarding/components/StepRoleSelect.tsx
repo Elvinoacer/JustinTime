@@ -32,9 +32,15 @@ export default function StepRoleSelect({
       transition={{ duration: 0.4, ease: "easeOut" }}
       className="space-y-4 sm:space-y-6 md:space-y-8"
     >
-      <h2 className="text-lg xs:text-xl sm:text-2xl font-bold text-center text-gray-800 px-2">
-        What brings you here today?
-      </h2>
+      <div className="text-center space-y-2 px-2">
+        <h2 className="text-lg xs:text-xl sm:text-2xl font-bold text-gray-800">
+          What brings you here today?
+        </h2>
+        <p className="text-sm sm:text-base text-gray-600 max-w-xl mx-auto">
+          Choose the path that fits your goal and we&apos;ll tailor the next
+          steps for you.
+        </p>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
         {/* CLIENT card */}
         <button
@@ -78,6 +84,9 @@ export default function StepRoleSelect({
             </h3>
             <p className="text-xs sm:text-sm md:text-base text-gray-500 leading-relaxed">
               Find reliable professionals for your home and business needs.
+            </p>
+            <p className="mt-3 text-xs sm:text-sm font-medium text-emerald-700">
+              Next: add your contact details and location.
             </p>
           </div>
         </button>
@@ -124,6 +133,10 @@ export default function StepRoleSelect({
             </h3>
             <p className="text-xs sm:text-sm md:text-base text-gray-500 leading-relaxed">
               Offer your services, find jobs, and grow your business.
+            </p>
+            <p className="mt-3 text-xs sm:text-sm font-medium text-blue-700">
+              Next: choose your services, confirm your location, then verify
+              your identity.
             </p>
           </div>
         </button>

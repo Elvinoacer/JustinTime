@@ -253,6 +253,13 @@ export default function StepVerification({
     });
   };
 
+  const verificationTone =
+    verificationStatus === "VERIFIED"
+      ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+      : verificationStatus === "REJECTED"
+        ? "bg-red-50 text-red-800 border-red-200"
+        : "bg-blue-50 text-blue-800 border-blue-200";
+
   return (
     <>
       <motion.div
@@ -268,21 +275,66 @@ export default function StepVerification({
             Identity Verification
           </h2>
           <p className="text-sm sm:text-base text-gray-600">
-            Upload your ID and a selfie. We&apos;ll match the faces to verify your identity.
+            This protects clients and providers on the platform. Upload one ID
+            photo and one clear selfie, then we&apos;ll compare them instantly.
           </p>
         </div>
 
+        <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm">
+              <span className="material-symbols-outlined">shield_lock</span>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">
+                Step 3 of 4
+              </p>
+              <h3 className="mt-1 text-base sm:text-lg font-bold text-gray-900">
+                Verify your identity in 3 quick actions
+              </h3>
+              <p className="mt-1 text-sm text-gray-600">
+                1. Upload an ID. 2. Add a selfie. 3. Tap verify to confirm the
+                match.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            {[
+              "Use a well-lit photo with the whole ID visible.",
+              "Take your selfie facing the camera with no heavy blur.",
+              "You&apos;ll see success or error feedback immediately.",
+            ].map((tip) => (
+              <div
+                key={tip}
+                className="rounded-xl border border-white bg-white/90 px-3 py-3 text-sm text-gray-600 shadow-sm"
+              >
+                {tip}
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="space-y-4 sm:space-y-6">
-          {/* Two-column upload section */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             {/* ID Upload */}
             <div
-              className={`group relative p-4 sm:p-6 md:p-8 border-2 border-dashed rounded-lg sm:rounded-xl md:rounded-2xl transition-all duration-300 ${
+              className={`group relative p-4 sm:p-6 md:p-8 border rounded-lg sm:rounded-xl md:rounded-2xl transition-all duration-300 ${
                 idPreview
                   ? "border-emerald-500 bg-emerald-50/30"
-                  : "border-gray-300 bg-gray-50 hover:bg-white hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-500/10"
+                  : "border-gray-200 bg-white hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-500/10"
               }`}
             >
+              <div className="mb-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                  Upload 1
+                </p>
+                <h3 className="mt-1 text-base sm:text-lg font-bold text-gray-900">
+                  Government ID
+                </h3>
+                <p className="mt-1 text-xs sm:text-sm text-gray-500">
+                  National ID, passport, or driver&apos;s license
+                </p>
+              </div>
               {idPreview ? (
                 <div className="space-y-4 sm:space-y-6">
                   <div className="flex flex-col items-center">
@@ -313,12 +365,6 @@ export default function StepVerification({
                   <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 mx-auto bg-white rounded-full shadow-sm flex items-center justify-center group-hover:scale-110 transition-all duration-300">
                     <span className="material-symbols-outlined text-2xl md:text-3xl text-gray-400 group-hover:text-emerald-500">id_card</span>
                   </div>
-                  <span className="block text-base sm:text-lg font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
-                    ID Document
-                  </span>
-                  <span className="block text-xs sm:text-sm text-gray-500 text-center">
-                    National ID, Passport, or Driver&apos;s License
-                  </span>
                   <div className="flex gap-2 mt-2">
                     <label className="cursor-pointer px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center gap-1.5 border border-emerald-200">
                       <span className="material-symbols-outlined text-sm">upload_file</span>
@@ -339,12 +385,23 @@ export default function StepVerification({
 
             {/* Selfie Upload */}
             <div
-              className={`group relative p-4 sm:p-6 md:p-8 border-2 border-dashed rounded-lg sm:rounded-xl md:rounded-2xl transition-all duration-300 ${
+              className={`group relative p-4 sm:p-6 md:p-8 border rounded-lg sm:rounded-xl md:rounded-2xl transition-all duration-300 ${
                 selfiePreview
                   ? "border-emerald-500 bg-emerald-50/30"
-                  : "border-gray-300 bg-gray-50 hover:bg-white hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-500/10"
+                  : "border-gray-200 bg-white hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-500/10"
               }`}
             >
+              <div className="mb-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                  Upload 2
+                </p>
+                <h3 className="mt-1 text-base sm:text-lg font-bold text-gray-900">
+                  Selfie photo
+                </h3>
+                <p className="mt-1 text-xs sm:text-sm text-gray-500">
+                  Use a clear front-facing photo in good lighting
+                </p>
+              </div>
               {selfiePreview ? (
                 <div className="space-y-4 sm:space-y-6">
                   <div className="flex flex-col items-center">
@@ -377,12 +434,6 @@ export default function StepVerification({
                   <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 mx-auto bg-white rounded-full shadow-sm flex items-center justify-center group-hover:scale-110 transition-all duration-300">
                     <span className="material-symbols-outlined text-2xl md:text-3xl text-gray-400 group-hover:text-emerald-500">face</span>
                   </div>
-                  <span className="block text-base sm:text-lg font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
-                    Selfie Photo
-                  </span>
-                  <span className="block text-xs sm:text-sm text-gray-500 text-center">
-                    Take a clear photo of your face
-                  </span>
                   <div className="flex gap-2 mt-2">
                     <label className="cursor-pointer px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center gap-1.5 border border-emerald-200">
                       <span className="material-symbols-outlined text-sm">upload_file</span>
@@ -464,13 +515,7 @@ export default function StepVerification({
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`p-3 sm:p-4 rounded-lg sm:rounded-xl flex items-center gap-2 sm:gap-3 ${
-                verificationStatus === "VERIFIED"
-                  ? "bg-emerald-50 text-emerald-800 border border-emerald-100"
-                  : verificationStatus === "REJECTED"
-                  ? "bg-red-50 text-red-800 border border-red-100"
-                  : "bg-blue-50 text-blue-800 border border-blue-100"
-              }`}
+              className={`p-3 sm:p-4 rounded-lg sm:rounded-xl flex items-center gap-2 sm:gap-3 border ${verificationTone}`}
             >
               <span className="material-symbols-outlined text-lg sm:text-xl">
                 {verificationStatus === "VERIFIED"
@@ -512,11 +557,17 @@ export default function StepVerification({
             ) : (
               <>
                 <span className="material-symbols-outlined text-sm sm:text-base">verified_user</span>
-                <span className="hidden sm:inline">Verify Identity</span>
+                <span className="hidden sm:inline">Verify my identity</span>
                 <span className="inline sm:hidden">Verify</span>
               </>
             )}
           </button>
+
+          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs sm:text-sm text-gray-600">
+            {verificationStatus === "VERIFIED"
+              ? "Verification complete. Continue to finish setting up your provider account."
+              : "Why this matters: verification helps build trust, reduce fraud, and improve booking confidence."}
+          </div>
         </div>
 
         <div className="flex justify-between items-center pt-4 sm:pt-6 md:pt-8 border-t border-gray-100">

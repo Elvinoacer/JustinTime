@@ -51,13 +51,22 @@ export default function StepProviderDetails({
   validatePhone,
 }: StepProviderDetailsProps) {
   const loc = useLocation();
+  const { prefillIfPermitted } = loc;
   const [showDeniedModal, setShowDeniedModal] = React.useState(false);
   const [phoneError, setPhoneError] = React.useState<string | null>(null);
   const [isCheckingPhone, setIsCheckingPhone] = React.useState(false);
+  const [serviceSearch, setServiceSearch] = React.useState("");
+  const hasAutoPrefilledRef = React.useRef(false);
 
   const handleGetLocation = async () => {
     await loc.getLocation("provider");
   };
+
+  React.useEffect(() => {
+    if (hasAutoPrefilledRef.current) return;
+    hasAutoPrefilledRef.current = true;
+    void prefillIfPermitted();
+  }, [prefillIfPermitted]);
 
   // Sync location hook results to providerData
   React.useEffect(() => {
@@ -94,6 +103,21 @@ export default function StepProviderDetails({
       };
     });
   };
+
+  const matchingCategories = React.useMemo(() => {
+    const query = serviceSearch.trim().toLowerCase();
+    if (!query) return categories;
+    return categories.filter(
+      (category) =>
+        category.name.toLowerCase().includes(query) ||
+        category.slug.toLowerCase().includes(query),
+    );
+  }, [categories, serviceSearch]);
+
+  const popularCategories = React.useMemo(
+    () => [...categories].sort((a, b) => b.count - a.count).slice(0, 8),
+    [categories],
+  );
 
   const handlePhoneChange = (value: string) => {
     const formatted = formatPhoneNumber(value);
@@ -175,26 +199,44 @@ export default function StepProviderDetails({
     >
       <div className="text-center">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-2 sm:mb-3">
-          Set Up Your Professional Profile
+          Build your provider profile
         </h2>
         <p className="text-sm sm:text-base text-gray-600">
-          Provide complete information to attract more clients.
+          We&apos;ll help clients understand what you offer, where you work, and
+          how to reach you.
         </p>
       </div>
 
       <div className="space-y-4 sm:space-y-6">
-        {/* Skills Selection */}
-        <div>
-          {/* Selected Services Display */}
+        <section className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm">
+              <span className="material-symbols-outlined">category</span>
+            </div>
+            <div className="flex-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">
+                Step 2 of 4
+              </p>
+              <h3 className="mt-1 text-base sm:text-lg font-bold text-gray-900">
+                What services do you offer?
+              </h3>
+              <p className="mt-1 text-sm text-gray-600">
+                Search or pick from popular services below. Choose up to{" "}
+                {VALIDATION.MAX_PROVIDER_SKILLS} so clients know exactly what
+                to book you for.
+              </p>
+            </div>
+          </div>
+
           {providerData.skills.length > 0 && (
-            <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-lg sm:rounded-xl">
-              <div className="flex items-center justify-between mb-2">
+            <div className="mt-4 rounded-xl border border-emerald-200 bg-white p-3 sm:p-4 shadow-sm">
+              <div className="mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
                     verified
                   </span>
                   <span className="text-xs sm:text-sm font-bold text-gray-700">
-                    Selected Services
+                    Selected services
                   </span>
                 </div>
                 <span
@@ -235,18 +277,92 @@ export default function StepProviderDetails({
             </div>
           )}
 
-          <CategorySelector
-            categories={categories}
-            selectedIds={providerData.skills}
-            onToggle={handleSkillToggle}
-            multiSelect={true}
-            isLoading={isLoadingCategories}
-            label={`What services do you offer? (Max ${VALIDATION.MAX_PROVIDER_SKILLS}) *`}
-            disabled={
-              providerData.skills.length >= VALIDATION.MAX_PROVIDER_SKILLS
-            }
-          />
-        </div>
+          <div className="mt-4">
+            <label
+              htmlFor="provider-service-search"
+              className="mb-2 block text-xs sm:text-sm font-bold text-gray-700"
+            >
+              Search services
+            </label>
+            <div className="relative">
+              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                <span className="material-symbols-outlined text-sm">
+                  search
+                </span>
+              </span>
+              <input
+                id="provider-service-search"
+                type="text"
+                value={serviceSearch}
+                onChange={(e) => setServiceSearch(e.target.value)}
+                placeholder="Try plumber, cleaner, electrician..."
+                className="w-full rounded-xl border border-emerald-100 bg-white py-3 pl-10 pr-4 text-sm text-gray-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                Popular services
+              </p>
+              <p className="text-xs text-gray-500">
+                {providerData.skills.length === 0
+                  ? "Start with the ones you do most often."
+                  : `${VALIDATION.MAX_PROVIDER_SKILLS - providerData.skills.length} slot${VALIDATION.MAX_PROVIDER_SKILLS - providerData.skills.length === 1 ? "" : "s"} left`}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {popularCategories.map((category) => {
+                const isSelected = providerData.skills.includes(category.id);
+                const isDisabled =
+                  providerData.skills.length >=
+                    VALIDATION.MAX_PROVIDER_SKILLS && !isSelected;
+                return (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => handleSkillToggle(category.id)}
+                    disabled={isDisabled}
+                    className={`inline-flex min-h-[44px] items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition ${
+                      isSelected
+                        ? "border-emerald-500 bg-emerald-600 text-white shadow-sm"
+                        : isDisabled
+                          ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+                          : "border-white bg-white text-gray-700 shadow-sm hover:border-emerald-200 hover:text-emerald-700"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-base">
+                      {category.icon}
+                    </span>
+                    {category.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <CategorySelector
+              categories={matchingCategories}
+              selectedIds={providerData.skills}
+              onToggle={handleSkillToggle}
+              multiSelect={true}
+              isLoading={isLoadingCategories}
+              label={`Browse all services (select up to ${VALIDATION.MAX_PROVIDER_SKILLS})`}
+              disabled={
+                providerData.skills.length >= VALIDATION.MAX_PROVIDER_SKILLS
+              }
+            />
+          </div>
+
+          {!isLoadingCategories && matchingCategories.length === 0 && (
+            <div className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-5 text-center text-sm text-gray-500">
+              No services match that search yet. Try a broader term or choose
+              from the popular suggestions above.
+            </div>
+          )}
+        </section>
 
         {/* Phone Number */}
         <div className="group">
@@ -361,52 +477,24 @@ export default function StepProviderDetails({
           )}
         </div>
 
-        {/* Location */}
-        <div className="group">
-          <label
-            htmlFor="provider-location"
-            className="block text-xs sm:text-sm font-bold text-gray-700 mb-1 sm:mb-2 group-focus-within:text-emerald-600 transition-colors"
-          >
-            Service Location *
-          </label>
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
-              <span className="material-symbols-outlined text-gray-400 group-focus-within:text-emerald-500 transition-colors text-sm sm:text-base">
-                location_on
-              </span>
-            </span>
-            <input
-              id="provider-location"
-              type="text"
-              value={providerData.location}
-              onChange={(e) =>
-                setProviderData((prev) => ({
-                  ...prev,
-                  location: e.target.value,
-                }))
-              }
-              className="w-full pl-9 sm:pl-11 pr-3 sm:pr-4 py-3 sm:py-4 rounded-lg sm:rounded-xl bg-gray-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium text-sm sm:text-base"
-              placeholder="e.g., Nairobi, Kenya"
-              required
-            />
-          </div>
-        </div>
-
-        {/* GPS Location Picker */}
-        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow duration-300">
+        <div className="relative rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-sky-50 p-4 sm:p-6 shadow-sm">
           <div className="absolute top-0 right-0 w-20 h-20 sm:w-32 sm:h-32 bg-emerald-100/50 rounded-full blur-2xl -mr-8 -mt-8 sm:-mr-16 sm:-mt-16 pointer-events-none" />
-          <div className="flex items-start gap-3 sm:gap-4 mb-3 sm:mb-4 relative z-10">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-emerald-600 shrink-0">
+          <div className="relative z-10 flex items-start gap-3 sm:gap-4 mb-3 sm:mb-4">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-blue-600 shrink-0">
               <span className="material-symbols-outlined text-sm sm:text-base">
                 my_location
               </span>
             </div>
             <div className="flex-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
+                Location
+              </p>
               <h3 className="font-bold text-gray-900 text-sm sm:text-base mb-1">
-                Get Precise Location
+                We can fill this in for you
               </h3>
               <p className="text-xs sm:text-sm text-gray-600">
-                Help clients find you easily by sharing your precise coordinates
+                Use your current location for faster setup. You can edit the
+                result before you continue.
               </p>
             </div>
           </div>
@@ -415,22 +503,58 @@ export default function StepProviderDetails({
             type="button"
             onClick={handleGetLocation}
             disabled={loc.status === "LOADING"}
-            className="w-full py-3 sm:py-3.5 px-4 bg-white border-2 border-emerald-100 text-emerald-700 rounded-lg sm:rounded-xl hover:bg-emerald-50 hover:border-emerald-200 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-sm relative z-10 text-sm sm:text-base min-h-[44px]"
+            className="relative z-10 w-full py-3 sm:py-3.5 px-4 bg-blue-600 text-white rounded-lg sm:rounded-xl hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-sm text-sm sm:text-base min-h-[48px]"
           >
             {loc.status === "LOADING" ? (
               <>
-                <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
-                Getting Location...
+                <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Finding your location...
               </>
             ) : (
               <>
                 <span className="material-symbols-outlined text-sm sm:text-base">
                   my_location
                 </span>
-                Get My Current Location
+                Use my current location
               </>
             )}
           </button>
+
+          <div className="mt-4 group">
+            <label
+              htmlFor="provider-location"
+              className="mb-2 block text-xs sm:text-sm font-bold text-gray-700"
+            >
+              Service location *
+            </label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                <span className="material-symbols-outlined text-gray-400 group-focus-within:text-emerald-500 transition-colors text-sm sm:text-base">
+                  location_on
+                </span>
+              </span>
+              <input
+                id="provider-location"
+                type="text"
+                value={providerData.location}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setProviderData((prev) => ({
+                    ...prev,
+                    location: value,
+                  }));
+                  loc.setManualAddress(value);
+                }}
+                className="w-full pl-9 sm:pl-11 pr-3 sm:pr-4 py-3 sm:py-4 rounded-lg sm:rounded-xl bg-white border border-blue-100 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium text-sm sm:text-base"
+                placeholder="Your area will appear here"
+                required
+              />
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Why we ask: clients use this to find nearby providers and request
+              the right service area.
+            </p>
+          </div>
 
           {providerData.latitude && providerData.longitude && (
             <motion.div
@@ -450,6 +574,13 @@ export default function StepProviderDetails({
               </div>
               {locationSourceBadge()}
             </motion.div>
+          )}
+
+          {!providerData.location && loc.status !== "LOADING" && (
+            <div className="mt-3 rounded-xl border border-dashed border-blue-200 bg-white/70 px-4 py-3 text-xs sm:text-sm text-gray-600">
+              Location not filled yet. Use the button above for the fastest
+              setup, or type your service area manually.
+            </div>
           )}
         </div>
       </div>
@@ -476,7 +607,7 @@ export default function StepProviderDetails({
           }
           className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-4 sm:px-6 md:px-8 py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center gap-2 text-sm sm:text-base min-h-[44px]"
         >
-          <span className="hidden sm:inline">Next: Verification</span>
+          <span className="hidden sm:inline">Continue to verification</span>
           <span className="inline sm:hidden">Next</span>
           <span className="material-symbols-outlined text-xs sm:text-sm">
             arrow_forward

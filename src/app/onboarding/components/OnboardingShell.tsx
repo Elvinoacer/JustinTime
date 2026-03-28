@@ -21,6 +21,7 @@ export default function OnboardingShell({
       ? ["Role", "Details", "Verify", "Done"]
       : ["Role", "Details", "Done"];
   const totalSteps = labels.length;
+  const currentLabel = labels[Math.min(currentStep - 1, totalSteps - 1)] || "Start";
   const progress = (currentStep / totalSteps) * 100;
 
   return (
@@ -53,12 +54,25 @@ export default function OnboardingShell({
               Welcome to JustInTime
             </h1>
             <p className="text-sm xs:text-base sm:text-lg text-gray-600 font-medium max-w-md mx-auto px-2">
-              Let&apos;s customize your experience to get you started.
+              A quick setup that adapts to what you want to do next.
             </p>
           </div>
 
           {/* Step Dot Progress Bar */}
           <div className="mb-6 sm:mb-8 md:mb-12 relative">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-600">
+                  Step {Math.min(currentStep, totalSteps)} of {totalSteps}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-gray-700">
+                  {currentLabel}
+                </p>
+              </div>
+              <div className="min-w-[88px] rounded-full bg-gray-100 px-3 py-1 text-right text-xs font-semibold text-gray-500">
+                {Math.round(progress)}% complete
+              </div>
+            </div>
             <div className="flex items-center justify-between relative">
               {/* Background line */}
               <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 -translate-y-1/2 z-0" />

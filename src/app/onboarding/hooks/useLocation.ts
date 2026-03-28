@@ -17,6 +17,7 @@ interface UseLocationReturn {
   status: LocationStatus;
   permissionStatus: PermissionState | null;
   getLocation: (userType: "provider" | "client") => void;
+  prefillIfPermitted: () => Promise<void>;
   setManualAddress: (address: string) => void;
   setLocationResult: (result: Partial<LocationResult>) => void;
 }
@@ -150,6 +151,27 @@ export function useLocation(): UseLocationReturn {
     requestGPS(0);
   }, [requestGPS, requestIPFallback]);
 
+  const prefillIfPermitted = useCallback(async () => {
+    if (!("permissions" in navigator)) {
+      return;
+    }
+
+    try {
+      const perm = await navigator.permissions.query({ name: "geolocation" });
+      setPermissionStatus(perm.state);
+
+      if (perm.state === "granted") {
+        setStatus("LOADING");
+        requestGPS(0);
+      } else if (perm.state === "denied") {
+        setStatus("LOADING");
+        await requestIPFallback();
+      }
+    } catch {
+      // Ignore permission prefill failures and keep manual flow available.
+    }
+  }, [requestGPS, requestIPFallback]);
+
   const setManualAddress = useCallback((address: string) => {
     setLocation((prev) => ({ ...prev, address, source: "MANUAL" as LocationSource }));
   }, []);
@@ -163,6 +185,7 @@ export function useLocation(): UseLocationReturn {
     status,
     permissionStatus,
     getLocation,
+    prefillIfPermitted,
     setManualAddress,
     setLocationResult,
   };
