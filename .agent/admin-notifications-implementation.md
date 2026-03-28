@@ -1,7 +1,9 @@
 # Admin User Actions - Comprehensive Notification System
 
 ## Overview
+
 Implemented a complete notification system for all admin actions performed on users in `/admin/users/[id]`. When an admin performs any action, the affected user receives:
+
 1. **Push Notification** (via FCM)
 2. **Email Notification** (via Resend)
 3. **Database Notification Record** (in the Notification table)
@@ -9,7 +11,9 @@ Implemented a complete notification system for all admin actions performed on us
 ## Implementation Details
 
 ### Core Service
+
 Created `/src/lib/notifications/adminNotifications.ts` which provides:
+
 - `sendComprehensiveNotification()` - Main function that sends all three notification types
 - `emailTemplates` - Beautiful HTML email templates for each admin action
 
@@ -18,15 +22,16 @@ Created `/src/lib/notifications/adminNotifications.ts` which provides:
 All the following admin actions now send comprehensive notifications:
 
 #### 1. **Ban/Unban User**
+
 **Trigger:** Admin toggles the ban status of a user
 
 **Notifications Sent:**
+
 - **Ban Action:**
   - Title: "Account Suspended"
   - Email: Professional template explaining the suspension
   - Push: Alert about account restriction
   - DB Record: Type "ACCOUNT_SUSPENDED"
-  
 - **Unban Action:**
   - Title: "Account Reinstated"
   - Email: Welcome back message with restored access info
@@ -34,9 +39,11 @@ All the following admin actions now send comprehensive notifications:
   - DB Record: Type "ACCOUNT_REINSTATED"
 
 #### 2. **Change User Role**
+
 **Trigger:** Admin changes user role (CLIENT → PROVIDER → ADMIN, etc.)
 
 **Notifications Sent:**
+
 - Title: "Account Role Updated"
 - Email: Detailed explanation of role change from OLD_ROLE to NEW_ROLE
 - Push: Alert about role update
@@ -44,9 +51,11 @@ All the following admin actions now send comprehensive notifications:
 - Includes: Visual before/after comparison in email
 
 #### 3. **Schedule Account Deletion**
+
 **Trigger:** Admin schedules user account for deletion (30-day grace period)
 
 **Notifications Sent:**
+
 - Title: "Account Deletion Scheduled"
 - Email: Warning with deletion date, reason, and appeal instructions
 - Push: Urgent notification about scheduled deletion
@@ -54,18 +63,22 @@ All the following admin actions now send comprehensive notifications:
 - Includes: Countdown timer in email, reason for deletion
 
 #### 4. **Cancel Account Deletion**
+
 **Trigger:** Admin cancels a previously scheduled deletion
 
 **Notifications Sent:**
+
 - Title: "Account Deletion Cancelled"
 - Email: Good news message confirming account is safe
 - Push: Positive notification
 - DB Record: Type "ACCOUNT_DELETION_CANCELLED"
 
 #### 5. **Send Password Reset**
+
 **Trigger:** Admin triggers password reset for user
 
 **Notifications Sent:**
+
 - Title: "Password Reset Requested"
 - Email: Professional template with reset link (24-hour expiry)
 - Push: Security alert about password reset
@@ -75,6 +88,7 @@ All the following admin actions now send comprehensive notifications:
 ## Email Templates
 
 All email templates feature:
+
 - **Professional Design**: Gradient headers, clean layout
 - **Mobile Responsive**: Looks great on all devices
 - **Branded**: Consistent JustInTime branding
@@ -84,24 +98,28 @@ All email templates feature:
 ### Template Features by Action:
 
 **Ban Email:**
+
 - ⚠️ Alert styling (red theme)
 - Explanation of restrictions
 - List of what user can't do while banned
 - Support contact button
 
 **Unban Email:**
+
 - ✓ Success styling (green theme)
 - Welcome back message
 - List of restored features
 - Dashboard access button
 
 **Role Change Email:**
+
 - 🔄 Info styling (blue theme)
 - Before/after role badges
 - Impact on permissions
 - Dashboard exploration prompt
 
 **Deletion Scheduled Email:**
+
 - ⏰ Warning styling (orange theme)
 - Countdown display
 - Reason for deletion
@@ -109,11 +127,13 @@ All email templates feature:
 - Support contact button
 
 **Deletion Cancelled Email:**
+
 - ✅ Success styling (green theme)
 - Confirmation message
 - Reassurance about account status
 
 **Password Reset Email:**
+
 - 🔐 Security styling (purple theme)
 - Reset link with button
 - 24-hour expiry warning
@@ -122,6 +142,7 @@ All email templates feature:
 ## Database Schema
 
 Notifications are stored in the `Notification` model:
+
 ```prisma
 model Notification {
   id        String   @id @default(cuid())
@@ -138,6 +159,7 @@ model Notification {
 ## Error Handling
 
 The notification system is resilient:
+
 - If **push notification fails**: Email and DB notification still sent
 - If **email fails**: Push and DB notification still sent
 - If **DB record fails**: The action itself doesn't fail
@@ -151,7 +173,7 @@ EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASSWORD=your_app_password
-EMAIL_FROM=noreply@justintime.com
+EMAIL_FROM=support@gtss.software
 
 # App URL (for links in emails)
 NEXTAUTH_URL=https://yourapp.com
@@ -165,6 +187,7 @@ FIREBASE_PROJECT_ID=...
 ## Testing Checklist
 
 ### 1. Ban User
+
 - [ ] Admin bans user from `/admin/users/[id]`
 - [ ] User receives push notification immediately
 - [ ] User receives email explaining suspension
@@ -172,12 +195,14 @@ FIREBASE_PROJECT_ID=...
 - [ ] Email includes reason and support contact
 
 ### 2. Unban User
+
 - [ ] Admin unbans previously banned user
 - [ ] User receives "welcome back" push notification
 - [ ] User receives reinstatement email
 - [ ] Notification stored in DB
 
 ### 3. Change User Role
+
 - [ ] Admin changes user role
 - [ ] User notification shows old role → new role
 - [ ] Email displays role change with badges
@@ -185,6 +210,7 @@ FIREBASE_PROJECT_ID=...
 - [ ] DB record created
 
 ### 4. Schedule Deletion
+
 - [ ] Admin schedules deletion with reason
 - [ ] User receives urgent push notification
 - [ ] Email includes countdown and reason
@@ -192,12 +218,14 @@ FIREBASE_PROJECT_ID=...
 - [ ] Email has appeal/support button
 
 ### 5. Cancel Deletion
+
 - [ ] Admin cancels scheduled deletion
 - [ ] User receives good news notification
 - [ ] Email confirms account is safe
 - [ ] DB record created
 
 ### 6. Password Reset
+
 - [ ] Admin triggers password reset
 - [ ] User receives secure email with reset link
 - [ ] Push notification alerts about security action
@@ -209,7 +237,6 @@ FIREBASE_PROJECT_ID=...
 ### Example: User Gets Banned
 
 1. **Admin Action**: Admin clicks "Ban User" on `/admin/users/123`
-   
 2. **Backend Processing**:
    - User banned in database
    - Admin action logged
@@ -231,18 +258,21 @@ FIREBASE_PROJECT_ID=...
 All notifications use the centralized system:
 
 ```typescript
-import { sendComprehensiveNotification, emailTemplates } from '@/lib/notifications/adminNotifications';
+import {
+  sendComprehensiveNotification,
+  emailTemplates,
+} from "@/lib/notifications/adminNotifications";
 
 // In any admin action
 const template = emailTemplates.userBanned(userName);
 
 await sendComprehensiveNotification({
   userId,
-  title: 'Account Suspended',
-  message: 'Your account has been restricted...',
-  type: 'ACCOUNT_SUSPENDED',
+  title: "Account Suspended",
+  message: "Your account has been restricted...",
+  type: "ACCOUNT_SUSPENDED",
   emailSubject: template.subject,
-  emailHtml: template.html
+  emailHtml: template.html,
 });
 ```
 
@@ -259,6 +289,7 @@ await sendComprehensiveNotification({
 ## Future Enhancements
 
 Potential improvements:
+
 - [ ] SMS notifications for critical actions
 - [ ] Custom notification preferences per user
 - [ ] Notification aggregation (daily digest)

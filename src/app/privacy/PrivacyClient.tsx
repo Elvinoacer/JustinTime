@@ -46,7 +46,7 @@ export default function PrivacyPolicyPage() {
   useEffect(() => {
     const handleScroll = () => {
       const sectionElements = sections.map((s) =>
-        document.getElementById(s.id)
+        document.getElementById(s.id),
       );
       const scrollPosition = window.scrollY + (isMobile ? 80 : 100);
 
@@ -787,10 +787,10 @@ export default function PrivacyPolicyPage() {
                                 Email
                               </p>
                               <a
-                                href="mailto:privacy@justintime.co.ke"
+                                href="mailto:support@gtss.software"
                                 className="text-blue-600 hover:text-blue-700 font-medium no-underline text-sm sm:text-base"
                               >
-                                privacy@justintime.co.ke
+                                support@gtss.software
                               </a>
                             </div>
                             <div>

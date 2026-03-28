@@ -1,38 +1,47 @@
 # Notification System Implementation Summary
 
 ## Overview
+
 Successfully implemented a comprehensive Firebase Cloud Messaging (FCM) notification system with automatic permission requests and intelligent UI prompts.
 
 ## Key Features Implemented
 
 ### 1. **Automatic Permission Requests**
+
 - ✅ **Settings Toggle**: When users click the notification toggle in settings, permission is automatically requested
 - ✅ **No Manual Steps**: Users don't need to manually enable - just toggle the switch
 - ✅ **Smart Handling**: The system handles permission states (default, granted, denied) intelligently
 
 ### 2. **Dashboard Overlay Prompts**
+
 The beautiful notification overlay appears from the bottom of the screen on these dashboards:
+
 - ✅ **Client Dashboard** (`/client/dashboard`)
 - ✅ **Provider Dashboard** (`/dashboard`)
 - ✅ **Admin Dashboard** (`/admin`)
 
 **Overlay appears when:**
+
 - Notification permission is "default" (not yet asked), OR
 - Permission was granted but token registration failed/is incomplete
 - User hasn't dismissed it in the current session
 
 **Overlay does NOT appear when:**
+
 - Notifications are fully enabled (permission granted + token registered)
 - Permission was explicitly denied by user
 - User dismissed it in the current session
 
 ### 3. **Settings Pages Integration**
+
 Added `PushNotificationToggle` component to:
+
 - ✅ `/dashboard/settings` (Provider Settings)
 - ✅ `/client/settings` (Client Settings)
 - ✅ `/admin/settings` (Admin Settings - replaced debug view)
 
 **Toggle Features:**
+
 - Shows current status (Active/Blocked/Not Enabled)
 - Automatically requests permission when toggled ON
 - Disabled when already active or explicitly denied
@@ -63,6 +72,7 @@ Added `PushNotificationToggle` component to:
 ### User Experience Flow
 
 #### First-Time User Journey:
+
 1. User logs in and navigates to dashboard
 2. After 2 seconds, beautiful overlay appears from bottom
 3. User clicks "Enable" button
@@ -73,6 +83,7 @@ Added `PushNotificationToggle` component to:
 8. User is now set up for notifications ✅
 
 #### Settings Page Journey:
+
 1. User navigates to Settings → Notifications tab
 2. Sees "Push Notifications" toggle (OFF state)
 3. Clicks toggle to enable
@@ -80,6 +91,7 @@ Added `PushNotificationToggle` component to:
 5. Toggle shows "Active" badge when complete ✅
 
 ### Session Management
+
 - Dismissals are stored in `sessionStorage`
 - Overlay won't reappear in same session if dismissed
 - Resets on new browser session/tab
@@ -109,7 +121,7 @@ EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASSWORD=your_app_password
-EMAIL_FROM=noreply@justintime.com
+EMAIL_FROM=support@gtss.software
 
 # App URL (for links)
 NEXTAUTH_URL=https://yourapp.com
@@ -122,6 +134,7 @@ NEXTAUTH_URL=https://yourapp.com
 `public/firebase-messaging-sw.js`
 
 Replace the placeholder values with your actual Firebase configuration:
+
 ```javascript
 const firebaseConfig = {
   apiKey: "YOUR_ACTUAL_API_KEY",
@@ -138,6 +151,7 @@ Service workers cannot access `.env` variables at runtime, so this must be hardc
 ## Testing Checklist
 
 ### Dashboard Overlay Testing
+
 - [ ] Visit `/client/dashboard` - overlay should appear after 2 seconds
 - [ ] Click "Enable" - permission prompt should appear
 - [ ] Grant permission - overlay should disappear
@@ -145,6 +159,7 @@ Service workers cannot access `.env` variables at runtime, so this must be hardc
 - [ ] Open new tab - overlay should appear again (new session)
 
 ### Settings Toggle Testing
+
 - [ ] Go to `/dashboard/settings` → Notifications tab
 - [ ] Toggle should be OFF initially
 - [ ] Click toggle - permission should be requested automatically
@@ -152,6 +167,7 @@ Service workers cannot access `.env` variables at runtime, so this must be hardc
 - [ ] Return to settings - toggle remains ON with "Active" badge
 
 ### Permission States Testing
+
 - [ ] Test with "default" permission (first time)
 - [ ] Test with "granted" permission
 - [ ] Test with "denied" permission (toggle should be disabled)
@@ -160,7 +176,7 @@ Service workers cannot access `.env` variables at runtime, so this must be hardc
 ## Benefits of This Implementation
 
 1. **Automatic**: No manual steps for users - just one click
-2. **Smart**: Detects incomplete setups and prompts accordingly  
+2. **Smart**: Detects incomplete setups and prompts accordingly
 3. **Non-intrusive**: 2-second delay + session dismissal
 4. **Consistent**: Same UX across all dashboards and settings
 5. **User-friendly**: Clear messaging and beautiful UI
@@ -169,17 +185,20 @@ Service workers cannot access `.env` variables at runtime, so this must be hardc
 ## Files Modified
 
 ### Core Changes
+
 - `src/components/NotificationPermissionOverlay.tsx` - Enhanced overlay logic
 - `src/app/dashboard/settings/page.tsx` - Added PushNotificationToggle
 - `src/app/client/settings/page.tsx` - Added PushNotificationToggle
 - `src/components/admin/SettingsClient.tsx` - Replaced debug UI with toggle
 
 ### Dashboard Integration
+
 - `src/app/client/dashboard/page.tsx` - Added overlay
 - `src/app/dashboard/page.tsx` - Added overlay
 - `src/app/admin/page.tsx` - Added overlay
 
 ### Backend & Utilities
+
 - `prisma/schema.prisma` - UserToken model
 - `src/lib/hooks/useFcmToken.ts` - FCM token hook
 - `src/lib/notifications/dispatcher.ts` - Notification sender

@@ -37,7 +37,7 @@ export default function TermsOfServicePage() {
   useEffect(() => {
     const handleScroll = () => {
       const sectionElements = sections.map((s) =>
-        document.getElementById(s.id)
+        document.getElementById(s.id),
       );
       const scrollPosition = window.scrollY + 100;
 
@@ -620,10 +620,10 @@ export default function TermsOfServicePage() {
                             Email
                           </p>
                           <a
-                            href="mailto:legal@justintime.co.ke"
+                            href="mailto:support@gtss.software"
                             className="text-sm sm:text-base text-purple-600 hover:text-purple-700 font-medium no-underline"
                           >
-                            legal@justintime.co.ke
+                            support@gtss.software
                           </a>
                         </div>
                         <div>

@@ -10,14 +10,14 @@
 
 Before touching anything, here is the current state of the system as audited:
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 14 App Router, React, Tailwind CSS, Framer Motion |
-| Auth | NextAuth v5 (JWT strategy), Google + Credentials providers |
-| API | Next.js Route Handlers (`/src/app/api/**`) |
-| Database | PostgreSQL via Prisma ORM |
-| Email | Custom `sendContactFormEmail` in `/src/lib/email.ts` |
-| State | React `useState`, TanStack Query for server state |
+| Layer    | Technology                                                 |
+| -------- | ---------------------------------------------------------- |
+| Frontend | Next.js 14 App Router, React, Tailwind CSS, Framer Motion  |
+| Auth     | NextAuth v5 (JWT strategy), Google + Credentials providers |
+| API      | Next.js Route Handlers (`/src/app/api/**`)                 |
+| Database | PostgreSQL via Prisma ORM                                  |
+| Email    | Custom `sendContactFormEmail` in `/src/lib/email.ts`       |
+| State    | React `useState`, TanStack Query for server state          |
 
 ---
 
@@ -29,18 +29,18 @@ The codebase currently has **10 files** containing inconsistent, outdated email 
 
 ### Audit: Files Requiring Changes
 
-| File | Current Email(s) | Change Required |
-|---|---|---|
-| `src/app/contact/ContactClient.tsx` | `support@justintime.co.ke`, `info@justintime.co.ke` | Replace both with `support@gtss.software` |
-| `src/app/faq/FAQClient.tsx` | `support@justintime.co.ke` (×2 — text + href) | Replace both instances |
-| `src/app/terms/TermsClient.tsx` | `legal@justintime.co.ke` | Replace with `support@gtss.software` |
-| `src/app/privacy/PrivacyClient.tsx` | `privacy@justintime.co.ke` | Replace with `support@gtss.software` |
-| `src/app/cookie-policy/CookiePolicyClient.tsx` | `privacy@justintime.co.ke` | Replace with `support@gtss.software` |
-| `src/app/dashboard/help/page.tsx` | `support@justintime.com` (×2 — href + display text) | Replace both instances |
-| `src/components/admin/SystemSettings.tsx` | `support@justintime.com` (defaultValue) | Replace default value |
-| `src/components/admin/EnhancedSystemSettings.tsx` | `support@justintime.com` (defaultValue) | Replace default value |
-| `src/lib/email.ts` | `noreply@justintime.com` (fallback in `getEmailConfig`) | Replace the env fallback string |
-| `src/app/onboarding/hooks/useLocation.ts` | `contact@justintime.co.ke` (User-Agent header) | Replace with `support@gtss.software` |
+| File                                              | Current Email(s)                                       | Change Required                           |
+| ------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------- |
+| `src/app/contact/ContactClient.tsx`               | `support@gtss.software`, `support@gtss.software`       | Replace both with `support@gtss.software` |
+| `src/app/faq/FAQClient.tsx`                       | `support@gtss.software` (×2 — text + href)             | Replace both instances                    |
+| `src/app/terms/TermsClient.tsx`                   | `support@gtss.software`                                | Replace with `support@gtss.software`      |
+| `src/app/privacy/PrivacyClient.tsx`               | `support@gtss.software`                                | Replace with `support@gtss.software`      |
+| `src/app/cookie-policy/CookiePolicyClient.tsx`    | `support@gtss.software`                                | Replace with `support@gtss.software`      |
+| `src/app/dashboard/help/page.tsx`                 | `support@gtss.software` (×2 — href + display text)     | Replace both instances                    |
+| `src/components/admin/SystemSettings.tsx`         | `support@gtss.software` (defaultValue)                 | Replace default value                     |
+| `src/components/admin/EnhancedSystemSettings.tsx` | `support@gtss.software` (defaultValue)                 | Replace default value                     |
+| `src/lib/email.ts`                                | `support@gtss.software` (fallback in `getEmailConfig`) | Replace the env fallback string           |
+| `src/app/onboarding/hooks/useLocation.ts`         | `support@gtss.software` (User-Agent header)            | Replace with `support@gtss.software`      |
 
 ### Implementation Steps
 
@@ -49,10 +49,11 @@ The codebase currently has **10 files** containing inconsistent, outdated email 
 In each file listed above, replace every occurrence of the old email with `support@gtss.software`. Pay attention to two patterns per file: the visible display text AND the `href="mailto:..."` attribute — both must be updated together to avoid a mismatch (e.g. showing one email but `mailto:` linking to another).
 
 Example pattern to fix in `ContactClient.tsx`:
+
 ```tsx
 // BEFORE
-<a href="mailto:support@justintime.co.ke">
-  support@justintime.co.ke
+<a href="mailto:support@gtss.software">
+  support@gtss.software
 </a>
 
 // AFTER
@@ -61,30 +62,36 @@ Example pattern to fix in `ContactClient.tsx`:
 </a>
 ```
 
-The `info@justintime.co.ke` in `ContactClient.tsx` should also be replaced — do not keep it as a secondary address.
+The `support@gtss.software` in `ContactClient.tsx` should also be used as the single support address.
 
 **Step 1.2 — Backend Config (email.ts)**
 
 In `/src/lib/email.ts`, the `getEmailConfig()` function has this fallback:
+
 ```ts
-const emailEnv = process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || "noreply@justintime.com";
+const emailEnv =
+  process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || "support@gtss.software";
 ```
+
 Change the hardcoded fallback to `"support@gtss.software"`.
 
 Also verify that `sendContactFormEmail` (line ~1605) sends to `process.env.EMAIL_USER || "support@gtss.software"` — this is already correct and should be left as-is.
 
 **Step 1.3 — Admin Settings Components**
 
-`SystemSettings.tsx` and `EnhancedSystemSettings.tsx` both have `defaultValue: "support@justintime.com"` for the support email setting field. Update these defaults. Note: if this value is already persisted in the database for existing deployments, you will also need to run a one-time DB update:
+`SystemSettings.tsx` and `EnhancedSystemSettings.tsx` both have `defaultValue: "support@gtss.software"` for the support email setting field. Update these defaults. Note: if this value is already persisted in the database for existing deployments, you will also need to run a one-time DB update:
+
 ```sql
-UPDATE "Settings" SET value = 'support@gtss.software' 
+UPDATE "Settings" SET value = 'support@gtss.software'
 WHERE key = 'support_email';
 ```
+
 Confirm the exact table/key names against your Prisma schema before running.
 
 **Step 1.4 — User-Agent Header**
 
 In `src/app/onboarding/hooks/useLocation.ts`, the IP geolocation call sends a `User-Agent` header with the old email. Update to:
+
 ```ts
 "User-Agent": "JustInTime/1.0 (support@gtss.software)"
 ```
@@ -92,9 +99,11 @@ In `src/app/onboarding/hooks/useLocation.ts`, the IP geolocation call sends a `U
 **Step 1.5 — Verification**
 
 After all changes, run a global search across the entire repo to confirm no old addresses remain:
+
 ```bash
-grep -rn "justintime.co.ke\|@justintime.com\|info@justintime\|legal@\|privacy@\|contact@justintime\|noreply@justintime" src/
+grep -rn "support@gtss.software" src/
 ```
+
 This should return zero results.
 
 ---
@@ -111,7 +120,7 @@ Convert the single-page form into a **4-step stepper** with persistent state and
 
 ```
 Step 1: Select Service
-Step 2: Pick Dates & Times  
+Step 2: Pick Dates & Times
 Step 3: Contact & Notes         ← Auth gate fires HERE (not at submit)
 Step 4: Review & Confirm        ← Only authenticated users reach this
 ```
@@ -125,12 +134,14 @@ Step 4: Review & Confirm        ← Only authenticated users reach this
 Create `/src/components/booking/BookingStepShell.tsx`.
 
 This component renders:
+
 - A horizontal progress bar at the top showing steps 1–4 with labels ("Service", "Schedule", "Details", "Confirm")
 - The current step number and step label as a heading
 - A "Back" button (disabled on step 1)
 - The children (current step content)
 
 Design requirements:
+
 - Active step: filled emerald circle with white step number
 - Completed step: filled emerald circle with a checkmark icon
 - Upcoming step: gray outlined circle
@@ -144,6 +155,7 @@ Design requirements:
 Refactor the current monolithic `BookingPageContent` into four isolated components, each in `/src/components/booking/`:
 
 **`StepSelectService.tsx`**
+
 - Renders the list of the professional's services as selectable cards
 - Each card shows: service title, description (clamped to 2 lines), price, duration, and location type badge
 - Selected card gets a prominent emerald border and a checkmark
@@ -151,6 +163,7 @@ Refactor the current monolithic `BookingPageContent` into four isolated componen
 - If `serviceId` is passed as a query param, pre-select that service and auto-advance to step 2
 
 **`StepPickSchedule.tsx`**
+
 - Calendar (multi-date selection) — desktop inline, mobile bottom-sheet modal (existing pattern preserved)
 - Time slot grid per selected date
 - Show a loading skeleton while slots are being fetched (replace the current silent empty state)
@@ -158,6 +171,7 @@ Refactor the current monolithic `BookingPageContent` into four isolated componen
 - Show a persistent summary chip at the top: "3 slots selected across 2 dates"
 
 **`StepContactDetails.tsx`**
+
 - Phone number input with country code prefix (default: +254)
 - Address textarea
 - Notes textarea (optional)
@@ -167,6 +181,7 @@ Refactor the current monolithic `BookingPageContent` into four isolated componen
 - CTA: "Review Booking →"
 
 **`StepConfirmBooking.tsx`**
+
 - Read-only summary of all previous selections: professional name/avatar, service, dates & times, contact info, notes
 - Pricing breakdown card: subtotal, excise duty, happiness pledge, total
 - Promo code input (move it here from the sidebar — it belongs at checkout)
@@ -179,9 +194,11 @@ Refactor the current monolithic `BookingPageContent` into four isolated componen
 #### Step 2.3 — Auth Interception (State-Preserving)
 
 **Current problem:** Auth check fires at `handleSubmit`. The redirect is:
+
 ```ts
-router.push(`/auth/login?callbackUrl=/booking?professional=${professionalId}`)
+router.push(`/auth/login?callbackUrl=/booking?professional=${professionalId}`);
 ```
+
 After login, the user lands back on `/booking?professional=X` with an empty form — all selections are lost.
 
 **Fix — localStorage state bridge:**
@@ -193,7 +210,7 @@ When the auth gate fires on step 3 (before the user can proceed to review), save
 const bookingDraft = {
   professionalId,
   selectedService,
-  selectedDates: selectedDates.map(d => d.toISOString()),
+  selectedDates: selectedDates.map((d) => d.toISOString()),
   selectedTimeSlots,
   notes,
   location,
@@ -201,8 +218,10 @@ const bookingDraft = {
   clientAddress,
   savedAt: Date.now(),
 };
-localStorage.setItem('jit_booking_draft', JSON.stringify(bookingDraft));
-router.push(`/auth/login?callbackUrl=${encodeURIComponent(`/booking?professional=${professionalId}&restore=1`)}`);
+localStorage.setItem("jit_booking_draft", JSON.stringify(bookingDraft));
+router.push(
+  `/auth/login?callbackUrl=${encodeURIComponent(`/booking?professional=${professionalId}&restore=1`)}`,
+);
 ```
 
 **Fix — Draft restoration on mount:**
@@ -211,13 +230,14 @@ In the main booking page, on mount check for the `restore=1` query param AND a v
 
 ```ts
 useEffect(() => {
-  const restoreParam = searchParams.get('restore');
-  if (restoreParam === '1' && session) {
-    const raw = localStorage.getItem('jit_booking_draft');
+  const restoreParam = searchParams.get("restore");
+  if (restoreParam === "1" && session) {
+    const raw = localStorage.getItem("jit_booking_draft");
     if (raw) {
       const draft = JSON.parse(raw);
       const ageMs = Date.now() - draft.savedAt;
-      if (ageMs < 30 * 60 * 1000) { // 30 min TTL
+      if (ageMs < 30 * 60 * 1000) {
+        // 30 min TTL
         // Restore all state fields
         setSelectedService(draft.selectedService);
         setSelectedDates(draft.selectedDates.map((s: string) => new Date(s)));
@@ -228,7 +248,7 @@ useEffect(() => {
         setCurrentStep(3); // Return to details step
         toast.success("Your booking details have been restored.");
       }
-      localStorage.removeItem('jit_booking_draft');
+      localStorage.removeItem("jit_booking_draft");
     }
   }
 }, [session, searchParams]);
@@ -242,12 +262,12 @@ useEffect(() => {
 
 Every async action must have a visible loading state. Apply these across the booking flow:
 
-| Action | Current State | Required State |
-|---|---|---|
-| Fetching available time slots | Silent (slots just appear) | Skeleton grid of 8 gray placeholder buttons with pulse animation |
-| Fetching monthly availability | Silent | Subtle "Loading calendar..." text below the calendar header |
-| Applying promo code | "..." text on button | Button shows spinner icon + "Checking..." |
-| Submitting booking | `isSubmitting` spinner (already implemented) | Keep, but also disable all interactive elements and show overlay on the confirm card |
+| Action                        | Current State                                | Required State                                                                       |
+| ----------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Fetching available time slots | Silent (slots just appear)                   | Skeleton grid of 8 gray placeholder buttons with pulse animation                     |
+| Fetching monthly availability | Silent                                       | Subtle "Loading calendar..." text below the calendar header                          |
+| Applying promo code           | "..." text on button                         | Button shows spinner icon + "Checking..."                                            |
+| Submitting booking            | `isSubmitting` spinner (already implemented) | Keep, but also disable all interactive elements and show overlay on the confirm card |
 
 ---
 
@@ -260,25 +280,25 @@ The current booking API (`/src/app/api/bookings/route.ts`) validates that `profe
 if (notes && notes.length > 500) {
   return NextResponse.json(
     { error: "Notes must not exceed 500 characters." },
-    { status: 400 }
+    { status: 400 },
   );
 }
 if (clientAddress && clientAddress.length > 300) {
   return NextResponse.json(
     { error: "Address must not exceed 300 characters." },
-    { status: 400 }
+    { status: 400 },
   );
 }
 if (clientPhone && clientPhone.length > 20) {
   return NextResponse.json(
     { error: "Phone number is too long." },
-    { status: 400 }
+    { status: 400 },
   );
 }
 if (location && location.length > 200) {
   return NextResponse.json(
     { error: "Location must not exceed 200 characters." },
-    { status: 400 }
+    { status: 400 },
   );
 }
 ```
@@ -359,8 +379,13 @@ import { VALIDATION } from "@/lib/constants/validation";
 const handleSkillToggle = (skillId: string) => {
   const isSelected = providerData.skills.includes(skillId);
 
-  if (!isSelected && providerData.skills.length >= VALIDATION.MAX_PROVIDER_SKILLS) {
-    toast.error(`You can select up to ${VALIDATION.MAX_PROVIDER_SKILLS} services.`);
+  if (
+    !isSelected &&
+    providerData.skills.length >= VALIDATION.MAX_PROVIDER_SKILLS
+  ) {
+    toast.error(
+      `You can select up to ${VALIDATION.MAX_PROVIDER_SKILLS} services.`,
+    );
     return;
   }
 
@@ -374,9 +399,11 @@ const handleSkillToggle = (skillId: string) => {
 ```
 
 Also add a visible counter below the `CategorySelector`:
+
 ```tsx
 <p className="text-sm text-gray-500 mt-2">
-  {providerData.skills.length} / {VALIDATION.MAX_PROVIDER_SKILLS} services selected
+  {providerData.skills.length} / {VALIDATION.MAX_PROVIDER_SKILLS} services
+  selected
   {providerData.skills.length >= VALIDATION.MAX_PROVIDER_SKILLS && (
     <span className="text-amber-600 font-medium ml-2">Maximum reached</span>
   )}
@@ -396,12 +423,17 @@ The `onInterestToggle` prop is passed down from `page.tsx`. In `page.tsx`, the h
 ```ts
 const handleInterestToggle = (id: string) => {
   const isSelected = clientInterests.includes(id);
-  if (!isSelected && clientInterests.length >= VALIDATION.MAX_CLIENT_INTERESTS) {
-    toast.error(`You can select up to ${VALIDATION.MAX_CLIENT_INTERESTS} interests.`);
+  if (
+    !isSelected &&
+    clientInterests.length >= VALIDATION.MAX_CLIENT_INTERESTS
+  ) {
+    toast.error(
+      `You can select up to ${VALIDATION.MAX_CLIENT_INTERESTS} interests.`,
+    );
     return;
   }
   setClientInterests((prev) =>
-    isSelected ? prev.filter((i) => i !== id) : [...prev, id]
+    isSelected ? prev.filter((i) => i !== id) : [...prev, id],
   );
 };
 ```
@@ -427,8 +459,8 @@ Add `maxLength` to the bio textarea and a live character counter:
 />
 <div className="flex justify-between mt-1">
   <p className={`text-xs ${
-    providerData.bio.length < VALIDATION.MIN_BIO_LENGTH 
-      ? 'text-gray-400' 
+    providerData.bio.length < VALIDATION.MIN_BIO_LENGTH
+      ? 'text-gray-400'
       : 'text-emerald-600'
   }`}>
     {providerData.bio.length < VALIDATION.MIN_BIO_LENGTH
@@ -436,8 +468,8 @@ Add `maxLength` to the bio textarea and a live character counter:
       : '✓ Good length'}
   </p>
   <p className={`text-xs ${
-    providerData.bio.length > VALIDATION.MAX_BIO_LENGTH - 50 
-      ? 'text-red-500' 
+    providerData.bio.length > VALIDATION.MAX_BIO_LENGTH - 50
+      ? 'text-red-500'
       : 'text-gray-400'
   }`}>
     {providerData.bio.length} / {VALIDATION.MAX_BIO_LENGTH}
@@ -446,6 +478,7 @@ Add `maxLength` to the bio textarea and a live character counter:
 ```
 
 Also update the "Next" button disabled condition to include the minimum bio length:
+
 ```ts
 disabled={
   !providerData.skills.length ||
@@ -471,28 +504,37 @@ import { VALIDATION } from "@/lib/constants/validation";
 // Inside the PROVIDER block:
 if (skills.length > VALIDATION.MAX_PROVIDER_SKILLS) {
   return NextResponse.json(
-    { message: `You may select a maximum of ${VALIDATION.MAX_PROVIDER_SKILLS} services.` },
-    { status: 400 }
+    {
+      message: `You may select a maximum of ${VALIDATION.MAX_PROVIDER_SKILLS} services.`,
+    },
+    { status: 400 },
   );
 }
 if (bio.trim().length < VALIDATION.MIN_BIO_LENGTH) {
   return NextResponse.json(
-    { message: `Bio must be at least ${VALIDATION.MIN_BIO_LENGTH} characters.` },
-    { status: 400 }
+    {
+      message: `Bio must be at least ${VALIDATION.MIN_BIO_LENGTH} characters.`,
+    },
+    { status: 400 },
   );
 }
 if (bio.length > VALIDATION.MAX_BIO_LENGTH) {
   return NextResponse.json(
     { message: `Bio must not exceed ${VALIDATION.MAX_BIO_LENGTH} characters.` },
-    { status: 400 }
+    { status: 400 },
   );
 }
 
 // Inside the CLIENT block:
-if (clientInterests && clientInterests.length > VALIDATION.MAX_CLIENT_INTERESTS) {
+if (
+  clientInterests &&
+  clientInterests.length > VALIDATION.MAX_CLIENT_INTERESTS
+) {
   return NextResponse.json(
-    { message: `You may select a maximum of ${VALIDATION.MAX_CLIENT_INTERESTS} interests.` },
-    { status: 400 }
+    {
+      message: `You may select a maximum of ${VALIDATION.MAX_CLIENT_INTERESTS} interests.`,
+    },
+    { status: 400 },
   );
 }
 ```
@@ -554,6 +596,7 @@ useEffect(() => {
 Apply these standards everywhere:
 
 **No silent failures:** Every `fetch()` call must have a `.catch()` or `try/catch` that calls `toast.error(...)`. Audit the following locations where errors are currently swallowed silently:
+
 - `fetchMonthlyAvailability` in `booking/page.tsx` — currently logs to console only, add a non-intrusive toast or inline error state
 - `fetchAvailableSlotsForDate` — same issue
 - The promo code removal flow (no error handling if the removal somehow fails server-side)
@@ -561,6 +604,7 @@ Apply these standards everywhere:
 **Consistent error message format:** All API errors returned to the client should use the key `error` (not `message`) for user-facing strings. Audit `users/onboarding/route.ts` which uses `message` while `bookings/route.ts` uses `error`. Pick one and normalize across all routes.
 
 **HTTP status code consistency:**
+
 - `400` — validation failures (malformed input, limit exceeded)
 - `401` — unauthenticated
 - `403` — authenticated but unauthorized (e.g. booking your own service)
@@ -580,7 +624,7 @@ The booking creation flow in `bookings/route.ts` does not currently validate tha
 if (service.providerId === session.user.id) {
   return NextResponse.json(
     { error: "You cannot book your own service." },
-    { status: 403 }
+    { status: 403 },
   );
 }
 ```
@@ -595,7 +639,9 @@ Ensure all free-text fields stored in the database (bio, notes, address, job des
 const sanitized = {
   notes: notes?.trim().substring(0, VALIDATION.MAX_NOTES_LENGTH),
   clientPhone: clientPhone?.trim(),
-  clientAddress: clientAddress?.trim().substring(0, VALIDATION.MAX_ADDRESS_LENGTH),
+  clientAddress: clientAddress
+    ?.trim()
+    .substring(0, VALIDATION.MAX_ADDRESS_LENGTH),
 };
 ```
 
@@ -606,33 +652,18 @@ const sanitized = {
 Work through the tasks in this sequence to minimize risk and maximize testability at each stage:
 
 **Phase 1 — Quick wins (low risk, no architecture change)**
+
 1. Create `/src/lib/constants/validation.ts` with all constants
 2. Email address find-and-replace across all 10 files (Step 1.1–1.5)
 3. Add character limit validation to `contact/route.ts` and `bookings/route.ts`
 4. Add character limit `maxLength` attrs to contact form inputs
 5. Fix onboarding redirect race condition (NEW1)
 
-**Phase 2 — Onboarding hardening**
-6. Add service/skill selection limit to `StepProviderDetails` (UI)
-7. Add client interest limit to `StepClientDetails` (UI)
-8. Add bio min/max with live counter to `StepProviderDetails`
-9. Add API-level enforcement to `users/onboarding/route.ts`
+**Phase 2 — Onboarding hardening** 6. Add service/skill selection limit to `StepProviderDetails` (UI) 7. Add client interest limit to `StepClientDetails` (UI) 8. Add bio min/max with live counter to `StepProviderDetails` 9. Add API-level enforcement to `users/onboarding/route.ts`
 
-**Phase 3 — Booking flow refactor**
-10. Create `useBookingFormState` custom hook
-11. Create `BookingStepShell` progress indicator component
-12. Extract `StepSelectService`, `StepPickSchedule`, `StepContactDetails`, `StepConfirmBooking`
-13. Implement auth interception + draft save in `StepContactDetails`
-14. Implement draft restoration on mount in main `BookingPage`
-15. Add loading skeletons for slot/calendar fetching
-16. Wire everything together in `BookingPage`
+**Phase 3 — Booking flow refactor** 10. Create `useBookingFormState` custom hook 11. Create `BookingStepShell` progress indicator component 12. Extract `StepSelectService`, `StepPickSchedule`, `StepContactDetails`, `StepConfirmBooking` 13. Implement auth interception + draft save in `StepContactDetails` 14. Implement draft restoration on mount in main `BookingPage` 15. Add loading skeletons for slot/calendar fetching 16. Wire everything together in `BookingPage`
 
-**Phase 4 — Hardening & QA**
-17. Normalize error message key across all API routes (`error` vs `message`)
-18. Add self-booking guard to `bookings/route.ts`
-19. Add input sanitization (trim + truncate) at API layer
-20. Run the email address grep to confirm zero old emails remain
-21. End-to-end test: unauthenticated user → booking → login → restored state → confirm
+**Phase 4 — Hardening & QA** 17. Normalize error message key across all API routes (`error` vs `message`) 18. Add self-booking guard to `bookings/route.ts` 19. Add input sanitization (trim + truncate) at API layer 20. Run the email address grep to confirm zero old emails remain 21. End-to-end test: unauthenticated user → booking → login → restored state → confirm
 
 ---
 
@@ -641,12 +672,14 @@ Work through the tasks in this sequence to minimize risk and maximize testabilit
 Before marking any phase complete, verify the following:
 
 **Contact Page**
+
 - [ ] All displayed emails show `support@gtss.software`
 - [ ] All `mailto:` links point to `support@gtss.software`
 - [ ] Contact form submits successfully and delivers to the correct address
 - [ ] No old email addresses found by the grep command
 
 **Booking Flow**
+
 - [ ] Service pre-selection from query param works (step 1 auto-advances)
 - [ ] Cannot proceed from step 2 without at least one date AND one time slot
 - [ ] Unauthenticated user filling step 3 and clicking "Review" is redirected to login
@@ -659,6 +692,7 @@ Before marking any phase complete, verify the following:
 - [ ] All step transitions have smooth animations
 
 **Onboarding**
+
 - [ ] Provider cannot select more than 5 services — UI disables additional selection
 - [ ] Attempting to bypass via direct API call with 6+ skills returns `400`
 - [ ] Bio counter shows correct count; "Next" is disabled below 50 chars
@@ -667,6 +701,7 @@ Before marking any phase complete, verify the following:
 - [ ] All error messages are human-readable and match between frontend and API
 
 **General**
+
 - [ ] No console errors on any flow
 - [ ] No `toast.error` fires on successful actions
 - [ ] All async operations show a loading indicator
@@ -674,4 +709,4 @@ Before marking any phase complete, verify the following:
 
 ---
 
-*Last updated: March 2026 | Plan version 1.0*
+_Last updated: March 2026 | Plan version 1.0_

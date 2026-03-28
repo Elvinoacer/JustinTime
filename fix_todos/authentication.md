@@ -8,28 +8,30 @@ The auth system has **two parallel implementations that fight each other**, a fa
 
 ## Bug Index
 
-| # | Bug | Severity | Files |
-|---|-----|----------|-------|
-| B1 | Dead parallel JWT auth system | 🔴 Critical | `api/auth/login/route.ts`, `lib/auth/jwt.ts`, `lib/auth/credentials.ts` |
-| B2 | Google users trapped in email-verification loop | 🔴 Critical | `src/auth.ts`, `src/proxy.ts` |
-| B3 | "Resend Email" is a fake `setTimeout` — no real API call | 🔴 Critical | `auth/verify-request/page.tsx` |
-| B4 | Internal fetch fallback to hardcoded prod URL breaks dev | 🔴 Critical | `src/auth.ts` |
-| B5 | Wrong post-login redirect for CLIENT users (double redirect) | 🟠 High | `auth/login/page.tsx`, `proxy.ts` |
-| B6 | JWT token has no `authProvider` field | 🟠 High | `src/auth.ts` |
-| B7 | `verify-email` success page never auto-redirects or signs in | 🟠 High | `auth/verify-email/page.tsx` |
-| B8 | `/provider/` routes unprotected in proxy | 🟠 High | `src/proxy.ts` |
-| B9 | Google sign-in silently ignores DB creation failures | 🟡 Medium | `src/auth.ts` |
-| B10 | Missing `resend-verification` API endpoint | 🟡 Medium | (new file needed) |
-| B11 | Dead `verifyCredentials` function in `credentials.ts` | 🟢 Low | `src/lib/auth/credentials.ts` |
+| #   | Bug                                                          | Severity    | Files                                                                   |
+| --- | ------------------------------------------------------------ | ----------- | ----------------------------------------------------------------------- |
+| B1  | Dead parallel JWT auth system                                | 🔴 Critical | `api/auth/login/route.ts`, `lib/auth/jwt.ts`, `lib/auth/credentials.ts` |
+| B2  | Google users trapped in email-verification loop              | 🔴 Critical | `src/auth.ts`, `src/proxy.ts`                                           |
+| B3  | "Resend Email" is a fake `setTimeout` — no real API call     | 🔴 Critical | `auth/verify-request/page.tsx`                                          |
+| B4  | Internal fetch fallback to hardcoded prod URL breaks dev     | 🔴 Critical | `src/auth.ts`                                                           |
+| B5  | Wrong post-login redirect for CLIENT users (double redirect) | 🟠 High     | `auth/login/page.tsx`, `proxy.ts`                                       |
+| B6  | JWT token has no `authProvider` field                        | 🟠 High     | `src/auth.ts`                                                           |
+| B7  | `verify-email` success page never auto-redirects or signs in | 🟠 High     | `auth/verify-email/page.tsx`                                            |
+| B8  | `/provider/` routes unprotected in proxy                     | 🟠 High     | `src/proxy.ts`                                                          |
+| B9  | Google sign-in silently ignores DB creation failures         | 🟡 Medium   | `src/auth.ts`                                                           |
+| B10 | Missing `resend-verification` API endpoint                   | 🟡 Medium   | (new file needed)                                                       |
+| B11 | Dead `verifyCredentials` function in `credentials.ts`        | 🟢 Low      | `src/lib/auth/credentials.ts`                                           |
 
 ---
 
 ## B1 — Delete the Dead Parallel JWT Auth System
 
 ### What's wrong
+
 `src/app/api/auth/login/route.ts` is a completely separate login system that generates its own JWT tokens via `src/lib/auth/jwt.ts`. The login page **never calls it** — it uses NextAuth's `signIn()`. Nothing in the app uses this route. It's dead code that creates a false impression of a working auth flow and a security liability (separate JWT secret, no session invalidation).
 
 ### Files to DELETE
+
 ```
 src/app/api/auth/login/route.ts      ← delete entire file
 src/lib/auth/credentials.ts          ← delete entire file
@@ -43,6 +45,7 @@ src/lib/auth/jwt.ts                  ← delete entire file
 ## B2 — Google Users Trapped in Email-Verification Loop
 
 ### What's wrong
+
 `proxy.ts` redirects all logged-in users without `emailVerified` in their JWT to `/auth/verify-request`:
 
 ```ts
@@ -199,12 +202,17 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       // Return 200 even if user not found to prevent email enumeration
-      return NextResponse.json({ message: "If that email exists, a link was sent." });
+      return NextResponse.json({
+        message: "If that email exists, a link was sent.",
+      });
     }
 
     // Don't resend if already verified
     if (user.emailVerified) {
-      return NextResponse.json({ error: "Email already verified" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Email already verified" },
+        { status: 400 },
+      );
     }
 
     // Rate-limit: check if a fresh token was created in the last 2 minutes
@@ -218,7 +226,7 @@ export async function POST(request: NextRequest) {
     if (recentToken) {
       return NextResponse.json(
         { error: "Please wait a few minutes before requesting another link." },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
@@ -239,7 +247,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Verification email sent." });
   } catch (error) {
     console.error("[RESEND_VERIFICATION_ERROR]", error);
-    return NextResponse.json({ error: "Failed to send email" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to send email" },
+      { status: 500 },
+    );
   }
 }
 ```
@@ -289,9 +300,10 @@ Also add `const [resendError, setResendError] = useState("")` to state and displ
 In `src/auth.ts`, the `signIn` and `jwt` callbacks resolve the base URL like this:
 
 ```ts
-const baseUrl = process.env.NEXTAUTH_URL
-  || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
-  || 'https://justintimeservices.vercel.app'; // ← hardcoded!
+const baseUrl =
+  process.env.NEXTAUTH_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+  "https://justintimeservices.vercel.app"; // ← hardcoded!
 ```
 
 During local development, if `NEXTAUTH_URL` is not set in `.env.local`, internal fetches go to the production server. This makes Google sign-in silently broken in dev — the dev DB is never updated, the JWT never gets populated, and Google users get routing errors.
@@ -306,7 +318,7 @@ function getBaseUrl(): string {
   if (!url) {
     throw new Error(
       "[Auth] NEXTAUTH_URL is not set. Add it to .env.local for development " +
-      "or your deployment environment variables."
+        "or your deployment environment variables.",
     );
   }
   return url;
@@ -498,6 +510,7 @@ Covered as part of B3 — the full implementation is there.
 ## Complete File Change Summary
 
 ### Delete these files
+
 ```
 src/app/api/auth/login/route.ts
 src/lib/auth/credentials.ts
@@ -505,6 +518,7 @@ src/lib/auth/jwt.ts
 ```
 
 ### Create these files
+
 ```
 src/app/api/auth/resend-verification/route.ts    ← B3 fix
 src/app/auth/error/page.tsx                      ← B9 dependency
@@ -512,6 +526,7 @@ src/types/next-auth.d.ts                         ← B2 fix (or update existing)
 ```
 
 ### Modify these files
+
 ```
 src/auth.ts                      ← B2 (authProvider in JWT), B4 (getBaseUrl), B9 (return false)
 src/proxy.ts                     ← B2 (skip verify for Google), B5 (role redirect), B8 (/provider protection)
@@ -556,5 +571,5 @@ GOOGLE_CLIENT_SECRET=<from Google Cloud Console>
 RESEND_API_KEY=<from resend.com>
 
 # The "from" address for all emails (must be a verified domain in Resend)
-ADMIN_EMAIL=noreply@justintime.co.ke
+ADMIN_EMAIL=support@gtss.software
 ```

@@ -331,11 +331,11 @@ export default function CookiePolicyPage() {
                 </p>
                 <div className="space-y-2">
                   <a
-                    href="mailto:privacy@justintime.co.ke"
+                    href="mailto:support@gtss.software"
                     className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium text-sm sm:text-base"
                   >
                     <Mail className="w-4 h-4" />
-                    privacy@justintime.co.ke
+                    support@gtss.software
                   </a>
                   <p className="text-gray-500 text-xs sm:text-sm">
                     We typically respond within 24 hours
