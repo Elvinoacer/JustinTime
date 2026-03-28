@@ -7,8 +7,21 @@ import {
 } from "@/lib/auth/errors";
 import { sendTwoFactorTokenEmail } from "@/lib/email";
 import crypto from "crypto";
+import { headers } from "next/headers";
+import {
+  AUTH_RATE_LIMIT_ERROR,
+  enforceRateLimits,
+  getClientIpFromHeaders,
+} from "@/lib/auth/rate-limit";
 
 export async function loginWithCredentials(formData: FormData) {
+  const requestHeaders = await headers();
+  const clientIp = getClientIpFromHeaders(requestHeaders);
+
+  if (!clientIp) {
+    return { error: "Unable to validate request origin" };
+  }
+
   const email = String(formData.get("email") ?? "")
     .trim()
     .toLowerCase();
@@ -20,6 +33,23 @@ export async function loginWithCredentials(formData: FormData) {
 
   if (email.length > 254 || password.length > 128) {
     return { error: "Invalid email or password format" };
+  }
+
+  const limitResult = enforceRateLimits("auth.login-action", [
+    {
+      suffix: `ip:${clientIp}`,
+      limit: 30,
+      windowMs: 15 * 60 * 1000,
+    },
+    {
+      suffix: `ip:${clientIp}:email:${email || "missing"}`,
+      limit: 8,
+      windowMs: 15 * 60 * 1000,
+    },
+  ]);
+
+  if (!limitResult.ok) {
+    return { error: AUTH_RATE_LIMIT_ERROR };
   }
 
   try {
@@ -88,9 +118,33 @@ export async function loginWithCredentials(formData: FormData) {
 
 export async function resendTwoFactorToken(email: string) {
   try {
+    const requestHeaders = await headers();
+    const clientIp = getClientIpFromHeaders(requestHeaders);
+
+    if (!clientIp) {
+      return { error: "Unable to validate request origin" };
+    }
+
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail || normalizedEmail.length > 254) {
       return { error: "Invalid email address" };
+    }
+
+    const limitResult = enforceRateLimits("auth.resend-2fa", [
+      {
+        suffix: `ip:${clientIp}`,
+        limit: 15,
+        windowMs: 15 * 60 * 1000,
+      },
+      {
+        suffix: `ip:${clientIp}:email:${normalizedEmail}`,
+        limit: 5,
+        windowMs: 15 * 60 * 1000,
+      },
+    ]);
+
+    if (!limitResult.ok) {
+      return { error: AUTH_RATE_LIMIT_ERROR };
     }
 
     const user = await prisma.user.findUnique({

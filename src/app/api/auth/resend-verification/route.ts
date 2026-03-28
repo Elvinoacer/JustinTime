@@ -6,6 +6,11 @@ import {
   isPrismaMissingColumnError,
 } from "@/lib/auth/errors";
 import crypto from "crypto";
+import {
+  AUTH_RATE_LIMIT_ERROR,
+  enforceRateLimits,
+  getClientIpFromHeaders,
+} from "@/lib/auth/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,6 +18,14 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = String(email ?? "")
       .trim()
       .toLowerCase();
+    const clientIp = getClientIpFromHeaders(request.headers);
+
+    if (!clientIp) {
+      return NextResponse.json(
+        { error: "Unable to validate request origin" },
+        { status: 400 },
+      );
+    }
 
     if (!normalizedEmail) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -22,6 +35,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Invalid email address" },
         { status: 400 },
+      );
+    }
+
+    const limitResult = enforceRateLimits("auth.resend-verification", [
+      {
+        suffix: `ip:${clientIp}`,
+        limit: 20,
+        windowMs: 15 * 60 * 1000,
+      },
+      {
+        suffix: `ip:${clientIp}:email:${normalizedEmail}`,
+        limit: 4,
+        windowMs: 15 * 60 * 1000,
+      },
+    ]);
+
+    if (!limitResult.ok) {
+      return NextResponse.json(
+        { error: AUTH_RATE_LIMIT_ERROR },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(limitResult.retryAfterSeconds ?? 60),
+          },
+        },
       );
     }
 

@@ -13,10 +13,67 @@ import {
   isPrismaMissingColumnError,
 } from "@/lib/auth/errors";
 import crypto from "crypto";
+import {
+  AUTH_RATE_LIMIT_ERROR,
+  enforceRateLimits,
+  getClientIpFromHeaders,
+} from "@/lib/auth/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const clientIp = getClientIpFromHeaders(request.headers);
+
+    if (!clientIp) {
+      return NextResponse.json(
+        { error: "Unable to validate request origin" },
+        { status: 400 },
+      );
+    }
+
+    const rawEmail = String(body?.email ?? "")
+      .trim()
+      .toLowerCase();
+    const rawName = String(body?.name ?? "").trim();
+    const rawPassword = String(body?.password ?? "").trim();
+    const rawPhone = body?.phone ? String(body.phone).trim() : "";
+
+    if (
+      rawEmail.length > 254 ||
+      rawName.length > 120 ||
+      rawPassword.length > 128 ||
+      rawPhone.length > 32
+    ) {
+      return NextResponse.json(
+        { error: "Invalid signup payload" },
+        { status: 400 },
+      );
+    }
+
+    const limitResult = enforceRateLimits("auth.signup", [
+      {
+        suffix: `ip:${clientIp}`,
+        limit: 12,
+        windowMs: 60 * 60 * 1000,
+      },
+      {
+        suffix: `ip:${clientIp}:email:${rawEmail || "missing"}`,
+        limit: 4,
+        windowMs: 60 * 60 * 1000,
+      },
+    ]);
+
+    if (!limitResult.ok) {
+      return NextResponse.json(
+        { error: AUTH_RATE_LIMIT_ERROR },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(limitResult.retryAfterSeconds ?? 60),
+          },
+        },
+      );
+    }
 
     // Validate input
     const validatedData = signupSchema.parse(body);

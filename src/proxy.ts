@@ -1,9 +1,337 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
+type ProxyRateLimitEntry = {
+  count: number;
+  resetAt: number;
+};
+
+const globalForProxyRateLimit = globalThis as typeof globalThis & {
+  __proxyRateLimitStore?: Map<string, ProxyRateLimitEntry>;
+  __proxyRateLimitLastCleanupAt?: number;
+};
+
+const proxyRateLimitStore =
+  globalForProxyRateLimit.__proxyRateLimitStore ??
+  new Map<string, ProxyRateLimitEntry>();
+
+globalForProxyRateLimit.__proxyRateLimitStore = proxyRateLimitStore;
+
+const PROXY_RATE_LIMIT_CLEANUP_MS = 60_000;
+
+const PROXY_LOG_RATE_LIMIT_BLOCKED = getBooleanFromEnv(
+  process.env.PROXY_RATE_LIMIT_LOG_BLOCKED,
+  true,
+);
+const PROXY_LIMIT_MULTIPLIER = getPositiveNumberFromEnv(
+  process.env.PROXY_RATE_LIMIT_LIMIT_MULTIPLIER,
+  1,
+);
+const PROXY_WINDOW_MULTIPLIER = getPositiveNumberFromEnv(
+  process.env.PROXY_RATE_LIMIT_WINDOW_MULTIPLIER,
+  1,
+);
+
+const proxyLimits = {
+  apiGlobalLimit: getPositiveIntegerFromEnv(
+    process.env.PROXY_RATE_LIMIT_API_GLOBAL_LIMIT,
+    300,
+  ),
+  apiGlobalWindowMs: getPositiveIntegerFromEnv(
+    process.env.PROXY_RATE_LIMIT_API_GLOBAL_WINDOW_MS,
+    5 * 60 * 1000,
+  ),
+  authVerifyCredentialsLimit: getPositiveIntegerFromEnv(
+    process.env.PROXY_RATE_LIMIT_AUTH_VERIFY_CREDENTIALS_LIMIT,
+    25,
+  ),
+  authVerifyCredentialsWindowMs: getPositiveIntegerFromEnv(
+    process.env.PROXY_RATE_LIMIT_AUTH_VERIFY_CREDENTIALS_WINDOW_MS,
+    15 * 60 * 1000,
+  ),
+  authSignupLimit: getPositiveIntegerFromEnv(
+    process.env.PROXY_RATE_LIMIT_AUTH_SIGNUP_LIMIT,
+    12,
+  ),
+  authSignupWindowMs: getPositiveIntegerFromEnv(
+    process.env.PROXY_RATE_LIMIT_AUTH_SIGNUP_WINDOW_MS,
+    60 * 60 * 1000,
+  ),
+  authRecoveryLimit: getPositiveIntegerFromEnv(
+    process.env.PROXY_RATE_LIMIT_AUTH_RECOVERY_LIMIT,
+    20,
+  ),
+  authRecoveryWindowMs: getPositiveIntegerFromEnv(
+    process.env.PROXY_RATE_LIMIT_AUTH_RECOVERY_WINDOW_MS,
+    15 * 60 * 1000,
+  ),
+  authGenericLimit: getPositiveIntegerFromEnv(
+    process.env.PROXY_RATE_LIMIT_AUTH_GENERIC_LIMIT,
+    80,
+  ),
+  authGenericWindowMs: getPositiveIntegerFromEnv(
+    process.env.PROXY_RATE_LIMIT_AUTH_GENERIC_WINDOW_MS,
+    15 * 60 * 1000,
+  ),
+};
+
+function getPositiveIntegerFromEnv(
+  value: string | undefined,
+  fallback: number,
+): number {
+  if (!value) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.floor(parsed);
+}
+
+function getPositiveNumberFromEnv(
+  value: string | undefined,
+  fallback: number,
+): number {
+  if (!value) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+function getBooleanFromEnv(
+  value: string | undefined,
+  fallback: boolean,
+): boolean {
+  if (value === undefined) return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  return fallback;
+}
+
+function maskIp(ip: string): string {
+  if (ip.includes(":")) {
+    const segments = ip.split(":");
+    return `${segments.slice(0, 3).join(":")}:****`;
+  }
+
+  const segments = ip.split(".");
+  if (segments.length === 4) {
+    return `${segments[0]}.${segments[1]}.${segments[2]}.*`;
+  }
+
+  return "masked";
+}
+
+function logProxyRateLimitBlock(payload: {
+  path: string;
+  ip: string;
+  key: string;
+  retryAfterSeconds: number;
+}): void {
+  if (!PROXY_LOG_RATE_LIMIT_BLOCKED) return;
+
+  console.warn("[PROXY_RATE_LIMIT_BLOCKED]", {
+    path: payload.path,
+    ip: maskIp(payload.ip),
+    key: payload.key,
+    retryAfterSeconds: payload.retryAfterSeconds,
+  });
+}
+
+function normalizeIp(value: string | null): string | null {
+  if (!value) return null;
+
+  let ip = value.trim();
+  if (!ip) return null;
+
+  if (ip.includes(",")) {
+    ip = ip.split(",")[0].trim();
+  }
+
+  if (ip.startsWith("[") && ip.includes("]")) {
+    ip = ip.slice(1, ip.indexOf("]"));
+  }
+
+  const portIndex = ip.lastIndexOf(":");
+  if (portIndex > -1 && ip.indexOf(":") === portIndex) {
+    const maybePort = ip.slice(portIndex + 1);
+    if (/^\d+$/.test(maybePort)) {
+      ip = ip.slice(0, portIndex);
+    }
+  }
+
+  return ip || null;
+}
+
+function getClientIp(headers: Headers): string | null {
+  const forwarded = headers.get("forwarded");
+  const xForwardedFor = headers.get("x-forwarded-for");
+  const realIp = headers.get("x-real-ip");
+  const cfConnectingIp = headers.get("cf-connecting-ip");
+  const trueClientIp = headers.get("true-client-ip");
+
+  const forwardedFor = forwarded
+    ?.split(",")[0]
+    ?.split(";")
+    .map((token) => token.trim())
+    .find((token) => token.toLowerCase().startsWith("for="))
+    ?.slice(4)
+    .replace(/^"|"$/g, "");
+
+  return (
+    normalizeIp(forwardedFor ?? null) ||
+    normalizeIp(xForwardedFor) ||
+    normalizeIp(cfConnectingIp) ||
+    normalizeIp(trueClientIp) ||
+    normalizeIp(realIp)
+  );
+}
+
+function maybeCleanupRateLimitStore(now: number): void {
+  const lastCleanupAt =
+    globalForProxyRateLimit.__proxyRateLimitLastCleanupAt ?? 0;
+  if (now - lastCleanupAt < PROXY_RATE_LIMIT_CLEANUP_MS) {
+    return;
+  }
+
+  for (const [key, value] of proxyRateLimitStore.entries()) {
+    if (value.resetAt <= now) {
+      proxyRateLimitStore.delete(key);
+    }
+  }
+
+  globalForProxyRateLimit.__proxyRateLimitLastCleanupAt = now;
+}
+
+function consumeRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+): { allowed: boolean; retryAfterSeconds?: number; key?: string } {
+  const now = Date.now();
+  maybeCleanupRateLimitStore(now);
+
+  const effectiveLimit = Math.max(
+    1,
+    Math.floor(limit * PROXY_LIMIT_MULTIPLIER),
+  );
+  const effectiveWindowMs = Math.max(
+    1000,
+    Math.floor(windowMs * PROXY_WINDOW_MULTIPLIER),
+  );
+
+  const current = proxyRateLimitStore.get(key);
+  if (!current || current.resetAt <= now) {
+    proxyRateLimitStore.set(key, {
+      count: 1,
+      resetAt: now + effectiveWindowMs,
+    });
+    return { allowed: true };
+  }
+
+  if (current.count >= effectiveLimit) {
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.max(1, Math.ceil((current.resetAt - now) / 1000)),
+      key,
+    };
+  }
+
+  current.count += 1;
+  proxyRateLimitStore.set(key, current);
+  return { allowed: true };
+}
+
+function enforceApiRateLimit(
+  pathname: string,
+  ip: string,
+): {
+  allowed: boolean;
+  retryAfterSeconds?: number;
+  key?: string;
+} {
+  const checks: Array<{ key: string; limit: number; windowMs: number }> = [
+    {
+      key: `api:ip:${ip}`,
+      limit: proxyLimits.apiGlobalLimit,
+      windowMs: proxyLimits.apiGlobalWindowMs,
+    },
+  ];
+
+  if (pathname.startsWith("/api/auth/verify-credentials")) {
+    checks.push({
+      key: `api:auth:verify-credentials:ip:${ip}`,
+      limit: proxyLimits.authVerifyCredentialsLimit,
+      windowMs: proxyLimits.authVerifyCredentialsWindowMs,
+    });
+  } else if (pathname.startsWith("/api/auth/signup")) {
+    checks.push({
+      key: `api:auth:signup:ip:${ip}`,
+      limit: proxyLimits.authSignupLimit,
+      windowMs: proxyLimits.authSignupWindowMs,
+    });
+  } else if (
+    pathname.startsWith("/api/auth/forgot-password") ||
+    pathname.startsWith("/api/auth/reset-password") ||
+    pathname.startsWith("/api/auth/resend-verification")
+  ) {
+    checks.push({
+      key: `api:auth:recovery:ip:${ip}`,
+      limit: proxyLimits.authRecoveryLimit,
+      windowMs: proxyLimits.authRecoveryWindowMs,
+    });
+  } else if (pathname.startsWith("/api/auth")) {
+    checks.push({
+      key: `api:auth:ip:${ip}`,
+      limit: proxyLimits.authGenericLimit,
+      windowMs: proxyLimits.authGenericWindowMs,
+    });
+  }
+
+  for (const check of checks) {
+    const result = consumeRateLimit(check.key, check.limit, check.windowMs);
+    if (!result.allowed) {
+      logProxyRateLimitBlock({
+        path: pathname,
+        ip,
+        key: result.key || check.key,
+        retryAfterSeconds: result.retryAfterSeconds ?? 60,
+      });
+      return result;
+    }
+  }
+
+  return { allowed: true };
+}
+
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const { nextUrl } = req;
+  const isApiRoute = nextUrl.pathname.startsWith("/api");
+
+  if (isApiRoute) {
+    const clientIp = getClientIp(req.headers);
+
+    if (!clientIp) {
+      return NextResponse.json(
+        { error: "Unable to validate request origin" },
+        { status: 400 },
+      );
+    }
+
+    const rateLimitResult = enforceApiRateLimit(nextUrl.pathname, clientIp);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again shortly." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimitResult.retryAfterSeconds ?? 60),
+          },
+        },
+      );
+    }
+
+    return NextResponse.next();
+  }
 
   const isOnProviderDashboard = nextUrl.pathname.startsWith("/dashboard");
   const isOnClientDashboard = nextUrl.pathname.startsWith("/client");
@@ -144,5 +472,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/api/:path*", "/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };

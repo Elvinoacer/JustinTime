@@ -34,3 +34,29 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Rate Limit Configuration
+
+Auth/API rate limits now support environment-based tuning.
+
+Auth limiter (route and server-action limiter in `src/lib/auth/rate-limit.ts`):
+
+- `AUTH_RATE_LIMIT_LIMIT_MULTIPLIER` (default: `1`)
+- `AUTH_RATE_LIMIT_WINDOW_MULTIPLIER` (default: `1`)
+- `AUTH_RATE_LIMIT_LOG_BLOCKED` (default: `true`)
+
+Proxy API limiter (in `src/proxy.ts`):
+
+- `PROXY_RATE_LIMIT_LOG_BLOCKED` (default: `true`)
+- `PROXY_RATE_LIMIT_LIMIT_MULTIPLIER` (default: `1`)
+- `PROXY_RATE_LIMIT_WINDOW_MULTIPLIER` (default: `1`)
+- `PROXY_RATE_LIMIT_API_GLOBAL_LIMIT` (default: `300`)
+- `PROXY_RATE_LIMIT_API_GLOBAL_WINDOW_MS` (default: `300000`)
+- `PROXY_RATE_LIMIT_AUTH_VERIFY_CREDENTIALS_LIMIT` (default: `25`)
+- `PROXY_RATE_LIMIT_AUTH_VERIFY_CREDENTIALS_WINDOW_MS` (default: `900000`)
+- `PROXY_RATE_LIMIT_AUTH_SIGNUP_LIMIT` (default: `12`)
+- `PROXY_RATE_LIMIT_AUTH_SIGNUP_WINDOW_MS` (default: `3600000`)
+- `PROXY_RATE_LIMIT_AUTH_RECOVERY_LIMIT` (default: `20`)
+- `PROXY_RATE_LIMIT_AUTH_RECOVERY_WINDOW_MS` (default: `900000`)
+- `PROXY_RATE_LIMIT_AUTH_GENERIC_LIMIT` (default: `80`)
+- `PROXY_RATE_LIMIT_AUTH_GENERIC_WINDOW_MS` (default: `900000`)

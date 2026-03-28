@@ -5,6 +5,11 @@ import {
   getAuthTemporaryUnavailableMessage,
   isPrismaMissingColumnError,
 } from "@/lib/auth/errors";
+import {
+  AUTH_RATE_LIMIT_ERROR,
+  enforceRateLimits,
+  getClientIpFromHeaders,
+} from "@/lib/auth/rate-limit";
 
 /**
  * Internal API endpoint for credential verification
@@ -22,6 +27,14 @@ export async function POST(request: NextRequest) {
         ? code.replace(/\D/g, "").slice(0, 6)
         : undefined;
 
+    const clientIp = getClientIpFromHeaders(request.headers);
+    if (!clientIp) {
+      return NextResponse.json(
+        { error: "Unable to validate request origin" },
+        { status: 400 },
+      );
+    }
+
     if (!normalizedEmail || !normalizedPassword) {
       return NextResponse.json(
         { error: "Email and password required" },
@@ -33,6 +46,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Invalid email or password format" },
         { status: 400 },
+      );
+    }
+
+    const limitResult = enforceRateLimits("auth.verify-credentials", [
+      {
+        suffix: `ip:${clientIp}`,
+        limit: 30,
+        windowMs: 15 * 60 * 1000,
+      },
+      {
+        suffix: `ip:${clientIp}:email:${normalizedEmail}`,
+        limit: 8,
+        windowMs: 15 * 60 * 1000,
+      },
+    ]);
+
+    if (!limitResult.ok) {
+      return NextResponse.json(
+        { error: AUTH_RATE_LIMIT_ERROR },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(limitResult.retryAfterSeconds ?? 60),
+          },
+        },
       );
     }
 

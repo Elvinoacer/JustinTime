@@ -51,6 +51,9 @@ function LoginPageContent() {
     !showTwoFactor &&
     error.toLowerCase().includes("verify your email") &&
     normalizedLoginEmail.length > 0;
+  const showRecoveryActions =
+    !showTwoFactor &&
+    /invalid credentials|invalid email or password/i.test(error);
 
   const handleGoToVerifyRequest = () => {
     if (!normalizedLoginEmail) {
@@ -324,6 +327,24 @@ function LoginPageContent() {
                         <Mail className="w-4 h-4" />
                         Resend verification email
                       </button>
+                    )}
+                    {showRecoveryActions && (
+                      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                        <Link
+                          href="/auth/forgot-password"
+                          className="inline-flex items-center gap-1 font-medium text-emerald-700 hover:text-emerald-600"
+                        >
+                          <KeyRound className="w-4 h-4" />
+                          Forgot password?
+                        </Link>
+                        <Link
+                          href="/auth/signup"
+                          className="inline-flex items-center gap-1 font-medium text-emerald-700 hover:text-emerald-600"
+                        >
+                          <UserPlus className="w-4 h-4" />
+                          Create account
+                        </Link>
+                      </div>
                     )}
                   </div>
                 </div>
