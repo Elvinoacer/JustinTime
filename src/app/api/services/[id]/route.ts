@@ -27,7 +27,8 @@ export async function GET(
               },
             },
             backgroundChecks: {
-              where: { status: "CLEARED" },
+              // Schema enum: PENDING | APPROVED | REJECTED (not CLEARED)
+              where: { status: "APPROVED" },
               take: 1,
             },
           },
