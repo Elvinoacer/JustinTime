@@ -65,7 +65,6 @@ nav::-webkit-scrollbar-thumb:hover {
   scrollbar-color: #d1d5db transparent;
 }
 
-
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -193,4 +192,144 @@ nav::-webkit-scrollbar-thumb:hover {
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Landing page typography system */
+.landing-shell {
+  font-family: inherit;
+  letter-spacing: inherit;
+}
+
+.landing-display {
+  font-family: inherit;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PREMIUM LANDING PAGE — DARK CINEMATIC THEME
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Landing shell — dark bg + Inter font */
+.landing-shell {
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glassmorphism card — base */
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* Glassmorphism card — hover with emerald glow */
+.glass-card-hover {
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass-card-hover:hover {
+  border-color: rgba(52, 211, 153, 0.35);
+  box-shadow:
+    0 0 20px -8px rgba(52, 211, 153, 0.25),
+    0 24px 44px -20px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Glass card — stronger for mobile readability */
+@media (max-width: 640px) {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.07);
+  }
+}
+
+/* Emerald glow pulse animation */
+@keyframes emerald-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 12px -4px rgba(52, 211, 153, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 24px -4px rgba(52, 211, 153, 0.5);
+  }
+}
+
+/* Subtle float animation for decorative elements */
+@keyframes gentle-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Emerald shimmer for accents */
+@keyframes emerald-shimmer {
+  0% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0.4;
+  }
+}
+
+.animate-emerald-pulse {
+  animation: emerald-pulse 3s ease-in-out infinite;
+}
+
+.animate-gentle-float {
+  animation: gentle-float 6s ease-in-out infinite;
+}
+
+/* Dark scrollbar for landing shell */
+.landing-shell::-webkit-scrollbar {
+  width: 6px;
+}
+.landing-shell::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+.landing-shell::-webkit-scrollbar-thumb {
+  background: rgba(52, 211, 153, 0.2);
+  border-radius: 3px;
+}
+.landing-shell::-webkit-scrollbar-thumb:hover {
+  background: rgba(52, 211, 153, 0.35);
+}
+
+/* Video background responsive framing */
+.landing-video {
+  object-fit: cover;
+  object-position: center;
+}
+.hero-bg-video {
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(0.8) contrast(0.95) brightness(0.85);
+}
+@media (max-width: 1024px) {
+  .hero-bg-video {
+    /* Show the full video frame on smaller layouts to avoid horizontal crop. */
+    object-fit: contain;
+    object-position: center center;
+  }
+}
+@media (max-width: 768px) {
+  .landing-video {
+    object-position: 60% center;
+  }
+  .hero-bg-video {
+    object-fit: contain;
+    object-position: center top;
+  }
 }

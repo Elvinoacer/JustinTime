@@ -17,61 +17,158 @@ import {
 } from "lucide-react";
 
 const categories = [
-  { name: "Home Maintenance", icon: Wrench, color: "from-blue-500/20 to-blue-600/10", borderColor: "border-blue-500/20", href: "/services?category=Home+Maintenance" },
-  { name: "Cleaning Services", icon: Sparkles, color: "from-cyan-500/20 to-cyan-600/10", borderColor: "border-cyan-500/20", href: "/services?category=Cleaning" },
-  { name: "Electrical", icon: Zap, color: "from-amber-500/20 to-amber-600/10", borderColor: "border-amber-500/20", href: "/services?category=Electrical" },
-  { name: "Painting", icon: Paintbrush, color: "from-pink-500/20 to-pink-600/10", borderColor: "border-pink-500/20", href: "/services?category=Painting" },
-  { name: "IT Support", icon: MonitorSmartphone, color: "from-violet-500/20 to-violet-600/10", borderColor: "border-violet-500/20", href: "/services?category=IT+Support" },
-  { name: "Catering", icon: Utensils, color: "from-orange-500/20 to-orange-600/10", borderColor: "border-orange-500/20", href: "/services?category=Catering" },
-  { name: "Construction", icon: Hammer, color: "from-emerald-500/20 to-emerald-600/10", borderColor: "border-emerald-500/20", href: "/services?category=Construction" },
-  { name: "Beauty & Wellness", icon: Heart, color: "from-rose-500/20 to-rose-600/10", borderColor: "border-rose-500/20", href: "/services?category=Beauty" },
-  { name: "Security", icon: ShieldCheck, color: "from-slate-400/20 to-slate-500/10", borderColor: "border-slate-400/20", href: "/services?category=Security" },
-  { name: "Moving & Delivery", icon: Truck, color: "from-teal-500/20 to-teal-600/10", borderColor: "border-teal-500/20", href: "/services?category=Moving" },
-  { name: "Tutoring", icon: GraduationCap, color: "from-indigo-500/20 to-indigo-600/10", borderColor: "border-indigo-500/20", href: "/services?category=Tutoring" },
-  { name: "Photography", icon: Camera, color: "from-fuchsia-500/20 to-fuchsia-600/10", borderColor: "border-fuchsia-500/20", href: "/services?category=Photography" },
+  {
+    name: "Home Maintenance",
+    icon: Wrench,
+    color: "from-blue-500/35 to-indigo-500/15",
+    iconColor: "text-blue-400",
+    href: "/services?category=Home+Maintenance",
+  },
+  {
+    name: "Cleaning Services",
+    icon: Sparkles,
+    color: "from-cyan-400/35 to-teal-500/15",
+    iconColor: "text-cyan-400",
+    href: "/services?category=Cleaning",
+  },
+  {
+    name: "Electrical",
+    icon: Zap,
+    color: "from-amber-400/35 to-yellow-500/15",
+    iconColor: "text-amber-400",
+    href: "/services?category=Electrical",
+  },
+  {
+    name: "Painting",
+    icon: Paintbrush,
+    color: "from-pink-500/35 to-rose-500/15",
+    iconColor: "text-pink-400",
+    href: "/services?category=Painting",
+  },
+  {
+    name: "IT Support",
+    icon: MonitorSmartphone,
+    color: "from-violet-500/35 to-fuchsia-500/15",
+    iconColor: "text-violet-400",
+    href: "/services?category=IT+Support",
+  },
+  {
+    name: "Catering",
+    icon: Utensils,
+    color: "from-orange-500/35 to-amber-500/15",
+    iconColor: "text-orange-400",
+    href: "/services?category=Catering",
+  },
+  {
+    name: "Construction",
+    icon: Hammer,
+    color: "from-emerald-500/35 to-teal-500/15",
+    iconColor: "text-emerald-400",
+    href: "/services?category=Construction",
+  },
+  {
+    name: "Beauty & Wellness",
+    icon: Heart,
+    color: "from-rose-500/35 to-pink-500/15",
+    iconColor: "text-rose-400",
+    href: "/services?category=Beauty",
+  },
+  {
+    name: "Security",
+    icon: ShieldCheck,
+    color: "from-slate-300/35 to-slate-500/15",
+    iconColor: "text-slate-300",
+    href: "/services?category=Security",
+  },
+  {
+    name: "Moving & Delivery",
+    icon: Truck,
+    color: "from-teal-400/35 to-cyan-500/15",
+    iconColor: "text-teal-400",
+    href: "/services?category=Moving",
+  },
+  {
+    name: "Tutoring",
+    icon: GraduationCap,
+    color: "from-indigo-500/35 to-blue-500/15",
+    iconColor: "text-indigo-400",
+    href: "/services?category=Tutoring",
+  },
+  {
+    name: "Photography",
+    icon: Camera,
+    color: "from-fuchsia-500/35 to-violet-500/15",
+    iconColor: "text-fuchsia-400",
+    href: "/services?category=Photography",
+  },
 ];
+
+const containerVariants = {
+  hidden: {},
+  show: {
+    transition: {
+      staggerChildren: 0.06,
+    },
+  },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.34 } },
+};
 
 const ServiceCategories = () => {
   return (
-    <section className="py-16 sm:py-20 md:py-24 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
+    <section className="px-4 py-14 sm:px-6 sm:py-18 md:py-20 lg:px-8">
+      <div className="mx-auto max-w-6xl">
         {/* Header */}
         <motion.div
-          className="mb-10 sm:mb-12"
+          className="mb-9 sm:mb-10"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           viewport={{ once: true, margin: "-50px" }}
         >
-          <p className="text-emerald-400 text-xs font-semibold tracking-widest uppercase mb-2">
-            Browse
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
+            Step 1: Discover
           </p>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
-            Explore by Category
+          <h2 className="landing-display text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+            Pick the lane that fits your task
           </h2>
-          <p className="mt-3 text-gray-500 text-sm sm:text-base max-w-lg">
-            Find exactly what you need — from home repairs to personal care, all in one place.
+          <p className="mt-3 max-w-lg text-sm leading-relaxed text-white/70 sm:text-base">
+            Jump straight into the right category and surface relevant
+            professionals faster.
           </p>
         </motion.div>
 
         {/* Category Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+        <motion.div
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-6"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-40px" }}
+        >
           {categories.map((category, index) => {
             const Icon = category.icon;
             return (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.04 }}
-                viewport={{ once: true, margin: "-30px" }}
-              >
+              <motion.div key={index} variants={cardVariants}>
                 <Link href={category.href}>
-                  <div className={`group flex flex-col items-center gap-3 p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/[0.06] ${category.borderColor} hover:bg-white/[0.07] hover:border-emerald-500/20 transition-all duration-400 cursor-pointer`}>
-                    <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${category.color} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
-                      <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white/80 group-hover:text-white transition-colors" />
+                  <div className="group relative flex min-h-32.5 cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border border-white/8 bg-[linear-gradient(145deg,rgba(255,255,255,0.065),rgba(255,255,255,0.02))] p-4 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300/30 sm:p-5">
+                    <div
+                      className={`pointer-events-none absolute -top-9 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full bg-linear-to-br ${category.color} opacity-55 blur-2xl transition-opacity duration-300 group-hover:opacity-75`}
+                    />
+                    <div
+                      className={`relative flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-[#071610]/85 shadow-[0_10px_28px_-16px_rgba(0,0,0,0.9)] transition-transform duration-300 group-hover:scale-110 sm:h-12 sm:w-12`}
+                    >
+                      <span
+                        className={`absolute inset-0 rounded-xl bg-linear-to-br ${category.color} opacity-35`}
+                      />
+                      <Icon
+                        className={`h-5 w-5 ${category.iconColor} sm:h-6 sm:w-6`}
+                      />
                     </div>
-                    <span className="text-gray-400 text-[11px] sm:text-xs font-medium text-center leading-tight group-hover:text-white transition-colors">
+                    <span className="text-center text-[11px] font-semibold leading-tight text-white/78 transition-colors group-hover:text-white sm:text-xs">
                       {category.name}
                     </span>
                   </div>
@@ -79,7 +176,7 @@ const ServiceCategories = () => {
               </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

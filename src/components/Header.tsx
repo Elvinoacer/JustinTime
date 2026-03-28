@@ -56,7 +56,6 @@ const Header = () => {
   }, []);
 
   useEffect(() => {
-    // Close mobile menu when route changes
     setIsMenuOpen(false);
     setIsMobileSearchOpen(false);
   }, [pathname]);
@@ -105,8 +104,8 @@ const Header = () => {
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isLandingPage
             ? isScrolled
-              ? "bg-[#0a1a15]/90 backdrop-blur-xl border-b border-white/[0.06]"
-              : "bg-transparent"
+              ? "border-b border-white/[0.06] bg-[#0a0f0d]/85 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
+              : "border-b border-white/[0.04] bg-white/[0.03] backdrop-blur-md"
             : isScrolled
               ? "bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-200/50"
               : "bg-white border-b border-gray-200"
@@ -122,7 +121,9 @@ const Header = () => {
                   alt="JustInTime Logo"
                   className="h-6 sm:h-8 w-auto"
                 />
-                <h2 className={`text-base sm:text-xl font-bold leading-tight ${isLandingPage ? "text-white" : "text-gray-900"}`}>
+                <h2
+                  className={`text-base sm:text-xl font-bold leading-tight ${isLandingPage ? "text-white" : "text-gray-900"}`}
+                >
                   JustInTime
                 </h2>
               </Link>
@@ -140,13 +141,15 @@ const Header = () => {
                         ? "text-emerald-400"
                         : "text-emerald-600 bg-emerald-50"
                       : isLandingPage
-                        ? "text-gray-300 hover:text-white"
+                        ? "text-white/70 hover:text-white"
                         : "text-gray-600 hover:text-emerald-600 hover:bg-gray-50"
                   }`}
                 >
                   {item.name}
                   <span
-                    className={`absolute -bottom-1 left-3 right-3 h-0.5 bg-emerald-500 transition-all duration-300 ${
+                    className={`absolute -bottom-1 left-3 right-3 h-0.5 transition-all duration-300 ${
+                      isLandingPage ? "bg-emerald-400" : "bg-emerald-500"
+                    } ${
                       pathname === item.href
                         ? "w-full"
                         : "w-0 group-hover:w-full"
@@ -161,11 +164,11 @@ const Header = () => {
               {/* Mobile Search Button */}
               <button
                 onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
-                className={`lg:hidden p-2 rounded-lg transition-colors ${isLandingPage ? "hover:bg-white/10" : "hover:bg-gray-100"}`}
+                className={`lg:hidden p-2 rounded-lg transition-colors ${isLandingPage ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"}`}
                 aria-label="Search"
               >
                 <svg
-                  className={`w-5 h-5 ${isLandingPage ? "text-gray-300" : "text-gray-600"}`}
+                  className={`w-5 h-5 ${isLandingPage ? "text-white/70" : "text-gray-600"}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -181,25 +184,31 @@ const Header = () => {
 
               {isLoading ? (
                 <div className="hidden lg:flex items-center gap-4">
-                  <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>
+                  <div className={`w-8 h-8 rounded-full animate-pulse ${isLandingPage ? "bg-white/10" : "bg-gray-200"}`}></div>
                 </div>
               ) : isAuthenticated ? (
                 <>
                   {/* Mobile Notification Bell */}
                   <button
                     onClick={handleNotifications}
-                    className="lg:hidden relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                    className={`lg:hidden relative p-2 rounded-lg transition-colors ${isLandingPage ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"}`}
                     aria-label="Notifications"
                   >
-                    <Bell className={`w-5 h-5 ${isLandingPage ? "text-gray-300" : "text-gray-600"}`} />
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                    <Bell
+                      className={`w-5 h-5 ${isLandingPage ? "text-white/70" : "text-gray-600"}`}
+                    />
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-400 rounded-full"></span>
                   </button>
 
                   {/* Desktop Authenticated Actions */}
                   <div className="hidden lg:flex items-center gap-2 md:gap-3">
                     <motion.button
                       onClick={handlePostService}
-                      className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm min-h-[40px]"
+                      className={`flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors sm:px-4 ${
+                        isLandingPage
+                          ? "bg-emerald-500/90 hover:bg-emerald-500 shadow-emerald-500/20"
+                          : "bg-emerald-600 hover:bg-emerald-700"
+                      }`}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -209,25 +218,25 @@ const Header = () => {
 
                     <button
                       onClick={handleNotifications}
-                      className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                      className={`relative p-2 rounded-lg transition-colors ${isLandingPage ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"}`}
                       aria-label="Notifications"
                     >
-                      <Bell className="w-5 h-5 text-gray-600" />
-                      <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                      <Bell className={`w-5 h-5 ${isLandingPage ? "text-white/70" : "text-gray-600"}`} />
+                      <span className={`absolute top-1 right-1 w-2 h-2 rounded-full ${isLandingPage ? "bg-emerald-400" : "bg-red-500"}`}></span>
                     </button>
 
                     {/* User Profile Dropdown */}
                     <Popover className="relative">
-                      <Popover.Button className="outline-none flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 transition-colors">
+                      <Popover.Button className={`outline-none flex items-center gap-2 p-1 rounded-lg transition-colors ${isLandingPage ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"}`}>
                         <div
-                          className="w-8 h-8 rounded-full bg-cover bg-center border-2 border-emerald-500"
+                          className={`w-8 h-8 rounded-full bg-cover bg-center border-2 ${isLandingPage ? "border-emerald-400/60" : "border-emerald-500"}`}
                           style={{
                             backgroundImage: `url(${
                               session.user?.image || "/default-avatar.png"
                             })`,
                           }}
                         ></div>
-                        <ChevronDown className="w-4 h-4 text-gray-600 hidden sm:block" />
+                        <ChevronDown className={`w-4 h-4 hidden sm:block ${isLandingPage ? "text-white/50" : "text-gray-600"}`} />
                       </Popover.Button>
 
                       <Transition
@@ -301,7 +310,7 @@ const Header = () => {
                     aria-label="Open menu"
                   >
                     <div
-                      className="w-8 h-8 rounded-full bg-cover bg-center border-2 border-emerald-500"
+                      className={`w-8 h-8 rounded-full bg-cover bg-center border-2 ${isLandingPage ? "border-emerald-400/60" : "border-emerald-500"}`}
                       style={{
                         backgroundImage: `url(${
                           session.user?.image || "/default-avatar.png"
@@ -314,14 +323,20 @@ const Header = () => {
                 <>
                   {/* Desktop Unauthenticated Actions */}
                   <div className="hidden lg:flex items-center gap-2">
-                    <Link href="/auth/login"
+                    <Link
+                      href="/auth/login"
                       className={`px-4 py-2 text-sm font-semibold transition-colors ${
-                        isLandingPage ? "text-gray-100 hover:text-white" : "text-gray-700 hover:text-emerald-600"
-                      }`}>
+                        isLandingPage
+                          ? "text-white/70 hover:text-white"
+                          : "text-gray-700 hover:text-emerald-600"
+                      }`}
+                    >
                       Sign In
                     </Link>
-                    <Link href="/auth/signup"
-                      className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-all">
+                    <Link
+                      href="/auth/signup"
+                      className="rounded-xl bg-linear-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-bold text-white transition-all hover:shadow-lg hover:shadow-emerald-500/25"
+                    >
                       Get Started →
                     </Link>
                   </div>
@@ -329,10 +344,12 @@ const Header = () => {
                   {/* Mobile Menu Button for Unauthenticated */}
                   <button
                     onClick={() => setIsMenuOpen(true)}
-                    className={`lg:hidden p-2 rounded-lg transition-colors ${isLandingPage ? "hover:bg-white/10" : "hover:bg-gray-100"}`}
+                    className={`lg:hidden p-2 rounded-lg transition-colors ${isLandingPage ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"}`}
                     aria-label="Open menu"
                   >
-                    <Menu className={`w-5 h-5 ${isLandingPage ? "text-gray-300" : "text-gray-700"}`} />
+                    <Menu
+                      className={`w-5 h-5 ${isLandingPage ? "text-white/80" : "text-gray-700"}`}
+                    />
                   </button>
                 </>
               )}
@@ -355,10 +372,14 @@ const Header = () => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={handleSearchKeyDown}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                    className={`w-full pl-10 pr-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
+                      isLandingPage
+                        ? "bg-white/[0.06] border border-white/[0.1] text-white placeholder-white/40"
+                        : "bg-gray-50 border border-gray-200 text-gray-900"
+                    }`}
                   />
                   <svg
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"
+                    className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isLandingPage ? "text-white/40" : "text-gray-400"}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -377,7 +398,7 @@ const Header = () => {
         </div>
       </header>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Menu Overlay — stays white for cross-page consistency */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
@@ -536,10 +557,18 @@ const Header = () => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <Link href="/auth/signup" onClick={() => setIsMenuOpen(false)} className="block w-full px-4 py-3 bg-emerald-600 text-white rounded-xl text-center font-bold">
+                    <Link
+                      href="/auth/signup"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block w-full px-4 py-3 bg-emerald-600 text-white rounded-xl text-center font-bold"
+                    >
                       Get Started
                     </Link>
-                    <Link href="/auth/login" onClick={() => setIsMenuOpen(false)} className="block w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-xl text-center font-semibold">
+                    <Link
+                      href="/auth/login"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-xl text-center font-semibold"
+                    >
                       Sign In
                     </Link>
                   </div>

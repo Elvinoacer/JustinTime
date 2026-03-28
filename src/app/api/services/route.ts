@@ -72,6 +72,10 @@ export async function GET(request: NextRequest) {
           // But for pagination, we stick to DB sort.
           orderBy = { createdAt: "desc" };
           break;
+        case "rebooked":
+          // Rebook count is computed in memory from bookings and then ranked below.
+          orderBy = { createdAt: "desc" };
+          break;
         case "price_low":
           orderBy = { price: "asc" };
           break;
@@ -118,10 +122,9 @@ export async function GET(request: NextRequest) {
             },
           },
           bookings: {
-            where: {
-              review: { isNot: null },
-            },
             select: {
+              clientId: true,
+              status: true,
               review: {
                 select: {
                   rating: true,
@@ -154,9 +157,25 @@ export async function GET(request: NextRequest) {
       }
 
       // Calculate rating from bookings
-      const ratings = service.bookings
+      const completedBookings = service.bookings.filter(
+        (booking) => booking.status === "COMPLETED",
+      );
+
+      const ratings = completedBookings
         .map((b) => b.review?.rating)
         .filter((r): r is number => r !== undefined);
+
+      const completedBookingsByClient = new Map<string, number>();
+      for (const booking of completedBookings) {
+        completedBookingsByClient.set(
+          booking.clientId,
+          (completedBookingsByClient.get(booking.clientId) || 0) + 1,
+        );
+      }
+      const rebookedCount = Array.from(
+        completedBookingsByClient.values(),
+      ).reduce((sum, bookingCount) => sum + Math.max(bookingCount - 1, 0), 0);
+
       const averageRating =
         ratings.length > 0
           ? ratings.reduce((a, b) => a + b, 0) / ratings.length
@@ -196,6 +215,7 @@ export async function GET(request: NextRequest) {
         },
         rating: averageRating,
         reviews: ratings.length,
+        rebookedCount,
         distance,
       };
     });
@@ -228,6 +248,8 @@ export async function GET(request: NextRequest) {
       // 3. Requested Sort
       if (isDistanceSort) {
         return (a.distance || 0) - (b.distance || 0);
+      } else if (sort === "rebooked") {
+        return b.rebookedCount - a.rebookedCount;
       } else if (sort === "rating") {
         return b.rating - a.rating;
       } else if (sort === "price_low") {

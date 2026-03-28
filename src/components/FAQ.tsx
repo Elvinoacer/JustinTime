@@ -7,7 +7,7 @@ const faqs = [
   {
     question: "How do I book a professional on JustInTime?",
     answer:
-      "Simply search for the service you need, browse available professionals in your area, compare ratings and reviews, then click \"Book Now\" to schedule. You'll receive confirmation instantly via SMS and email.",
+      'Simply search for the service you need, browse available professionals in your area, compare ratings and reviews, then click "Book Now" to schedule. You\'ll receive confirmation instantly via SMS and email.',
   },
   {
     question: "Are the professionals verified?",
@@ -27,7 +27,7 @@ const faqs = [
   {
     question: "How do I become a professional on JustInTime?",
     answer:
-      "Click \"Join as a Pro\" and complete the registration form. You'll need to provide identification, proof of skills or certification, and pass our verification process. Once approved, you can start receiving job requests.",
+      'Click "Join as a Pro" and complete the registration form. You\'ll need to provide identification, proof of skills or certification, and pass our verification process. Once approved, you can start receiving job requests.',
   },
   {
     question: "Is there a cancellation fee?",
@@ -40,25 +40,26 @@ const FAQ = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section className="py-16 sm:py-20 md:py-24 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
+    <section className="px-4 py-14 sm:px-6 sm:py-18 md:py-20 lg:px-8">
+      <div className="mx-auto max-w-3xl">
         {/* Header */}
         <motion.div
-          className="text-center mb-10 sm:mb-12"
+          className="mb-9 text-center sm:mb-10"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           viewport={{ once: true, margin: "-50px" }}
         >
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold mb-4">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-white/[0.06] px-4 py-1.5 text-xs font-semibold text-emerald-400 backdrop-blur-sm">
             <HelpCircle className="w-3.5 h-3.5" />
             FAQ
           </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
-            Frequently Asked Questions
+          <h2 className="landing-display text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+            Questions before you book?
           </h2>
-          <p className="mt-3 text-gray-500 text-sm sm:text-base max-w-md mx-auto">
-            Everything you need to know about JustInTime.
+          <p className="mx-auto mt-3 max-w-md text-sm text-white/60 sm:text-base">
+            Clear answers on verification, payments, guarantees, and
+            cancellations.
           </p>
         </motion.div>
 
@@ -69,10 +70,10 @@ const FAQ = () => {
             return (
               <motion.div
                 key={index}
-                className={`backdrop-blur-sm rounded-xl border transition-all duration-300 ${
+                className={`rounded-xl border transition-all duration-300 ${
                   isOpen
-                    ? "bg-white/[0.06] border-emerald-500/20"
-                    : "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.05]"
+                    ? "border-emerald-400/40 bg-white/[0.06] shadow-[0_0_20px_-8px_rgba(52,211,153,0.2)]"
+                    : "border-white/[0.08] bg-white/[0.03] hover:border-white/[0.12]"
                 }`}
                 initial={{ opacity: 0, y: 15 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -84,15 +85,17 @@ const FAQ = () => {
                   onClick={() => setOpenIndex(isOpen ? null : index)}
                   aria-expanded={isOpen}
                 >
-                  <span className="text-white text-sm sm:text-base font-medium pr-4">
+                  <span className="pr-4 text-sm font-medium text-white/90 sm:text-base">
                     {faq.question}
                   </span>
                   <motion.div
                     animate={{ rotate: isOpen ? 180 : 0 }}
                     transition={{ duration: 0.2 }}
-                    className="flex-shrink-0"
+                    className="shrink-0"
                   >
-                    <ChevronDown className={`w-4 h-4 transition-colors ${isOpen ? "text-emerald-400" : "text-gray-500"}`} />
+                    <ChevronDown
+                      className={`h-4 w-4 transition-colors ${isOpen ? "text-emerald-400" : "text-white/40"}`}
+                    />
                   </motion.div>
                 </button>
 
@@ -106,7 +109,7 @@ const FAQ = () => {
                       className="overflow-hidden"
                     >
                       <div className="px-4 sm:px-5 pb-4 sm:pb-5">
-                        <p className="text-gray-400 text-xs sm:text-sm leading-relaxed">
+                        <p className="text-xs leading-relaxed text-white/60 sm:text-sm">
                           {faq.answer}
                         </p>
                       </div>

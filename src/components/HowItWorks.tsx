@@ -6,79 +6,105 @@ const steps = [
   {
     num: "01",
     title: "Post your request",
-    description: "Enter what you need in the search bar or browse categories to find the perfect service.",
+    description:
+      "Enter what you need in the search bar or browse categories to find the perfect service.",
     icon: Search,
   },
   {
     num: "02",
     title: "Compare matches",
-    description: "Browse profiles, ratings, and reviews. Pick the professional that fits your budget.",
+    description:
+      "Browse profiles, ratings, and reviews. Pick the professional that fits your budget.",
     icon: UserCheck,
   },
   {
     num: "03",
     title: "Hire a Pro",
-    description: "Confirm your booking, pay securely with M-Pesa, and let the professional handle the rest.",
+    description:
+      "Confirm your booking, pay securely with M-Pesa, and let the professional handle the rest.",
     icon: CalendarCheck,
   },
 ];
 
+const stepsContainer = {
+  hidden: {},
+  show: {
+    transition: {
+      staggerChildren: 0.12,
+    },
+  },
+};
+
+const stepItem = {
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.42 } },
+};
+
 const HowItWorks = () => {
   return (
-    <section className="py-16 sm:py-20 md:py-24 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
+    <section className="px-4 py-14 sm:px-6 sm:py-18 md:py-20 lg:px-8">
+      <div className="mx-auto max-w-6xl">
         {/* Header */}
         <motion.div
-          className="mb-10 sm:mb-14"
+          className="mb-9 sm:mb-12"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           viewport={{ once: true, margin: "-50px" }}
         >
-          <p className="text-emerald-400 text-xs font-semibold tracking-widest uppercase mb-2">
-            How It Works
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
+            Step 3: Book
           </p>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white tracking-tight">
-            Simple, Reliable, Local.
+          <h2 className="landing-display text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl lg:text-5xl">
+            Three clear steps to completed work
           </h2>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">
+            No confusion, no back-and-forth. Just a clean path from request to
+            confirmed booking.
+          </p>
         </motion.div>
 
-        {/* Steps — horizontal on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+        {/* Steps */}
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8"
+          variants={stepsContainer}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-40px" }}
+        >
           {steps.map((step, index) => {
             const Icon = step.icon;
             return (
               <motion.div
                 key={index}
-                className="relative flex flex-col"
-                initial={{ opacity: 0, y: 25 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: index * 0.12 }}
-                viewport={{ once: true, margin: "-50px" }}
+                className="glass-card glass-card-hover relative flex flex-col rounded-2xl p-5 sm:p-6"
+                variants={stepItem}
               >
                 {/* Step number */}
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                    <Icon className="w-5 h-5 text-emerald-400" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-500/15">
+                    <Icon className="h-5 w-5 text-emerald-400" />
                   </div>
-                  <span className="text-emerald-500/30 text-3xl font-bold">{step.num}</span>
+                  <span className="text-3xl font-bold text-emerald-400/20">
+                    {step.num}
+                  </span>
                 </div>
 
-                <h3 className="text-white text-lg font-semibold mb-2">
+                <h3 className="landing-display mb-2 text-lg font-semibold text-white">
                   {step.title}
                 </h3>
-                <p className="text-gray-500 text-sm leading-relaxed">
+                <p className="text-sm leading-relaxed text-white/60">
                   {step.description}
                 </p>
 
                 {/* Mobile connector */}
                 {index < steps.length - 1 && (
-                  <div className="md:hidden mt-6 mb-2 ml-5 w-px h-6 bg-emerald-500/20" />
+                  <div className="mb-2 ml-5 mt-6 h-6 w-px bg-emerald-400/30 md:hidden" />
                 )}
               </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

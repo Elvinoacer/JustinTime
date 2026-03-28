@@ -1,4 +1,8 @@
-import { useQuery, useInfiniteQuery, UseQueryResult } from "@tanstack/react-query";
+import {
+  useQuery,
+  useInfiniteQuery,
+  UseQueryResult,
+} from "@tanstack/react-query";
 import apiClient from "../client";
 import { queryKeys } from "../queryKeys";
 
@@ -35,6 +39,7 @@ export interface ServiceListItem {
   };
   rating: number;
   reviews: number;
+  rebookedCount?: number;
   distance?: number;
 }
 
@@ -117,7 +122,13 @@ export interface ServicesFilters {
   minRating?: number;
   maxPrice?: number;
   search?: string;
-  sort?: "relevance" | "rating" | "price_low" | "price_high" | "distance";
+  sort?:
+    | "relevance"
+    | "rating"
+    | "price_low"
+    | "price_high"
+    | "distance"
+    | "rebooked";
   latitude?: number;
   longitude?: number;
 }
@@ -132,7 +143,7 @@ export interface Category {
 
 // Fetch services
 async function fetchServices(
-  filters: ServicesFilters = {}
+  filters: ServicesFilters = {},
 ): Promise<ServicesResponse> {
   const params = new URLSearchParams();
 
@@ -161,7 +172,7 @@ async function fetchCategories(): Promise<Category[]> {
 
 // Hook to fetch services
 export function useServices(
-  filters: ServicesFilters = {}
+  filters: ServicesFilters = {},
 ): UseQueryResult<ServicesResponse, Error> {
   return useQuery({
     queryKey: queryKeys.services.list(filters),
@@ -173,8 +184,9 @@ export function useServices(
 // Infinite Hook to fetch services
 export function useServicesInfinite(filters: ServicesFilters = {}) {
   return useInfiniteQuery({
-    queryKey: [...queryKeys.services.list(filters), 'infinite'],
-    queryFn: async ({ pageParam = 1 }) => fetchServices({ ...filters, page: pageParam as number, limit: 12 }),
+    queryKey: [...queryKeys.services.list(filters), "infinite"],
+    queryFn: async ({ pageParam = 1 }) =>
+      fetchServices({ ...filters, page: pageParam as number, limit: 12 }),
     getNextPageParam: (lastPage: ServicesResponse) => {
       const { page, totalPages } = lastPage.pagination;
       return page < totalPages ? page + 1 : undefined;

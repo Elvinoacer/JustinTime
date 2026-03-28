@@ -24,10 +24,35 @@ function useAnimatedNumber(end: number, duration = 2000) {
 }
 
 const metrics = [
-  { label: "Counties Covered", value: 47, suffix: "", icon: MapPin, color: "text-emerald-400" },
-  { label: "Active Professionals", value: 500, suffix: "+", icon: Users, color: "text-cyan-400" },
-  { label: "Services Completed", value: 10000, suffix: "+", icon: Briefcase, color: "text-amber-400" },
-  { label: "Average Rating", value: 4.8, suffix: "/5", icon: Star, color: "text-yellow-400", isDecimal: true },
+  {
+    label: "Counties Covered",
+    value: 47,
+    suffix: "",
+    icon: MapPin,
+    color: "text-emerald-400",
+  },
+  {
+    label: "Active Professionals",
+    value: 500,
+    suffix: "+",
+    icon: Users,
+    color: "text-cyan-400",
+  },
+  {
+    label: "Services Completed",
+    value: 10000,
+    suffix: "+",
+    icon: Briefcase,
+    color: "text-amber-400",
+  },
+  {
+    label: "Average Rating",
+    value: 4.8,
+    suffix: "/5",
+    icon: Star,
+    color: "text-yellow-400",
+    isDecimal: true,
+  },
 ];
 
 const TrustBanner = () => {
@@ -39,22 +64,34 @@ const TrustBanner = () => {
   ];
 
   return (
-    <section className="py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto">
+    <section className="px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+      <div className="mx-auto max-w-5xl">
         <motion.div
-          className="backdrop-blur-sm bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6 sm:p-8 md:p-10"
+          className="glass-card rounded-3xl p-6 sm:p-8 md:p-10"
           initial={{ opacity: 0, y: 25 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           viewport={{ once: true, margin: "-50px" }}
         >
+          <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
+            Platform trust
+          </p>
+          <h3 className="landing-display mb-6 text-center text-xl font-bold text-white sm:text-2xl">
+            Real platform performance, visible before you commit
+          </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
             {metrics.map((metric, index) => {
               const Icon = metric.icon;
               const counter = counters[index];
               return (
-                <div key={index} className="text-center" ref={counter.ref}>
-                  <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${metric.color} mx-auto mb-2`} />
+                <div
+                  key={index}
+                  className="rounded-2xl border border-white/[0.06] bg-white/[0.03] px-3 py-4 text-center"
+                  ref={counter.ref}
+                >
+                  <Icon
+                    className={`w-5 h-5 sm:w-6 sm:h-6 ${metric.color} mx-auto mb-2`}
+                  />
                   <div className="text-xl sm:text-2xl md:text-3xl font-bold text-white tabular-nums">
                     {metric.isDecimal
                       ? (counter.count / 10).toFixed(1)
@@ -63,7 +100,7 @@ const TrustBanner = () => {
                         : counter.count}
                     <span className="text-emerald-400">{metric.suffix}</span>
                   </div>
-                  <div className="text-gray-500 text-[10px] sm:text-xs font-medium uppercase tracking-wider mt-1">
+                  <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/50 sm:text-xs">
                     {metric.label}
                   </div>
                 </div>

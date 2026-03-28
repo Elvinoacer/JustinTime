@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
+import LandingNarrativeRail from "@/components/LandingNarrativeRail";
 import ServiceCategories from "@/components/ServiceCategories";
 import PopularServices from "@/components/PopularServices";
 import TrustBanner from "@/components/TrustBanner";
@@ -35,35 +37,34 @@ export default function Home() {
             description: "Kenya's marketplace for verified local professionals",
             potentialAction: {
               "@type": "SearchAction",
-              target: "https://justintime.gtss.software/professionals?q={search_term_string}",
+              target:
+                "https://justintime.gtss.software/professionals?q={search_term_string}",
               "query-input": "required name=search_term_string",
             },
           }),
         }}
       />
-      {/* Unified dark background for entire landing page (except footer) */}
-      <main className="relative bg-[#0a1a15]">
-        {/* Global mesh gradient blobs */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-[800px] h-[800px] bg-emerald-600/[0.07] rounded-full blur-[180px]" />
-          <div className="absolute top-[15%] right-0 w-[600px] h-[600px] bg-teal-500/[0.05] rounded-full blur-[150px]" />
-          <div className="absolute top-[35%] left-0 w-[700px] h-[700px] bg-emerald-700/[0.06] rounded-full blur-[160px]" />
-          <div className="absolute top-[55%] right-1/4 w-[500px] h-[500px] bg-cyan-600/[0.04] rounded-full blur-[140px]" />
-          <div className="absolute top-[75%] left-1/3 w-[600px] h-[600px] bg-emerald-500/[0.05] rounded-full blur-[170px]" />
-          <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-teal-600/[0.04] rounded-full blur-[160px]" />
+      <main className="landing-shell relative overflow-hidden bg-[#06110d]">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute inset-0 bg-[linear-gradient(112deg,rgba(5,29,22,0.96)_0%,rgba(4,22,18,0.95)_32%,rgba(3,20,16,0.93)_56%,rgba(2,17,14,0.97)_100%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(120%_70%_at_10%_6%,rgba(34,197,94,0.16),transparent_52%),radial-gradient(85%_58%_at_86%_14%,rgba(16,185,129,0.14),transparent_55%),radial-gradient(90%_65%_at_52%_84%,rgba(20,184,166,0.11),transparent_60%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,17,14,0.28)_0%,rgba(6,17,14,0.05)_22%,rgba(6,17,14,0.3)_52%,rgba(5,14,12,0.58)_100%)]" />
+          <div
+            className="absolute inset-0 opacity-[0.08]"
+            style={{
+              backgroundImage:
+                "linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px)",
+              backgroundSize: "68px 68px",
+            }}
+          />
         </div>
-        {/* Grid pattern overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.03] pointer-events-none"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(52,211,153,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(52,211,153,0.4) 1px, transparent 1px)",
-            backgroundSize: "60px 60px",
-          }}
-        />
         <div className="relative z-10">
           {/* 1. Hero — headline, search, avatars, stats */}
-          <Hero />
+          <Suspense fallback={<div className="min-h-[70vh]" />}>
+            <Hero />
+          </Suspense>
+          {/* Journey narrative rail — anchors the scroll story */}
+          <LandingNarrativeRail />
           {/* 2. Service Categories — always visible 12-item grid */}
           <ServiceCategories />
           {/* 3. Popular Services — data-driven cards */}
@@ -83,7 +84,9 @@ export default function Home() {
           {/* 10. FAQ — common questions */}
           <FAQ />
           {/* 11. Final CTA — conversion */}
-          <CTA />
+          <Suspense fallback={<div className="min-h-32" />}>
+            <CTA />
+          </Suspense>
         </div>
       </main>
       <Footer />
