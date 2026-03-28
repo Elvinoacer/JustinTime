@@ -86,7 +86,6 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional }) => 
       className="group block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
     >
       <article className="flex min-h-[158px] max-h-[220px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_36px_-24px_rgba(15,23,42,0.45)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-emerald-200/70 hover:shadow-[0_16px_44px_-22px_rgba(16,185,129,0.22)] sm:max-h-none sm:min-h-[168px] sm:flex-row">
-        {/* Cover / work sample */}
         <div className="relative h-28 w-full shrink-0 overflow-hidden sm:h-auto sm:w-[42%] sm:min-w-[140px] sm:max-w-[220px]">
           {cover && coverAvailable ? (
             <Image
@@ -101,21 +100,28 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional }) => 
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/75 via-slate-950/35 to-slate-950/5 sm:bg-gradient-to-r sm:from-slate-950/70 sm:via-slate-900/25 sm:to-transparent" />
-          <div className="absolute bottom-2 left-2 right-2 flex flex-wrap items-center gap-1.5 sm:bottom-3 sm:left-3 sm:right-3">
-            {isPro ? (
-              <span className="rounded-md bg-amber-400/95 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 shadow-sm">
-                Pro
-              </span>
-            ) : null}
-            {isVerified && !isPro ? (
-              <span className="flex items-center gap-0.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800 shadow-sm backdrop-blur-sm">
-                <span className="material-symbols-outlined text-[12px]">verified</span>
-                Verified
-              </span>
-            ) : null}
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/75 via-slate-950/3 to-transparent" />
+          <div className="absolute left-2 right-2 top-2 flex items-start justify-between gap-1.5 sm:left-2.5 sm:right-2.5 sm:top-2.5">
+            <div className="flex min-w-0 flex-wrap gap-1">
+              {isPro ? (
+                <span className="rounded-md bg-amber-400/95 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 shadow-sm">
+                  Pro
+                </span>
+              ) : null}
+              {isVerified && !isPro ? (
+                <span className="flex items-center gap-0.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800 shadow-sm backdrop-blur-sm">
+                  <span className="material-symbols-outlined text-[12px]">verified</span>
+                  Verified
+                </span>
+              ) : null}
+            </div>
+          </div>
+          <div className="absolute bottom-2 left-2 right-2 flex flex-wrap items-center justify-end gap-1 sm:bottom-2.5 sm:left-2.5 sm:right-2.5">
+            <span className="rounded-md border border-white/25 bg-black/30 px-1.5 py-0.5 text-[10px] font-medium text-white">
+              {reviews} reviews
+            </span>
             {distLabel ? (
-              <span className="ml-auto rounded-md bg-emerald-600/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+              <span className="rounded-md bg-emerald-600/92 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                 {distLabel}
               </span>
             ) : null}

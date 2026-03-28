@@ -132,6 +132,17 @@ export async function GET(request: NextRequest) {
         image: true,
         createdAt: true,
         profile: true,
+        services: {
+          where: {
+            isActive: true,
+          },
+          select: {
+            images: true,
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
         subscription: {
           select: { plan: true, isActive: true },
         },
@@ -214,12 +225,28 @@ export async function GET(request: NextRequest) {
                   isLikelyImageUrl(url),
               ) ?? null)
             : null;
+        const serviceImage =
+          provider.services.find((service) =>
+            Array.isArray(service.images)
+              ? service.images.some(
+                  (url) =>
+                    typeof url === "string" &&
+                    url.trim().length > 0 &&
+                    isLikelyImageUrl(url),
+                )
+              : false,
+          )?.images.find(
+            (url) =>
+              typeof url === "string" &&
+              url.trim().length > 0 &&
+              isLikelyImageUrl(url),
+          ) ?? null;
 
         return {
           id: provider.id,
           name: provider.name || "Anonymous Professional",
           image: provider.image,
-          coverImage: portfolio,
+          coverImage: portfolio || serviceImage,
           title: p?.bio?.split(".")[0] || "Service Provider",
           bio: p?.bio || "",
           skills,
