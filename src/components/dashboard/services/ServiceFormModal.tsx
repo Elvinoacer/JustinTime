@@ -821,19 +821,19 @@ const ServiceFormModal = ({
           }`}
         >
           {/* Header */}
-          <div className="border-b border-gray-100 bg-[linear-gradient(135deg,#f7fffb_0%,#ffffff_58%,#f4f8ff_100%)] px-6 py-4 lg:px-8 lg:py-4">
+          <div className="border-b border-gray-100 bg-[linear-gradient(135deg,#f7fffb_0%,#ffffff_58%,#f4f8ff_100%)] px-6 py-3 lg:px-8 lg:py-3">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                <div className="mb-1.5 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
                   <span className="material-symbols-outlined text-sm">
                     {currentStepMeta.icon}
                   </span>
                   Step {step} of 3
                 </div>
-                <h2 className="truncate text-[1.9rem] font-bold text-gray-900 leading-tight">
+                <h2 className="truncate text-[1.75rem] font-bold text-gray-900 leading-tight">
                   {isEditMode ? "Edit Service" : "Create New Service"}
                 </h2>
-                <p className="mt-1 text-sm font-medium text-gray-700">
+                <p className="mt-0.5 text-sm font-medium text-gray-700">
                   {currentStepMeta.title}
                 </p>
               </div>
@@ -860,12 +860,12 @@ const ServiceFormModal = ({
               </div>
             </div>
 
-            <div className="mt-3">
-              <div className="mb-2 flex items-center justify-between text-xs font-medium text-gray-500">
+            <div className="mt-2">
+              <div className="mb-1.5 flex items-center justify-between text-[11px] font-medium text-gray-500">
                 <span>{currentStepMeta.label}</span>
-                <span>{Math.round((step / STEP_META.length) * 100)}% complete</span>
+                <span>{Math.round((step / STEP_META.length) * 100)}%</span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+              <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${(step / STEP_META.length) * 100}%` }}
@@ -873,7 +873,7 @@ const ServiceFormModal = ({
                   className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
                 />
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 {STEP_META.map((item, index) => {
                   const stepNumber = index + 1;
                   const isActive = stepNumber === step;
@@ -882,7 +882,7 @@ const ServiceFormModal = ({
                   return (
                     <div
                       key={item.label}
-                      className={`rounded-xl border px-3 py-2 ${
+                      className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs ${
                         isActive
                           ? "border-emerald-200 bg-white shadow-sm"
                           : isDone
@@ -891,7 +891,7 @@ const ServiceFormModal = ({
                       }`}
                     >
                       <div
-                        className={`mb-1.5 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                        className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
                           isActive || isDone
                             ? "bg-emerald-500 text-white"
                             : "bg-gray-100 text-gray-500"
@@ -905,7 +905,7 @@ const ServiceFormModal = ({
                           stepNumber
                         )}
                       </div>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="font-semibold text-gray-900">
                         {item.label}
                       </p>
                     </div>
