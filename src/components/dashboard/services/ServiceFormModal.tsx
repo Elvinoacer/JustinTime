@@ -798,26 +798,23 @@ const ServiceFormModal = ({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 10 }}
           onClick={(e) => e.stopPropagation()}
-          className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+          className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
         >
           {/* Header */}
-          <div className="border-b border-gray-100 bg-[linear-gradient(135deg,#f7fffb_0%,#ffffff_58%,#f4f8ff_100%)] px-6 py-5 lg:px-8 lg:py-6">
+          <div className="border-b border-gray-100 bg-[linear-gradient(135deg,#f7fffb_0%,#ffffff_58%,#f4f8ff_100%)] px-6 py-4 lg:px-8 lg:py-4">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
                   <span className="material-symbols-outlined text-sm">
                     {currentStepMeta.icon}
                   </span>
                   Step {step} of 3
                 </div>
-                <h2 className="truncate text-2xl font-bold text-gray-900">
+                <h2 className="truncate text-[1.9rem] font-bold text-gray-900 leading-tight">
                   {isEditMode ? "Edit Service" : "Create New Service"}
                 </h2>
                 <p className="mt-1 text-sm font-medium text-gray-700">
                   {currentStepMeta.title}
-                </p>
-                <p className="mt-1 text-sm text-gray-500">
-                  {currentStepMeta.description}
                 </p>
               </div>
               <button
@@ -829,7 +826,7 @@ const ServiceFormModal = ({
               </button>
             </div>
 
-            <div className="mt-5">
+            <div className="mt-3">
               <div className="mb-2 flex items-center justify-between text-xs font-medium text-gray-500">
                 <span>{currentStepMeta.label}</span>
                 <span>{Math.round((step / STEP_META.length) * 100)}% complete</span>
@@ -842,7 +839,7 @@ const ServiceFormModal = ({
                   className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
                 />
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="mt-3 grid grid-cols-3 gap-2">
                 {STEP_META.map((item, index) => {
                   const stepNumber = index + 1;
                   const isActive = stepNumber === step;
@@ -851,7 +848,7 @@ const ServiceFormModal = ({
                   return (
                     <div
                       key={item.label}
-                      className={`rounded-2xl border px-3 py-3 ${
+                      className={`rounded-xl border px-3 py-2 ${
                         isActive
                           ? "border-emerald-200 bg-white shadow-sm"
                           : isDone
@@ -860,7 +857,7 @@ const ServiceFormModal = ({
                       }`}
                     >
                       <div
-                        className={`mb-2 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+                        className={`mb-1.5 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
                           isActive || isDone
                             ? "bg-emerald-500 text-white"
                             : "bg-gray-100 text-gray-500"
@@ -885,9 +882,9 @@ const ServiceFormModal = ({
           </div>
 
           {/* Body */}
-          <div className="flex-1 overflow-y-auto px-6 py-6 lg:px-8 lg:py-7">
+          <div className="flex-1 overflow-y-auto px-6 py-5 lg:px-8 lg:py-6">
             {step === 1 && (
-              <div className="space-y-6">
+              <div className="mx-auto max-w-3xl space-y-5">
                 <div className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-sky-50 p-4">
                   <div className="flex items-start gap-3">
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm">
@@ -918,10 +915,10 @@ const ServiceFormModal = ({
                   </div>
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
                   <div className="space-y-6">
-                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                      <label className="mb-2 block text-sm font-semibold text-gray-800">
+                    <div>
+                      <label className="mb-2 block text-base font-semibold text-gray-800">
                         Service Name <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -930,22 +927,22 @@ const ServiceFormModal = ({
                         onChange={(e) =>
                           setFormData({ ...formData, name: e.target.value })
                         }
-                        className={`w-full rounded-xl border px-4 py-3 text-base text-gray-900 transition-all placeholder:text-gray-500 ${
+                        className={`w-full rounded-xl border px-4 py-4 text-lg text-gray-900 transition-all placeholder:text-gray-500 ${
                           errors.name
                             ? "border-red-300 focus:ring-red-500"
                             : "border-gray-200 focus:ring-emerald-500"
                         } focus:border-transparent focus:ring-2`}
                         placeholder="e.g. Professional House Cleaning"
                       />
-                      <p className="mt-2 text-xs text-gray-500">
-                        Keep it short, specific, and easy for a client to understand quickly.
+                      <p className="mt-2 text-sm text-gray-500">
+                        Start with the main thing the client is hiring you for.
                       </p>
                       {errors.name && (
                         <p className="mt-1 text-sm text-red-500">{errors.name}</p>
                       )}
                     </div>
 
-                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                    <div>
                       <CategorySelector
                         categories={categoriesData}
                         selectedIds={formData.category ? [formData.category] : []}
@@ -957,93 +954,93 @@ const ServiceFormModal = ({
                         label="Choose the service category"
                         compact={true}
                       />
-                      <p className="mt-3 text-xs text-gray-500">
-                        Pick the category clients would naturally browse when looking for this service.
+                      <p className="mt-3 text-sm text-gray-500">
+                        Next, choose the category clients would browse to find this service.
                       </p>
                     </div>
-                  </div>
 
-                  <div className="space-y-6">
-                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                      <label className="mb-2 block text-sm font-semibold text-gray-800">
-                        Price (KES) <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-semibold text-gray-500">
-                          KES
-                        </span>
-                        <input
-                          type="number"
-                          value={formData.price}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              price: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          className={`w-full rounded-xl border py-3 pl-14 pr-4 text-base text-gray-900 transition-all placeholder:text-gray-500 ${
-                            errors.price
-                              ? "border-red-300 focus:ring-red-500"
-                              : "border-gray-200 focus:ring-emerald-500"
-                          } focus:border-transparent focus:ring-2`}
-                          placeholder="0.00"
-                        />
+                    <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+                      <div>
+                        <label className="mb-2 block text-base font-semibold text-gray-800">
+                          Price (KES) <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-semibold text-gray-500">
+                            KES
+                          </span>
+                          <input
+                            type="number"
+                            value={formData.price}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                price: parseFloat(e.target.value) || 0,
+                              })
+                            }
+                            className={`w-full rounded-xl border py-4 pl-14 pr-4 text-lg text-gray-900 transition-all placeholder:text-gray-500 ${
+                              errors.price
+                                ? "border-red-300 focus:ring-red-500"
+                                : "border-gray-200 focus:ring-emerald-500"
+                            } focus:border-transparent focus:ring-2`}
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <p className="mt-2 text-sm text-gray-500">
+                          Set the starting price a client will see first.
+                        </p>
+                        {errors.price && (
+                          <p className="mt-1 text-sm text-red-500">{errors.price}</p>
+                        )}
                       </div>
-                      <p className="mt-2 text-xs text-gray-500">
-                        Enter the starting price clients should expect for this service.
-                      </p>
-                      {errors.price && (
-                        <p className="mt-1 text-sm text-red-500">{errors.price}</p>
-                      )}
-                    </div>
 
-                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                      <label className="mb-3 block text-sm font-semibold text-gray-800">
-                        Pricing Model <span className="text-red-500">*</span>
-                      </label>
-                      <div className="grid grid-cols-1 gap-3">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setFormData({ ...formData, pricingUnit: "fixed" })
-                          }
-                          className={`flex items-start gap-3 rounded-2xl border-2 px-4 py-4 text-left transition-all ${
-                            formData.pricingUnit === "fixed"
-                              ? "border-emerald-500 bg-emerald-50 text-emerald-800"
-                              : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
-                          }`}
-                        >
-                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm">
-                            <span className="material-symbols-outlined text-lg">payments</span>
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold">Fixed Price</p>
-                            <p className="mt-1 text-xs text-gray-500">
-                              Best when the job has a clear total cost.
-                            </p>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setFormData({ ...formData, pricingUnit: "hourly" })
-                          }
-                          className={`flex items-start gap-3 rounded-2xl border-2 px-4 py-4 text-left transition-all ${
-                            formData.pricingUnit === "hourly"
-                              ? "border-emerald-500 bg-emerald-50 text-emerald-800"
-                              : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
-                          }`}
-                        >
-                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm">
-                            <span className="material-symbols-outlined text-lg">schedule</span>
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold">Hourly Rate</p>
-                            <p className="mt-1 text-xs text-gray-500">
-                              Best when time or scope can vary from one job to another.
-                            </p>
-                          </div>
-                        </button>
+                      <div>
+                        <label className="mb-3 block text-base font-semibold text-gray-800">
+                          Pricing Model <span className="text-red-500">*</span>
+                        </label>
+                        <div className="grid grid-cols-1 gap-3">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFormData({ ...formData, pricingUnit: "fixed" })
+                            }
+                            className={`flex items-start gap-3 rounded-2xl border-2 px-4 py-4 text-left transition-all ${
+                              formData.pricingUnit === "fixed"
+                                ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                                : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                            }`}
+                          >
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm">
+                              <span className="material-symbols-outlined text-lg">payments</span>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold">Fixed Price</p>
+                              <p className="mt-1 text-xs text-gray-500">
+                                Use this when the job has one clear total price.
+                              </p>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFormData({ ...formData, pricingUnit: "hourly" })
+                            }
+                            className={`flex items-start gap-3 rounded-2xl border-2 px-4 py-4 text-left transition-all ${
+                              formData.pricingUnit === "hourly"
+                                ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                                : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                            }`}
+                          >
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm">
+                              <span className="material-symbols-outlined text-lg">schedule</span>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold">Hourly Rate</p>
+                              <p className="mt-1 text-xs text-gray-500">
+                                Use this when time and scope can change per booking.
+                              </p>
+                            </div>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
