@@ -1,6 +1,5 @@
 "use client";
 import { motion, AnimatePresence } from "framer-motion";
-import CategorySelector from "@/components/CategorySelector";
 import React from "react";
 import { useLocation, LocationSource } from "../hooks/useLocation";
 import LocationDeniedModal from "./LocationDeniedModal";
@@ -44,7 +43,6 @@ export default function StepProviderDetails({
   providerData,
   setProviderData,
   categories,
-  isLoadingCategories,
   onBack,
   onNext,
   formatPhoneNumber,
@@ -56,7 +54,9 @@ export default function StepProviderDetails({
   const [phoneError, setPhoneError] = React.useState<string | null>(null);
   const [isCheckingPhone, setIsCheckingPhone] = React.useState(false);
   const [serviceSearch, setServiceSearch] = React.useState("");
+  const [isServiceDropdownOpen, setIsServiceDropdownOpen] = React.useState(false);
   const hasAutoPrefilledRef = React.useRef(false);
+  const servicePickerRef = React.useRef<HTMLDivElement | null>(null);
 
   const handleGetLocation = async () => {
     await loc.getLocation("provider");
@@ -118,6 +118,25 @@ export default function StepProviderDetails({
     () => [...categories].sort((a, b) => b.count - a.count).slice(0, 8),
     [categories],
   );
+
+  const selectableMatches = React.useMemo(
+    () => matchingCategories.slice(0, 8),
+    [matchingCategories],
+  );
+
+  React.useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        servicePickerRef.current &&
+        !servicePickerRef.current.contains(event.target as Node)
+      ) {
+        setIsServiceDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
 
   const handlePhoneChange = (value: string) => {
     const formatted = formatPhoneNumber(value);
@@ -184,6 +203,26 @@ export default function StepProviderDetails({
       >
         <span className="material-symbols-outlined text-xs">{b.icon}</span>
         {b.label}
+      </div>
+    );
+  };
+
+  const renderServiceVisual = (category: Category) => {
+    if (category.image) {
+      return (
+        <img
+          src={category.image}
+          alt=""
+          className="h-10 w-10 rounded-xl object-cover"
+        />
+      );
+    }
+
+    return (
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+        <span className="material-symbols-outlined text-lg">
+          {category.icon}
+        </span>
       </div>
     );
   };
@@ -277,12 +316,12 @@ export default function StepProviderDetails({
             </div>
           )}
 
-          <div className="mt-4">
+          <div className="relative mt-4" ref={servicePickerRef}>
             <label
               htmlFor="provider-service-search"
               className="mb-2 block text-xs sm:text-sm font-bold text-gray-700"
             >
-              Search services
+              Search and select services
             </label>
             <div className="relative">
               <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
@@ -294,11 +333,125 @@ export default function StepProviderDetails({
                 id="provider-service-search"
                 type="text"
                 value={serviceSearch}
-                onChange={(e) => setServiceSearch(e.target.value)}
-                placeholder="Try plumber, cleaner, electrician..."
-                className="w-full rounded-xl border border-emerald-100 bg-white py-3 pl-10 pr-4 text-sm text-gray-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                onChange={(e) => {
+                  setServiceSearch(e.target.value);
+                  setIsServiceDropdownOpen(true);
+                }}
+                onFocus={() => setIsServiceDropdownOpen(true)}
+                placeholder="Search services, then choose from the dropdown"
+                className="w-full rounded-xl border border-emerald-200 bg-white py-3 pl-10 pr-12 text-sm text-gray-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                autoComplete="off"
               />
+              <button
+                type="button"
+                onClick={() => setIsServiceDropdownOpen((prev) => !prev)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 transition hover:text-emerald-600"
+                aria-label="Toggle services dropdown"
+              >
+                <span className="material-symbols-outlined text-base">
+                  {isServiceDropdownOpen ? "expand_less" : "expand_more"}
+                </span>
+              </button>
             </div>
+            <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+              <p className="text-gray-500">
+                Typing only filters suggestions. A service is added only after
+                you tap it in the dropdown.
+              </p>
+              <p
+                className={`shrink-0 font-semibold ${
+                  providerData.skills.length >= VALIDATION.MAX_PROVIDER_SKILLS
+                    ? "text-amber-700"
+                    : "text-emerald-700"
+                }`}
+              >
+                {providerData.skills.length} / {VALIDATION.MAX_PROVIDER_SKILLS} selected
+              </p>
+            </div>
+
+            <AnimatePresence>
+              {isServiceDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.18 }}
+                  className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_18px_50px_rgba(16,185,129,0.12)]"
+                >
+                  <div className="border-b border-gray-100 bg-emerald-50/60 px-4 py-3 text-xs text-gray-600">
+                    Choose from suggested services below. Free text is not saved
+                    unless you explicitly select an option.
+                  </div>
+                  <div className="max-h-80 overflow-y-auto p-2">
+                    {selectableMatches.length > 0 ? (
+                      selectableMatches.map((category) => {
+                        const isSelected = providerData.skills.includes(
+                          category.id,
+                        );
+                        const isDisabled =
+                          providerData.skills.length >=
+                            VALIDATION.MAX_PROVIDER_SKILLS && !isSelected;
+
+                        return (
+                          <button
+                            key={category.id}
+                            type="button"
+                            onClick={() => {
+                              handleSkillToggle(category.id);
+                              setServiceSearch("");
+                              if (
+                                !isSelected &&
+                                providerData.skills.length + 1 >=
+                                  VALIDATION.MAX_PROVIDER_SKILLS
+                              ) {
+                                setIsServiceDropdownOpen(false);
+                              }
+                            }}
+                            disabled={isDisabled}
+                            className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${
+                              isSelected
+                                ? "bg-emerald-50 text-emerald-900"
+                                : isDisabled
+                                  ? "cursor-not-allowed opacity-50"
+                                  : "hover:bg-gray-50"
+                            }`}
+                          >
+                            {renderServiceVisual(category)}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-gray-900">
+                                {category.name}
+                              </p>
+                              <p className="truncate text-xs text-gray-500">
+                                Tap to {isSelected ? "remove" : "select"} this
+                                service
+                              </p>
+                            </div>
+                            <div
+                              className={`flex h-8 w-8 items-center justify-center rounded-full border ${
+                                isSelected
+                                  ? "border-emerald-500 bg-emerald-500 text-white"
+                                  : isDisabled
+                                    ? "border-gray-200 bg-gray-100 text-gray-300"
+                                    : "border-gray-200 bg-white text-emerald-600"
+                              }`}
+                            >
+                              <span className="material-symbols-outlined text-base">
+                                {isSelected ? "check" : "add"}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-center text-sm text-gray-500">
+                        No matching services found. Try a broader search term or
+                        use the popular options below.
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <div className="mt-4">
@@ -324,44 +477,34 @@ export default function StepProviderDetails({
                     type="button"
                     onClick={() => handleSkillToggle(category.id)}
                     disabled={isDisabled}
-                    className={`inline-flex min-h-[44px] items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition ${
+                    className={`inline-flex min-h-[52px] items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-medium transition ${
                       isSelected
-                        ? "border-emerald-500 bg-emerald-600 text-white shadow-sm"
+                        ? "border-emerald-500 bg-emerald-600 text-white shadow-sm shadow-emerald-500/20"
                         : isDisabled
                           ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
-                          : "border-white bg-white text-gray-700 shadow-sm hover:border-emerald-200 hover:text-emerald-700"
+                          : "border-white bg-white text-gray-700 shadow-sm hover:-translate-y-0.5 hover:border-emerald-200 hover:text-emerald-700"
                     }`}
                   >
-                    <span className="material-symbols-outlined text-base">
-                      {category.icon}
+                    {renderServiceVisual(category)}
+                    <span className="max-w-[160px] truncate">{category.name}</span>
+                    <span
+                      className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs ${
+                        isSelected
+                          ? "border-white/30 bg-white/15 text-white"
+                          : isDisabled
+                            ? "border-gray-200 bg-white text-gray-300"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-sm">
+                        {isSelected ? "check" : "add"}
+                      </span>
                     </span>
-                    {category.name}
                   </button>
                 );
               })}
             </div>
           </div>
-
-          <div className="mt-5">
-            <CategorySelector
-              categories={matchingCategories}
-              selectedIds={providerData.skills}
-              onToggle={handleSkillToggle}
-              multiSelect={true}
-              isLoading={isLoadingCategories}
-              label={`Browse all services (select up to ${VALIDATION.MAX_PROVIDER_SKILLS})`}
-              disabled={
-                providerData.skills.length >= VALIDATION.MAX_PROVIDER_SKILLS
-              }
-            />
-          </div>
-
-          {!isLoadingCategories && matchingCategories.length === 0 && (
-            <div className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-5 text-center text-sm text-gray-500">
-              No services match that search yet. Try a broader term or choose
-              from the popular suggestions above.
-            </div>
-          )}
         </section>
 
         {/* Phone Number */}
