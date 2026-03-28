@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import Cropper from "react-easy-crop";
+import { createPortal } from "react-dom";
 
 interface Point {
   x: number;
@@ -36,6 +37,7 @@ const ImageCropper = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [deviceIsMobile, setDeviceIsMobile] = useState(false);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [objectFit, setObjectFit] = useState<
     "contain" | "cover" | "horizontal-cover" | "vertical-cover"
   >("vertical-cover");
@@ -70,7 +72,7 @@ const ImageCropper = ({
     [],
   );
 
-  const handleCropImage = async () => {
+  const handleCropImage = useCallback(async () => {
     if (!croppedAreaPixels) return;
 
     setIsProcessing(true);
@@ -82,9 +84,14 @@ const ImageCropper = ({
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [croppedAreaPixels, image, onCropComplete]);
 
   // Handle keyboard events
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -96,7 +103,7 @@ const ImageCropper = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isProcessing, onCancel]);
+  }, [handleCropImage, isProcessing, onCancel]);
 
   // Prevent body scroll
   useEffect(() => {
@@ -117,7 +124,7 @@ const ImageCropper = ({
     setZoom(1);
   };
 
-  return (
+  const modalContent = (
     <div
       className={`fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center ${
         finalIsMobile ? "p-0" : "p-2 sm:p-3 md:p-4"
@@ -507,6 +514,12 @@ const ImageCropper = ({
       </div>
     </div>
   );
+
+  if (!mounted) {
+    return null;
+  }
+
+  return createPortal(modalContent, document.body);
 };
 
 // Helper function to crop the image
