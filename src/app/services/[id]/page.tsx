@@ -1,6 +1,7 @@
 import { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { constructMetadata } from "@/lib/metadata";
-import { getServiceById } from "@/lib/api/server/services";
+import { getPublicServiceDetail } from "@/lib/api/server/service-detail";
 import ServiceDetailClient from "./ServiceDetailClient";
 
 export async function generateMetadata({
@@ -11,7 +12,7 @@ export async function generateMetadata({
   const { id } = await params;
 
   try {
-    const service = await getServiceById(id);
+    const service = await getPublicServiceDetail(id);
 
     if (!service) {
       return constructMetadata({
@@ -43,6 +44,16 @@ export async function generateMetadata({
   }
 }
 
-export default function ServicePage({ params }: { params: Promise<{ id: string }> }) {
-  return <ServiceDetailClient params={params} />;
+export default async function ServicePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const initialService = await getPublicServiceDetail(id);
+  if (!initialService) notFound();
+
+  return (
+    <ServiceDetailClient params={params} initialService={initialService} />
+  );
 }

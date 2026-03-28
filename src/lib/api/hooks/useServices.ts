@@ -3,6 +3,42 @@ import apiClient from "../client";
 import { queryKeys } from "../queryKeys";
 
 // Types
+/** Single row from GET /api/services (marketplace list / infinite scroll). */
+export interface ServiceListItem {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  pricingUnit: string;
+  images: string[];
+  video?: string | null;
+  category: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  provider: {
+    id: string;
+    name: string;
+    image: string | null;
+    isVerified: boolean;
+    location?: string | null;
+    subscription: {
+      plan: string;
+      isActive: boolean;
+    };
+  };
+  promoted: {
+    isPromoted: boolean;
+    plan: string | null;
+    until: string | null;
+  };
+  rating: number;
+  reviews: number;
+  distance?: number;
+}
+
+/** Full payload from GET /api/services/[id] and server getPublicServiceDetail. */
 export interface Service {
   id: string;
   title: string;
@@ -13,9 +49,11 @@ export interface Service {
   video?: string | null;
   views: number;
   favorites: number;
+  createdAt: string;
   category: {
     id: string;
     name: string;
+    slug: string;
   };
   provider: {
     id: string;
@@ -24,6 +62,7 @@ export interface Service {
     email: string;
     phone: string | null;
     createdAt: string;
+    role: string;
     profile: {
       bio: string | null;
       location: string | null;
@@ -31,8 +70,14 @@ export interface Service {
       portfolio: string[];
       isVerified: boolean;
     } | null;
+    subscription: {
+      plan: string;
+      isActive: boolean;
+    };
+    backgroundChecks: { id: string; status: string }[];
     rating: number;
     reviewCount: number;
+    completedJobs: number;
     receivedReviews: {
       id: string;
       rating: number;
@@ -47,12 +92,14 @@ export interface Service {
   otherServices: {
     id: string;
     title: string;
-    category: { name: string };
+    price: number;
+    pricingUnit: string;
+    category: { name: string; slug: string };
   }[];
 }
 
 export interface ServicesResponse {
-  services: Service[];
+  services: ServiceListItem[];
   pagination: {
     page: number;
     limit: number;
@@ -147,7 +194,10 @@ export function useCategories(): UseQueryResult<Category[], Error> {
 }
 
 // Hook to fetch single service
-export function useService(id: string): UseQueryResult<Service, Error> {
+export function useService(
+  id: string,
+  options?: { initialData?: Service },
+): UseQueryResult<Service, Error> {
   return useQuery({
     queryKey: queryKeys.services.detail(id),
     queryFn: async () => {
@@ -155,5 +205,7 @@ export function useService(id: string): UseQueryResult<Service, Error> {
       return data.data;
     },
     enabled: !!id,
+    initialData: options?.initialData,
+    staleTime: options?.initialData ? 5 * 60 * 1000 : 60 * 1000,
   });
 }

@@ -57,7 +57,7 @@ const FeaturedProfessionals = () => {
                       style={{ backgroundImage: `url("${service.provider?.image || service.images?.[0] || "/images/placeholder.png"}")` }}
                     />
                   </div>
-                  {service.provider?.profile?.isVerified && (
+                  {service.provider?.isVerified && (
                     <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5 shadow-md">
                       <Check className="w-3 h-3" />
                     </div>

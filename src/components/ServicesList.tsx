@@ -4,7 +4,7 @@ import ServiceCard from "./ServiceCard";
 import {
   useServicesInfinite,
   ServicesFilters,
-  Service,
+  ServiceListItem,
   ServicesResponse,
 } from "@/lib/api/hooks/useServices";
 import InfiniteScrollSentinel from "@/components/shared/InfiniteScrollSentinel";
@@ -227,7 +227,7 @@ const ServicesList = ({
       </p>
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 xl:gap-6">
-        {services.map((service: Service, index: number) => (
+        {services.map((service: ServiceListItem, index: number) => (
           <ServiceCard
             key={service.id}
             service={{
@@ -236,9 +236,9 @@ const ServicesList = ({
               category: service.category?.name || "General",
               description: service.description,
               rating: service.rating || 0,
-              reviewCount: service.provider?.reviewCount || 0,
+              reviewCount: service.reviews ?? 0,
               startingPrice: service.price,
-              isVerified: service.provider?.profile?.isVerified || false,
+              isVerified: service.provider?.isVerified || false,
               imageUrl:
                 service.images?.[0] ||
                 service.provider?.image ||
@@ -250,7 +250,7 @@ const ServicesList = ({
                 subscription: subscriptionPlanLabel(
                   (service.provider as { subscription?: unknown })?.subscription
                 ),
-                verified: service.provider?.profile?.isVerified || false,
+                verified: service.provider?.isVerified || false,
               },
             }}
             index={index}
