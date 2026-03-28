@@ -1,15 +1,22 @@
 "use client";
 import { motion, AnimatePresence } from "framer-motion";
 
+export type SortOption = {
+  label: string;
+  value: string;
+  disabled?: boolean;
+  hint?: string;
+};
+
 interface SortBottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
   currentSort: string;
   onSortChange: (sort: string) => void;
-  options?: { label: string; value: string }[];
+  options?: SortOption[];
 }
 
-const defaultOptions = [
+const defaultOptions: SortOption[] = [
   { label: "Relevance", value: "relevance" },
   { label: "Rating: High to Low", value: "rating" },
   { label: "Price: Low to High", value: "price_low" },
@@ -65,19 +72,32 @@ export default function SortBottomSheet({
                 <button
                   key={option.value}
                   type="button"
+                  disabled={option.disabled}
                   onClick={() => {
+                    if (option.disabled) return;
                     onSortChange(option.value);
                     onClose();
                   }}
                   className={`flex min-h-[52px] items-center justify-between rounded-2xl border-2 px-4 py-3 text-left transition-all ${
-                    currentSort === option.value
-                      ? "border-emerald-500 bg-emerald-50 font-semibold text-emerald-800"
-                      : "border-slate-100 bg-white text-slate-800 hover:border-slate-200"
+                    option.disabled
+                      ? "cursor-not-allowed border-slate-50 bg-slate-50 text-slate-400"
+                      : currentSort === option.value
+                        ? "border-emerald-500 bg-emerald-50 font-semibold text-emerald-800"
+                        : "border-slate-100 bg-white text-slate-800 hover:border-slate-200"
                   }`}
                 >
-                  <span>{option.label}</span>
-                  {currentSort === option.value ? (
-                    <span className="material-symbols-outlined text-emerald-600">check_circle</span>
+                  <span className="flex flex-col gap-0.5">
+                    <span>{option.label}</span>
+                    {option.hint ? (
+                      <span className="text-xs font-normal text-slate-400">
+                        {option.hint}
+                      </span>
+                    ) : null}
+                  </span>
+                  {currentSort === option.value && !option.disabled ? (
+                    <span className="material-symbols-outlined text-emerald-600">
+                      check_circle
+                    </span>
                   ) : null}
                 </button>
               ))}

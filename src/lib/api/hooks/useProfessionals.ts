@@ -1,25 +1,11 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import {
+  parseApiData,
+  type ProfessionalsListPayload,
+  type ProfessionalListItem,
+} from "@/lib/api/contracts/public-listings";
 
-export interface Professional {
-  id: string;
-  name: string;
-  image: string | null;
-  title: string;
-  bio: string | null;
-  skills: string[];
-  hourlyRate: number;
-  location: string | null;
-  rating: number;
-  reviews: number;
-  completedJobs: number;
-  memberSince: string;
-  verified?: boolean;
-  distance?: number;
-  subscription?: {
-    plan: string;
-    isActive: boolean;
-  };
-}
+export type Professional = ProfessionalListItem;
 
 interface UseProfessionalsParams {
   search?: string;
@@ -33,28 +19,38 @@ interface UseProfessionalsParams {
   limit?: number;
 }
 
-export const useProfessionals = (params?: UseProfessionalsParams) => {
-  const queryParams = new URLSearchParams();
+function appendFilterParams(
+  queryParams: URLSearchParams,
+  params?: UseProfessionalsParams,
+) {
   if (params?.search) queryParams.append("search", params.search);
-  if (params?.minPrice) queryParams.append("minPrice", params.minPrice.toString());
-  if (params?.maxPrice) queryParams.append("maxPrice", params.maxPrice.toString());
+  if (params?.minPrice !== undefined)
+    queryParams.append("minPrice", params.minPrice.toString());
+  if (params?.maxPrice !== undefined)
+    queryParams.append("maxPrice", params.maxPrice.toString());
   if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
   if (params?.verifiedOnly) queryParams.append("verifiedOnly", "true");
-  if (params?.latitude) queryParams.append("latitude", params.latitude.toString());
-  if (params?.longitude) queryParams.append("longitude", params.longitude.toString());
+  if (params?.latitude !== undefined)
+    queryParams.append("latitude", params.latitude.toString());
+  if (params?.longitude !== undefined)
+    queryParams.append("longitude", params.longitude.toString());
+}
 
-  if (params?.page) queryParams.append("page", params.page.toString());
-  if (params?.limit) queryParams.append("limit", params.limit.toString());
-
-  return useQuery<{ data: Professional[], pagination: any }>({
+export const useProfessionals = (params?: UseProfessionalsParams) => {
+  return useQuery({
     queryKey: ["professionals", params],
     queryFn: async () => {
+      const queryParams = new URLSearchParams();
+      appendFilterParams(queryParams, params);
+      if (params?.page) queryParams.append("page", params.page.toString());
+      if (params?.limit) queryParams.append("limit", params.limit.toString());
+
       const response = await fetch(`/api/professionals?${queryParams.toString()}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch professionals");
-      }
-      return response.json();
+      if (!response.ok) throw new Error("Failed to fetch professionals");
+      const json: unknown = await response.json();
+      return parseApiData<ProfessionalsListPayload>(json);
     },
+    staleTime: 60 * 1000,
   });
 };
 
@@ -63,25 +59,18 @@ export const useProfessionalsInfinite = (params?: UseProfessionalsParams) => {
     queryKey: ["professionals", "infinite", params],
     queryFn: async ({ pageParam = 1 }) => {
       const queryParams = new URLSearchParams();
-      if (params?.search) queryParams.append("search", params.search);
-      if (params?.minPrice) queryParams.append("minPrice", params.minPrice.toString());
-      if (params?.maxPrice) queryParams.append("maxPrice", params.maxPrice.toString());
-      if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
-      if (params?.verifiedOnly) queryParams.append("verifiedOnly", "true");
-      if (params?.latitude) queryParams.append("latitude", params.latitude.toString());
-      if (params?.longitude) queryParams.append("longitude", params.longitude.toString());
-      
-      queryParams.append("page", pageParam.toString());
-      queryParams.append("limit", (params?.limit || 12).toString());
+      appendFilterParams(queryParams, params);
+      queryParams.set("page", String(pageParam));
+      queryParams.set("limit", String(params?.limit ?? 12));
 
       const response = await fetch(`/api/professionals?${queryParams.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch professionals");
-      return response.json();
+      const json: unknown = await response.json();
+      return parseApiData<ProfessionalsListPayload>(json);
     },
-    getNextPageParam: (lastPage) => {
-      const { page, totalPages } = lastPage.pagination || lastPage.data?.pagination || {};
-      return page < totalPages ? page + 1 : undefined;
-    },
+    getNextPageParam: (last) =>
+      last.pagination.hasMore ? last.pagination.page + 1 : undefined,
     initialPageParam: 1,
+    staleTime: 60 * 1000,
   });
 };

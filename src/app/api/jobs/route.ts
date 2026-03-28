@@ -1,8 +1,10 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { createJobSchema } from "@/lib/validations/schemas";
 import { sendComprehensiveNotification } from "@/lib/notifications/adminNotifications";
+import { handleError, successResponse } from "@/lib/middleware/errorHandler";
+import type { JobListClient } from "@/lib/api/contracts/public-listings";
 
 // Haversine formula to calculate distance between two coordinates in kilometers
 function calculateDistance(
@@ -56,6 +58,81 @@ async function geocodeLocation(location: string): Promise<{ lat: number; lon: nu
   return null;
 }
 
+function parseCoord(raw: string | null): number | null {
+  if (raw === null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function serializeJobForList(
+  job: {
+    id: string;
+    title: string;
+    description: string;
+    budget: { toString(): string } | null;
+    location: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    deadline: Date | null;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+    images: string[];
+    category: { id: string; name: string; slug: string } | null;
+    client: {
+      id: string;
+      name: string | null;
+      image: string | null;
+      profile: {
+        isVerified: boolean;
+        verificationStatus: string | null;
+      } | null;
+    };
+    _count: { proposals: number };
+  },
+  distanceKm: number | null,
+): JobListClient {
+  const prof = job.client.profile;
+  const isVerified =
+    Boolean(prof?.isVerified) || prof?.verificationStatus === "VERIFIED";
+
+  let budget: number | null = null;
+  if (job.budget != null) {
+    const n = Number(job.budget.toString());
+    budget = Number.isFinite(n) ? n : null;
+  }
+
+  return {
+    id: job.id,
+    title: job.title,
+    description: job.description,
+    budget,
+    location: job.location,
+    latitude: job.latitude,
+    longitude: job.longitude,
+    deadline: job.deadline ? job.deadline.toISOString() : null,
+    status: job.status,
+    createdAt: job.createdAt.toISOString(),
+    updatedAt: job.updatedAt.toISOString(),
+    images: job.images ?? [],
+    category: job.category
+      ? {
+          id: job.category.id,
+          name: job.category.name,
+          slug: job.category.slug,
+        }
+      : null,
+    client: {
+      id: job.client.id,
+      name: job.client.name,
+      image: job.client.image,
+      isVerified,
+    },
+    proposalCount: job._count.proposals,
+    distanceKm,
+  };
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -63,9 +140,13 @@ export async function GET(request: Request) {
     const pageSize = parseInt(searchParams.get("pageSize") || "10");
     const skip = (page - 1) * pageSize;
 
-    // User location for distance calculation
-    const userLat = searchParams.get("userLat") ? parseFloat(searchParams.get("userLat")!) : null;
-    const userLon = searchParams.get("userLon") ? parseFloat(searchParams.get("userLon")!) : null;
+    // User location: support dashboard (userLat/userLon) and marketplace (latitude/longitude)
+    const userLat =
+      parseCoord(searchParams.get("userLat")) ??
+      parseCoord(searchParams.get("latitude"));
+    const userLon =
+      parseCoord(searchParams.get("userLon")) ??
+      parseCoord(searchParams.get("longitude"));
 
     // Build where clause
     const where: any = {};
@@ -136,8 +217,17 @@ export async function GET(request: Request) {
         skip: sortBy === "distance" && userLat && userLon ? 0 : skip,
         take: sortBy === "distance" && userLat && userLon ? undefined : pageSize,
         include: {
-          client: { select: { id: true, name: true, image: true } },
-          category: true,
+          client: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              profile: {
+                select: { isVerified: true, verificationStatus: true },
+              },
+            },
+          },
+          category: { select: { id: true, name: true, slug: true } },
           _count: { select: { proposals: true } },
         },
         orderBy: sortBy === "distance" ? { createdAt: "desc" } : orderBy,
@@ -145,8 +235,8 @@ export async function GET(request: Request) {
       prisma.job.count({ where }),
     ]);
 
-    // Calculate distances and sort if user location provided
-    let processedJobs = jobs;
+    type Row = { job: (typeof jobs)[0]; distanceKm: number | null };
+    let processedJobs: Row[];
     if (userLat !== null && userLon !== null) {
       // Calculate distance for each job
       const jobsWithDistance = await Promise.all(
@@ -174,10 +264,13 @@ export async function GET(request: Request) {
           if (jobLat !== null && jobLon !== null) {
             distance = calculateDistance(userLat, userLon, jobLat, jobLon);
           }
-          
+
+          const distanceKm =
+            distance !== null ? Math.round(distance * 10) / 10 : null;
+
           return {
-            ...job,
-            distance: distance !== null ? Math.round(distance * 10) / 10 : null, // Round to 1 decimal
+            job,
+            distanceKm,
           };
         })
       );
@@ -185,32 +278,44 @@ export async function GET(request: Request) {
       // Sort by distance if requested
       if (sortBy === "distance") {
         jobsWithDistance.sort((a, b) => {
-          // Put jobs without distance at the end
-          if (a.distance === null && b.distance === null) return 0;
-          if (a.distance === null) return 1;
-          if (b.distance === null) return -1;
-          return a.distance - b.distance;
+          if (a.distanceKm === null && b.distanceKm === null) return 0;
+          if (a.distanceKm === null) return 1;
+          if (b.distanceKm === null) return -1;
+          return a.distanceKm - b.distanceKm;
         });
-        
-        // Apply pagination after sorting
+
         processedJobs = jobsWithDistance.slice(skip, skip + pageSize);
       } else {
         processedJobs = jobsWithDistance.slice(skip, skip + pageSize);
       }
     } else {
-      processedJobs = jobs;
+      processedJobs = jobs.map((job) => ({
+        job,
+        distanceKm: null as number | null,
+      }));
     }
 
-    return NextResponse.json({
-      items: processedJobs,
-      total,
-      page,
-      pageSize,
-      hasMore: skip + processedJobs.length < total,
+    const items: JobListClient[] = processedJobs.map(({ job, distanceKm }) =>
+      serializeJobForList(job, distanceKm),
+    );
+
+    const totalPages =
+      total === 0 ? 0 : Math.max(1, Math.ceil(total / pageSize));
+    const hasMore = page * pageSize < total;
+
+    return successResponse({
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+        hasMore,
+      },
     });
   } catch (error) {
     console.error("[JOBS_GET]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+    return handleError(error);
   }
 }
 

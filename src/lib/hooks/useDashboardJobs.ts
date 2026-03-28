@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import apiClient from "@/lib/api/client";
+import { parseApiData, type JobsListPayload } from "@/lib/api/contracts/public-listings";
 
 interface DashboardJobsFilters {
   search: string;
@@ -68,8 +69,22 @@ export const useDashboardJobs = (filters: DashboardJobsFilters) => {
         params.append("userLon", filters.userLon.toString());
       }
 
-      const response = await apiClient.get(`/jobs?${params.toString()}`);
-      return response.data;
+      const response = await apiClient.get<unknown>(`/jobs?${params.toString()}`);
+      const parsed = parseApiData<JobsListPayload>(response.data);
+      return {
+        ...parsed,
+        items: parsed.items.map((j) => ({
+          ...j,
+          distance: j.distanceKm,
+          client: {
+            id: j.client.id,
+            name: j.client.name,
+            image: j.client.image ?? undefined,
+            verified: j.client.isVerified,
+          },
+          _count: { proposals: j.proposalCount },
+        })),
+      };
     },
   });
 };

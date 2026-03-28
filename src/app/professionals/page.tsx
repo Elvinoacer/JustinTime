@@ -3,7 +3,9 @@ import ProfessionalsClient from "./ProfessionalsClient";
 
 export const metadata = constructMetadata({
   title: "Find Professionals - Verified Experts",
-  description: "Connect with top-rated professionals in your area. View profiles, ratings, and reviews to hire the best talent for your project.",
+  description:
+    "Connect with top-rated professionals in your area. View profiles, ratings, and reviews to hire the best talent for your project.",
+  canonical: "https://justintime.gtss.software/professionals",
 });
 
 export default function ProfessionalsPage() {

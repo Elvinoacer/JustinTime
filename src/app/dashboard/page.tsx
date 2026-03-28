@@ -179,8 +179,8 @@ const DashboardPage = () => {
     () => (Array.isArray(jobsData?.items) ? jobsData.items : []),
     [jobsData?.items],
   );
-  const totalJobs = jobsData?.total || 0;
-  const hasMore = jobsData?.hasMore || false;
+  const totalJobs = jobsData?.pagination?.total ?? 0;
+  const hasMore = jobsData?.pagination?.hasMore ?? false;
   const categories = categoriesData?.data || [];
 
   const activeFilterCount = useMemo(
