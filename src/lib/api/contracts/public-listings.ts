@@ -45,6 +45,8 @@ export type ProfessionalListItem = {
   id: string;
   name: string;
   image: string | null;
+  /** First portfolio image for card cover (work sample) */
+  coverImage: string | null;
   title: string;
   bio: string;
   skills: string[];

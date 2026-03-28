@@ -363,7 +363,7 @@ export default function ProfessionalsPage() {
               ) : null}
 
               {isLoading && professionals.length === 0 ? (
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
                   {[...Array(6)].map((_, i) => (
                     <div
                       key={i}
@@ -399,7 +399,7 @@ export default function ProfessionalsPage() {
                   }}
                 />
               ) : (
-                <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
                   {professionals.map((pro) => (
                     <ProfessionalCard key={pro.id} professional={pro} />
                   ))}

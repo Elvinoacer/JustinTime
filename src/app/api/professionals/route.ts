@@ -183,10 +183,18 @@ export async function GET(request: NextRequest) {
             10;
         }
 
+        const portfolio =
+          Array.isArray(p?.portfolio) && p.portfolio.length > 0
+            ? (p!.portfolio.find(
+                (url) => typeof url === "string" && url.length > 0,
+              ) ?? null)
+            : null;
+
         return {
           id: provider.id,
           name: provider.name || "Anonymous Professional",
           image: provider.image,
+          coverImage: portfolio,
           title: p?.bio?.split(".")[0] || "Service Provider",
           bio: p?.bio || "",
           skills,

@@ -7,8 +7,9 @@ interface ProfessionalCardProps {
   professional: {
     id: string;
     name: string;
-    title?: string;
     image?: string | null;
+    coverImage?: string | null;
+    title?: string;
     rating?: number | null;
     reviews?: number | null;
     hourlyRate?: number | null;
@@ -27,11 +28,12 @@ interface ProfessionalCardProps {
 
 const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional }) => {
   const displayName = (professional.name || "").trim() || "Unknown";
+  const profession =
+    (professional.title || "").trim() || "Service professional";
   const isPro =
     professional.subscription?.plan &&
     ["PRO", "BUSINESS"].includes(professional.subscription.plan) &&
     professional.subscription.isActive;
-
   const isVerified = professional.verified;
   const hourlyRate = Number.isFinite(Number(professional.hourlyRate))
     ? Number(professional.hourlyRate)
@@ -52,179 +54,157 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional }) => 
     ? new Date().getFullYear()
     : new Date(professional.memberSince).getFullYear();
 
+  const cover =
+    typeof professional.coverImage === "string" && professional.coverImage
+      ? professional.coverImage
+      : null;
+
   const formatDistance = (km?: number) => {
     if (km == null || !Number.isFinite(km)) return null;
     if (km < 1) return `${Math.round(km * 1000)} m`;
     return `${km.toFixed(1)} km`;
   };
-
   const distLabel = formatDistance(professional.distance);
+
+  const skillsShown = skills.slice(0, 4);
+  const skillsExtra = skills.length > 4 ? skills.length - 4 : 0;
 
   return (
     <Link
       href={`/professionals/${professional.id}`}
-      className="group block h-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+      className="group block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
     >
-      <div className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white transition-[box-shadow,transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-emerald-200/60 hover:shadow-lg sm:rounded-3xl">
-        <div className="relative bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600 px-4 pb-12 pt-6">
-          <div className="pointer-events-none absolute inset-0 opacity-20">
-            <div className="absolute right-0 top-0 h-32 w-32 translate-x-1/2 -translate-y-1/2 rounded-full bg-white/20 blur-2xl" />
-            <div className="absolute bottom-0 left-0 h-24 w-24 -translate-x-1/2 translate-y-1/2 rounded-full bg-white/20 blur-2xl" />
-          </div>
-
-          <div className="relative mb-4 flex min-h-[36px] flex-wrap items-start justify-between gap-2">
+      <article className="flex min-h-[158px] max-h-[220px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_36px_-24px_rgba(15,23,42,0.45)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-emerald-200/70 hover:shadow-[0_16px_44px_-22px_rgba(16,185,129,0.22)] sm:max-h-none sm:min-h-[168px] sm:flex-row">
+        {/* Cover / work sample */}
+        <div className="relative h-28 w-full shrink-0 overflow-hidden sm:h-auto sm:w-[42%] sm:min-w-[140px] sm:max-w-[220px]">
+          {cover ? (
+            <Image
+              src={cover}
+              alt=""
+              fill
+              className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+              sizes="(max-width: 640px) 100vw, 220px"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/75 via-slate-950/35 to-slate-950/5 sm:bg-gradient-to-r sm:from-slate-950/70 sm:via-slate-900/25 sm:to-transparent" />
+          <div className="absolute bottom-2 left-2 right-2 flex flex-wrap items-center gap-1.5 sm:bottom-3 sm:left-3 sm:right-3">
             {isPro ? (
-              <div className="rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-3 py-1.5 shadow-md">
-                <span className="flex items-center gap-1 text-xs font-bold tracking-wide text-white">
-                  <span className="material-symbols-outlined text-sm">
-                    workspace_premium
-                  </span>
-                  PRO
-                </span>
-              </div>
+              <span className="rounded-md bg-amber-400/95 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 shadow-sm">
+                Pro
+              </span>
             ) : null}
             {isVerified && !isPro ? (
-              <div className="rounded-full bg-white/90 px-3 py-1.5 shadow-md backdrop-blur-md">
-                <span className="flex items-center gap-1 text-xs font-bold tracking-wide text-emerald-700">
-                  <span className="material-symbols-outlined text-sm">verified</span>
-                  Verified
-                </span>
-              </div>
+              <span className="flex items-center gap-0.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800 shadow-sm backdrop-blur-sm">
+                <span className="material-symbols-outlined text-[12px]">verified</span>
+                Verified
+              </span>
             ) : null}
             {distLabel ? (
-              <div className="ml-auto rounded-full bg-white/90 px-3 py-1.5 shadow-md backdrop-blur-md">
-                <span className="flex items-center gap-1 text-xs font-bold text-emerald-800">
-                  <span className="material-symbols-outlined text-sm">near_me</span>
-                  {distLabel}
-                </span>
-              </div>
+              <span className="ml-auto rounded-md bg-emerald-600/90 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+                {distLabel}
+              </span>
             ) : null}
-          </div>
-
-          <div className="absolute right-4 top-4">
-            <div className="rounded-xl border border-white/50 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-md">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">
-                From
-              </p>
-              <p className="text-lg font-bold leading-none text-emerald-700">
-                KES {hourlyRate.toLocaleString()}
-                <span className="text-xs font-medium text-gray-500">/hr</span>
-              </p>
-            </div>
           </div>
         </div>
 
-        <div className="relative z-10 -mt-10 flex justify-center">
-          <div className="relative">
-            <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-emerald-400 via-green-500 to-teal-500 p-[3px] shadow-lg shadow-emerald-500/30">
-              <div className="h-full w-full rounded-full bg-white" />
-            </div>
-            <div className="relative h-20 w-20 overflow-hidden rounded-full border-4 border-white bg-white shadow-xl sm:h-24 sm:w-24">
+        {/* Main panel */}
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3">
+          <div className="flex gap-2.5 sm:gap-3">
+            <div className="relative -mt-9 h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 border-white bg-white shadow-md ring-1 ring-slate-200/80 sm:mt-0 sm:h-[3.25rem] sm:w-[3.25rem]">
               {professional.image ? (
                 <Image
                   src={professional.image}
-                  alt={displayName}
+                  alt=""
                   fill
                   className="object-cover"
-                  sizes="(max-width: 768px) 80px, 96px"
+                  sizes="52px"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-100 to-teal-100">
-                  <span className="text-3xl font-bold text-emerald-600 sm:text-4xl">
-                    {displayName.charAt(0)}
-                  </span>
+                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-100 to-teal-100 text-lg font-bold text-emerald-700">
+                  {displayName.charAt(0)}
                 </div>
               )}
             </div>
-          </div>
-        </div>
 
-        <div className="flex flex-grow flex-col p-4 text-center sm:p-5">
-          <h3 className="mb-1 text-lg font-bold text-gray-900 transition-colors group-hover:text-emerald-700 sm:text-xl">
-            {displayName}
-          </h3>
-          {professional.title ? (
-            <p className="mb-3 line-clamp-1 text-sm text-gray-500">
-              {professional.title}
-            </p>
-          ) : null}
-
-          <div className="mb-3 flex items-center justify-center gap-2">
-            <div className="flex items-center gap-0.5" aria-label={`Rated ${rating} out of 5`}>
-              {[...Array(5)].map((_, i) => (
-                <span
-                  key={i}
-                  className={`material-symbols-outlined text-base ${
-                    i < Math.floor(rating)
-                      ? "text-amber-400"
-                      : i < rating
-                        ? "text-amber-300"
-                        : "text-gray-200"
-                  }`}
-                  style={{
-                    fontVariationSettings: i < rating ? '"FILL" 1' : '"FILL" 0',
-                  }}
-                >
-                  star
-                </span>
-              ))}
-            </div>
-            <span className="text-sm font-bold text-gray-900">{rating.toFixed(1)}</span>
-            <span className="text-xs text-gray-400">({reviews} reviews)</span>
-          </div>
-
-          {professional.location ? (
-            <div className="mb-3 flex items-center justify-center gap-1 text-sm text-gray-500">
-              <span className="material-symbols-outlined text-sm">location_on</span>
-              <span className="max-w-[180px] truncate">{professional.location}</span>
-            </div>
-          ) : null}
-
-          {skills.length > 0 ? (
-            <div className="mb-4 flex flex-wrap justify-center gap-1.5">
-              {skills.slice(0, 3).map((skill, idx) => (
-                <span
-                  key={`${skill}-${idx}`}
-                  className="rounded-full border border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
-                >
-                  {skill}
-                </span>
-              ))}
-              {skills.length > 3 ? (
-                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
-                  +{skills.length - 3}
-                </span>
+            <div className="min-w-0 flex-1 pt-0.5 sm:pt-0">
+              <h3 className="truncate text-[15px] font-bold leading-tight tracking-tight text-slate-950 sm:text-base">
+                {displayName}
+              </h3>
+              <p className="mt-0.5 line-clamp-1 text-xs leading-snug text-slate-600">
+                {profession}
+              </p>
+              {skillsShown.length > 0 ? (
+                <div className="mt-1.5 flex min-h-[1.5rem] flex-wrap gap-1">
+                  {skillsShown.map((skill, idx) => (
+                    <span
+                      key={`${skill}-${idx}`}
+                      className="max-w-[7rem] truncate rounded-md border border-emerald-100 bg-emerald-50/90 px-1.5 py-px text-[10px] font-medium text-emerald-800 sm:max-w-[8.5rem] sm:text-[11px]"
+                      title={skill}
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                  {skillsExtra > 0 ? (
+                    <span className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-px text-[10px] font-medium text-slate-600 sm:text-[11px]">
+                      +{skillsExtra}
+                    </span>
+                  ) : null}
+                </div>
               ) : null}
             </div>
-          ) : null}
-
-          <div className="mb-4 flex items-center justify-center gap-4 border-t border-gray-100 pt-3 text-xs text-gray-500">
-            <div className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-sm text-emerald-500">
-                verified_user
-              </span>
-              <span>{completedJobs} jobs</span>
-            </div>
-            <div className="h-4 w-px bg-gray-200" />
-            <div className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-sm text-gray-400">
-                calendar_month
-              </span>
-              <span>Since {memberSinceYear}</span>
-            </div>
           </div>
 
-          <div className="relative mt-auto overflow-hidden rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-500/25 transition-shadow group-hover:shadow-emerald-500/40">
-            <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-            <span className="relative flex items-center justify-center gap-2">
-              View profile
-              <span className="material-symbols-outlined text-base transition-transform group-hover:translate-x-0.5">
+          <div className="flex items-end justify-between gap-2 border-t border-slate-100/90 pt-2">
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-500">
+                From
+              </p>
+              <p className="text-lg font-bold tabular-nums leading-none text-emerald-800 sm:text-xl">
+                KES {hourlyRate.toLocaleString()}
+                <span className="text-xs font-semibold text-slate-500">/hr</span>
+              </p>
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-0 text-[11px] text-slate-500">
+                <span className="inline-flex items-center gap-0.5 tabular-nums text-slate-600">
+                  <span
+                    className="material-symbols-outlined text-[14px] text-amber-500"
+                    style={{ fontVariationSettings: '"FILL" 1' }}
+                  >
+                    star
+                  </span>
+                  {rating.toFixed(1)}
+                  <span className="text-slate-400">({reviews})</span>
+                </span>
+                {professional.location ? (
+                  <>
+                    <span className="text-slate-300" aria-hidden>
+                      ·
+                    </span>
+                    <span className="line-clamp-1 max-w-[10rem] sm:max-w-[12rem]">
+                      {professional.location}
+                    </span>
+                  </>
+                ) : null}
+                <span className="text-slate-300" aria-hidden>
+                  ·
+                </span>
+                <span>{completedJobs} jobs</span>
+                <span className="text-slate-300" aria-hidden>
+                  ·
+                </span>
+                <span>Since {memberSinceYear}</span>
+              </p>
+            </div>
+            <span className="flex h-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 px-3 text-xs font-semibold text-white shadow-sm transition-colors group-hover:bg-emerald-600 sm:h-10 sm:px-3.5">
+              View
+              <span className="material-symbols-outlined ml-0.5 text-[16px] transition-transform group-hover:translate-x-0.5">
                 arrow_forward
               </span>
             </span>
           </div>
         </div>
-      </div>
+      </article>
     </Link>
   );
 };

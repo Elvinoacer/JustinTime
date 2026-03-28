@@ -226,7 +226,7 @@ const ServicesList = ({
         </span>
       </p>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 xl:gap-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
         {services.map((service: ServiceListItem, index: number) => (
           <ServiceCard
             key={service.id}
