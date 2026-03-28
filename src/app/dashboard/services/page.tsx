@@ -354,7 +354,7 @@ const ServicesPage = () => {
       </div>
 
       {/* Services Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 lg:gap-6">
         <AnimatePresence>
           {servicesList.map((service, index: number) => (
             <motion.article
@@ -382,95 +382,95 @@ const ServicesPage = () => {
 
                 return (
                   <>
-                    {/* Service Preview Image */}
-                    <div className="relative h-48 overflow-hidden bg-gray-100">
-                      {service.images && service.images.length > 0 ? (
-                        <img
-                          src={service.images[0]}
-                          alt={service.name}
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div
-                          className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${accent.glow}`}
-                        >
-                          <span
-                            className={`material-symbols-outlined text-gray-300 ${
-                              isMobile ? "text-3xl" : "text-4xl sm:text-5xl"
-                            }`}
+                    <div className="grid grid-cols-1 md:grid-cols-[280px_minmax(0,1fr)]">
+                      {/* Service Preview Image */}
+                      <div className="relative h-56 overflow-hidden bg-gray-100 md:h-full md:min-h-[420px]">
+                        {service.images && service.images.length > 0 ? (
+                          <img
+                            src={service.images[0]}
+                            alt={service.name}
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div
+                            className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${accent.glow}`}
                           >
-                            construction
+                            <span
+                              className={`material-symbols-outlined text-gray-300 ${
+                                isMobile ? "text-3xl" : "text-4xl sm:text-5xl"
+                              }`}
+                            >
+                              construction
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent" />
+                        <div className={`absolute inset-0 bg-gradient-to-br ${accent.wash}`} />
+
+                        {/* Media Indicators */}
+                        <div className="absolute bottom-3 right-3 flex flex-wrap justify-end gap-1.5">
+                          {service.images?.length > 0 && (
+                            <span className="flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                              <span className="material-symbols-outlined text-[12px]">
+                                photo_library
+                              </span>
+                              {service.images.length}
+                            </span>
+                          )}
+                          {service.video && (
+                            <span className="flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                              <span className="material-symbols-outlined text-[12px]">
+                                videocam
+                              </span>
+                              1
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Status Badge */}
+                        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-bold shadow-sm backdrop-blur-md ${accent.badge}`}
+                          >
+                            {service.isActive ? "Active" : "Inactive"}
+                          </span>
+                          <span className="rounded-full border border-white/30 bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-md">
+                            {performanceLabel}
                           </span>
                         </div>
-                      )}
 
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent" />
-                      <div className={`absolute inset-0 bg-gradient-to-br ${accent.wash}`} />
-
-                      {/* Media Indicators */}
-                      <div className="absolute bottom-3 right-3 flex flex-wrap justify-end gap-1.5">
-                        {service.images?.length > 0 && (
-                          <span className="flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-                            <span className="material-symbols-outlined text-[12px]">
-                              photo_library
-                            </span>
-                            {service.images.length}
-                          </span>
-                        )}
-                        {service.video && (
-                          <span className="flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
-                            <span className="material-symbols-outlined text-[12px]">
-                              videocam
-                            </span>
-                            1
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Status Badge */}
-                      <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold shadow-sm backdrop-blur-md ${accent.badge}`}
-                        >
-                          {service.isActive ? "Active" : "Inactive"}
-                        </span>
-                        <span className="rounded-full border border-white/30 bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-md">
-                          {performanceLabel}
-                        </span>
-                      </div>
-
-                      <div className="absolute bottom-3 left-3 right-3">
-                        <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-white backdrop-blur-md">
-                          <div className="flex items-end justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
-                                Starting at
-                              </p>
-                              <div className="mt-1 flex items-baseline gap-2">
-                                <p className="truncate text-2xl font-bold">
-                                  KES {service.price.toLocaleString()}
+                        <div className="absolute bottom-3 left-3 right-3">
+                          <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-white backdrop-blur-md">
+                            <div className="flex items-end justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
+                                  Starting at
                                 </p>
-                                <span className="text-sm font-medium text-white/80">
-                                  {formatPriceLabel(service)}
-                                </span>
+                                <div className="mt-1 flex items-baseline gap-2">
+                                  <p className="truncate text-2xl font-bold">
+                                    KES {service.price.toLocaleString()}
+                                  </p>
+                                  <span className="text-sm font-medium text-white/80">
+                                    {formatPriceLabel(service)}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                            <div className="rounded-xl bg-black/20 px-3 py-2 text-right">
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
-                                Saves
-                              </p>
-                              <p className="text-sm font-semibold">
-                                {service.video ? "Video pitch" : "Photo-ready"}
-                              </p>
+                              <div className="rounded-xl bg-black/20 px-3 py-2 text-right">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
+                                  Saves
+                                </p>
+                                <p className="text-sm font-semibold">
+                                  {service.video ? "Video pitch" : "Photo-ready"}
+                                </p>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    
 
-                    {/* Service Content */}
-                    <div className="space-y-5 p-5">
+                      {/* Service Content */}
+                      <div className="space-y-5 p-5">
                       <div className="space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <span
@@ -498,7 +498,7 @@ const ServicesPage = () => {
                         </p>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                         <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
                             Positioning
@@ -527,98 +527,121 @@ const ServicesPage = () => {
                         </div>
                       </div>
 
-                {/* Stats */}
-                <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-5">
-                  <div
-                    className={`rounded-2xl px-3 py-3 ring-1 ${accent.metric}`}
-                    title="Total Views"
-                  >
-                    <div className="flex items-center gap-1.5 text-gray-500">
-                      <span className="material-symbols-outlined text-base">visibility</span>
-                      <span className="text-xs font-medium uppercase tracking-wide">
-                        Views
-                      </span>
+                      {/* Stats */}
+                      <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-5 xl:grid-cols-4">
+                        <div
+                          className={`rounded-2xl px-3 py-3 ring-1 ${accent.metric}`}
+                          title="Total Views"
+                        >
+                          <div className="flex items-center gap-1.5 text-gray-500">
+                            <span className="material-symbols-outlined text-base">visibility</span>
+                            <span className="text-xs font-medium uppercase tracking-wide">
+                              Views
+                            </span>
+                          </div>
+                          <p className="mt-1 text-lg font-semibold text-gray-900">
+                            {(service.views || 0).toLocaleString()}
+                          </p>
+                        </div>
+                        <div
+                          className={`rounded-2xl px-3 py-3 ring-1 ${accent.metric}`}
+                          title="Favorites"
+                        >
+                          <div className="flex items-center gap-1.5 text-gray-500">
+                            <span className="material-symbols-outlined text-base">favorite</span>
+                            <span className="text-xs font-medium uppercase tracking-wide">
+                              Favorites
+                            </span>
+                          </div>
+                          <p className="mt-1 text-lg font-semibold text-gray-900">
+                            {(service.favorites || 0).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-sm">
+                          <div className="flex items-center gap-1.5 text-gray-500">
+                            <span className="material-symbols-outlined text-base">sell</span>
+                            <span className="text-xs font-medium uppercase tracking-wide">
+                              Pricing
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm font-semibold text-gray-900">
+                            {service.pricingUnit === "hourly" ? "Hourly" : "Fixed fee"}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-gray-100 bg-white px-3 py-3 shadow-sm">
+                          <div className="flex items-center gap-1.5 text-gray-500">
+                            <span className="material-symbols-outlined text-base">collections_bookmark</span>
+                            <span className="text-xs font-medium uppercase tracking-wide">
+                              Assets
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm font-semibold text-gray-900">
+                            {(service.images?.length || 0) + (service.video ? 1 : 0)} attached
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-[22px] border border-gray-100 bg-[linear-gradient(135deg,#f8fafc_0%,#ffffff_100%)] p-3 shadow-sm">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
+                              Quick actions
+                            </p>
+                            <p className="mt-1 text-sm text-gray-600">
+                              Keep this listing sharp and easy to discover.
+                            </p>
+                          </div>
+                          <span className="material-symbols-outlined text-xl text-gray-300">
+                            tune
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                          <button
+                            onClick={() => {
+                              setPromotingService(service);
+                              setShowPromoteModal(true);
+                            }}
+                            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-fuchsia-600 via-violet-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
+                          >
+                            <span className="material-symbols-outlined text-sm">rocket_launch</span>
+                            <span>Boost Visibility</span>
+                          </button>
+
+                          <button
+                            onClick={() => openEditModal(service)}
+                            className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition-colors active:scale-95 ${accent.action}`}
+                          >
+                            <span className="material-symbols-outlined text-sm">edit</span>
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            onClick={() => handleToggleStatus(service.id, service.isActive)}
+                            className={`flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors active:scale-95 ${
+                              service.isActive
+                                ? "bg-orange-50 text-orange-700 hover:bg-orange-100"
+                                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                            }`}
+                          >
+                            <span className="material-symbols-outlined text-sm">
+                              {service.isActive ? "pause" : "play_arrow"}
+                            </span>
+                            <span className="truncate">
+                              {service.isActive ? "Pause" : "Activate"}
+                            </span>
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={() => setDeleteConfirm(service.id)}
+                          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-red-600 opacity-80 transition-colors hover:bg-red-50 hover:opacity-100 active:scale-95 xl:justify-start"
+                        >
+                          <span className="material-symbols-outlined text-sm">delete</span>
+                          <span className="truncate">Delete</span>
+                        </button>
+                      </div>
                     </div>
-                    <p className="mt-1 text-lg font-semibold text-gray-900">
-                      {(service.views || 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div
-                    className={`rounded-2xl px-3 py-3 ring-1 ${accent.metric}`}
-                    title="Favorites"
-                  >
-                    <div className="flex items-center gap-1.5 text-gray-500">
-                      <span className="material-symbols-outlined text-base">favorite</span>
-                      <span className="text-xs font-medium uppercase tracking-wide">
-                        Favorites
-                      </span>
                     </div>
-                    <p className="mt-1 text-lg font-semibold text-gray-900">
-                      {(service.favorites || 0).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="rounded-[22px] border border-gray-100 bg-[linear-gradient(135deg,#f8fafc_0%,#ffffff_100%)] p-3 shadow-sm">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
-                        Quick actions
-                      </p>
-                      <p className="mt-1 text-sm text-gray-600">
-                        Keep this listing sharp and easy to discover.
-                      </p>
-                    </div>
-                    <span className="material-symbols-outlined text-xl text-gray-300">
-                      tune
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setPromotingService(service);
-                      setShowPromoteModal(true);
-                    }}
-                    className="mb-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-fuchsia-600 via-violet-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
-                  >
-                    <span className="material-symbols-outlined text-sm">rocket_launch</span>
-                    <span>Boost Visibility</span>
-                  </button>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => openEditModal(service)}
-                      className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition-colors active:scale-95 ${accent.action}`}
-                    >
-                      <span className="material-symbols-outlined text-sm">edit</span>
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      onClick={() => handleToggleStatus(service.id, service.isActive)}
-                      className={`flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors active:scale-95 ${
-                        service.isActive
-                          ? "bg-orange-50 text-orange-700 hover:bg-orange-100"
-                          : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-sm">
-                        {service.isActive ? "pause" : "play_arrow"}
-                      </span>
-                      <span className="truncate">
-                        {service.isActive ? "Pause" : "Activate"}
-                      </span>
-                    </button>
-                  </div>
-
-                  <button
-                    onClick={() => setDeleteConfirm(service.id)}
-                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-red-600 opacity-80 transition-colors hover:bg-red-50 hover:opacity-100 active:scale-95"
-                  >
-                    <span className="material-symbols-outlined text-sm">delete</span>
-                    <span className="truncate">Delete</span>
-                  </button>
-                </div>
-              </div>
                   </>
                 );
               })()}
