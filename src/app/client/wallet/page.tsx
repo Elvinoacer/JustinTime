@@ -30,7 +30,7 @@ function ClientWalletPageContent() {
   const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
   const [activeFilter, setActiveFilter] = useState<"all" | "credit" | "debit">(
-    "all"
+    "all",
   );
 
   const [topUpAmount, setTopUpAmount] = useState<string>("1000");
@@ -69,8 +69,12 @@ function ClientWalletPageContent() {
     activeFilter === "all"
       ? transactions
       : activeFilter === "credit"
-      ? transactions.filter((t) => t.type === "DEPOSIT" || t.type === "REFUND")
-      : transactions.filter((t) => t.type !== "DEPOSIT" && t.type !== "REFUND");
+        ? transactions.filter(
+            (t) => t.type === "DEPOSIT" || t.type === "REFUND",
+          )
+        : transactions.filter(
+            (t) => t.type !== "DEPOSIT" && t.type !== "REFUND",
+          );
 
   const quickAmounts = [500, 1000, 2000, 5000, 10000];
 
@@ -98,7 +102,7 @@ function ClientWalletPageContent() {
     <div className="relative min-h-[calc(100vh-4rem)]">
       {/* Coming Soon Overlay */}
       <div className="absolute inset-0 z-50 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md mx-4 border border-gray-100"
@@ -108,10 +112,10 @@ function ClientWalletPageContent() {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Coming Soon</h2>
           <p className="text-gray-500 mb-6">
-            We are working hard to bring you a secure and seamless wallet experience. 
-            This feature will be available in the next update.
+            We are working hard to bring you a secure and seamless wallet
+            experience. This feature will be available in the next update.
           </p>
-          <button 
+          <button
             onClick={() => router.back()}
             className="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-gray-800 transition-colors"
           >
@@ -144,9 +148,7 @@ function ClientWalletPageContent() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Balance Card - Takes full width on mobile, 2/3 on desktop */}
           <div className="lg:col-span-2">
-            <div
-              className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 lg:p-8 text-white shadow-lg relative overflow-hidden"
-            >
+            <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 lg:p-8 text-white shadow-lg relative overflow-hidden">
               {/* Background Pattern */}
               <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-5">
                 <Wallet className="w-16 h-16 sm:w-24 sm:h-24" />
@@ -259,9 +261,7 @@ function ClientWalletPageContent() {
           {/* Payment Methods & Stats */}
           <div className="space-y-3 sm:space-y-4">
             {/* Payment Methods */}
-            <div
-              className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-xs sm:shadow-sm border border-gray-200"
-            >
+            <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-xs sm:shadow-sm border border-gray-200">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h3 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-1.5">
                   <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
@@ -297,9 +297,7 @@ function ClientWalletPageContent() {
             </div>
 
             {/* Stats Card */}
-            <div
-              className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg sm:rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-6 text-white"
-            >
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg sm:rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-6 text-white">
               <h3 className="text-sm sm:text-base font-bold mb-2 sm:mb-3">
                 This Month
               </h3>
@@ -384,7 +382,9 @@ function ClientWalletPageContent() {
                     <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
                       <Wallet className="w-5 h-5 text-gray-400" />
                     </div>
-                    <p className="text-sm text-gray-500">No transactions found</p>
+                    <p className="text-sm text-gray-500">
+                      No transactions found
+                    </p>
                     <p className="text-xs text-gray-400 mt-1">
                       Try changing your filters
                     </p>
@@ -399,7 +399,7 @@ function ClientWalletPageContent() {
                         <div className="flex items-center gap-2.5">
                           <div
                             className={`w-8 h-8 rounded-lg flex items-center justify-center ${getTransactionColor(
-                              transaction.type
+                              transaction.type,
                             )}`}
                           >
                             {getTransactionIcon(transaction.type)}
@@ -409,14 +409,13 @@ function ClientWalletPageContent() {
                               {transaction.description || "Transaction"}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {new Date(transaction.createdAt).toLocaleDateString(
-                                "en-US",
-                                {
-                                  month: "short",
-                                  day: "numeric",
-                                  ...(isMobile ? {} : { year: "numeric" }),
-                                }
-                              )}
+                              {new Date(
+                                transaction.createdAt,
+                              ).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                ...(isMobile ? {} : { year: "numeric" }),
+                              })}
                             </p>
                           </div>
                         </div>
@@ -508,7 +507,7 @@ function ClientWalletPageContent() {
                           <div className="flex items-center gap-3">
                             <div
                               className={`w-8 h-8 rounded-lg flex items-center justify-center ${getTransactionColor(
-                                transaction.type
+                                transaction.type,
                               )}`}
                             >
                               {getTransactionIcon(transaction.type)}

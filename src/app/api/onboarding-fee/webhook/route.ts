@@ -23,10 +23,7 @@ export async function POST(req: Request) {
       }
 
       console.error("❌ Challenge verification failed");
-      return NextResponse.json(
-        { error: "Invalid challenge" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Invalid challenge" }, { status: 401 });
     }
 
     if (!verifyWebhookSignature(rawBody, signature)) {
