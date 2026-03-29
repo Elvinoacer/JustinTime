@@ -3,8 +3,25 @@
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
-import { estimateSolarSystem, quickEstimate, SolarEstimationInput } from "@/lib/solar/estimation-calculator";
+import {
+  estimateSolarSystem,
+  quickEstimate,
+  SolarEstimationInput,
+} from "@/lib/solar/estimation-calculator";
 import { VerticalType, ProjectStatus } from "@/generated/prisma/client";
+
+function isPrismaTimeoutError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const prismaError = error as { code?: string; message?: string };
+  return (
+    prismaError.code === "ETIMEDOUT" ||
+    prismaError.code === "P1001" ||
+    prismaError.message?.includes("ETIMEDOUT") === true
+  );
+}
 
 // ============ SOLAR ESTIMATION ============
 
@@ -44,9 +61,9 @@ export async function getActiveVerticals() {
     const verticals = await prisma.verticalCategory.findMany({
       where: { isActive: true },
       include: {
-        _count: { select: { specialists: true, projects: true } }
+        _count: { select: { specialists: true, projects: true } },
       },
-      orderBy: { name: 'asc' }
+      orderBy: { name: "asc" },
     });
 
     return { success: true, verticals };
@@ -62,7 +79,7 @@ export async function getActiveVerticals() {
 export async function getSolarVertical() {
   try {
     const vertical = await prisma.verticalCategory.findUnique({
-      where: { type: 'SOLAR' },
+      where: { type: "SOLAR" },
       include: {
         specialists: {
           where: { isVerified: true },
@@ -72,23 +89,28 @@ export async function getSolarVertical() {
                 id: true,
                 name: true,
                 image: true,
-                profile: { select: { location: true, hourlyRate: true } }
-              }
-            }
+                profile: { select: { location: true, hourlyRate: true } },
+              },
+            },
           },
-          orderBy: { averageRating: 'desc' },
-          take: 10
+          orderBy: { averageRating: "desc" },
+          take: 10,
         },
         templates: {
-          where: { isActive: true }
+          where: { isActive: true },
         },
-        _count: { select: { specialists: true, projects: true } }
-      }
+        _count: { select: { specialists: true, projects: true } },
+      },
     });
 
     return { success: true, vertical };
   } catch (error) {
-    console.error("[getSolarVertical]", error);
+    if (
+      process.env.NODE_ENV === "development" ||
+      !isPrismaTimeoutError(error)
+    ) {
+      console.error("[getSolarVertical]", error);
+    }
     return { success: false, error: "Failed to get solar vertical" };
   }
 }
@@ -113,20 +135,20 @@ export async function registerAsSolarSpecialist(data: {
   try {
     // Get or create SOLAR vertical
     let vertical = await prisma.verticalCategory.findUnique({
-      where: { type: 'SOLAR' }
+      where: { type: "SOLAR" },
     });
 
     if (!vertical) {
       vertical = await prisma.verticalCategory.create({
         data: {
-          type: 'SOLAR',
-          name: 'Solar Installation',
-          description: 'Solar panel installation and maintenance',
-          icon: '☀️',
+          type: "SOLAR",
+          name: "Solar Installation",
+          description: "Solar panel installation and maintenance",
+          icon: "☀️",
           requiresCertification: true,
           minExperienceYears: 2,
-          insuranceRequired: true
-        }
+          insuranceRequired: true,
+        },
       });
     }
 
@@ -135,15 +157,15 @@ export async function registerAsSolarSpecialist(data: {
       where: {
         verticalId_userId: {
           verticalId: vertical.id,
-          userId: session.user.id
-        }
+          userId: session.user.id,
+        },
       },
       update: {
         experienceYears: data.experienceYears,
         specializations: data.specializations,
         equipmentOwned: data.equipmentOwned,
         serviceRadius: data.serviceRadius,
-        portfolioUrls: data.portfolioUrls || []
+        portfolioUrls: data.portfolioUrls || [],
       },
       create: {
         verticalId: vertical.id,
@@ -152,11 +174,11 @@ export async function registerAsSolarSpecialist(data: {
         specializations: data.specializations,
         equipmentOwned: data.equipmentOwned,
         serviceRadius: data.serviceRadius,
-        portfolioUrls: data.portfolioUrls || []
-      }
+        portfolioUrls: data.portfolioUrls || [],
+      },
     });
 
-    revalidatePath('/dashboard/solar');
+    revalidatePath("/dashboard/solar");
     return { success: true, specialist };
   } catch (error) {
     console.error("[registerAsSolarSpecialist]", error);
@@ -182,7 +204,7 @@ export async function submitCertification(data: {
 
   try {
     const vertical = await prisma.verticalCategory.findUnique({
-      where: { type: 'SOLAR' }
+      where: { type: "SOLAR" },
     });
 
     if (!vertical) {
@@ -194,11 +216,11 @@ export async function submitCertification(data: {
         verticalId: vertical.id,
         userId: session.user.id,
         ...data,
-        status: 'PENDING'
-      }
+        status: "PENDING",
+      },
     });
 
-    revalidatePath('/dashboard/solar/certifications');
+    revalidatePath("/dashboard/solar/certifications");
     return { success: true, certification };
   } catch (error) {
     console.error("[submitCertification]", error);
@@ -229,7 +251,7 @@ export async function requestSolarQuote(data: {
 
   try {
     const vertical = await prisma.verticalCategory.findUnique({
-      where: { type: 'SOLAR' }
+      where: { type: "SOLAR" },
     });
 
     if (!vertical) {
@@ -242,10 +264,10 @@ export async function requestSolarQuote(data: {
       propertyType: data.propertyType as any,
       roofType: data.roofType as any,
       roofArea: data.roofArea,
-      panelType: 'monocrystalline',
+      panelType: "monocrystalline",
       wantsBattery: data.wantsBattery,
-      batteryType: 'lithium',
-      isOffGrid: data.isOffGrid
+      batteryType: "lithium",
+      isOffGrid: data.isOffGrid,
     });
 
     // Create project (provider will be assigned later)
@@ -256,7 +278,7 @@ export async function requestSolarQuote(data: {
         providerId: session.user.id, // Placeholder, will be updated when matched
         title: data.title,
         description: data.description,
-        status: 'QUOTE_REQUESTED',
+        status: "QUOTE_REQUESTED",
         siteAddress: data.siteAddress,
         propertyType: data.propertyType,
         roofType: data.roofType,
@@ -266,22 +288,22 @@ export async function requestSolarQuote(data: {
         panelCount: estimate.panelCount,
         batteryCapacity: estimate.batteryCapacityKwh,
         isOffGrid: data.isOffGrid,
-        quotedAmount: estimate.totalCost
-      }
+        quotedAmount: estimate.totalCost,
+      },
     });
 
     // Create initial milestone
     await prisma.projectMilestone.create({
       data: {
         projectId: project.id,
-        name: 'Quote Request',
+        name: "Quote Request",
         sequence: 0,
         isCompleted: true,
-        completedAt: new Date()
-      }
+        completedAt: new Date(),
+      },
     });
 
-    revalidatePath('/dashboard/solar/projects');
+    revalidatePath("/dashboard/solar/projects");
     return { success: true, project, estimate };
   } catch (error) {
     console.error("[requestSolarQuote]", error);
@@ -301,18 +323,15 @@ export async function getMySolarProjects() {
   try {
     const projects = await prisma.verticalProject.findMany({
       where: {
-        OR: [
-          { clientId: session.user.id },
-          { providerId: session.user.id }
-        ]
+        OR: [{ clientId: session.user.id }, { providerId: session.user.id }],
       },
       include: {
         client: { select: { name: true, image: true } },
         provider: { select: { name: true, image: true } },
-        milestones: { orderBy: { sequence: 'asc' } },
-        template: { select: { name: true } }
+        milestones: { orderBy: { sequence: "asc" } },
+        template: { select: { name: true } },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: "desc" },
     });
 
     return { success: true, projects };
@@ -328,7 +347,7 @@ export async function getMySolarProjects() {
 export async function updateProjectStatus(
   projectId: string,
   status: ProjectStatus,
-  notes?: string
+  notes?: string,
 ) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -340,13 +359,13 @@ export async function updateProjectStatus(
       where: { id: projectId },
       data: {
         status,
-        ...(status === 'COMPLETED' && { completionDate: new Date() }),
-        ...(status === 'APPROVED' && { approvalDate: new Date() }),
-        ...(status === 'IN_PROGRESS' && { startDate: new Date() })
-      }
+        ...(status === "COMPLETED" && { completionDate: new Date() }),
+        ...(status === "APPROVED" && { approvalDate: new Date() }),
+        ...(status === "IN_PROGRESS" && { startDate: new Date() }),
+      },
     });
 
-    revalidatePath('/dashboard/solar/projects');
+    revalidatePath("/dashboard/solar/projects");
     return { success: true, project };
   } catch (error) {
     console.error("[updateProjectStatus]", error);
@@ -361,8 +380,8 @@ export async function getFeaturedSolarSpecialists(limit: number = 6) {
   try {
     const specialists = await prisma.verticalSpecialist.findMany({
       where: {
-        vertical: { type: 'SOLAR' },
-        isVerified: true
+        vertical: { type: "SOLAR" },
+        isVerified: true,
       },
       include: {
         user: {
@@ -371,22 +390,24 @@ export async function getFeaturedSolarSpecialists(limit: number = 6) {
             name: true,
             image: true,
             profile: {
-              select: { location: true, hourlyRate: true, bio: true }
-            }
-          }
+              select: { location: true, hourlyRate: true, bio: true },
+            },
+          },
         },
-        vertical: { select: { name: true } }
+        vertical: { select: { name: true } },
       },
-      orderBy: [
-        { isFeatured: 'desc' },
-        { averageRating: 'desc' }
-      ],
-      take: limit
+      orderBy: [{ isFeatured: "desc" }, { averageRating: "desc" }],
+      take: limit,
     });
 
     return { success: true, specialists };
   } catch (error) {
-    console.error("[getFeaturedSolarSpecialists]", error);
+    if (
+      process.env.NODE_ENV === "development" ||
+      !isPrismaTimeoutError(error)
+    ) {
+      console.error("[getFeaturedSolarSpecialists]", error);
+    }
     return { success: false, error: "Failed to get specialists" };
   }
 }

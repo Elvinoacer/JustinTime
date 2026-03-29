@@ -1,16 +1,27 @@
-import { getQuickSolarEstimate, getFeaturedSolarSpecialists, getSolarVertical } from "@/app/actions/solar";
-import { Sun, Battery, Zap, Shield, Calculator, Users, ArrowRight, CheckCircle, Leaf } from "lucide-react";
+import { getFeaturedSolarSpecialists } from "@/app/actions/solar";
+import {
+  Sun,
+  Battery,
+  Zap,
+  Shield,
+  Calculator,
+  Users,
+  ArrowRight,
+  CheckCircle,
+  Leaf,
+} from "lucide-react";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 export default async function SolarLandingPage() {
-  const verticalResult = await getSolarVertical();
   const specialistsResult = await getFeaturedSolarSpecialists(6);
 
   const formatAmount = (amount: number) =>
-    new Intl.NumberFormat('en-KE', { 
-      style: 'currency', 
-      currency: 'KES', 
-      maximumFractionDigits: 0 
+    new Intl.NumberFormat("en-KE", {
+      style: "currency",
+      currency: "KES",
+      maximumFractionDigits: 0,
     }).format(amount);
 
   return (
@@ -24,14 +35,14 @@ export default async function SolarLandingPage() {
               <Sun className="h-5 w-5" />
               JustInTime Solar
             </div>
-            
+
             <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-              Power Your Home with 
+              Power Your Home with
               <span className="text-amber-600"> Kenya's Best</span> Solar Pros
             </h1>
-            
+
             <p className="text-xl text-gray-600 mb-8">
-              Government-verified solar installers. Premium quality systems. 
+              Government-verified solar installers. Premium quality systems.
               Save up to 90% on your electricity bills.
             </p>
 
@@ -84,10 +95,13 @@ export default async function SolarLandingPage() {
               </p>
             </div>
 
-            <form action={async (formData: FormData) => {
-              "use server";
-              // This would redirect to full estimate page
-            }} className="flex flex-col md:flex-row items-center gap-4 max-w-xl mx-auto">
+            <form
+              action={async (formData: FormData) => {
+                "use server";
+                // This would redirect to full estimate page
+              }}
+              className="flex flex-col md:flex-row items-center gap-4 max-w-xl mx-auto"
+            >
               <div className="relative flex-1 w-full">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
                   KES
@@ -134,22 +148,50 @@ export default async function SolarLandingPage() {
               Why Go Solar in Kenya?
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              With year-round sunshine and rising electricity costs, there's never been a better time
+              With year-round sunshine and rising electricity costs, there's
+              never been a better time
             </p>
           </div>
 
           <div className="grid md:grid-cols-4 gap-6">
             {[
-              { icon: Zap, title: "Save 90%", desc: "On your monthly electricity bills", color: "bg-amber-100 text-amber-600" },
-              { icon: Shield, title: "25-Year Life", desc: "Premium panels with long warranties", color: "bg-blue-100 text-blue-600" },
-              { icon: Battery, title: "Power Backup", desc: "Never be affected by blackouts", color: "bg-purple-100 text-purple-600" },
-              { icon: Leaf, title: "Go Green", desc: "Reduce your carbon footprint", color: "bg-emerald-100 text-emerald-600" }
+              {
+                icon: Zap,
+                title: "Save 90%",
+                desc: "On your monthly electricity bills",
+                color: "bg-amber-100 text-amber-600",
+              },
+              {
+                icon: Shield,
+                title: "25-Year Life",
+                desc: "Premium panels with long warranties",
+                color: "bg-blue-100 text-blue-600",
+              },
+              {
+                icon: Battery,
+                title: "Power Backup",
+                desc: "Never be affected by blackouts",
+                color: "bg-purple-100 text-purple-600",
+              },
+              {
+                icon: Leaf,
+                title: "Go Green",
+                desc: "Reduce your carbon footprint",
+                color: "bg-emerald-100 text-emerald-600",
+              },
             ].map((item, idx) => (
-              <div key={idx} className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all">
-                <div className={`h-12 w-12 rounded-lg ${item.color} flex items-center justify-center mb-4`}>
+              <div
+                key={idx}
+                className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all"
+              >
+                <div
+                  className={`h-12 w-12 rounded-lg ${item.color} flex items-center justify-center mb-4`}
+                >
                   <item.icon className="h-6 w-6" />
                 </div>
-                <h3 className="font-semibold text-lg text-gray-900 mb-2">{item.title}</h3>
+                <h3 className="font-semibold text-lg text-gray-900 mb-2">
+                  {item.title}
+                </h3>
                 <p className="text-gray-600">{item.desc}</p>
               </div>
             ))}
@@ -180,21 +222,32 @@ export default async function SolarLandingPage() {
 
             <div className="grid md:grid-cols-3 gap-6">
               {specialistsResult.specialists.map((specialist: any) => (
-                <div key={specialist.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all">
+                <div
+                  key={specialist.id}
+                  className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all"
+                >
                   <div className="p-6">
                     <div className="flex items-center gap-4 mb-4">
                       <div className="h-14 w-14 rounded-full bg-amber-100 overflow-hidden">
                         {specialist.user.image ? (
-                          <img src={specialist.user.image} alt="" className="h-full w-full object-cover" />
+                          <img
+                            src={specialist.user.image}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center text-amber-600 font-bold text-xl">
-                            {specialist.user.name?.charAt(0) || '☀️'}
+                            {specialist.user.name?.charAt(0) || "☀️"}
                           </div>
                         )}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900">{specialist.user.name}</h3>
-                        <p className="text-sm text-gray-500">{specialist.user.profile?.location || 'Kenya'}</p>
+                        <h3 className="font-semibold text-gray-900">
+                          {specialist.user.name}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {specialist.user.profile?.location || "Kenya"}
+                        </p>
                       </div>
                       {specialist.isVerified && (
                         <div className="ml-auto bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs font-medium">
@@ -215,11 +268,16 @@ export default async function SolarLandingPage() {
                     </div>
 
                     <div className="flex flex-wrap gap-2 mb-4">
-                      {specialist.specializations?.slice(0, 3).map((spec: string, idx: number) => (
-                        <span key={idx} className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-full">
-                          {spec}
-                        </span>
-                      ))}
+                      {specialist.specializations
+                        ?.slice(0, 3)
+                        .map((spec: string, idx: number) => (
+                          <span
+                            key={idx}
+                            className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-full"
+                          >
+                            {spec}
+                          </span>
+                        ))}
                     </div>
 
                     <Link
@@ -244,7 +302,7 @@ export default async function SolarLandingPage() {
             Ready to Go Solar?
           </h2>
           <p className="text-gray-400 text-lg mb-8 max-w-xl mx-auto">
-            Get a free, no-obligation quote from Kenya's best solar installers. 
+            Get a free, no-obligation quote from Kenya's best solar installers.
             Start saving on your electricity bills today.
           </p>
           <Link

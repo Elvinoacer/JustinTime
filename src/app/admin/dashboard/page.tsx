@@ -68,6 +68,12 @@ const stats = [
 ];
 
 export default function AdminDashboardPage() {
+  const [chartsReady, setChartsReady] = React.useState(false);
+
+  React.useEffect(() => {
+    setChartsReady(true);
+  }, []);
+
   return (
     <div className="space-y-4 xs:space-y-6 sm:space-y-8 p-3 xs:p-4 sm:p-6">
       {/* Header */}
@@ -113,7 +119,7 @@ export default function AdminDashboardPage() {
                 <span
                   className={`material-symbols-outlined text-sm xs:text-base ${stat.color.replace(
                     "bg-",
-                    "text-"
+                    "text-",
                   )}`}
                 >
                   {stat.icon}
@@ -154,53 +160,63 @@ export default function AdminDashboardPage() {
             </select>
           </div>
           <div className="h-[200px] xs:h-[250px] sm:h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueData}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.1} />
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="#F3F4F6"
-                />
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#9CA3AF", fontSize: 10 }}
-                  dy={8}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#9CA3AF", fontSize: 10 }}
-                  tickFormatter={(value) => `K${value / 1000}k`}
-                  width={35}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#fff",
-                    borderRadius: "8px",
-                    border: "none",
-                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                    fontSize: "12px",
-                  }}
-                  cursor={{ stroke: "#10B981", strokeWidth: 2 }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="amount"
-                  stroke="#10B981"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorRevenue)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {chartsReady ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={revenueData}>
+                  <defs>
+                    <linearGradient
+                      id="colorRevenue"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#F3F4F6"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "#9CA3AF", fontSize: 10 }}
+                    dy={8}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "#9CA3AF", fontSize: 10 }}
+                    tickFormatter={(value) => `K${value / 1000}k`}
+                    width={35}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      borderRadius: "8px",
+                      border: "none",
+                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                      fontSize: "12px",
+                    }}
+                    cursor={{ stroke: "#10B981", strokeWidth: 2 }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="amount"
+                    stroke="#10B981"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorRevenue)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full w-full rounded-lg bg-gray-50" />
+            )}
           </div>
         </div>
 
@@ -210,38 +226,42 @@ export default function AdminDashboardPage() {
             User Growth
           </h2>
           <div className="h-[200px] xs:h-[250px] sm:h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={userGrowthData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="#F3F4F6"
-                />
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: "#9CA3AF", fontSize: 10 }}
-                  dy={8}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#fff",
-                    borderRadius: "8px",
-                    border: "none",
-                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                    fontSize: "12px",
-                  }}
-                  cursor={{ fill: "#F3F4F6" }}
-                />
-                <Bar
-                  dataKey="users"
-                  fill="#3B82F6"
-                  radius={[4, 4, 0, 0]}
-                  barSize={20}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            {chartsReady ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={userGrowthData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#F3F4F6"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "#9CA3AF", fontSize: 10 }}
+                    dy={8}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      borderRadius: "8px",
+                      border: "none",
+                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                      fontSize: "12px",
+                    }}
+                    cursor={{ fill: "#F3F4F6" }}
+                  />
+                  <Bar
+                    dataKey="users"
+                    fill="#3B82F6"
+                    radius={[4, 4, 0, 0]}
+                    barSize={20}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full w-full rounded-lg bg-gray-50" />
+            )}
           </div>
         </div>
       </div>

@@ -7,6 +7,26 @@ import { Pool } from "pg";
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
+function normalizeSslMode(connectionString: string): string {
+  try {
+    const url = new URL(connectionString);
+    const sslMode = url.searchParams.get("sslmode");
+
+    if (
+      sslMode === "prefer" ||
+      sslMode === "require" ||
+      sslMode === "verify-ca"
+    ) {
+      url.searchParams.set("sslmode", "verify-full");
+      return url.toString();
+    }
+
+    return connectionString;
+  } catch {
+    return connectionString;
+  }
+}
+
 function createPrismaClient(): PrismaClient {
   const connectionString = process.env.DATABASE_URL;
 
@@ -16,8 +36,10 @@ function createPrismaClient(): PrismaClient {
     );
   }
 
+  const normalizedConnectionString = normalizeSslMode(connectionString);
+
   const pool = new Pool({
-    connectionString,
+    connectionString: normalizedConnectionString,
     max: 10,
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 10_000,

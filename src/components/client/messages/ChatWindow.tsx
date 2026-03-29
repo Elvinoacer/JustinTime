@@ -352,6 +352,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           )}
         </div>
       </div>
+      </div>
 
       <MessageSecurityBanner 
         onReportUser={() => setShowReportModal(true)} 
