@@ -116,6 +116,12 @@ model User {
   providerProjects       VerticalProject[]       @relation("ProviderProjects")
   equipment              EquipmentRegistry[]
 
+  // Message Reports & Safety
+  reportsMade     MessageReport[] @relation("ReportsMade")
+  reportsReceived MessageReport[] @relation("ReportsReceived")
+  blockedUsers    BlockedUser[]   @relation("BlockedByUser")
+  blockedBy       BlockedUser[]   @relation("BlockedTargetUser")
+
   // WebAuthn Biometric Authentication
   webAuthnCredentialId  String?
   webAuthnPublicKey     String?   @db.Text
@@ -428,6 +434,7 @@ model Booking {
   slots           BookingSlot[]
   teamJobs        TeamJob[]
   verticalProject VerticalProject?
+  proxySession    ProxySession?
 
   @@index([clientId])
   @@index([providerId])
@@ -923,8 +930,14 @@ model BackgroundCheck {
 }
 
 // VoIP Calls
+enum CallType {
+  AUDIO
+  VIDEO
+}
+
 enum CallStatus {
   INITIATED
+  ONGOING
   MISSED
   ACCEPTED
   REJECTED
@@ -935,6 +948,7 @@ model Call {
   id         String     @id @default(cuid())
   callerId   String
   receiverId String
+  type       CallType   @default(AUDIO)
   status     CallStatus @default(INITIATED)
   startedAt  DateTime?
   endedAt    DateTime?
@@ -1833,4 +1847,72 @@ model SolarEstimationConfig {
 
   isActive  Boolean  @default(true)
   updatedAt DateTime @updatedAt
+}
+
+// Secure Call Proxy Sessions (Phone Anonymization)
+model ProxySession {
+  id            String   @id @default(cuid())
+  bookingId     String   @unique
+  virtualNumber String
+  accessCode    String
+  activeUntil   DateTime
+  createdAt     DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+}
+
+// Message Reports
+enum ReportReason {
+  HARASSMENT
+  SCAM
+  INAPPROPRIATE_CONTENT
+  SAFETY_CONCERN
+  SPAM
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+model MessageReport {
+  id          String       @id @default(cuid())
+  reporterId  String
+  reportedId  String
+  reason      ReportReason
+  details     String?      @db.Text
+  messageId   String?      // Optional: specific message being reported
+  status      ReportStatus @default(PENDING)
+  adminNotes  String?      @db.Text
+  resolvedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  reporter User @relation("ReportsMade", fields: [reporterId], references: [id])
+  reported User @relation("ReportsReceived", fields: [reportedId], references: [id])
+
+  @@index([reporterId])
+  @@index([reportedId])
+  @@index([status])
+}
+
+// Blocked Users
+model BlockedUser {
+  id        String   @id @default(cuid())
+  userId    String   // who blocked
+  blockedId String   // who got blocked
+  reason    String?
+  createdAt DateTime @default(now())
+
+  user    User @relation("BlockedByUser", fields: [userId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlockedTargetUser", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, blockedId])
+  @@index([userId])
+  @@index([blockedId])
 }

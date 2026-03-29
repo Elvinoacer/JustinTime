@@ -6,7 +6,7 @@ import { auth } from '@/auth';
 export type CallType = 'AUDIO' | 'VIDEO';
 export type CallStatus = 'INITIATED' | 'ONGOING' | 'ENDED' | 'MISSED' | 'REJECTED';
 
-export async function logCallStart(calleeId: string, type: CallType) {
+export async function logCallStart(receiverId: string, type: CallType) {
   const session = await auth();
   if (!session?.user) throw new Error('Unauthorized');
 
@@ -14,7 +14,7 @@ export async function logCallStart(calleeId: string, type: CallType) {
     const call = await prisma.call.create({
       data: {
         callerId: session.user.id,
-        calleeId: calleeId,
+        receiverId: receiverId,
         type: type,
         status: 'INITIATED',
       }
@@ -33,7 +33,10 @@ export async function logCallStatus(callId: string, status: CallStatus) {
   try {
     const data: any = { status };
     if (status === 'ENDED') {
-      data.endTime = new Date();
+      data.endedAt = new Date();
+    }
+    if (status === 'ONGOING') {
+      data.startedAt = new Date();
     }
 
     await prisma.call.update({
@@ -47,23 +50,35 @@ export async function logCallStatus(callId: string, status: CallStatus) {
   }
 }
 
-export async function getCallHistory() {
+export async function getCallHistory(partnerId?: string) {
   const session = await auth();
   if (!session?.user) throw new Error('Unauthorized');
 
   try {
-    const calls = await prisma.call.findMany({
-      where: {
+    const where: any = {
+      OR: [
+        { callerId: session.user.id },
+        { receiverId: session.user.id }
+      ]
+    };
+
+    // Filter by a specific partner if provided
+    if (partnerId) {
+      where.AND = {
         OR: [
-          { callerId: session.user.id },
-          { calleeId: session.user.id }
+          { callerId: partnerId },
+          { receiverId: partnerId }
         ]
-      },
-      orderBy: { startTime: 'desc' },
+      };
+    }
+
+    const calls = await prisma.call.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
       take: 20,
       include: {
-        caller: { select: { name: true, image: true } },
-        callee: { select: { name: true, image: true } }
+        caller: { select: { id: true, name: true, image: true } },
+        receiver: { select: { id: true, name: true, image: true } }
       }
     });
     return { success: true, calls };

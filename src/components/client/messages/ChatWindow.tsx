@@ -4,6 +4,10 @@ import { motion } from "framer-motion";
 import React, { useEffect, useRef, useState } from "react";
 import { toggleCall } from "@/components/communication/CallOverlay";
 import { Phone, Video as VideoIcon } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { MessageSecurityBanner } from "@/components/communication/MessageSecurityBanner";
+import { ReportUserModal } from "@/components/communication/ReportUserModal";
+import { CallHistoryDrawer } from "@/components/communication/CallHistoryDrawer";
 
 interface Message {
   id: string;
@@ -61,6 +65,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     url: string;
     type: "image" | "file";
   } | null>(null);
+
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showCallHistory, setShowCallHistory] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -308,22 +317,43 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   Clear Chat
                 </button>
                 <button
+                  className="w-full text-left px-4 py-2.5 sm:py-2 text-sm text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100 flex items-center gap-2 touch-manipulation"
+                  onClick={() => {
+                    setShowMenu(false);
+                    setShowCallHistory(true);
+                  }}
+                >
+                  <span className="material-symbols-outlined text-emerald-400 text-sm">
+                    history
+                  </span>
+                  Call History
+                </button>
+                <button
                   className="w-full text-left px-4 py-2.5 sm:py-2 text-sm text-red-600 hover:bg-red-50 active:bg-red-100 flex items-center gap-2 touch-manipulation"
                   onClick={() => {
                     setShowMenu(false);
-                    alert("Block user functionality coming soon");
+                    setShowReportModal(true);
                   }}
                 >
                   <span className="material-symbols-outlined text-red-400 text-sm">
-                    block
+                    report
                   </span>
-                  Block User
+                  Report User
                 </button>
               </div>
             </>
           )}
         </div>
       </div>
+
+      <MessageSecurityBanner 
+        onReportUser={() => setShowReportModal(true)} 
+        onOpenSafety={() => {
+          const basePath = pathname?.startsWith('/client') ? '/client' : '/dashboard';
+          router.push(`${basePath}/safety`);
+        }} 
+        partnerName={partner.name} 
+      />
 
       {/* Messages List */}
       <div
@@ -689,6 +719,20 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </button>
         </form>
       </div>
+
+      <ReportUserModal 
+        isOpen={showReportModal} 
+        onClose={() => setShowReportModal(false)} 
+        reportedId={partner.id} 
+        partnerName={partner.name} 
+      />
+
+      <CallHistoryDrawer 
+        isOpen={showCallHistory} 
+        onClose={() => setShowCallHistory(false)} 
+        partnerId={partner.id} 
+        partnerName={partner.name} 
+      />
     </div>
   );
 };

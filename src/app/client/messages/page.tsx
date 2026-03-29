@@ -49,6 +49,7 @@ function ClientMessagesContent() {
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const socketRef = useRef<Socket | null>(null);
 
   // Detect mobile on mount
@@ -148,6 +149,26 @@ function ClientMessagesContent() {
             setIsTyping(false);
           }
         });
+
+        socket.on("user_online", ({ userId }: { userId: string }) => {
+          setOnlineUsers((prev) => {
+            const newSet = new Set(prev);
+            newSet.add(userId);
+            return newSet;
+          });
+        });
+
+        socket.on("user_offline", ({ userId }: { userId: string }) => {
+          setOnlineUsers((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(userId);
+            return newSet;
+          });
+        });
+
+        socket.on("online_users_list", ({ userIds }: { userIds: string[] }) => {
+          setOnlineUsers(new Set(userIds));
+        });
       });
 
       return () => {
@@ -155,6 +176,9 @@ function ClientMessagesContent() {
           socketRef.current.off("receive_message");
           socketRef.current.off("user_typing");
           socketRef.current.off("user_stop_typing");
+          socketRef.current.off("user_online");
+          socketRef.current.off("user_offline");
+          socketRef.current.off("online_users_list");
           socketRef.current.disconnect();
         }
       };
@@ -317,7 +341,7 @@ function ClientMessagesContent() {
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
               onNewMessage={() => setIsNewConversationOpen(true)}
-              onlineUsers={new Set()}
+              onlineUsers={onlineUsers}
               isLoading={isLoading}
               isMobile={isMobile}
             />
@@ -339,6 +363,7 @@ function ClientMessagesContent() {
               onDeleteMessage={handleDeleteMessage}
               onClearConversation={handleClearConversation}
               isTyping={isTyping}
+              isOnline={selectedPartnerId ? onlineUsers.has(selectedPartnerId) : false}
               onBack={() => setSelectedPartnerId(null)}
               isMobile={isMobile}
             />
