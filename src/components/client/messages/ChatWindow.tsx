@@ -69,11 +69,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showMenu, setShowMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
   const [filePreview, setFilePreview] = useState<{
     file: File;
     url: string;
     type: "image" | "video" | "file";
   } | null>(null);
+  const [isComposerFocused, setIsComposerFocused] = useState(false);
 
   const [showReportModal, setShowReportModal] = useState(false);
   const [showCallHistory, setShowCallHistory] = useState(false);
@@ -95,6 +97,17 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       }
     };
   }, [filePreview]);
+
+  useEffect(() => {
+    if (!messageInputRef.current) return;
+    messageInputRef.current.style.height = "0px";
+    messageInputRef.current.style.height = `${Math.min(messageInputRef.current.scrollHeight, 140)}px`;
+  }, [newMessage]);
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,6 +138,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       await onSendMessage(newMessage, fileUrl, fileType);
       setNewMessage("");
       setFilePreview(null);
+      if (messageInputRef.current) {
+        messageInputRef.current.style.height = "0px";
+      }
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -158,6 +174,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         : "file";
     const previewUrl = URL.createObjectURL(file);
 
+    if (filePreview) {
+      URL.revokeObjectURL(filePreview.url);
+    }
+
     setFilePreview({ file, url: previewUrl, type: fileType });
   };
 
@@ -166,6 +186,17 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       URL.revokeObjectURL(filePreview.url);
       setFilePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleComposerKeyDown = (
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      if ((newMessage.trim() || filePreview) && !isUploading) {
+        handleSend(event);
+      }
     }
   };
 
@@ -694,23 +725,39 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               >
                 {filePreview.file.name}
               </p>
-              <p
-                className={`text-gray-500 ${
-                  isMobile ? "text-[10px]" : "text-xs"
-                }`}
-              >
-                {(filePreview.file.size / 1024).toFixed(1)} KB
-              </p>
+              <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                <span
+                  className={`text-gray-500 ${
+                    isMobile ? "text-[10px]" : "text-xs"
+                  }`}
+                >
+                  {formatFileSize(filePreview.file.size)}
+                </span>
+                <span className="text-gray-300">•</span>
+                <span className="text-[10px] sm:text-xs font-medium uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                  {filePreview.type}
+                </span>
+              </div>
             </div>
-            <button
-              onClick={handleCancelPreview}
-              className={`text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors ${
-                isMobile ? "p-1" : "p-1.5"
-              }`}
-              title="Remove file"
-            >
-              <span className="material-symbols-outlined text-sm">close</span>
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-[10px] sm:text-xs font-medium text-gray-600 hover:text-gray-800 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors"
+                title="Replace file"
+              >
+                Replace
+              </button>
+              <button
+                onClick={handleCancelPreview}
+                className={`text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors ${
+                  isMobile ? "p-1" : "p-1.5"
+                }`}
+                title="Remove file"
+              >
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -721,11 +768,18 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           isMobile ? "p-3" : "p-4"
         }`}
       >
+        <p className="mb-2 px-1 text-[10px] sm:text-xs text-gray-500">
+          Enter to send, Shift + Enter for a new line. Attach photos, videos,
+          PDFs, or docs.
+        </p>
+
         <form
           onSubmit={handleSend}
-          className={`flex items-center rounded-2xl border border-gray-200 bg-white shadow-sm ${
-            isMobile ? "gap-2 px-2 py-1.5" : "gap-3 px-3 py-2"
-          }`}
+          className={`rounded-2xl border bg-white shadow-sm transition-all ${
+            isComposerFocused
+              ? "border-emerald-300 ring-2 ring-emerald-100"
+              : "border-gray-200"
+          } ${isMobile ? "px-2 py-1.5" : "px-3 py-2"}`}
         >
           <input
             type="file"
@@ -734,50 +788,65 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             className="hidden"
             accept="image/*,video/*,.pdf,.doc,.docx"
           />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className={`text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:bg-gray-200 rounded-full transition-colors touch-manipulation ${
-              isUploading ? "animate-pulse" : ""
-            } ${isMobile ? "p-1.5" : "p-2"}`}
-            aria-label="Attach file"
-          >
-            <span className="material-symbols-outlined text-lg">
-              attach_file
-            </span>
-          </button>
-          <input
-            type="text"
-            placeholder={
-              filePreview ? "Add a caption (optional)..." : "Type a message..."
-            }
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            className={`flex-1 bg-transparent border-0 focus:outline-none focus:ring-0 transition-all text-gray-900 placeholder:text-gray-400 ${
-              isMobile ? "px-2 py-2 text-sm" : "px-2 py-2.5"
-            }`}
-          />
-          <button
-            type="submit"
-            disabled={(!newMessage.trim() && !filePreview) || isUploading}
-            className={`text-white transition-all touch-manipulation ${
-              (newMessage.trim() || filePreview) && !isUploading
-                ? "bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 shadow-sm hover:shadow-md"
-                : "bg-gray-300 cursor-not-allowed"
-            } ${isMobile ? "p-2.5 rounded-lg" : "p-3 rounded-xl"}`}
-            aria-label="Send message"
-          >
-            {isUploading ? (
-              <div
-                className={`border-2 border-white border-t-transparent rounded-full animate-spin ${
-                  isMobile ? "w-4 h-4" : "w-5 h-5"
+          <div className="flex items-end gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className={`text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 active:bg-emerald-100 rounded-xl transition-colors touch-manipulation ${
+                isUploading ? "animate-pulse" : ""
+              } ${isMobile ? "px-2 py-2" : "px-2.5 py-2"}`}
+              aria-label="Attach file"
+              title="Add attachment"
+            >
+              <span className="material-symbols-outlined text-lg leading-none">
+                attach_file
+              </span>
+            </button>
+
+            <div className="flex-1 min-w-0">
+              <textarea
+                ref={messageInputRef}
+                rows={1}
+                placeholder={
+                  filePreview
+                    ? "Add a caption (optional)..."
+                    : "Type your message..."
+                }
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={handleComposerKeyDown}
+                onFocus={() => setIsComposerFocused(true)}
+                onBlur={() => setIsComposerFocused(false)}
+                className={`w-full resize-none overflow-y-auto max-h-35 bg-transparent border-0 focus:outline-none focus:ring-0 text-gray-900 placeholder:text-gray-400 leading-5 ${
+                  isMobile ? "px-1 py-2 text-sm" : "px-1 py-2.5 text-sm"
                 }`}
               />
-            ) : (
-              <span className="material-symbols-outlined text-lg">send</span>
-            )}
-          </button>
+            </div>
+
+            <button
+              type="submit"
+              disabled={(!newMessage.trim() && !filePreview) || isUploading}
+              className={`text-white transition-all touch-manipulation ${
+                (newMessage.trim() || filePreview) && !isUploading
+                  ? "bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 shadow-sm hover:shadow-md"
+                  : "bg-gray-300 cursor-not-allowed"
+              } ${isMobile ? "p-2.5 rounded-xl" : "p-3 rounded-xl"}`}
+              aria-label="Send message"
+            >
+              {isUploading ? (
+                <div
+                  className={`border-2 border-white border-t-transparent rounded-full animate-spin ${
+                    isMobile ? "w-4 h-4" : "w-5 h-5"
+                  }`}
+                />
+              ) : (
+                <span className="material-symbols-outlined text-lg leading-none">
+                  send
+                </span>
+              )}
+            </button>
+          </div>
         </form>
       </div>
 
