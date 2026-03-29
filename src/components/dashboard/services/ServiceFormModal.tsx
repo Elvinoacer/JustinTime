@@ -2,7 +2,10 @@
 
 import CategorySelector from "@/components/CategorySelector";
 import apiClient from "@/lib/api/client";
-import { useCreateService, useUpdateService } from "@/lib/api/hooks/useProvider";
+import {
+  useCreateService,
+  useUpdateService,
+} from "@/lib/api/hooks/useProvider";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -106,7 +109,16 @@ const ServiceFormModal = ({
       queryKey: ["categories"],
       queryFn: async () => {
         const response = await apiClient.get("/categories");
-        return response.data.data.filter((cat: Category) => cat.id !== "all");
+        const payload = response?.data;
+        const rawCategories = Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.categories)
+            ? payload.categories
+            : Array.isArray(payload)
+              ? payload
+              : [];
+
+        return rawCategories.filter((cat: Category) => cat.id !== "all");
       },
     });
 
@@ -172,7 +184,7 @@ const ServiceFormModal = ({
 
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    type: "image" | "video"
+    type: "image" | "video",
   ) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -229,8 +241,8 @@ const ServiceFormModal = ({
         // Update progress
         setUploadingFiles((prev) =>
           prev.map((f) =>
-            f.preview === fileObj.preview ? { ...f, progress: 100 } : f
-          )
+            f.preview === fileObj.preview ? { ...f, progress: 100 } : f,
+          ),
         );
 
         // Update form data
@@ -246,7 +258,7 @@ const ServiceFormModal = ({
         // Cleanup
         setTimeout(() => {
           setUploadingFiles((prev) =>
-            prev.filter((f) => f.preview !== fileObj.preview)
+            prev.filter((f) => f.preview !== fileObj.preview),
           );
           URL.revokeObjectURL(fileObj.preview);
         }, 500);
@@ -254,7 +266,7 @@ const ServiceFormModal = ({
         console.error("Upload failed:", error);
         toast.error(`Failed to upload ${fileObj.file.name}`);
         setUploadingFiles((prev) =>
-          prev.filter((f) => f.preview !== fileObj.preview)
+          prev.filter((f) => f.preview !== fileObj.preview),
         );
       }
     }
@@ -295,7 +307,8 @@ const ServiceFormModal = ({
       }
     } else if (currentStep === 3) {
       if (formData.images.length < 1) {
-        newErrors.images = "Add at least one image before creating this service";
+        newErrors.images =
+          "Add at least one image before creating this service";
         isValid = false;
       }
     }
@@ -397,8 +410,8 @@ const ServiceFormModal = ({
                         num === step
                           ? "bg-emerald-500"
                           : num < step
-                          ? "bg-emerald-300"
-                          : "bg-gray-200"
+                            ? "bg-emerald-300"
+                            : "bg-gray-200"
                       }`}
                     />
                   ))}
@@ -419,7 +432,9 @@ const ServiceFormModal = ({
                         Service Location
                       </p>
                       <p className="text-xs text-blue-600 leading-relaxed mb-2">
-                        This service will be listed based on your profile location. To change where your services appear, please update your profile location.
+                        This service will be listed based on your profile
+                        location. To change where your services appear, please
+                        update your profile location.
                       </p>
                       <button
                         onClick={() => {
@@ -429,11 +444,12 @@ const ServiceFormModal = ({
                         className="text-xs font-bold text-blue-700 hover:text-blue-800 hover:underline flex items-center gap-1"
                       >
                         Update Profile Location
-                        <span className="material-symbols-outlined text-xs">arrow_forward</span>
+                        <span className="material-symbols-outlined text-xs">
+                          arrow_forward
+                        </span>
                       </button>
                     </div>
                   </div>
-
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1.5">
@@ -636,36 +652,39 @@ const ServiceFormModal = ({
                     </div>
 
                     {/* Image Upload Progress */}
-                    {uploadingFiles.filter(f => f.type === "image").length > 0 && (
+                    {uploadingFiles.filter((f) => f.type === "image").length >
+                      0 && (
                       <div className="space-y-1.5 mt-3">
-                        {uploadingFiles.filter(f => f.type === "image").map((file, idx) => (
-                          <div
-                            key={idx}
-                            className="bg-gray-50 rounded-md p-2 flex items-center gap-2"
-                          >
-                            <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
-                              <span className="material-symbols-outlined text-gray-500 text-xs">
-                                image
-                              </span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex justify-between text-xs mb-0.5">
-                                <span className="font-medium text-gray-700 truncate">
-                                  {file.file.name}
-                                </span>
-                                <span className="text-emerald-600 whitespace-nowrap">
-                                  {file.progress}%
+                        {uploadingFiles
+                          .filter((f) => f.type === "image")
+                          .map((file, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-gray-50 rounded-md p-2 flex items-center gap-2"
+                            >
+                              <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
+                                <span className="material-symbols-outlined text-gray-500 text-xs">
+                                  image
                                 </span>
                               </div>
-                              <div className="w-full bg-gray-200 rounded-full h-1">
-                                <div
-                                  className="bg-emerald-500 h-1 rounded-full transition-all duration-300"
-                                  style={{ width: `${file.progress}%` }}
-                                />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between text-xs mb-0.5">
+                                  <span className="font-medium text-gray-700 truncate">
+                                    {file.file.name}
+                                  </span>
+                                  <span className="text-emerald-600 whitespace-nowrap">
+                                    {file.progress}%
+                                  </span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-1">
+                                  <div
+                                    className="bg-emerald-500 h-1 rounded-full transition-all duration-300"
+                                    style={{ width: `${file.progress}%` }}
+                                  />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     )}
                   </div>
@@ -714,36 +733,39 @@ const ServiceFormModal = ({
                     )}
 
                     {/* Video Upload Progress */}
-                    {uploadingFiles.filter(f => f.type === "video").length > 0 && (
+                    {uploadingFiles.filter((f) => f.type === "video").length >
+                      0 && (
                       <div className="space-y-1.5 mt-3">
-                        {uploadingFiles.filter(f => f.type === "video").map((file, idx) => (
-                          <div
-                            key={idx}
-                            className="bg-gray-50 rounded-md p-2 flex items-center gap-2"
-                          >
-                            <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
-                              <span className="material-symbols-outlined text-gray-500 text-xs">
-                                videocam
-                              </span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex justify-between text-xs mb-0.5">
-                                <span className="font-medium text-gray-700 truncate">
-                                  {file.file.name}
-                                </span>
-                                <span className="text-emerald-600 whitespace-nowrap">
-                                  {file.progress}%
+                        {uploadingFiles
+                          .filter((f) => f.type === "video")
+                          .map((file, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-gray-50 rounded-md p-2 flex items-center gap-2"
+                            >
+                              <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
+                                <span className="material-symbols-outlined text-gray-500 text-xs">
+                                  videocam
                                 </span>
                               </div>
-                              <div className="w-full bg-gray-200 rounded-full h-1">
-                                <div
-                                  className="bg-emerald-500 h-1 rounded-full transition-all duration-300"
-                                  style={{ width: `${file.progress}%` }}
-                                />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between text-xs mb-0.5">
+                                  <span className="font-medium text-gray-700 truncate">
+                                    {file.file.name}
+                                  </span>
+                                  <span className="text-emerald-600 whitespace-nowrap">
+                                    {file.progress}%
+                                  </span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-1">
+                                  <div
+                                    className="bg-emerald-500 h-1 rounded-full transition-all duration-300"
+                                    style={{ width: `${file.progress}%` }}
+                                  />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     )}
                   </div>
@@ -855,7 +877,9 @@ const ServiceFormModal = ({
                   className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-700"
                   aria-label="Close modal"
                 >
-                  <span className="material-symbols-outlined text-xl">close</span>
+                  <span className="material-symbols-outlined text-xl">
+                    close
+                  </span>
                 </button>
               </div>
             </div>
@@ -922,7 +946,9 @@ const ServiceFormModal = ({
                 <div className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-sky-50 p-4">
                   <div className="flex items-start gap-3">
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm">
-                      <span className="material-symbols-outlined">location_on</span>
+                      <span className="material-symbols-outlined">
+                        location_on
+                      </span>
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-blue-900">
@@ -972,14 +998,18 @@ const ServiceFormModal = ({
                         Start with the main thing the client is hiring you for.
                       </p>
                       {errors.name && (
-                        <p className="mt-1 text-sm text-red-500">{errors.name}</p>
+                        <p className="mt-1 text-sm text-red-500">
+                          {errors.name}
+                        </p>
                       )}
                     </div>
 
                     <div>
                       <CategorySelector
                         categories={categoriesData}
-                        selectedIds={formData.category ? [formData.category] : []}
+                        selectedIds={
+                          formData.category ? [formData.category] : []
+                        }
                         onToggle={(id) =>
                           setFormData({ ...formData, category: id })
                         }
@@ -989,7 +1019,8 @@ const ServiceFormModal = ({
                         compact={true}
                       />
                       <p className="mt-3 text-sm text-gray-500">
-                        Next, choose the category clients would browse to find this service.
+                        Next, choose the category clients would browse to find
+                        this service.
                       </p>
                     </div>
 
@@ -1023,7 +1054,9 @@ const ServiceFormModal = ({
                           Set the starting price a client will see first.
                         </p>
                         {errors.price && (
-                          <p className="mt-1 text-sm text-red-500">{errors.price}</p>
+                          <p className="mt-1 text-sm text-red-500">
+                            {errors.price}
+                          </p>
                         )}
                       </div>
 
@@ -1044,10 +1077,14 @@ const ServiceFormModal = ({
                             }`}
                           >
                             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm">
-                              <span className="material-symbols-outlined text-lg">payments</span>
+                              <span className="material-symbols-outlined text-lg">
+                                payments
+                              </span>
                             </div>
                             <div className="flex-1">
-                              <p className="text-sm font-semibold">Fixed Price</p>
+                              <p className="text-sm font-semibold">
+                                Fixed Price
+                              </p>
                               <p className="mt-1 text-xs text-gray-500">
                                 Use this when the job has one clear total price.
                               </p>
@@ -1056,7 +1093,10 @@ const ServiceFormModal = ({
                           <button
                             type="button"
                             onClick={() =>
-                              setFormData({ ...formData, pricingUnit: "hourly" })
+                              setFormData({
+                                ...formData,
+                                pricingUnit: "hourly",
+                              })
                             }
                             className={`flex items-start gap-3 rounded-2xl border-2 px-4 py-4 text-left transition-all ${
                               formData.pricingUnit === "hourly"
@@ -1065,12 +1105,17 @@ const ServiceFormModal = ({
                             }`}
                           >
                             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm">
-                              <span className="material-symbols-outlined text-lg">schedule</span>
+                              <span className="material-symbols-outlined text-lg">
+                                schedule
+                              </span>
                             </div>
                             <div className="flex-1">
-                              <p className="text-sm font-semibold">Hourly Rate</p>
+                              <p className="text-sm font-semibold">
+                                Hourly Rate
+                              </p>
                               <p className="mt-1 text-xs text-gray-500">
-                                Use this when time and scope can change per booking.
+                                Use this when time and scope can change per
+                                booking.
                               </p>
                             </div>
                           </button>
@@ -1109,7 +1154,8 @@ const ServiceFormModal = ({
                   )}
                   <div className="mt-3 flex items-center justify-between gap-4">
                     <p className="text-xs text-gray-500">
-                      Tip: mention deliverables, turnaround time, and what makes your service stand out.
+                      Tip: mention deliverables, turnaround time, and what makes
+                      your service stand out.
                     </p>
                     <p className="shrink-0 text-sm text-gray-500">
                       {formData.description.length}/500
@@ -1126,10 +1172,12 @@ const ServiceFormModal = ({
                   <div className="mb-4 flex items-center justify-between">
                     <div>
                       <label className="block text-sm font-semibold text-gray-800">
-                        Gallery Images ({formData.images.length}/{MAX_SERVICE_IMAGES})
+                        Gallery Images ({formData.images.length}/
+                        {MAX_SERVICE_IMAGES})
                       </label>
                       <p className="mt-1 text-xs text-gray-500">
-                        Add clear photos that show the quality of your work. At least one image is required.
+                        Add clear photos that show the quality of your work. At
+                        least one image is required.
                       </p>
                     </div>
                     <span className="text-sm text-gray-500">
@@ -1192,7 +1240,8 @@ const ServiceFormModal = ({
                         Service Video (Optional)
                       </label>
                       <p className="mt-1 text-xs text-gray-500">
-                        A short clip can help clients understand the service faster.
+                        A short clip can help clients understand the service
+                        faster.
                       </p>
                     </div>
                     <span className="text-sm text-gray-500">
@@ -1242,34 +1291,34 @@ const ServiceFormModal = ({
                       Upload Progress
                     </p>
                     <div className="space-y-2">
-                    {uploadingFiles.map((file, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-3 rounded-xl bg-gray-50 p-3"
-                      >
-                        <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
-                          <span className="material-symbols-outlined text-gray-500 text-sm">
-                            {file.type === "image" ? "image" : "videocam"}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="font-medium text-gray-700 truncate">
-                              {file.file.name}
-                            </span>
-                            <span className="text-emerald-600 whitespace-nowrap">
-                              {file.progress}%
+                      {uploadingFiles.map((file, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-3 rounded-xl bg-gray-50 p-3"
+                        >
+                          <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
+                            <span className="material-symbols-outlined text-gray-500 text-sm">
+                              {file.type === "image" ? "image" : "videocam"}
                             </span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1.5">
-                            <div
-                              className="bg-emerald-500 h-1.5 rounded-full transition-all duration-300"
-                              style={{ width: `${file.progress}%` }}
-                            />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="font-medium text-gray-700 truncate">
+                                {file.file.name}
+                              </span>
+                              <span className="text-emerald-600 whitespace-nowrap">
+                                {file.progress}%
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-1.5">
+                              <div
+                                className="bg-emerald-500 h-1.5 rounded-full transition-all duration-300"
+                                style={{ width: `${file.progress}%` }}
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                     </div>
                   </div>
                 )}
@@ -1303,7 +1352,9 @@ const ServiceFormModal = ({
                     onClick={onClose}
                     className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                   >
-                    <span className="material-symbols-outlined text-base">close</span>
+                    <span className="material-symbols-outlined text-base">
+                      close
+                    </span>
                     Cancel
                   </button>
                 )}

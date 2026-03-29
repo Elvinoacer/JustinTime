@@ -37,6 +37,9 @@ export default function CategorySelector({
   compact = false,
   disabled = false,
 }: CategorySelectorProps) {
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const safeSelectedIds = Array.isArray(selectedIds) ? selectedIds : [];
+
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalSearchQuery, setModalSearchQuery] = useState("");
@@ -47,13 +50,17 @@ export default function CategorySelector({
   // Filter categories based on search
   const filteredCategories = useMemo(() => {
     const query = searchQuery.toLowerCase();
-    return categories.filter((cat) => cat.name.toLowerCase().includes(query));
-  }, [categories, searchQuery]);
+    return safeCategories.filter((cat) =>
+      cat.name.toLowerCase().includes(query),
+    );
+  }, [safeCategories, searchQuery]);
 
   const modalFilteredCategories = useMemo(() => {
     const query = modalSearchQuery.toLowerCase();
-    return categories.filter((cat) => cat.name.toLowerCase().includes(query));
-  }, [categories, modalSearchQuery]);
+    return safeCategories.filter((cat) =>
+      cat.name.toLowerCase().includes(query),
+    );
+  }, [safeCategories, modalSearchQuery]);
 
   // Infinite scroll observer
   useEffect(() => {
@@ -63,7 +70,7 @@ export default function CategorySelector({
           setVisibleCount((prev) => prev + 8); // Reduced for mobile
         }
       },
-      { threshold: 0.5 }
+      { threshold: 0.5 },
     );
 
     if (observerTarget.current) {
@@ -110,7 +117,7 @@ export default function CategorySelector({
     isModal?: boolean;
     size?: "small" | "medium" | "large";
   }) => {
-    const isSelected = selectedIds.includes(cat.id);
+    const isSelected = safeSelectedIds.includes(cat.id);
 
     const sizeClasses = {
       small: "aspect-[3/2] rounded-md sm:rounded-lg",
@@ -157,8 +164,8 @@ export default function CategorySelector({
           isSelected
             ? "ring-1 sm:ring-2 ring-emerald-500 ring-offset-1 shadow-md shadow-emerald-500/20 scale-[1.02]"
             : disabled
-            ? "opacity-50 cursor-not-allowed grayscale-[50%]"
-            : "shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+              ? "opacity-50 cursor-not-allowed grayscale-[50%]"
+              : "shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
         }`}
         aria-label={`Select ${cat.name}`}
         aria-pressed={isSelected}
