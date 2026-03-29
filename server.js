@@ -6,9 +6,17 @@ require("dotenv").config();
 const app = express();
 const httpServer = http.createServer(app);
 
+const allowedOrigins = [
+  process.env.ORIGIN_ENDPOINT,
+  process.env.ORIGIN_ENPOINT,
+  process.env.NEXTAUTH_URL,
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+].filter(Boolean);
+
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.ORIGIN_ENPOINT,
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
   },
 });
@@ -75,15 +83,15 @@ io.on("connection", (socket) => {
   });
 
   // ============ WEBRTC SIGNALING ============
-  
+
   // Initiate Call
   socket.on("call_user", (data) => {
     // data: { userToCall, signalData, from, name }
-    io.to(data.userToCall).emit("call_user", { 
-      signal: data.signalData, 
-      from: data.from, 
+    io.to(data.userToCall).emit("call_user", {
+      signal: data.signalData,
+      from: data.from,
       name: data.name,
-      callType: data.callType 
+      callType: data.callType,
     });
   });
 
@@ -98,7 +106,7 @@ io.on("connection", (socket) => {
     // data: { to }
     io.to(data.to).emit("call_rejected");
   });
-  
+
   // End Call
   socket.on("end_call", (data) => {
     // data: { to }

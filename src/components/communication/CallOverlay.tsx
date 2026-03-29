@@ -44,6 +44,11 @@ export default function CallOverlay() {
   const socket = useRef<any>(null);
   const peer = useRef<any>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const currentCallIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    currentCallIdRef.current = currentCallId;
+  }, [currentCallId]);
 
   // Initialize Socket
   useEffect(() => {
@@ -73,15 +78,21 @@ export default function CallOverlay() {
             setCallStatus("incoming");
             setPartnerId(data.from);
             setPartnerName(data.name || "Unknown User");
+            setPartnerImage(data.image || null);
             setIncomingCallSignal(data.signal);
             setCallType(data.callType || "VIDEO");
           };
 
           handleCallAccepted = (signal: any) => {
             setCallStatus("ongoing");
-            peer.current.signal(signal);
+            if (peer.current) {
+              peer.current.signal(signal);
+            }
             startTimer();
-            if (currentCallId) logCallStatus(currentCallId, "ONGOING");
+            const activeCallId = currentCallIdRef.current;
+            if (activeCallId) {
+              logCallStatus(activeCallId, "ONGOING");
+            }
           };
 
           handleCallRejected = () => {
@@ -124,7 +135,6 @@ export default function CallOverlay() {
         if (handleIceCandidate) {
           socket.current.off("ice_candidate", handleIceCandidate);
         }
-        socket.current.disconnect();
       }
       if (timerRef.current) clearInterval(timerRef.current);
     };
@@ -171,7 +181,12 @@ export default function CallOverlay() {
     image: string | null,
     type: "AUDIO" | "VIDEO",
   ) => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id || !socket.current) return;
+
+    if (!socket.current.connected) {
+      socket.current.connect();
+      socket.current.emit("join", session.user.id);
+    }
 
     setPartnerId(id);
     setPartnerName(name);
@@ -203,6 +218,7 @@ export default function CallOverlay() {
         signalData: data,
         from: session.user.id,
         name: session.user.name,
+        image: session.user.image,
         callType: type,
       });
     });
@@ -215,10 +231,18 @@ export default function CallOverlay() {
       endCall();
     });
 
+    p.on("error", (error: unknown) => {
+      console.error("Call peer error:", error);
+      toast.error("Call connection failed");
+      endCall();
+    });
+
     peer.current = p;
   };
 
   const answerCall = async () => {
+    if (!socket.current) return;
+
     setCallStatus("ongoing");
     startTimer();
 
@@ -238,12 +262,20 @@ export default function CallOverlay() {
       setPartnerStream(remoteStream);
     });
 
+    p.on("error", (error: unknown) => {
+      console.error("Call peer error:", error);
+      toast.error("Call connection failed");
+      endCall();
+    });
+
     p.signal(incomingCallSignal);
     peer.current = p;
   };
 
   const rejectCall = () => {
-    socket.current.emit("reject_call", { to: partnerId });
+    if (socket.current && partnerId) {
+      socket.current.emit("reject_call", { to: partnerId });
+    }
     setCallStatus("idle");
     // Could log missed/rejected here if we had the call ID from the signal
   };
@@ -299,7 +331,7 @@ export default function CallOverlay() {
 
   if (callStatus === "incoming") {
     return (
-      <div className="fixed top-4 right-4 z-[70] animate-in slide-in-from-top-5 w-80">
+      <div className="fixed top-4 right-4 z-70 animate-in slide-in-from-top-5 w-80">
         <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 p-4 ring-1 ring-black/5">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">

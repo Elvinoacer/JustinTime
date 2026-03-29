@@ -40,7 +40,7 @@ export default function ProviderMessagesPage() {
   const { data: session } = useSession();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(
-    null
+    null,
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,7 +68,7 @@ export default function ProviderMessagesPage() {
     const fetchConversations = async () => {
       try {
         const { data } = await apiClient.get<{ conversations: Conversation[] }>(
-          "/messages/conversations"
+          "/messages/conversations",
         );
         setConversations(data.conversations);
       } catch (error) {
@@ -95,37 +95,44 @@ export default function ProviderMessagesPage() {
       socket.connect();
       socket.emit("join", session.user.id);
 
-      socket.on("connect", () => {
+      const handleConnect = () => {
         console.log("✅ Socket connected:", socket.id);
         // Re-join room on reconnection
         socket.emit("join", session.user.id);
-      });
+      };
 
-      socket.on("connect_error", (err) => {
+      const handleConnectError = (err: Error) => {
         console.error("❌ Socket connection error:", err.message);
-      });
+      };
 
-      socket.on("reconnect_attempt", (attemptNumber) => {
+      const handleReconnectAttempt = (attemptNumber: number) => {
         console.log(`🔄 Reconnection attempt #${attemptNumber}...`);
-      });
+      };
 
-      socket.on("reconnect", (attemptNumber) => {
+      const handleReconnect = (attemptNumber: number) => {
         console.log(`✅ Reconnected after ${attemptNumber} attempts`);
         // Re-join room after reconnection
         socket.emit("join", session.user.id);
-      });
+      };
 
-      socket.on("reconnect_failed", () => {
+      const handleReconnectFailed = () => {
         console.error("❌ Reconnection failed");
-      });
+      };
 
-      socket.on("disconnect", (reason) => {
+      const handleDisconnect = (reason: string) => {
         console.log("🔌 Socket disconnected:", reason);
         if (reason === "io server disconnect") {
           // Server disconnected, manually reconnect
           socket.connect();
         }
-      });
+      };
+
+      socket.on("connect", handleConnect);
+      socket.on("connect_error", handleConnectError);
+      socket.on("reconnect_attempt", handleReconnectAttempt);
+      socket.on("reconnect", handleReconnect);
+      socket.on("reconnect_failed", handleReconnectFailed);
+      socket.on("disconnect", handleDisconnect);
 
       // Keep-alive ping every 25 seconds to prevent Render sleep
       const pingInterval = setInterval(() => {
@@ -137,13 +144,12 @@ export default function ProviderMessagesPage() {
       return () => {
         console.log("Cleaning up socket connection");
         clearInterval(pingInterval);
-        socket.disconnect();
-        socket.off("connect");
-        socket.off("connect_error");
-        socket.off("reconnect_attempt");
-        socket.off("reconnect");
-        socket.off("reconnect_failed");
-        socket.off("disconnect");
+        socket.off("connect", handleConnect);
+        socket.off("connect_error", handleConnectError);
+        socket.off("reconnect_attempt", handleReconnectAttempt);
+        socket.off("reconnect", handleReconnect);
+        socket.off("reconnect_failed", handleReconnectFailed);
+        socket.off("disconnect", handleDisconnect);
       };
     }
   }, [session]);
@@ -201,7 +207,7 @@ export default function ProviderMessagesPage() {
         const convIndex = newConvs.findIndex(
           (c) =>
             c.partner.id === message.senderId ||
-            c.partner.id === message.receiverId
+            c.partner.id === message.receiverId,
         );
 
         if (convIndex >= 0) {
@@ -252,7 +258,7 @@ export default function ProviderMessagesPage() {
     const handleUserOffline = ({ userId }: { userId: string }) => {
       if (userId === selectedPartnerIdRef.current) {
         const partner = conversations.find(
-          (c) => c.partner.id === userId
+          (c) => c.partner.id === userId,
         )?.partner;
         if (partner) {
           console.log(`${partner.name} went offline`);
@@ -278,7 +284,7 @@ export default function ProviderMessagesPage() {
       receiverId: string;
     }) => {
       setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, isRead: true } : m))
+        prev.map((m) => (m.id === messageId ? { ...m, isRead: true } : m)),
       );
     };
 
@@ -290,7 +296,7 @@ export default function ProviderMessagesPage() {
       receiverId: string;
     }) => {
       setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, isDelivered: true } : m))
+        prev.map((m) => (m.id === messageId ? { ...m, isDelivered: true } : m)),
       );
     };
 
@@ -321,7 +327,7 @@ export default function ProviderMessagesPage() {
       if (!selectedPartnerId) return;
       try {
         const { data } = await apiClient.get<{ messages: Message[] }>(
-          `/messages/history/${selectedPartnerId}`
+          `/messages/history/${selectedPartnerId}`,
         );
         setMessages(data.messages);
 
@@ -332,7 +338,7 @@ export default function ProviderMessagesPage() {
               return { ...c, unreadCount: 0 };
             }
             return c;
-          })
+          }),
         );
       } catch (error) {
         console.error("Failed to fetch messages:", error);
@@ -345,7 +351,7 @@ export default function ProviderMessagesPage() {
   const handleSendMessage = async (
     content: string,
     fileUrl?: string,
-    fileType?: string
+    fileType?: string,
   ) => {
     if (!selectedPartnerId || !session?.user) return;
 
@@ -372,7 +378,7 @@ export default function ProviderMessagesPage() {
     setConversations((prev) => {
       const newConvs = [...prev];
       const convIndex = newConvs.findIndex(
-        (c) => c.partner.id === selectedPartnerId
+        (c) => c.partner.id === selectedPartnerId,
       );
 
       if (convIndex >= 0) {
@@ -413,7 +419,7 @@ export default function ProviderMessagesPage() {
         const realId = response.data.message.id;
 
         setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, id: realId } : m))
+          prev.map((m) => (m.id === tempId ? { ...m, id: realId } : m)),
         );
 
         // Add real ID to tracking and remove temp ID after a delay
@@ -455,7 +461,7 @@ export default function ProviderMessagesPage() {
       await apiClient.delete(`/messages/clear/${partnerId}`);
       // Remove conversation from list
       setConversations((prev) =>
-        prev.filter((c) => c.partner.id !== partnerId)
+        prev.filter((c) => c.partner.id !== partnerId),
       );
       setSelectedPartnerId(null);
     } catch (error) {

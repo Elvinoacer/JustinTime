@@ -4,12 +4,12 @@ import { ChatWindow } from "@/components/client/messages/ChatWindow";
 import { ConversationsList } from "@/components/client/messages/ConversationsList";
 import { NewConversationModal } from "@/components/client/messages/NewConversationModal";
 import apiClient from "@/lib/api/client";
+import { socket } from "@/lib/socket";
 import { useSession } from "next-auth/react";
 import { useEffect, useState, useRef } from "react";
-import type { Socket } from "socket.io-client";
 
 // Force dynamic rendering to prevent SSR issues with socket.io
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface Conversation {
   partner: {
@@ -41,7 +41,7 @@ function ClientMessagesContent() {
   const { data: session } = useSession();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(
-    null
+    null,
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,7 +50,11 @@ function ClientMessagesContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-  const socketRef = useRef<Socket | null>(null);
+  const selectedPartnerIdRef = useRef<string | null>(selectedPartnerId);
+
+  useEffect(() => {
+    selectedPartnerIdRef.current = selectedPartnerId;
+  }, [selectedPartnerId]);
 
   // Detect mobile on mount
   useEffect(() => {
@@ -58,8 +62,8 @@ function ClientMessagesContent() {
       setIsMobile(window.innerWidth < 640);
     };
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   // Fetch conversations on mount
@@ -68,7 +72,7 @@ function ClientMessagesContent() {
       try {
         setIsLoading(true);
         const { data } = await apiClient.get<{ conversations: Conversation[] }>(
-          "/messages/conversations"
+          "/messages/conversations",
         );
         setConversations(data.conversations);
       } catch (error) {
@@ -83,107 +87,106 @@ function ClientMessagesContent() {
     }
   }, [session]);
 
-  // Socket connection - dynamically import socket only in browser
+  // Socket connection and listeners
   useEffect(() => {
-    if (session?.user) {
-      // Dynamically import socket to avoid SSR issues
-      import('@/lib/socket').then(({ socket }) => {
-        socketRef.current = socket;
-        socket.connect();
-        socket.emit("join", session.user.id);
+    if (!session?.user) return;
 
-        socket.on("receive_message", (message: any) => {
-          // Update messages if looking at this conversation
-          if (
-            selectedPartnerId &&
-            (message.senderId === selectedPartnerId ||
-              message.receiverId === selectedPartnerId)
-          ) {
-            setMessages((prev) => [...prev, message]);
-          }
+    socket.connect();
+    socket.emit("join", session.user.id);
 
-          // Update conversations list
-          setConversations((prev) => {
-            const newConvs = [...prev];
-            const convIndex = newConvs.findIndex(
-              (c) =>
-                c.partner.id === message.senderId ||
-                c.partner.id === message.receiverId
-            );
+    const handleReceiveMessage = (message: any) => {
+      const activePartnerId = selectedPartnerIdRef.current;
 
-            if (convIndex >= 0) {
-              // Update existing conversation
-              newConvs[convIndex] = {
-                ...newConvs[convIndex],
-                lastMessage: {
-                  content: message.content,
-                  createdAt: message.createdAt,
-                  isRead: false,
-                  isOwn: message.senderId === session.user.id,
-                },
-                unreadCount:
-                  message.senderId !== session.user.id &&
-                  selectedPartnerId !== message.senderId
-                    ? newConvs[convIndex].unreadCount + 1
-                    : newConvs[convIndex].unreadCount,
-              };
-              // Move to top
-              const [updatedConv] = newConvs.splice(convIndex, 1);
-              newConvs.unshift(updatedConv);
-            } else {
-              // New conversation (would need to fetch partner details, for now we skip or could fetch)
-              // Ideally we'd fetch the user info here if it's a brand new conversation
-            }
-            return newConvs;
-          });
+      if (
+        activePartnerId &&
+        (message.senderId === activePartnerId ||
+          message.receiverId === activePartnerId)
+      ) {
+        setMessages((prev) => {
+          const exists = prev.some((m) => m.id === message.id);
+          return exists ? prev : [...prev, message];
         });
+      }
 
-        socket.on("user_typing", ({ senderId }) => {
-          if (senderId === selectedPartnerId) {
-            setIsTyping(true);
-          }
-        });
+      setConversations((prev) => {
+        const newConvs = [...prev];
+        const convIndex = newConvs.findIndex(
+          (c) =>
+            c.partner.id === message.senderId ||
+            c.partner.id === message.receiverId,
+        );
 
-        socket.on("user_stop_typing", ({ senderId }) => {
-          if (senderId === selectedPartnerId) {
-            setIsTyping(false);
-          }
-        });
-
-        socket.on("user_online", ({ userId }: { userId: string }) => {
-          setOnlineUsers((prev) => {
-            const newSet = new Set(prev);
-            newSet.add(userId);
-            return newSet;
-          });
-        });
-
-        socket.on("user_offline", ({ userId }: { userId: string }) => {
-          setOnlineUsers((prev) => {
-            const newSet = new Set(prev);
-            newSet.delete(userId);
-            return newSet;
-          });
-        });
-
-        socket.on("online_users_list", ({ userIds }: { userIds: string[] }) => {
-          setOnlineUsers(new Set(userIds));
-        });
-      });
-
-      return () => {
-        if (socketRef.current) {
-          socketRef.current.off("receive_message");
-          socketRef.current.off("user_typing");
-          socketRef.current.off("user_stop_typing");
-          socketRef.current.off("user_online");
-          socketRef.current.off("user_offline");
-          socketRef.current.off("online_users_list");
-          socketRef.current.disconnect();
+        if (convIndex >= 0) {
+          newConvs[convIndex] = {
+            ...newConvs[convIndex],
+            lastMessage: {
+              content: message.content,
+              createdAt: message.createdAt,
+              isRead: false,
+              isOwn: message.senderId === session.user.id,
+            },
+            unreadCount:
+              message.senderId !== session.user.id &&
+              activePartnerId !== message.senderId
+                ? newConvs[convIndex].unreadCount + 1
+                : newConvs[convIndex].unreadCount,
+          };
+          const [updatedConv] = newConvs.splice(convIndex, 1);
+          newConvs.unshift(updatedConv);
         }
-      };
-    }
-  }, [session, selectedPartnerId]);
+
+        return newConvs;
+      });
+    };
+
+    const handleUserTyping = ({ senderId }: { senderId: string }) => {
+      if (senderId === selectedPartnerIdRef.current) {
+        setIsTyping(true);
+      }
+    };
+
+    const handleUserStopTyping = ({ senderId }: { senderId: string }) => {
+      if (senderId === selectedPartnerIdRef.current) {
+        setIsTyping(false);
+      }
+    };
+
+    const handleUserOnline = ({ userId }: { userId: string }) => {
+      setOnlineUsers((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(userId);
+        return newSet;
+      });
+    };
+
+    const handleUserOffline = ({ userId }: { userId: string }) => {
+      setOnlineUsers((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
+    };
+
+    const handleOnlineUsersList = ({ userIds }: { userIds: string[] }) => {
+      setOnlineUsers(new Set(userIds));
+    };
+
+    socket.on("receive_message", handleReceiveMessage);
+    socket.on("user_typing", handleUserTyping);
+    socket.on("user_stop_typing", handleUserStopTyping);
+    socket.on("user_online", handleUserOnline);
+    socket.on("user_offline", handleUserOffline);
+    socket.on("online_users_list", handleOnlineUsersList);
+
+    return () => {
+      socket.off("receive_message", handleReceiveMessage);
+      socket.off("user_typing", handleUserTyping);
+      socket.off("user_stop_typing", handleUserStopTyping);
+      socket.off("user_online", handleUserOnline);
+      socket.off("user_offline", handleUserOffline);
+      socket.off("online_users_list", handleOnlineUsersList);
+    };
+  }, [session]);
 
   // Fetch messages when selecting a partner
   useEffect(() => {
@@ -191,7 +194,7 @@ function ClientMessagesContent() {
       if (!selectedPartnerId) return;
       try {
         const { data } = await apiClient.get<{ messages: Message[] }>(
-          `/messages/history/${selectedPartnerId}`
+          `/messages/history/${selectedPartnerId}`,
         );
         setMessages(data.messages);
 
@@ -202,7 +205,7 @@ function ClientMessagesContent() {
               return { ...c, unreadCount: 0 };
             }
             return c;
-          })
+          }),
         );
       } catch (error) {
         console.error("Failed to fetch messages:", error);
@@ -215,7 +218,7 @@ function ClientMessagesContent() {
   const handleSendMessage = async (
     content: string,
     fileUrl?: string,
-    fileType?: string
+    fileType?: string,
   ) => {
     if (!selectedPartnerId || !session?.user) return;
 
@@ -236,12 +239,10 @@ function ClientMessagesContent() {
     setMessages((prev) => [...prev, newMessage]);
 
     // Emit socket event immediately for real-time feel
-    if (socketRef.current) {
-      socketRef.current.emit("send_message", {
-        ...newMessage,
-        receiverId: selectedPartnerId,
-      });
-    }
+    socket.emit("send_message", {
+      ...newMessage,
+      receiverId: selectedPartnerId,
+    });
 
     try {
       // Persist to DB
@@ -279,7 +280,7 @@ function ClientMessagesContent() {
       await apiClient.delete(`/messages/clear/${partnerId}`);
       // Remove conversation from list
       setConversations((prev) =>
-        prev.filter((c) => c.partner.id !== partnerId)
+        prev.filter((c) => c.partner.id !== partnerId),
       );
       setSelectedPartnerId(null);
     } catch (error) {
@@ -363,7 +364,9 @@ function ClientMessagesContent() {
               onDeleteMessage={handleDeleteMessage}
               onClearConversation={handleClearConversation}
               isTyping={isTyping}
-              isOnline={selectedPartnerId ? onlineUsers.has(selectedPartnerId) : false}
+              isOnline={
+                selectedPartnerId ? onlineUsers.has(selectedPartnerId) : false
+              }
               onBack={() => setSelectedPartnerId(null)}
               isMobile={isMobile}
             />

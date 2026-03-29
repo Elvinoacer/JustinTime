@@ -74,24 +74,19 @@ export async function POST(request: NextRequest) {
     // Send notification to receiver
     try {
       const safeSenderName = escapeHtml(session.user.name || "Someone");
-      const safeContent = content ? escapeHtml(content) : "<i>Sent a file</i>";
 
       await sendComprehensiveNotification({
         userId: receiverId,
         title: `New Message from ${session.user.name || "Someone"}`,
-        message: content
-          ? content.length > 50
-            ? content.substring(0, 50) + "..."
-            : content
-          : "Sent a file",
+        message: `${session.user.name || "Someone"} sent you a new message`,
         type: "MESSAGE",
         emailSubject: `New Message from ${session.user.name || "Someone"} - JustInTime`,
         emailHtml: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #10b981;">New Message</h2>
-            <p><strong>${safeSenderName}</strong> sent you a message:</p>
+            <p><strong>${safeSenderName}</strong> sent you a new message.</p>
             <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-              ${safeContent}
+              For your privacy, message previews are hidden.
             </div>
             <a href="${process.env.NEXTAUTH_URL}/dashboard/messages?conversation=${session.user.id}" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Reply Now</a>
           </div>

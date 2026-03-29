@@ -170,7 +170,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     <div className="flex-1 flex flex-col bg-gray-50 h-full">
       {/* Chat Header */}
       <div
-        className={`border-b border-gray-200 bg-white flex justify-between items-center shadow-sm z-10 ${
+        className={`sticky top-0 border-b border-gray-200/80 bg-white/95 backdrop-blur-md flex justify-between items-center shadow-sm z-10 ${
           isMobile ? "p-3" : "p-4"
         }`}
       >
@@ -256,23 +256,30 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               )}
             </div>
           </div>
-          </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
-           <button
-             onClick={() => partner && toggleCall(partner.id, partner.name, partner.image, 'AUDIO')}
-             className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors touch-manipulation"
-             title="Voice Call"
-           >
-             <Phone className="w-5 h-5 sm:w-6 sm:h-6" />
-           </button>
-           <button
-             onClick={() => partner && toggleCall(partner.id, partner.name, partner.image, 'VIDEO')}
-             className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors touch-manipulation"
-             title="Video Call"
-           >
-             <VideoIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-           </button>
+          <button
+            onClick={() =>
+              partner && toggleCall(partner.id, partner.name, partner.image, "AUDIO")
+            }
+            className="inline-flex items-center gap-1.5 p-2 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-full sm:rounded-lg transition-colors touch-manipulation"
+            title="Voice Call"
+            aria-label="Start voice call"
+          >
+            <Phone className="w-5 h-5" />
+            <span className="hidden md:inline text-xs font-semibold">Call</span>
+          </button>
+          <button
+            onClick={() =>
+              partner && toggleCall(partner.id, partner.name, partner.image, "VIDEO")
+            }
+            className="inline-flex items-center gap-1.5 p-2 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-full sm:rounded-lg transition-colors touch-manipulation"
+            title="Video Call"
+            aria-label="Start video call"
+          >
+            <VideoIcon className="w-5 h-5" />
+            <span className="hidden md:inline text-xs font-semibold">Video</span>
+          </button>
            
            <div className="relative">
           <button
@@ -519,7 +526,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                             </div>
                           )}
                         {msg.content && (
-                          <p className="whitespace-pre-wrap break-words">
+                          <p className="whitespace-pre-wrap wrap-break-word">
                             {msg.content}
                           </p>
                         )}
@@ -658,13 +665,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Message Input */}
       <div
-        className={`border-t border-gray-200 bg-white ${
+        className={`border-t border-gray-200 bg-white/95 backdrop-blur-sm ${
           isMobile ? "p-3" : "p-4"
         }`}
       >
         <form
           onSubmit={handleSend}
-          className={`flex items-center ${isMobile ? "gap-2" : "gap-3"}`}
+          className={`flex items-center rounded-2xl border border-gray-200 bg-white shadow-sm ${
+            isMobile ? "gap-2 px-2 py-1.5" : "gap-3 px-3 py-2"
+          }`}
         >
           <input
             type="file"
@@ -693,8 +702,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             }
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            className={`flex-1 bg-gray-50 border border-gray-200 focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all ${
-              isMobile ? "px-3 py-2 text-sm rounded-lg" : "px-4 py-3 rounded-xl"
+            className={`flex-1 bg-transparent border-0 focus:outline-none focus:ring-0 transition-all text-gray-900 placeholder:text-gray-400 ${
+              isMobile ? "px-2 py-2 text-sm" : "px-2 py-2.5"
             }`}
           />
           <button
