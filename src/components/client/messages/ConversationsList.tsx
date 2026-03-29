@@ -44,7 +44,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
   isMobile = false,
 }) => {
   const filteredConversations = conversations.filter((conv) =>
-    conv.partner.name.toLowerCase().includes(searchQuery.toLowerCase())
+    conv.partner.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   // Format time to show "Today", "Yesterday", or date
@@ -67,10 +67,10 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
   };
 
   return (
-    <div className="w-full border-r border-gray-200 bg-white flex flex-col h-full">
+    <div className="w-full border-r border-gray-200 bg-white flex flex-col h-full min-h-0 overflow-hidden">
       {/* Header */}
       <div
-        className={`border-b border-gray-200 ${
+        className={`sticky top-0 z-10 border-b border-gray-200 bg-white ${
           isMobile ? "p-3" : "p-4"
         }`}
       >
@@ -89,9 +89,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
           <button
             onClick={onNewMessage}
             className={`text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100 rounded-full transition-colors touch-manipulation ${
-              isMobile
-                ? "p-1.5"
-                : "p-2 bg-emerald-50 hover:bg-emerald-100"
+              isMobile ? "p-1.5" : "p-2 bg-emerald-50 hover:bg-emerald-100"
             }`}
             title="New Message"
             aria-label="New message"
@@ -117,16 +115,14 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className={`w-full pl-10 pr-4 bg-gray-50 border border-gray-200 focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all ${
-              isMobile
-                ? "py-1.5 text-sm rounded-lg"
-                : "py-2 text-sm rounded-xl"
+              isMobile ? "py-1.5 text-sm rounded-lg" : "py-2 text-sm rounded-xl"
             }`}
           />
         </div>
       </div>
 
       {/* Conversations List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         {isLoading ? (
           // Loading Skeletons
           <div className="space-y-1 p-4">
@@ -135,7 +131,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                 key={i}
                 className="flex items-center space-x-3 p-3 animate-pulse"
               >
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   <div className="h-12 w-12 rounded-full bg-gray-200" />
                 </div>
                 <div className="flex-1 space-y-2">
@@ -192,7 +188,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                 } ${isMobile ? "p-3" : "p-4"}`}
               >
                 <div className="flex space-x-3">
-                  <div className="flex-shrink-0 relative">
+                  <div className="shrink-0 relative">
                     {conv.partner.image ? (
                       <img
                         src={conv.partner.image}
@@ -205,9 +201,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                     ) : (
                       <div
                         className={`rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold border border-emerald-200 ${
-                          isMobile
-                            ? "h-10 w-10 text-base"
-                            : "h-12 w-12 text-lg"
+                          isMobile ? "h-10 w-10 text-base" : "h-12 w-12 text-lg"
                         }`}
                       >
                         {conv.partner.name.charAt(0)}
@@ -248,30 +242,29 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                     </div>
 
                     {/* Role and Phone Display - Hidden on small mobile */}
-                    {!isMobile &&
-                      (conv.partner.role || conv.partner.phone) && (
-                        <div className="flex items-center gap-2 mb-1">
-                          {conv.partner.role && (
-                            <span
-                              className={`px-1.5 py-0.5 rounded font-medium ${
-                                conv.partner.role === "PROVIDER"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : "bg-gray-100 text-gray-600"
-                              } text-[10px]`}
-                            >
-                              {conv.partner.role}
+                    {!isMobile && (conv.partner.role || conv.partner.phone) && (
+                      <div className="flex items-center gap-2 mb-1">
+                        {conv.partner.role && (
+                          <span
+                            className={`px-1.5 py-0.5 rounded font-medium ${
+                              conv.partner.role === "PROVIDER"
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-gray-100 text-gray-600"
+                            } text-[10px]`}
+                          >
+                            {conv.partner.role}
+                          </span>
+                        )}
+                        {conv.partner.phone && (
+                          <span className="text-[10px] text-gray-500 flex items-center">
+                            <span className="material-symbols-outlined text-[10px] mr-0.5">
+                              phone
                             </span>
-                          )}
-                          {conv.partner.phone && (
-                            <span className="text-[10px] text-gray-500 flex items-center">
-                              <span className="material-symbols-outlined text-[10px] mr-0.5">
-                                phone
-                              </span>
-                              {conv.partner.phone}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                            {conv.partner.phone}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     <div className="flex justify-between items-center">
                       <p
@@ -284,9 +277,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                         {conv.lastMessage.isOwn ? (
                           <span
                             className={`${
-                              isMobile
-                                ? "text-[10px]"
-                                : "text-xs"
+                              isMobile ? "text-[10px]" : "text-xs"
                             } text-gray-400 mr-1`}
                           >
                             You:
@@ -294,9 +285,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                         ) : (
                           <span
                             className={`${
-                              isMobile
-                                ? "text-[10px]"
-                                : "text-xs"
+                              isMobile ? "text-[10px]" : "text-xs"
                             } text-gray-400 mr-1`}
                           >
                             {conv.partner.name.split(" ")[0] ||
@@ -310,8 +299,8 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                         <span
                           className={`ml-2 inline-flex items-center justify-center text-white bg-emerald-500 rounded-full ${
                             isMobile
-                              ? "px-1.5 py-0.5 text-[10px] font-bold min-w-[16px] h-[16px]"
-                              : "px-2 py-0.5 text-xs font-bold min-w-[18px] h-[18px]"
+                              ? "px-1.5 py-0.5 text-[10px] font-bold min-w-4 h-4"
+                              : "px-2 py-0.5 text-xs font-bold min-w-4.5 h-4.5"
                           }`}
                         >
                           {conv.unreadCount > 9 ? "9+" : conv.unreadCount}

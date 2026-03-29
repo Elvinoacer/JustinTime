@@ -505,11 +505,11 @@ export default function ProviderMessagesPage() {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
 
   return (
-    <div className="flex h-[calc(100dvh-64px)] sm:h-[calc(100vh-64px)] bg-gray-50 rounded-none sm:rounded-lg md:rounded-xl lg:rounded-2xl overflow-hidden shadow-xs sm:shadow-sm border-0 sm:border border-gray-200 m-0 sm:m-2 md:m-4">
+    <div className="flex h-[calc(100dvh-64px)] bg-gray-50 rounded-none sm:rounded-lg md:rounded-xl lg:rounded-2xl overflow-hidden shadow-xs sm:shadow-sm border-0 sm:border border-gray-200 m-0 sm:m-2 md:m-4 min-h-0">
       <div
         className={`${
           selectedPartnerId ? "hidden md:block" : "block"
-        } w-full md:w-1/3 h-full`}
+        } w-full md:w-1/3 h-full min-h-0 overflow-hidden`}
       >
         <ConversationsList
           conversations={conversations}
@@ -525,7 +525,7 @@ export default function ProviderMessagesPage() {
       <div
         className={`${
           !selectedPartnerId ? "hidden md:block" : "block"
-        } w-full md:w-2/3 h-full`}
+        } w-full md:w-2/3 h-full min-h-0 overflow-hidden`}
       >
         <ChatWindow
           partner={

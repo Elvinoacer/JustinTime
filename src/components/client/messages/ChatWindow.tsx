@@ -20,6 +20,15 @@ interface Message {
   isDelivered?: boolean;
 }
 
+const IMAGE_FILE_REGEX = /\.(jpg|jpeg|png|gif|webp|avif)$/i;
+const VIDEO_FILE_REGEX = /\.(mp4|webm|mov|m4v|ogg)$/i;
+
+const isImageFile = (fileUrl?: string | null, fileType?: string | null) =>
+  Boolean(fileUrl) && (fileType === "image" || IMAGE_FILE_REGEX.test(fileUrl!));
+
+const isVideoFile = (fileUrl?: string | null, fileType?: string | null) =>
+  Boolean(fileUrl) && (fileType === "video" || VIDEO_FILE_REGEX.test(fileUrl!));
+
 interface ChatWindowProps {
   partner: {
     id: string;
@@ -63,7 +72,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [filePreview, setFilePreview] = useState<{
     file: File;
     url: string;
-    type: "image" | "file";
+    type: "image" | "video" | "file";
   } | null>(null);
 
   const [showReportModal, setShowReportModal] = useState(false);
@@ -78,6 +87,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    return () => {
+      if (filePreview) {
+        URL.revokeObjectURL(filePreview.url);
+      }
+    };
+  }, [filePreview]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,14 +138,24 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check file size (1MB limit)
-    if (file.size > 1024 * 1024) {
-      alert("File size exceeds 1MB limit. Please choose a smaller file.");
+    const isVideo = file.type.startsWith("video/");
+    const sizeLimit = isVideo ? 15 * 1024 * 1024 : 5 * 1024 * 1024;
+
+    if (file.size > sizeLimit) {
+      alert(
+        isVideo
+          ? "Video size exceeds 15MB limit. Please choose a smaller video."
+          : "File size exceeds 5MB limit. Please choose a smaller file.",
+      );
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
-    const fileType = file.type.startsWith("image/") ? "image" : "file";
+    const fileType = file.type.startsWith("image/")
+      ? "image"
+      : isVideo
+        ? "video"
+        : "file";
     const previewUrl = URL.createObjectURL(file);
 
     setFilePreview({ file, url: previewUrl, type: fileType });
@@ -167,7 +194,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-50 h-full">
+    <div className="flex-1 min-h-0 overflow-hidden flex flex-col bg-gray-50 h-full">
       {/* Chat Header */}
       <div
         className={`sticky top-0 border-b border-gray-200/80 bg-white/95 backdrop-blur-md flex justify-between items-center shadow-sm z-10 ${
@@ -374,7 +401,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Messages List */}
       <div
         className={`flex-1 overflow-y-auto bg-gray-50 ${
-          isMobile ? "p-3 space-y-3" : "p-4 sm:p-5 space-y-4"
+          isMobile ? "p-3 pb-4 space-y-3" : "p-4 sm:p-5 pb-5 space-y-4"
         }`}
       >
         {messages.length === 0 ? (
@@ -433,7 +460,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   >
                     <div
                       className={`relative group ${
-                        isMobile ? "max-w-[85%]" : "max-w-[70%] sm:max-w-[75%]"
+                        isMobile ? "max-w-[88%]" : "max-w-[70%] sm:max-w-[75%]"
                       }`}
                     >
                       {isOwn && (
@@ -460,26 +487,33 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                             : "bg-white text-gray-800 border border-gray-100 rounded-tl-none"
                         }`}
                       >
+                        {isImageFile(msg.fileUrl, msg.fileType) && (
+                          <div className="mb-2">
+                            <img
+                              src={msg.fileUrl!}
+                              alt="Shared image"
+                              className="rounded-lg w-full max-h-72 sm:max-h-96 object-cover cursor-pointer hover:opacity-95 transition-opacity touch-manipulation"
+                              onClick={() =>
+                                window.open(msg.fileUrl!, "_blank")
+                              }
+                              loading="lazy"
+                            />
+                          </div>
+                        )}
+                        {isVideoFile(msg.fileUrl, msg.fileType) && (
+                          <div className="mb-2">
+                            <video
+                              src={msg.fileUrl!}
+                              controls
+                              playsInline
+                              preload="metadata"
+                              className="rounded-lg w-full max-h-72 sm:max-h-96 bg-black"
+                            />
+                          </div>
+                        )}
                         {msg.fileUrl &&
-                          (msg.fileType === "image" ||
-                            msg.fileUrl.match(
-                              /\.(jpg|jpeg|png|gif|webp)$/i,
-                            )) && (
-                            <div className="mb-2">
-                              <img
-                                src={msg.fileUrl}
-                                alt="Shared image"
-                                className="rounded-lg w-full object-cover cursor-pointer hover:opacity-95 transition-opacity touch-manipulation"
-                                onClick={() =>
-                                  window.open(msg.fileUrl!, "_blank")
-                                }
-                                loading="lazy"
-                              />
-                            </div>
-                          )}
-                        {msg.fileUrl &&
-                          msg.fileType !== "image" &&
-                          !msg.fileUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) && (
+                          !isImageFile(msg.fileUrl, msg.fileType) &&
+                          !isVideoFile(msg.fileUrl, msg.fileType) && (
                             <div className="mb-2">
                               <a
                                 href={msg.fileUrl}
@@ -632,6 +666,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                   isMobile ? "w-12 h-12" : "w-16 h-16"
                 }`}
               />
+            ) : filePreview.type === "video" ? (
+              <video
+                src={filePreview.url}
+                className={`rounded-lg object-cover border border-gray-200 bg-black ${
+                  isMobile ? "w-12 h-12" : "w-16 h-16"
+                }`}
+                muted
+                playsInline
+              />
             ) : (
               <div
                 className={`rounded-lg bg-gray-100 flex items-center justify-center border border-gray-200 ${
@@ -674,7 +717,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Message Input */}
       <div
-        className={`border-t border-gray-200 bg-white/95 backdrop-blur-sm ${
+        className={`sticky bottom-0 z-10 border-t border-gray-200 bg-white/95 backdrop-blur-sm pb-[env(safe-area-inset-bottom)] ${
           isMobile ? "p-3" : "p-4"
         }`}
       >
@@ -689,7 +732,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             ref={fileInputRef}
             onChange={handleFileSelect}
             className="hidden"
-            accept="image/*,.pdf,.doc,.docx"
+            accept="image/*,video/*,.pdf,.doc,.docx"
           />
           <button
             type="button"

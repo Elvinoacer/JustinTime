@@ -324,12 +324,12 @@ function ClientMessagesContent() {
     null;
 
   return (
-    <div className="h-[calc(100vh-64px)] sm:h-[calc(100vh-80px)] bg-gray-50">
-      <div className="max-w-7xl mx-auto h-full px-0 sm:px-3 md:px-4">
-        <div className="flex h-full bg-white rounded-none sm:rounded-xl md:rounded-2xl overflow-hidden shadow-none sm:shadow-sm border-0 sm:border border-gray-200 mt-0 sm:mt-2 md:mt-4">
+    <div className="h-[calc(100dvh-64px)] sm:h-[calc(100dvh-80px)] overflow-hidden bg-gray-50">
+      <div className="max-w-7xl mx-auto h-full min-h-0 px-0 sm:px-3 md:px-4">
+        <div className="flex h-full min-h-0 bg-white rounded-none sm:rounded-xl md:rounded-2xl overflow-hidden shadow-none sm:shadow-sm border-0 sm:border border-gray-200 mt-0 sm:mt-2 md:mt-4">
           {/* Conversations List */}
           <div
-            className={`h-full transition-all duration-200 ${
+            className={`h-full min-h-0 overflow-hidden transition-all duration-200 ${
               selectedPartnerId
                 ? "hidden sm:block sm:w-1/3 lg:w-1/4 xl:w-1/3"
                 : "w-full sm:w-1/3 lg:w-1/4 xl:w-1/3"
@@ -350,7 +350,7 @@ function ClientMessagesContent() {
 
           {/* Chat Window */}
           <div
-            className={`h-full transition-all duration-200 ${
+            className={`h-full min-h-0 overflow-hidden transition-all duration-200 ${
               selectedPartnerId
                 ? "w-full sm:w-2/3 lg:w-3/4 xl:w-2/3"
                 : "hidden sm:block sm:w-2/3 lg:w-3/4 xl:w-2/3"
