@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 // @ts-ignore
 import SimplePeer from "simple-peer";
@@ -45,10 +45,174 @@ export default function CallOverlay() {
   const peer = useRef<any>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const currentCallIdRef = useRef<string | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const partnerStreamRef = useRef<MediaStream | null>(null);
+  const partnerIdRef = useRef<string>("");
+  const incomingAlertIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     currentCallIdRef.current = currentCallId;
   }, [currentCallId]);
+
+  useEffect(() => {
+    streamRef.current = stream;
+  }, [stream]);
+
+  useEffect(() => {
+    partnerStreamRef.current = partnerStream;
+  }, [partnerStream]);
+
+  useEffect(() => {
+    partnerIdRef.current = partnerId;
+  }, [partnerId]);
+
+  const stopMediaStream = (mediaStream: MediaStream | null) => {
+    if (!mediaStream) return;
+    mediaStream.getTracks().forEach((track) => {
+      try {
+        track.stop();
+      } catch {
+        // no-op
+      }
+    });
+  };
+
+  const stopIncomingAlert = useCallback(() => {
+    if (incomingAlertIntervalRef.current) {
+      clearInterval(incomingAlertIntervalRef.current);
+      incomingAlertIntervalRef.current = null;
+    }
+
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {
+        // no-op
+      });
+      audioContextRef.current = null;
+    }
+  }, []);
+
+  const playIncomingTone = useCallback(() => {
+    try {
+      if (!audioContextRef.current) {
+        const Context =
+          window.AudioContext || (window as any).webkitAudioContext;
+        if (!Context) return;
+        audioContextRef.current = new Context();
+      }
+
+      const ctx = audioContextRef.current;
+      if (!ctx) return;
+
+      const now = ctx.currentTime;
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.06, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.2);
+    } catch {
+      // no-op
+    }
+  }, []);
+
+  const startIncomingAlert = useCallback(
+    (name: string, type: "AUDIO" | "VIDEO") => {
+      stopIncomingAlert();
+
+      if (typeof window !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate([120, 80, 120]);
+      }
+
+      if (
+        typeof window !== "undefined" &&
+        "Notification" in window &&
+        Notification.permission === "granted"
+      ) {
+        try {
+          new Notification("Incoming call", {
+            body: `${name} is calling you (${type.toLowerCase()})`,
+            icon: "/icons/icon-192x192.png",
+            tag: "jit-incoming-call",
+            requireInteraction: true,
+          });
+        } catch {
+          // no-op
+        }
+      }
+
+      playIncomingTone();
+      incomingAlertIntervalRef.current = setInterval(() => {
+        playIncomingTone();
+      }, 1800);
+    },
+    [playIncomingTone, stopIncomingAlert],
+  );
+
+  const cleanupCall = useCallback(
+    (
+      status: "ENDED" | "REJECTED" = "ENDED",
+      options?: { notifyPeer?: boolean },
+    ) => {
+      const notifyPeer = options?.notifyPeer ?? true;
+
+      stopIncomingAlert();
+
+      const peerId = partnerIdRef.current;
+      if (notifyPeer && socket.current && peerId) {
+        socket.current.emit("end_call", { to: peerId });
+      }
+
+      const activeCallId = currentCallIdRef.current;
+      if (activeCallId) {
+        logCallStatus(
+          activeCallId,
+          status === "REJECTED" ? "REJECTED" : "ENDED",
+        );
+        currentCallIdRef.current = null;
+        setCurrentCallId(null);
+      }
+
+      if (peer.current) {
+        try {
+          peer.current.destroy();
+        } catch {
+          // no-op
+        }
+        peer.current = null;
+      }
+
+      stopMediaStream(streamRef.current);
+      stopMediaStream(partnerStreamRef.current);
+      streamRef.current = null;
+      partnerStreamRef.current = null;
+
+      setStream(null);
+      setPartnerStream(null);
+      setCallStatus("idle");
+      setPartnerId("");
+      setPartnerName("");
+      setPartnerImage(null);
+      setIncomingCallSignal(null);
+      setCallDuration(0);
+      setIsMicMuted(false);
+      setIsVideoMuted(false);
+
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    },
+    [stopIncomingAlert],
+  );
 
   // Initialize Socket
   useEffect(() => {
@@ -81,6 +245,10 @@ export default function CallOverlay() {
             setPartnerImage(data.image || null);
             setIncomingCallSignal(data.signal);
             setCallType(data.callType || "VIDEO");
+            startIncomingAlert(
+              data.name || "Unknown User",
+              data.callType || "VIDEO",
+            );
           };
 
           handleCallAccepted = (signal: any) => {
@@ -97,11 +265,11 @@ export default function CallOverlay() {
 
           handleCallRejected = () => {
             toast.error("Call rejected");
-            endCall("REJECTED");
+            cleanupCall("REJECTED", { notifyPeer: false });
           };
 
           handleCallEnded = () => {
-            endCall("ENDED");
+            cleanupCall("ENDED", { notifyPeer: false });
           };
 
           handleIceCandidate = (data: any) => {
@@ -122,6 +290,7 @@ export default function CallOverlay() {
 
     return () => {
       mounted = false;
+      stopIncomingAlert();
       if (socket.current) {
         if (handleConnect) socket.current.off("connect", handleConnect);
         if (handleCallUser) socket.current.off("call_user", handleCallUser);
@@ -137,8 +306,10 @@ export default function CallOverlay() {
         }
       }
       if (timerRef.current) clearInterval(timerRef.current);
+      stopMediaStream(streamRef.current);
+      stopMediaStream(partnerStreamRef.current);
     };
-  }, [session]);
+  }, [session, cleanupCall, startIncomingAlert, stopIncomingAlert]);
 
   // Listen for outgoing call events
   useEffect(() => {
@@ -167,6 +338,9 @@ export default function CallOverlay() {
         audio: true,
       });
       setStream(currentStream);
+      streamRef.current = currentStream;
+      setIsMicMuted(false);
+      setIsVideoMuted(false);
       return currentStream;
     } catch (err) {
       console.error("Failed to get media stream:", err);
@@ -228,13 +402,13 @@ export default function CallOverlay() {
     });
 
     p.on("close", () => {
-      endCall();
+      cleanupCall("ENDED", { notifyPeer: false });
     });
 
     p.on("error", (error: unknown) => {
       console.error("Call peer error:", error);
       toast.error("Call connection failed");
-      endCall();
+      cleanupCall("ENDED", { notifyPeer: false });
     });
 
     peer.current = p;
@@ -243,15 +417,20 @@ export default function CallOverlay() {
   const answerCall = async () => {
     if (!socket.current) return;
 
+    stopIncomingAlert();
     setCallStatus("ongoing");
     startTimer();
 
     const currentStream = await getMediaStream(callType);
+    if (!currentStream) {
+      cleanupCall("ENDED", { notifyPeer: true });
+      return;
+    }
 
     const p = new SimplePeer({
       initiator: false,
       trickle: false,
-      stream: currentStream || undefined,
+      stream: currentStream,
     });
 
     p.on("signal", (data: any) => {
@@ -265,7 +444,7 @@ export default function CallOverlay() {
     p.on("error", (error: unknown) => {
       console.error("Call peer error:", error);
       toast.error("Call connection failed");
-      endCall();
+      cleanupCall("ENDED", { notifyPeer: false });
     });
 
     p.signal(incomingCallSignal);
@@ -273,40 +452,20 @@ export default function CallOverlay() {
   };
 
   const rejectCall = () => {
+    stopIncomingAlert();
     if (socket.current && partnerId) {
       socket.current.emit("reject_call", { to: partnerId });
     }
     setCallStatus("idle");
+    setPartnerId("");
+    setPartnerName("");
+    setPartnerImage(null);
+    setIncomingCallSignal(null);
     // Could log missed/rejected here if we had the call ID from the signal
   };
 
-  const endCall = (status: any = "ENDED") => {
-    if (socket.current && partnerId) {
-      socket.current.emit("end_call", { to: partnerId });
-    }
-
-    if (currentCallId) {
-      logCallStatus(
-        currentCallId,
-        status === "REJECTED" ? "REJECTED" : "ENDED",
-      );
-      setCurrentCallId(null);
-    }
-
-    if (peer.current) {
-      peer.current.destroy();
-      peer.current = null;
-    }
-
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-
-    setPartnerStream(null);
-    setCallStatus("idle");
-    setPartnerId("");
-    if (timerRef.current) clearInterval(timerRef.current);
+  const endCall = (status: "ENDED" | "REJECTED" = "ENDED") => {
+    cleanupCall(status, { notifyPeer: true });
   };
 
   const toggleMic = () => {
@@ -331,8 +490,8 @@ export default function CallOverlay() {
 
   if (callStatus === "incoming") {
     return (
-      <div className="fixed top-4 right-4 z-70 animate-in slide-in-from-top-5 w-80">
-        <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 p-4 ring-1 ring-black/5">
+      <div className="fixed inset-0 z-80 bg-black/45 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-white/20 p-6 ring-1 ring-black/5 animate-in zoom-in-95 duration-200">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
               {partnerImage ? (
@@ -351,7 +510,7 @@ export default function CallOverlay() {
               <h3 className="font-bold text-lg text-slate-800">
                 {partnerName}
               </h3>
-              <p className="text-sm text-emerald-600 font-medium flex items-center gap-1">
+              <p className="text-sm text-emerald-600 font-medium flex items-center gap-1 mt-1">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -360,6 +519,11 @@ export default function CallOverlay() {
               </p>
             </div>
           </div>
+
+          <div className="mb-4 rounded-xl bg-emerald-50 text-emerald-700 text-sm px-3 py-2">
+            Keep this window open to answer the call.
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={rejectCall}
