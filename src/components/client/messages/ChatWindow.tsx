@@ -33,7 +33,7 @@ interface ChatWindowProps {
   onSendMessage: (
     content: string,
     fileUrl?: string,
-    fileType?: string
+    fileType?: string,
   ) => Promise<void>;
   isTyping?: boolean;
   onDeleteMessage?: (messageId: string) => void;
@@ -260,7 +260,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         <div className="flex items-center gap-1 sm:gap-2">
           <button
             onClick={() =>
-              partner && toggleCall(partner.id, partner.name, partner.image, "AUDIO")
+              partner &&
+              toggleCall(partner.id, partner.name, partner.image, "AUDIO")
             }
             className="inline-flex items-center gap-1.5 p-2 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-full sm:rounded-lg transition-colors touch-manipulation"
             title="Voice Call"
@@ -271,96 +272,103 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </button>
           <button
             onClick={() =>
-              partner && toggleCall(partner.id, partner.name, partner.image, "VIDEO")
+              partner &&
+              toggleCall(partner.id, partner.name, partner.image, "VIDEO")
             }
             className="inline-flex items-center gap-1.5 p-2 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-full sm:rounded-lg transition-colors touch-manipulation"
             title="Video Call"
             aria-label="Start video call"
           >
             <VideoIcon className="w-5 h-5" />
-            <span className="hidden md:inline text-xs font-semibold">Video</span>
-          </button>
-           
-           <div className="relative">
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"
-            aria-label="More options"
-          >
-            <span className="material-symbols-outlined text-lg">more_vert</span>
+            <span className="hidden md:inline text-xs font-semibold">
+              Video
+            </span>
           </button>
 
-          {showMenu && (
-            <>
-              {/* Backdrop */}
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setShowMenu(false)}
-                aria-hidden="true"
-              />
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"
+              aria-label="More options"
+            >
+              <span className="material-symbols-outlined text-lg">
+                more_vert
+              </span>
+            </button>
 
-              {/* Menu */}
-              <div className="absolute right-0 top-full mt-1 sm:mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-20">
-                <button
-                  className="w-full text-left px-4 py-2.5 sm:py-2 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 flex items-center gap-2 touch-manipulation"
-                  onClick={async () => {
-                    if (
-                      window.confirm(
-                        "Are you sure you want to clear this conversation? This action cannot be undone."
-                      )
-                    ) {
+            {showMenu && (
+              <>
+                {/* Backdrop */}
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowMenu(false)}
+                  aria-hidden="true"
+                />
+
+                {/* Menu */}
+                <div className="absolute right-0 top-full mt-1 sm:mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-20">
+                  <button
+                    className="w-full text-left px-4 py-2.5 sm:py-2 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 flex items-center gap-2 touch-manipulation"
+                    onClick={async () => {
+                      if (
+                        window.confirm(
+                          "Are you sure you want to clear this conversation? This action cannot be undone.",
+                        )
+                      ) {
+                        setShowMenu(false);
+                        onClearConversation &&
+                          partner &&
+                          onClearConversation(partner.id);
+                      } else {
+                        setShowMenu(false);
+                      }
+                    }}
+                  >
+                    <span className="material-symbols-outlined text-gray-400 text-sm">
+                      delete_sweep
+                    </span>
+                    Clear Chat
+                  </button>
+                  <button
+                    className="w-full text-left px-4 py-2.5 sm:py-2 text-sm text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100 flex items-center gap-2 touch-manipulation"
+                    onClick={() => {
                       setShowMenu(false);
-                      onClearConversation &&
-                        partner &&
-                        onClearConversation(partner.id);
-                    } else {
+                      setShowCallHistory(true);
+                    }}
+                  >
+                    <span className="material-symbols-outlined text-emerald-400 text-sm">
+                      history
+                    </span>
+                    Call History
+                  </button>
+                  <button
+                    className="w-full text-left px-4 py-2.5 sm:py-2 text-sm text-red-600 hover:bg-red-50 active:bg-red-100 flex items-center gap-2 touch-manipulation"
+                    onClick={() => {
                       setShowMenu(false);
-                    }
-                  }}
-                >
-                  <span className="material-symbols-outlined text-gray-400 text-sm">
-                    delete_sweep
-                  </span>
-                  Clear Chat
-                </button>
-                <button
-                  className="w-full text-left px-4 py-2.5 sm:py-2 text-sm text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100 flex items-center gap-2 touch-manipulation"
-                  onClick={() => {
-                    setShowMenu(false);
-                    setShowCallHistory(true);
-                  }}
-                >
-                  <span className="material-symbols-outlined text-emerald-400 text-sm">
-                    history
-                  </span>
-                  Call History
-                </button>
-                <button
-                  className="w-full text-left px-4 py-2.5 sm:py-2 text-sm text-red-600 hover:bg-red-50 active:bg-red-100 flex items-center gap-2 touch-manipulation"
-                  onClick={() => {
-                    setShowMenu(false);
-                    setShowReportModal(true);
-                  }}
-                >
-                  <span className="material-symbols-outlined text-red-400 text-sm">
-                    report
-                  </span>
-                  Report User
-                </button>
-              </div>
-            </>
-          )}
+                      setShowReportModal(true);
+                    }}
+                  >
+                    <span className="material-symbols-outlined text-red-400 text-sm">
+                      report
+                    </span>
+                    Report User
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
-      </div>
 
-      <MessageSecurityBanner 
-        onReportUser={() => setShowReportModal(true)} 
+      <MessageSecurityBanner
+        onReportUser={() => setShowReportModal(true)}
         onOpenSafety={() => {
-          const basePath = pathname?.startsWith('/client') ? '/client' : '/dashboard';
+          const basePath = pathname?.startsWith("/client")
+            ? "/client"
+            : "/dashboard";
           router.push(`${basePath}/safety`);
-        }} 
-        partnerName={partner.name} 
+        }}
+        partnerName={partner.name}
       />
 
       {/* Messages List */}
@@ -455,7 +463,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                         {msg.fileUrl &&
                           (msg.fileType === "image" ||
                             msg.fileUrl.match(
-                              /\.(jpg|jpeg|png|gif|webp)$/i
+                              /\.(jpg|jpeg|png|gif|webp)$/i,
                             )) && (
                             <div className="mb-2">
                               <img
@@ -547,8 +555,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                                 msg.isRead
                                   ? "Read"
                                   : msg.isDelivered
-                                  ? "Delivered"
-                                  : "Sent"
+                                    ? "Delivered"
+                                    : "Sent"
                               }
                             >
                               {msg.isRead ? (
@@ -730,18 +738,18 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         </form>
       </div>
 
-      <ReportUserModal 
-        isOpen={showReportModal} 
-        onClose={() => setShowReportModal(false)} 
-        reportedId={partner.id} 
-        partnerName={partner.name} 
+      <ReportUserModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        reportedId={partner.id}
+        partnerName={partner.name}
       />
 
-      <CallHistoryDrawer 
-        isOpen={showCallHistory} 
-        onClose={() => setShowCallHistory(false)} 
-        partnerId={partner.id} 
-        partnerName={partner.name} 
+      <CallHistoryDrawer
+        isOpen={showCallHistory}
+        onClose={() => setShowCallHistory(false)}
+        partnerId={partner.id}
+        partnerName={partner.name}
       />
     </div>
   );
