@@ -14,13 +14,16 @@ import {
   AlertCircle,
   ArrowLeft,
   Calendar,
+  Columns2,
   Clock,
   DollarSign,
+  Eye,
   FileText,
   Image as ImageIcon,
   Loader2,
   MapPin,
   MessageSquare,
+  PenLine,
   Send,
   Shield,
   Upload,
@@ -31,6 +34,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
 function formatCurrency(value: number | null | undefined) {
@@ -77,8 +82,12 @@ export default function JobDetailPage() {
   const jobId = params.id as string;
 
   const [coverLetter, setCoverLetter] = useState("");
+  const [coverLetterMode, setCoverLetterMode] = useState<
+    "write" | "preview" | "split"
+  >("write");
   const [proposedPrice, setProposedPrice] = useState("");
   const [estimatedDays, setEstimatedDays] = useState("");
+  const [portfolioLink, setPortfolioLink] = useState("");
   const [attachments, setAttachments] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -87,10 +96,13 @@ export default function JobDetailPage() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverLetterRef = useRef<HTMLTextAreaElement>(null);
   const isProvider = session?.user?.role === "PROVIDER";
 
   const { data: job, isLoading, error } = useJob(jobId);
-  const { data: profile } = useProviderProfile(Boolean(session?.user?.id && isProvider));
+  const { data: profile } = useProviderProfile(
+    Boolean(session?.user?.id && isProvider),
+  );
   const { data: myProposals } = useJobProposals(
     jobId,
     Boolean(session?.user?.id && isProvider),
@@ -99,7 +111,9 @@ export default function JobDetailPage() {
   const providerProfile = profile?.data;
 
   const existingProposal = myProposals?.[0];
-  const isJobOwner = Boolean(session?.user?.id && session.user.id === job?.client?.id);
+  const isJobOwner = Boolean(
+    session?.user?.id && session.user.id === job?.client?.id,
+  );
   const isGuest = authStatus !== "authenticated";
   const isMaxApplicantsReached =
     !!job?.maxApplicants &&
@@ -107,8 +121,8 @@ export default function JobDetailPage() {
   const isJobClosed = !!job && job.status !== "OPEN";
   const canAutofill = Boolean(
     isProvider &&
-      providerProfile &&
-      (providerProfile.bio || providerProfile.hourlyRate),
+    providerProfile &&
+    (providerProfile.bio || providerProfile.hourlyRate),
   );
 
   useEffect(() => {
@@ -184,10 +198,39 @@ export default function JobDetailPage() {
     const fileUrl = attachments[index];
     setAttachments((prev) => prev.filter((_, i) => i !== index));
 
+    const isUploadedAsset = /\/uploads\//.test(fileUrl);
+    if (!isUploadedAsset) {
+      return;
+    }
+
     try {
       await apiClient.delete(`/upload?url=${encodeURIComponent(fileUrl)}`);
     } catch (removeError) {
       console.error("Attachment delete error:", removeError);
+    }
+  };
+
+  const addPortfolioLink = () => {
+    const trimmed = portfolioLink.trim();
+    if (!trimmed) return;
+
+    try {
+      const parsed = new URL(trimmed);
+      if (!/^https?:$/.test(parsed.protocol)) {
+        toast.error("Please enter a valid http(s) URL");
+        return;
+      }
+
+      if (attachments.includes(trimmed)) {
+        toast.info("This link is already attached");
+        return;
+      }
+
+      setAttachments((prev) => [...prev, trimmed]);
+      setPortfolioLink("");
+      toast.success("Portfolio link added");
+    } catch {
+      toast.error("Please enter a valid URL");
     }
   };
 
@@ -289,11 +332,35 @@ export default function JobDetailPage() {
     );
   };
 
+  const applyMarkdown = (prefix: string, suffix = "", placeholder = "text") => {
+    const textarea = coverLetterRef.current;
+    if (!textarea) {
+      setCoverLetter((prev) => `${prev}${prefix}${placeholder}${suffix}`);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = coverLetter.slice(start, end) || placeholder;
+    const next =
+      coverLetter.slice(0, start) +
+      `${prefix}${selected}${suffix}` +
+      coverLetter.slice(end);
+
+    setCoverLetter(next);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const cursor = start + prefix.length + selected.length + suffix.length;
+      textarea.setSelectionRange(cursor, cursor);
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-slate-50">
         <Header />
-        <main className="flex flex-1 items-center justify-center pt-[var(--public-header-h)]">
+        <main className="flex flex-1 items-center justify-center pt-(--public-header-h)">
           <div className="flex flex-col items-center gap-4 text-center">
             <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
             <p className="text-sm font-medium text-slate-600">
@@ -310,15 +377,15 @@ export default function JobDetailPage() {
     return (
       <div className="flex min-h-screen flex-col bg-slate-50">
         <Header />
-        <main className="flex flex-1 items-center justify-center px-4 pt-[var(--public-header-h)]">
+        <main className="flex flex-1 items-center justify-center px-4 pt-(--public-header-h)">
           <div className="max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
             <AlertCircle className="mx-auto h-12 w-12 text-slate-300" />
             <h1 className="mt-4 text-2xl font-bold text-slate-950">
               Job Not Found
             </h1>
             <p className="mt-2 text-sm text-slate-600">
-              The job you&apos;re looking for may have been removed or is no longer
-              available.
+              The job you&apos;re looking for may have been removed or is no
+              longer available.
             </p>
             <Link
               href="/jobs"
@@ -338,7 +405,7 @@ export default function JobDetailPage() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Header />
 
-      <section className="relative overflow-hidden border-b border-emerald-100/70 bg-gradient-to-b from-white via-emerald-50/50 to-slate-50 pt-[var(--public-header-h)]">
+      <section className="relative overflow-hidden border-b border-emerald-100/70 bg-linear-to-b from-white via-emerald-50/50 to-slate-50 pt-(--public-header-h)">
         <div className="pointer-events-none absolute inset-0 opacity-75">
           <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-emerald-300/30 blur-3xl" />
           <div className="absolute right-0 top-14 h-72 w-72 rounded-full bg-sky-300/25 blur-3xl" />
@@ -358,14 +425,16 @@ export default function JobDetailPage() {
               onClick={handleShare}
               className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm backdrop-blur-sm transition-colors hover:border-emerald-200 hover:text-emerald-700"
             >
-              <span className="material-symbols-outlined text-[18px]">share</span>
+              <span className="material-symbols-outlined text-[18px]">
+                share
+              </span>
               Share
             </button>
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] lg:items-start">
-            <div className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/90 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.32)] backdrop-blur-sm">
-              <div className="relative min-h-[280px] overflow-hidden sm:min-h-[340px]">
+            <div className="overflow-hidden rounded-4xl border border-white/80 bg-white/90 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.32)] backdrop-blur-sm">
+              <div className="relative min-h-70 overflow-hidden sm:min-h-85">
                 {heroImage ? (
                   <Image
                     src={heroImage}
@@ -376,12 +445,12 @@ export default function JobDetailPage() {
                     unoptimized
                   />
                 ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
+                  <div className="absolute inset-0 bg-linear-to-br from-emerald-700 via-teal-700 to-slate-900" />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-r from-slate-950/88 via-slate-950/58 to-slate-950/16" />
-                <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-950/25 to-transparent" />
+                <div className="absolute inset-0 bg-linear-to-r from-slate-950/88 via-slate-950/58 to-slate-950/16" />
+                <div className="absolute inset-x-0 top-0 h-24 bg-linear-to-b from-slate-950/25 to-transparent" />
 
-                <div className="relative flex h-full min-h-[280px] flex-col justify-between p-5 text-white sm:min-h-[340px] sm:p-7">
+                <div className="relative flex h-full min-h-70 flex-col justify-between p-5 text-white sm:min-h-85 sm:p-7">
                   <div className="flex flex-wrap gap-2">
                     <span className="rounded-full bg-white/92 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-900 shadow-sm">
                       {job.category?.name || "General"}
@@ -431,14 +500,16 @@ export default function JobDetailPage() {
               </div>
             </div>
 
-            <aside className="rounded-[2rem] border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.35)] sm:p-6">
+            <aside className="rounded-4xl border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.35)] sm:p-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                 Budget overview
               </p>
               <div className="mt-3">
                 <p className="text-sm text-slate-600">Client budget</p>
                 <p className="mt-1 text-3xl font-bold tracking-tight text-emerald-800">
-                  {job.budget ? formatCurrency(job.budget) : "Open to proposals"}
+                  {job.budget
+                    ? formatCurrency(job.budget)
+                    : "Open to proposals"}
                 </p>
               </div>
 
@@ -521,7 +592,7 @@ export default function JobDetailPage() {
                         sizes="(max-width: 1024px) 50vw, 33vw"
                         unoptimized
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/50 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                      <div className="absolute inset-0 bg-linear-to-t from-slate-950/50 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                     </button>
                   ))}
                 </div>
@@ -551,7 +622,8 @@ export default function JobDetailPage() {
                     Price clearly
                   </p>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Send your proposed amount and, if needed, your estimated time.
+                    Send your proposed amount and, if needed, your estimated
+                    time.
                   </p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
@@ -559,7 +631,8 @@ export default function JobDetailPage() {
                     Add proof of work
                   </p>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Attach a resume, portfolio, or sample files to strengthen your pitch.
+                    Attach a resume, portfolio, or sample files to strengthen
+                    your pitch.
                   </p>
                 </div>
               </div>
@@ -572,7 +645,9 @@ export default function JobDetailPage() {
               animate={{ opacity: 1, x: 0 }}
               className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
             >
-              <h2 className="text-lg font-bold text-slate-950">About the client</h2>
+              <h2 className="text-lg font-bold text-slate-950">
+                About the client
+              </h2>
               <div className="mt-4 flex items-center gap-4">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
                   {job.client?.image ? (
@@ -599,7 +674,9 @@ export default function JobDetailPage() {
                       <Shield className="h-4 w-4 text-emerald-500" />
                     ) : null}
                   </div>
-                  <p className="mt-1 text-sm text-slate-600">Client on JustInTime</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Client on JustInTime
+                  </p>
                 </div>
               </div>
             </motion.section>
@@ -610,7 +687,9 @@ export default function JobDetailPage() {
               transition={{ delay: 0.05 }}
               className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
             >
-              <h2 className="text-lg font-bold text-slate-950">Submit proposal</h2>
+              <h2 className="text-lg font-bold text-slate-950">
+                Submit proposal
+              </h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Apply directly from this page with your pricing, message, and
                 optional attachments.
@@ -619,15 +698,17 @@ export default function JobDetailPage() {
               <div className="mt-5 space-y-4">
                 {isJobClosed ? (
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                    This job is currently <strong>{job.status.toLowerCase()}</strong> and
-                    is not accepting new proposals.
+                    This job is currently{" "}
+                    <strong>{job.status.toLowerCase()}</strong> and is not
+                    accepting new proposals.
                   </div>
                 ) : null}
 
                 {isMaxApplicantsReached ? (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                    This job has reached its applicant limit of {job.maxApplicants}.
-                    The client is reviewing existing proposals.
+                    This job has reached its applicant limit of{" "}
+                    {job.maxApplicants}. The client is reviewing existing
+                    proposals.
                   </div>
                 ) : null}
 
@@ -641,10 +722,16 @@ export default function JobDetailPage() {
                         Status: <strong>{existingProposal.status}</strong>
                       </p>
                       <p>
-                        Price: <strong>{formatCurrency(existingProposal.price)}</strong>
+                        Price:{" "}
+                        <strong>
+                          {formatCurrency(existingProposal.price)}
+                        </strong>
                       </p>
                       <p>
-                        Submitted: <strong>{formatDate(existingProposal.createdAt)}</strong>
+                        Submitted:{" "}
+                        <strong>
+                          {formatDate(existingProposal.createdAt)}
+                        </strong>
                       </p>
                     </div>
                   </div>
@@ -666,7 +753,10 @@ export default function JobDetailPage() {
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                     This is your own job posting, so you can&apos;t apply to it.
                   </div>
-                ) : !showForm && !existingProposal && !isJobClosed && !isMaxApplicantsReached ? (
+                ) : !showForm &&
+                  !existingProposal &&
+                  !isJobClosed &&
+                  !isMaxApplicantsReached ? (
                   <button
                     onClick={openApplyFlow}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
@@ -677,7 +767,10 @@ export default function JobDetailPage() {
                 ) : null}
 
                 <AnimatePresence initial={false}>
-                  {showForm && !existingProposal && !isJobClosed && !isMaxApplicantsReached ? (
+                  {showForm &&
+                  !existingProposal &&
+                  !isJobClosed &&
+                  !isMaxApplicantsReached ? (
                     <motion.form
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
@@ -708,18 +801,138 @@ export default function JobDetailPage() {
                           htmlFor="coverLetter"
                           className="block text-sm font-semibold text-slate-800"
                         >
-                          Cover letter
+                          Cover letter (Markdown supported)
                         </label>
-                        <textarea
-                          id="coverLetter"
-                          rows={6}
-                          required
-                          value={coverLetter}
-                          onChange={(e) => setCoverLetter(e.target.value)}
-                          className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                          placeholder="Explain why you are a strong fit, how you would approach the work, and any relevant experience."
-                        />
-                        <p className="mt-2 text-right text-xs text-slate-500">
+                        <div className="mt-2 rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
+                            <div className="flex flex-wrap items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  applyMarkdown("## ", "", "Section title")
+                                }
+                                className="rounded-md px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                                title="Heading"
+                              >
+                                H2
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  applyMarkdown("**", "**", "bold text")
+                                }
+                                className="rounded-md px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                                title="Bold"
+                              >
+                                Bold
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  applyMarkdown("- ", "", "list item")
+                                }
+                                className="rounded-md px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                                title="Bullet list"
+                              >
+                                List
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  applyMarkdown("[", "](https://)", "link text")
+                                }
+                                className="rounded-md px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                                title="Link"
+                              >
+                                Link
+                              </button>
+                            </div>
+
+                            <div className="inline-flex items-center rounded-lg bg-slate-100 p-1">
+                              <button
+                                type="button"
+                                onClick={() => setCoverLetterMode("write")}
+                                className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${
+                                  coverLetterMode === "write"
+                                    ? "bg-white text-slate-900 shadow-sm"
+                                    : "text-slate-600"
+                                }`}
+                              >
+                                <PenLine className="h-3.5 w-3.5" />
+                                Write
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCoverLetterMode("preview")}
+                                className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${
+                                  coverLetterMode === "preview"
+                                    ? "bg-white text-slate-900 shadow-sm"
+                                    : "text-slate-600"
+                                }`}
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                Preview
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCoverLetterMode("split")}
+                                className={`hidden sm:inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${
+                                  coverLetterMode === "split"
+                                    ? "bg-white text-slate-900 shadow-sm"
+                                    : "text-slate-600"
+                                }`}
+                              >
+                                <Columns2 className="h-3.5 w-3.5" />
+                                Split
+                              </button>
+                            </div>
+                          </div>
+
+                          <div
+                            className={`grid ${
+                              coverLetterMode === "split"
+                                ? "sm:grid-cols-2"
+                                : "grid-cols-1"
+                            }`}
+                          >
+                            {(coverLetterMode === "write" ||
+                              coverLetterMode === "split") && (
+                              <textarea
+                                ref={coverLetterRef}
+                                id="coverLetter"
+                                rows={8}
+                                required
+                                value={coverLetter}
+                                onChange={(e) => setCoverLetter(e.target.value)}
+                                className="w-full border-0 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                                placeholder="Outline your approach, timeline, relevant experience, and what the client can expect as deliverables."
+                              />
+                            )}
+
+                            {(coverLetterMode === "preview" ||
+                              coverLetterMode === "split") && (
+                              <div className="h-full min-h-55 border-t sm:border-t-0 sm:border-l border-slate-100 bg-slate-50/70 p-4 overflow-auto">
+                                {coverLetter.trim() ? (
+                                  <div className="prose prose-sm max-w-none text-slate-700 prose-headings:text-slate-900 prose-a:text-emerald-700">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                      {coverLetter}
+                                    </ReactMarkdown>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-slate-500">
+                                    Preview will appear here as you write in
+                                    Markdown.
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <p className="mt-2 text-xs text-slate-500">
+                          Use Markdown for structure. Include your approach,
+                          similar work, and expected delivery plan.
+                        </p>
+                        <p className="mt-1 text-right text-xs text-slate-500">
                           {coverLetter.trim().length} / 50 characters minimum
                         </p>
                       </div>
@@ -770,8 +983,12 @@ export default function JobDetailPage() {
 
                       <div>
                         <label className="block text-sm font-semibold text-slate-800">
-                          Attachments
+                          Attachments & supporting material
                         </label>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Add resume/CV, certifications, portfolio files, or
+                          links.
+                        </p>
                         <div className="mt-2 space-y-3">
                           {attachments.map((url, index) => (
                             <div
@@ -820,6 +1037,23 @@ export default function JobDetailPage() {
                               </>
                             )}
                           </button>
+
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="url"
+                              value={portfolioLink}
+                              onChange={(e) => setPortfolioLink(e.target.value)}
+                              className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                              placeholder="https://your-portfolio.com/project"
+                            />
+                            <button
+                              type="button"
+                              onClick={addPortfolioLink}
+                              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                            >
+                              Add link
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -926,7 +1160,9 @@ export default function JobDetailPage() {
           </div>
           <button
             onClick={openApplyFlow}
-            disabled={Boolean(existingProposal) || isJobClosed || isMaxApplicantsReached}
+            disabled={
+              Boolean(existingProposal) || isJobClosed || isMaxApplicantsReached
+            }
             className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
             {existingProposal ? "Applied" : "Apply"}

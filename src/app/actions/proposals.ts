@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 
 export async function getClientProposals(jobId?: string) {
   const session = await auth();
-  
+
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -38,6 +38,9 @@ export async function getClientProposals(jobId?: string) {
                 hourlyRate: true,
                 skills: true,
                 isVerified: true,
+                certifications: true,
+                portfolio: true,
+                socialLinks: true,
               },
             },
             receivedReviews: {
@@ -70,10 +73,11 @@ export async function getClientProposals(jobId?: string) {
     // Calculate average rating for each provider
     const proposalsWithRatings = proposals.map((proposal) => {
       const reviews = proposal.provider.receivedReviews;
-      const avgRating = reviews.length > 0
-        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-        : 0;
-      
+      const avgRating =
+        reviews.length > 0
+          ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+          : 0;
+
       return {
         ...proposal,
         provider: {
@@ -94,7 +98,7 @@ export async function getClientProposals(jobId?: string) {
 
 export async function acceptProposal(proposalId: string) {
   const session = await auth();
-  
+
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -148,7 +152,7 @@ export async function acceptProposal(proposalId: string) {
 
     revalidatePath("/client/proposals");
     revalidatePath("/client/jobs");
-    
+
     return { success: true, proposal: updatedProposal };
   } catch (error) {
     console.error("Error accepting proposal:", error);
@@ -158,7 +162,7 @@ export async function acceptProposal(proposalId: string) {
 
 export async function rejectProposal(proposalId: string) {
   const session = await auth();
-  
+
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
@@ -187,7 +191,7 @@ export async function rejectProposal(proposalId: string) {
     });
 
     revalidatePath("/client/proposals");
-    
+
     return { success: true, proposal: updatedProposal };
   } catch (error) {
     console.error("Error rejecting proposal:", error);

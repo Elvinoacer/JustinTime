@@ -339,8 +339,21 @@ function PostJobPageContent() {
     }
   };
 
+  const selectedCategory = categoriesData.find(
+    (c: Category) => c.id === formData.category,
+  );
+  const basicsComplete = Boolean(formData.title && formData.category);
+  const detailsComplete = Boolean(formData.description);
+  const preferencesComplete = Boolean(formData.budget && formData.location);
+  const completionCount = [
+    basicsComplete,
+    detailsComplete,
+    preferencesComplete,
+  ].filter(Boolean).length;
+  const completionPercent = Math.round((completionCount / 3) * 100);
+
   return (
-    <div className="max-w-4xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-8 lg:py-12">
+    <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-8 lg:py-10">
       {/* Success Toast */}
       <AnimatePresence>
         {showSuccessToast && (
@@ -366,14 +379,18 @@ function PostJobPageContent() {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="mb-6 sm:mb-8 lg:mb-12 text-center">
-        <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold text-gray-900">
-          {isEditMode ? "Edit Job" : "Post a New Job"}
+      <div className="mb-6 sm:mb-8 lg:mb-10">
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold px-3 py-1 mb-3">
+          <span className="material-symbols-outlined text-sm">bolt</span>
+          Guided job posting
+        </div>
+        <h1 className="text-2xl xs:text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
+          {isEditMode ? "Edit your job" : "Post a new job"}
         </h1>
-        <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600">
+        <p className="mt-2 text-sm sm:text-base text-gray-600 max-w-3xl">
           {isEditMode
-            ? "Update your job details below."
-            : "Tell us what you need done, and we'll connect you with the best pros."}
+            ? "Refine your details so professionals can send better proposals."
+            : "Use this guided flow to describe your work clearly and get quality proposals faster."}
         </p>
       </div>
 
@@ -453,7 +470,7 @@ function PostJobPageContent() {
                       aria-hidden="true"
                     />
                     <span className="flex items-start px-4 sm:px-6 py-4 text-sm font-medium">
-                      <span className="flex-shrink-0">
+                      <span className="shrink-0">
                         <span
                           className={`flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full border-2 ${
                             step.id < currentStep
@@ -499,8 +516,9 @@ function PostJobPageContent() {
         </nav>
       )}
 
-      <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-xs sm:shadow-md lg:shadow-xl border border-gray-200 overflow-hidden">
-        <div className="p-4 sm:p-6 lg:p-8">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-4 sm:gap-6">
+        <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-xs sm:shadow-md lg:shadow-xl border border-gray-200 overflow-hidden">
+          <div className="p-4 sm:p-6 lg:p-8">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentStep}
@@ -519,11 +537,12 @@ function PostJobPageContent() {
                       Let's start with the basics
                     </h2>
                     <p className="text-xs sm:text-sm text-gray-500">
-                      Give your job a clear title and category.
+                      Give professionals immediate context about the work.
                     </p>
                   </div>
 
-                  <div>
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
+                    <div className="lg:col-span-7">
                     <label
                       htmlFor="title"
                       className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2"
@@ -545,8 +564,11 @@ function PostJobPageContent() {
                           ? "border-red-300 focus:ring-1 sm:focus:ring-2 focus:ring-red-500 focus:border-red-500"
                           : "border-gray-300 focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                       } transition-shadow`}
-                      placeholder="e.g. Fix leaking faucet in kitchen"
+                      placeholder="e.g. Fix leaking kitchen sink and replace tap"
                     />
+                    <p className="mt-1.5 text-xs text-gray-500">
+                      Tip: Start with a verb and include the exact area to reduce back-and-forth.
+                    </p>
                     {errors.title && (
                       <p
                         id="title-error"
@@ -558,9 +580,35 @@ function PostJobPageContent() {
                         {errors.title}
                       </p>
                     )}
+                    </div>
+
+                    <div className="lg:col-span-5 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 sm:p-4">
+                      <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide">
+                        Strong title example
+                      </p>
+                      <p className="text-sm text-emerald-900 mt-1">
+                        Install 3 ceiling lights in living room and hallway
+                      </p>
+                      <p className="text-xs text-emerald-700 mt-2">
+                        Good titles get better matches and faster responses.
+                      </p>
+                    </div>
                   </div>
 
                   <div>
+                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                      <label className="block text-sm font-bold text-gray-700">
+                        Category <span className="text-red-500">*</span>
+                      </label>
+                      {selectedCategory && (
+                        <span className="text-[11px] sm:text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full">
+                          Selected: {selectedCategory.name}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs sm:text-sm text-gray-500 mb-3">
+                      Pick the closest service type so your job reaches the right professionals.
+                    </p>
                     <CategorySelector
                       categories={categoriesData}
                       selectedIds={formData.category ? [formData.category] : []}
@@ -581,18 +629,22 @@ function PostJobPageContent() {
                       Describe the job
                     </h2>
                     <p className="text-xs sm:text-sm text-gray-500">
-                      The more details you provide, the better proposals you'll
-                      get.
+                      Include scope, expected outcome, and any constraints.
                     </p>
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="description"
-                      className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2"
-                    >
-                      Description <span className="text-red-500">*</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                      <label
+                        htmlFor="description"
+                        className="block text-sm font-bold text-gray-700"
+                      >
+                        Description <span className="text-red-500">*</span>
+                      </label>
+                      <span className="text-xs text-gray-500">
+                        {formData.description.length} characters
+                      </span>
+                    </div>
                     <textarea
                       id="description"
                       name="description"
@@ -608,8 +660,13 @@ function PostJobPageContent() {
                           ? "border-red-300 focus:ring-1 sm:focus:ring-2 focus:ring-red-500 focus:border-red-500"
                           : "border-gray-300 focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                       } transition-shadow`}
-                      placeholder="Describe the issue, specific requirements, measurements, etc..."
+                      placeholder="What needs to be done, where exactly, and what should the final result look like? Include measurements, materials, access constraints, and urgency."
                     />
+                    <ul className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-gray-600">
+                      <li className="rounded-lg bg-gray-50 border border-gray-200 px-2.5 py-2">What is broken or needed</li>
+                      <li className="rounded-lg bg-gray-50 border border-gray-200 px-2.5 py-2">Exact location and size</li>
+                      <li className="rounded-lg bg-gray-50 border border-gray-200 px-2.5 py-2">Preferred timeline</li>
+                    </ul>
                     {errors.description && (
                       <p
                         id="description-error"
@@ -1058,7 +1115,7 @@ function PostJobPageContent() {
             <button
               onClick={currentStep === steps.length ? handleSubmit : handleNext}
               disabled={createJobMutation.isPending}
-              className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-5 sm:px-8 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-bold hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base"
+              className="bg-linear-to-r from-emerald-500 to-emerald-600 text-white px-5 sm:px-8 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-bold hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base"
             >
               {createJobMutation.isPending ? (
                 <>
@@ -1073,6 +1130,72 @@ function PostJobPageContent() {
             </button>
           </div>
         </div>
+
+        {!isMobile && (
+          <aside className="hidden xl:block">
+            <div className="sticky top-6 space-y-4">
+              <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-bold text-gray-900">Completion</h3>
+                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full">
+                    {completionPercent}%
+                  </span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
+                  <div
+                    className="h-full bg-linear-to-r from-emerald-500 to-teal-600 transition-all"
+                    style={{ width: `${completionPercent}%` }}
+                  />
+                </div>
+                <ul className="space-y-2 text-xs">
+                  <li className="flex items-center justify-between">
+                    <span className="text-gray-600">Basics</span>
+                    <span className={basicsComplete ? "text-emerald-600" : "text-gray-400"}>
+                      {basicsComplete ? "Done" : "Pending"}
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span className="text-gray-600">Details</span>
+                    <span className={detailsComplete ? "text-emerald-600" : "text-gray-400"}>
+                      {detailsComplete ? "Done" : "Pending"}
+                    </span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span className="text-gray-600">Preferences</span>
+                    <span className={preferencesComplete ? "text-emerald-600" : "text-gray-400"}>
+                      {preferencesComplete ? "Done" : "Pending"}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
+                <h3 className="text-sm font-bold text-gray-900 mb-2">Live Preview</h3>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2">
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">Title</p>
+                  <p className="text-sm font-semibold text-gray-900 line-clamp-2">
+                    {formData.title || "Your job title will appear here"}
+                  </p>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide pt-1">Category</p>
+                  <p className="text-sm text-gray-800">
+                    {selectedCategory?.name || "Not selected"}
+                  </p>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide pt-1">Budget</p>
+                  <p className="text-sm text-gray-800">
+                    {formData.budget ? `KES ${formData.budget}` : "Not set"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                <h3 className="text-sm font-bold text-amber-900 mb-1">Quality Tip</h3>
+                <p className="text-xs text-amber-800">
+                  Jobs with clear title, detailed scope, and realistic budget usually receive better proposals sooner.
+                </p>
+              </div>
+            </div>
+          </aside>
+        )}
       </div>
 
       {/* Mobile Bottom Navigation */}
@@ -1081,7 +1204,7 @@ function PostJobPageContent() {
           <button
             onClick={currentStep === steps.length ? handleSubmit : handleNext}
             disabled={createJobMutation.isPending}
-            className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-md"
+            className="w-full bg-linear-to-r from-emerald-500 to-emerald-600 text-white py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-md"
           >
             {createJobMutation.isPending ? (
               <>
