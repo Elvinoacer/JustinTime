@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { Suspense, useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
 
@@ -56,7 +56,7 @@ function getErrorMessage(error: unknown): string {
   return "Onboarding failed. Please try again.";
 }
 
-export default function OnboardingPage() {
+function OnboardingPageContent() {
   const router = useRouter();
   const { data: session, update } = useSession();
   const [currentStep, setCurrentStep] = useState(1);
@@ -84,6 +84,13 @@ export default function OnboardingPage() {
     longitude: null as number | null,
   });
   const [clientInterests, setClientInterests] = useState<string[]>([]);
+  const [referralCode, setReferralCode] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    setReferralCode(ref?.trim().toUpperCase() || "");
+  }, []);
 
   // Fetch categories from database
   const { data: categoriesData = [], isLoading: isLoadingCategories } =
@@ -240,6 +247,7 @@ export default function OnboardingPage() {
         latitude: clientData.latitude,
         longitude: clientData.longitude,
         clientInterests,
+        ...(referralCode ? { referralCode } : {}),
       };
 
       setSubmitStage("Saving your profile...");
@@ -320,6 +328,7 @@ export default function OnboardingPage() {
         idDocument: idDocumentUrl,
         faceMatchScore: result.faceMatchScore,
         idDocumentType: result.idDocumentType,
+        ...(referralCode ? { referralCode } : {}),
       };
 
       setSubmitStage("Saving your profile...");
@@ -420,5 +429,13 @@ export default function OnboardingPage() {
         )}
       </AnimatePresence>
     </OnboardingShell>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>
+      <OnboardingPageContent />
+    </Suspense>
   );
 }

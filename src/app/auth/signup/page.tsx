@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -21,7 +21,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 
-export default function SignupPage() {
+function SignupPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
@@ -74,7 +74,10 @@ export default function SignupPage() {
 
   const handleGoogleSignIn = async () => {
     try {
-      await signIn("google", { callbackUrl: "/onboarding" });
+      const callbackUrl = referralCode
+        ? `/onboarding?ref=${encodeURIComponent(referralCode)}`
+        : "/onboarding";
+      await signIn("google", { callbackUrl });
     } catch (error) {
       toast.error("Failed to sign in with Google");
     }
@@ -525,5 +528,13 @@ export default function SignupPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <SignupPageContent />
+    </Suspense>
   );
 }

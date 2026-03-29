@@ -29,6 +29,7 @@ export const POST = auth(async (req) => {
       idDocumentType,
       locationSource,
       locationAccuracy,
+      referralCode,
     } = body;
 
     // Sanitize string inputs
@@ -36,6 +37,9 @@ export const POST = auth(async (req) => {
     bio = bio?.trim();
     phone = phone ? normalizeKenyanPhone(phone.trim()) : "";
     address = address?.trim();
+    const normalizedReferralCode = referralCode
+      ? String(referralCode).trim().toUpperCase()
+      : "";
 
     // B12 Fix: Robust validation
     if (!["CLIENT", "PROVIDER"].includes(role)) {
@@ -126,7 +130,7 @@ export const POST = auth(async (req) => {
             : []),
         ],
       },
-      select: { id: true, email: true },
+      select: { id: true, email: true, referredById: true },
     });
 
     if (!actingUser) {
@@ -137,6 +141,45 @@ export const POST = auth(async (req) => {
         },
         { status: 404 },
       );
+    }
+
+    let referralToApplyReferrerId: string | null = null;
+    if (normalizedReferralCode && !actingUser.referredById) {
+      const referralCodePattern = /^JIT-[A-HJ-NP-Z2-9]{6}$/;
+      if (!referralCodePattern.test(normalizedReferralCode)) {
+        return NextResponse.json(
+          { error: "Invalid referral code format" },
+          { status: 400 },
+        );
+      }
+
+      const referrer = await prisma.user.findUnique({
+        where: { referralCode: normalizedReferralCode },
+        select: { id: true },
+      });
+
+      if (!referrer) {
+        return NextResponse.json(
+          { error: "Referral code not found" },
+          { status: 400 },
+        );
+      }
+
+      if (referrer.id === actingUser.id) {
+        return NextResponse.json(
+          { error: "You cannot use your own referral code" },
+          { status: 400 },
+        );
+      }
+
+      const existingReferral = await prisma.referral.findUnique({
+        where: { referredUserId: actingUser.id },
+        select: { id: true },
+      });
+
+      if (!existingReferral) {
+        referralToApplyReferrerId = referrer.id;
+      }
     }
 
     // Fail fast with a precise error when phone is already used by another user.
@@ -170,8 +213,23 @@ export const POST = auth(async (req) => {
         clientInterests: clientInterests || [],
         ...(image && { image }), // Update image if provided
         ...(phone && { phone }), // Update phone if provided
+        ...(referralToApplyReferrerId && {
+          referredById: referralToApplyReferrerId,
+        }),
       },
     });
+
+    if (referralToApplyReferrerId) {
+      await prisma.referral.create({
+        data: {
+          referrerId: referralToApplyReferrerId,
+          referredUserId: actingUser.id,
+          status: "PENDING",
+          type: "SIGNUP",
+          points: 100,
+        },
+      });
+    }
 
     // If provider, create or update profile
     if (role === "PROVIDER") {
