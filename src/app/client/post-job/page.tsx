@@ -129,7 +129,7 @@ function PostJobPageContent() {
       // Prefill images if they exist
       if (existingJob.images && existingJob.images.length > 0) {
         setUploadedImages(
-          existingJob.images.map((url: string) => ({ url, publicId: "" }))
+          existingJob.images.map((url: string) => ({ url, publicId: "" })),
         );
       }
     }
@@ -173,8 +173,8 @@ function PostJobPageContent() {
           prev.map((f, idx) =>
             f.preview === fileObj.preview
               ? { ...f, progress: 100, publicId: data.publicId }
-              : f
-          )
+              : f,
+          ),
         );
 
         setTimeout(() => {
@@ -183,14 +183,14 @@ function PostJobPageContent() {
             { url: data.url, publicId: data.publicId },
           ]);
           setUploadingFiles((prev) =>
-            prev.filter((f) => f.preview !== fileObj.preview)
+            prev.filter((f) => f.preview !== fileObj.preview),
           );
           URL.revokeObjectURL(fileObj.preview);
         }, 500);
       } catch (error) {
         console.error("Image upload failed:", error);
         setUploadingFiles((prev) =>
-          prev.filter((f) => f.preview !== fileObj.preview)
+          prev.filter((f) => f.preview !== fileObj.preview),
         );
         URL.revokeObjectURL(fileObj.preview);
       }
@@ -283,7 +283,7 @@ function PostJobPageContent() {
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -428,8 +428,8 @@ function PostJobPageContent() {
                   step.id < currentStep
                     ? "bg-emerald-600"
                     : step.id === currentStep
-                    ? "bg-emerald-400"
-                    : "bg-gray-200"
+                      ? "bg-emerald-400"
+                      : "bg-gray-200"
                 }`}
               />
             ))}
@@ -464,8 +464,8 @@ function PostJobPageContent() {
                         step.id < currentStep
                           ? "bg-emerald-600"
                           : step.id === currentStep
-                          ? "bg-emerald-600"
-                          : ""
+                            ? "bg-emerald-600"
+                            : ""
                       }`}
                       aria-hidden="true"
                     />
@@ -476,8 +476,8 @@ function PostJobPageContent() {
                             step.id < currentStep
                               ? "border-emerald-600 bg-emerald-600"
                               : step.id === currentStep
-                              ? "border-emerald-600"
-                              : "border-gray-300"
+                                ? "border-emerald-600"
+                                : "border-gray-300"
                           }`}
                         >
                           <span
@@ -485,8 +485,8 @@ function PostJobPageContent() {
                               step.id < currentStep
                                 ? "text-white"
                                 : step.id === currentStep
-                                ? "text-emerald-600"
-                                : "text-gray-500"
+                                  ? "text-emerald-600"
+                                  : "text-gray-500"
                             }`}
                           >
                             {step.id < currentStep ? "check" : step.icon}
@@ -519,615 +519,630 @@ function PostJobPageContent() {
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-4 sm:gap-6">
         <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-xs sm:shadow-md lg:shadow-xl border border-gray-200 overflow-hidden">
           <div className="p-4 sm:p-6 lg:p-8">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStep}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-4 sm:space-y-6 focus:outline-none"
-              tabIndex={-1}
-              ref={stepRef}
-            >
-              {currentStep === 1 && (
-                <div className="space-y-4 sm:space-y-6">
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
-                      Let's start with the basics
-                    </h2>
-                    <p className="text-xs sm:text-sm text-gray-500">
-                      Give professionals immediate context about the work.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
-                    <div className="lg:col-span-7">
-                    <label
-                      htmlFor="title"
-                      className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2"
-                    >
-                      Job Title <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="title"
-                      id="title"
-                      value={formData.title}
-                      onChange={handleChange}
-                      aria-invalid={!!errors.title}
-                      aria-describedby={
-                        errors.title ? "title-error" : undefined
-                      }
-                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border text-sm sm:text-base text-gray-900 ${
-                        errors.title
-                          ? "border-red-300 focus:ring-1 sm:focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                          : "border-gray-300 focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                      } transition-shadow`}
-                      placeholder="e.g. Fix leaking kitchen sink and replace tap"
-                    />
-                    <p className="mt-1.5 text-xs text-gray-500">
-                      Tip: Start with a verb and include the exact area to reduce back-and-forth.
-                    </p>
-                    {errors.title && (
-                      <p
-                        id="title-error"
-                        className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-xs">
-                          error
-                        </span>
-                        {errors.title}
-                      </p>
-                    )}
-                    </div>
-
-                    <div className="lg:col-span-5 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 sm:p-4">
-                      <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide">
-                        Strong title example
-                      </p>
-                      <p className="text-sm text-emerald-900 mt-1">
-                        Install 3 ceiling lights in living room and hallway
-                      </p>
-                      <p className="text-xs text-emerald-700 mt-2">
-                        Good titles get better matches and faster responses.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                      <label className="block text-sm font-bold text-gray-700">
-                        Category <span className="text-red-500">*</span>
-                      </label>
-                      {selectedCategory && (
-                        <span className="text-[11px] sm:text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full">
-                          Selected: {selectedCategory.name}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs sm:text-sm text-gray-500 mb-3">
-                      Pick the closest service type so your job reaches the right professionals.
-                    </p>
-                    <CategorySelector
-                      categories={categoriesData}
-                      selectedIds={formData.category ? [formData.category] : []}
-                      onToggle={(id) => handleCategorySelect(id)}
-                      isLoading={isLoadingCategories}
-                      error={errors.category}
-                      label="Category"
-                      compact={isMobile}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {currentStep === 2 && (
-                <div className="space-y-4 sm:space-y-6">
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
-                      Describe the job
-                    </h2>
-                    <p className="text-xs sm:text-sm text-gray-500">
-                      Include scope, expected outcome, and any constraints.
-                    </p>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-                      <label
-                        htmlFor="description"
-                        className="block text-sm font-bold text-gray-700"
-                      >
-                        Description <span className="text-red-500">*</span>
-                      </label>
-                      <span className="text-xs text-gray-500">
-                        {formData.description.length} characters
-                      </span>
-                    </div>
-                    <textarea
-                      id="description"
-                      name="description"
-                      rows={isMobile ? 4 : 6}
-                      value={formData.description}
-                      onChange={handleChange}
-                      aria-invalid={!!errors.description}
-                      aria-describedby={
-                        errors.description ? "description-error" : undefined
-                      }
-                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border text-sm sm:text-base text-gray-900 ${
-                        errors.description
-                          ? "border-red-300 focus:ring-1 sm:focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                          : "border-gray-300 focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                      } transition-shadow`}
-                      placeholder="What needs to be done, where exactly, and what should the final result look like? Include measurements, materials, access constraints, and urgency."
-                    />
-                    <ul className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-gray-600">
-                      <li className="rounded-lg bg-gray-50 border border-gray-200 px-2.5 py-2">What is broken or needed</li>
-                      <li className="rounded-lg bg-gray-50 border border-gray-200 px-2.5 py-2">Exact location and size</li>
-                      <li className="rounded-lg bg-gray-50 border border-gray-200 px-2.5 py-2">Preferred timeline</li>
-                    </ul>
-                    {errors.description && (
-                      <p
-                        id="description-error"
-                        className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-xs">
-                          error
-                        </span>
-                        {errors.description}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Image Upload Section */}
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2">
-                      Photos (Optional)
-                    </label>
-                    <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
-                      Add photos to help professionals understand the job
-                      better.
-                    </p>
-
-                    {/* Upload Area */}
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg sm:rounded-xl p-4 sm:p-6 text-center hover:border-emerald-400 transition-colors">
-                      <input
-                        type="file"
-                        id="images"
-                        accept="image/*"
-                        multiple
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                      <label htmlFor="images" className="cursor-pointer">
-                        <span className="material-symbols-outlined text-2xl sm:text-3xl lg:text-4xl text-gray-400 mb-1.5 sm:mb-2">
-                          cloud_upload
-                        </span>
-                        <p className="text-xs sm:text-sm font-medium text-gray-700">
-                          {uploadingFiles.length > 0
-                            ? "Uploading..."
-                            : "Click to upload or drag and drop"}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-0.5 sm:mt-1">
-                          PNG, JPG, GIF up to 10MB
-                        </p>
-                      </label>
-                    </div>
-
-                    {/* Uploading Progress */}
-                    {uploadingFiles.length > 0 && (
-                      <div className="mt-3 sm:mt-4 space-y-2 sm:space-y-3">
-                        <p className="text-xs sm:text-sm font-medium text-gray-700">
-                          Uploading...
-                        </p>
-                        {uploadingFiles.map((file, index) => (
-                          <div
-                            key={index}
-                            className="border border-gray-200 rounded-lg p-2.5 sm:p-3"
-                          >
-                            <div className="flex items-center gap-2 sm:gap-3">
-                              <img
-                                src={file.preview}
-                                alt={file.file.name}
-                                className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded"
-                              />
-                              <div className="flex-1">
-                                <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">
-                                  {file.file.name}
-                                </p>
-                                <div className="mt-1 w-full bg-gray-200 rounded-full h-1.5 sm:h-2">
-                                  <div
-                                    className="bg-emerald-600 h-1.5 sm:h-2 rounded-full transition-all"
-                                    style={{ width: `${file.progress}%` }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Uploaded Images Gallery */}
-                    {uploadedImages.length > 0 && (
-                      <div className="mt-3 sm:mt-4">
-                        <p className="text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">
-                          {uploadedImages.length} photo(s) uploaded
-                        </p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
-                          {uploadedImages.map((image, index) => (
-                            <div
-                              key={index}
-                              className="relative aspect-square rounded-lg overflow-hidden group"
-                            >
-                              <img
-                                src={image.url}
-                                alt={`Upload ${index + 1}`}
-                                className="w-full h-full object-cover"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removeImage(index)}
-                                className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-red-500 text-white p-0.5 sm:p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Remove image"
-                              >
-                                <span className="material-symbols-outlined text-xs sm:text-sm">
-                                  close
-                                </span>
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {currentStep === 3 && (
-                <div className="space-y-4 sm:space-y-6">
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
-                      Budget & Location
-                    </h2>
-                    <p className="text-xs sm:text-sm text-gray-500">
-                      Help pros understand your constraints.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentStep}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-4 sm:space-y-6 focus:outline-none"
+                tabIndex={-1}
+                ref={stepRef}
+              >
+                {currentStep === 1 && (
+                  <div className="space-y-4 sm:space-y-6">
                     <div>
-                      <label
-                        htmlFor="budget"
-                        className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2"
-                      >
-                        Estimated Budget (KES){" "}
-                        <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <span className="text-gray-500 font-medium text-sm">
-                            KES
-                          </span>
-                        </span>
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
+                        Let's start with the basics
+                      </h2>
+                      <p className="text-xs sm:text-sm text-gray-500">
+                        Give professionals immediate context about the work.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
+                      <div className="lg:col-span-7">
+                        <label
+                          htmlFor="title"
+                          className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2"
+                        >
+                          Job Title <span className="text-red-500">*</span>
+                        </label>
                         <input
-                          type="number"
-                          name="budget"
-                          id="budget"
-                          value={formData.budget}
+                          type="text"
+                          name="title"
+                          id="title"
+                          value={formData.title}
                           onChange={handleChange}
-                          aria-invalid={!!errors.budget}
+                          aria-invalid={!!errors.title}
                           aria-describedby={
-                            errors.budget ? "budget-error" : undefined
+                            errors.title ? "title-error" : undefined
                           }
-                          className={`w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border text-sm sm:text-base text-gray-900 ${
-                            errors.budget
+                          className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border text-sm sm:text-base text-gray-900 ${
+                            errors.title
                               ? "border-red-300 focus:ring-1 sm:focus:ring-2 focus:ring-red-500 focus:border-red-500"
                               : "border-gray-300 focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                           } transition-shadow`}
-                          placeholder="e.g. 5000"
+                          placeholder="e.g. Fix leaking kitchen sink and replace tap"
                         />
+                        <p className="mt-1.5 text-xs text-gray-500">
+                          Tip: Start with a verb and include the exact area to
+                          reduce back-and-forth.
+                        </p>
+                        {errors.title && (
+                          <p
+                            id="title-error"
+                            className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-xs">
+                              error
+                            </span>
+                            {errors.title}
+                          </p>
+                        )}
                       </div>
-                      {errors.budget && (
+
+                      <div className="lg:col-span-5 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 sm:p-4">
+                        <p className="text-xs font-bold text-emerald-800 uppercase tracking-wide">
+                          Strong title example
+                        </p>
+                        <p className="text-sm text-emerald-900 mt-1">
+                          Install 3 ceiling lights in living room and hallway
+                        </p>
+                        <p className="text-xs text-emerald-700 mt-2">
+                          Good titles get better matches and faster responses.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                        <label className="block text-sm font-bold text-gray-700">
+                          Category <span className="text-red-500">*</span>
+                        </label>
+                        {selectedCategory && (
+                          <span className="text-[11px] sm:text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full">
+                            Selected: {selectedCategory.name}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs sm:text-sm text-gray-500 mb-3">
+                        Pick the closest service type so your job reaches the
+                        right professionals.
+                      </p>
+                      <CategorySelector
+                        categories={categoriesData}
+                        selectedIds={
+                          formData.category ? [formData.category] : []
+                        }
+                        onToggle={(id) => handleCategorySelect(id)}
+                        isLoading={isLoadingCategories}
+                        error={errors.category}
+                        label="Category"
+                        compact={isMobile}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {currentStep === 2 && (
+                  <div className="space-y-4 sm:space-y-6">
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
+                        Describe the job
+                      </h2>
+                      <p className="text-xs sm:text-sm text-gray-500">
+                        Include scope, expected outcome, and any constraints.
+                      </p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                        <label
+                          htmlFor="description"
+                          className="block text-sm font-bold text-gray-700"
+                        >
+                          Description <span className="text-red-500">*</span>
+                        </label>
+                        <span className="text-xs text-gray-500">
+                          {formData.description.length} characters
+                        </span>
+                      </div>
+                      <textarea
+                        id="description"
+                        name="description"
+                        rows={isMobile ? 4 : 6}
+                        value={formData.description}
+                        onChange={handleChange}
+                        aria-invalid={!!errors.description}
+                        aria-describedby={
+                          errors.description ? "description-error" : undefined
+                        }
+                        className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border text-sm sm:text-base text-gray-900 ${
+                          errors.description
+                            ? "border-red-300 focus:ring-1 sm:focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                            : "border-gray-300 focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        } transition-shadow`}
+                        placeholder="What needs to be done, where exactly, and what should the final result look like? Include measurements, materials, access constraints, and urgency."
+                      />
+                      <ul className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-gray-600">
+                        <li className="rounded-lg bg-gray-50 border border-gray-200 px-2.5 py-2">
+                          What is broken or needed
+                        </li>
+                        <li className="rounded-lg bg-gray-50 border border-gray-200 px-2.5 py-2">
+                          Exact location and size
+                        </li>
+                        <li className="rounded-lg bg-gray-50 border border-gray-200 px-2.5 py-2">
+                          Preferred timeline
+                        </li>
+                      </ul>
+                      {errors.description && (
                         <p
-                          id="budget-error"
+                          id="description-error"
                           className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1"
                         >
                           <span className="material-symbols-outlined text-xs">
                             error
                           </span>
-                          {errors.budget}
+                          {errors.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Image Upload Section */}
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2">
+                        Photos (Optional)
+                      </label>
+                      <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
+                        Add photos to help professionals understand the job
+                        better.
+                      </p>
+
+                      {/* Upload Area */}
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg sm:rounded-xl p-4 sm:p-6 text-center hover:border-emerald-400 transition-colors">
+                        <input
+                          type="file"
+                          id="images"
+                          accept="image/*"
+                          multiple
+                          onChange={handleImageUpload}
+                          className="hidden"
+                        />
+                        <label htmlFor="images" className="cursor-pointer">
+                          <span className="material-symbols-outlined text-2xl sm:text-3xl lg:text-4xl text-gray-400 mb-1.5 sm:mb-2">
+                            cloud_upload
+                          </span>
+                          <p className="text-xs sm:text-sm font-medium text-gray-700">
+                            {uploadingFiles.length > 0
+                              ? "Uploading..."
+                              : "Click to upload or drag and drop"}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5 sm:mt-1">
+                            PNG, JPG, GIF up to 10MB
+                          </p>
+                        </label>
+                      </div>
+
+                      {/* Uploading Progress */}
+                      {uploadingFiles.length > 0 && (
+                        <div className="mt-3 sm:mt-4 space-y-2 sm:space-y-3">
+                          <p className="text-xs sm:text-sm font-medium text-gray-700">
+                            Uploading...
+                          </p>
+                          {uploadingFiles.map((file, index) => (
+                            <div
+                              key={index}
+                              className="border border-gray-200 rounded-lg p-2.5 sm:p-3"
+                            >
+                              <div className="flex items-center gap-2 sm:gap-3">
+                                <img
+                                  src={file.preview}
+                                  alt={file.file.name}
+                                  className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded"
+                                />
+                                <div className="flex-1">
+                                  <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">
+                                    {file.file.name}
+                                  </p>
+                                  <div className="mt-1 w-full bg-gray-200 rounded-full h-1.5 sm:h-2">
+                                    <div
+                                      className="bg-emerald-600 h-1.5 sm:h-2 rounded-full transition-all"
+                                      style={{ width: `${file.progress}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Uploaded Images Gallery */}
+                      {uploadedImages.length > 0 && (
+                        <div className="mt-3 sm:mt-4">
+                          <p className="text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">
+                            {uploadedImages.length} photo(s) uploaded
+                          </p>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
+                            {uploadedImages.map((image, index) => (
+                              <div
+                                key={index}
+                                className="relative aspect-square rounded-lg overflow-hidden group"
+                              >
+                                <img
+                                  src={image.url}
+                                  alt={`Upload ${index + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeImage(index)}
+                                  className="absolute top-1 sm:top-2 right-1 sm:right-2 bg-red-500 text-white p-0.5 sm:p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Remove image"
+                                >
+                                  <span className="material-symbols-outlined text-xs sm:text-sm">
+                                    close
+                                  </span>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {currentStep === 3 && (
+                  <div className="space-y-4 sm:space-y-6">
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
+                        Budget & Location
+                      </h2>
+                      <p className="text-xs sm:text-sm text-gray-500">
+                        Help pros understand your constraints.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                      <div>
+                        <label
+                          htmlFor="budget"
+                          className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2"
+                        >
+                          Estimated Budget (KES){" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span className="text-gray-500 font-medium text-sm">
+                              KES
+                            </span>
+                          </span>
+                          <input
+                            type="number"
+                            name="budget"
+                            id="budget"
+                            value={formData.budget}
+                            onChange={handleChange}
+                            aria-invalid={!!errors.budget}
+                            aria-describedby={
+                              errors.budget ? "budget-error" : undefined
+                            }
+                            className={`w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border text-sm sm:text-base text-gray-900 ${
+                              errors.budget
+                                ? "border-red-300 focus:ring-1 sm:focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                : "border-gray-300 focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                            } transition-shadow`}
+                            placeholder="e.g. 5000"
+                          />
+                        </div>
+                        {errors.budget && (
+                          <p
+                            id="budget-error"
+                            className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-xs">
+                              error
+                            </span>
+                            {errors.budget}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="date"
+                          className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2"
+                        >
+                          Preferred Date (Optional)
+                        </label>
+                        <input
+                          type="date"
+                          name="date"
+                          id="date"
+                          value={formData.date}
+                          onChange={handleChange}
+                          className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border border-gray-300 text-sm sm:text-base text-gray-900 focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="maxApplicants"
+                        className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2"
+                      >
+                        Max Applicants (Optional)
+                      </label>
+                      <p className="text-xs sm:text-sm text-gray-500 mb-2">
+                        Limit the number of proposals you receive.
+                      </p>
+                      <input
+                        type="number"
+                        name="maxApplicants"
+                        id="maxApplicants"
+                        min="1"
+                        value={formData.maxApplicants}
+                        onChange={handleChange}
+                        aria-invalid={!!errors.maxApplicants}
+                        aria-describedby={
+                          errors.maxApplicants
+                            ? "maxApplicants-error"
+                            : undefined
+                        }
+                        className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border text-sm sm:text-base text-gray-900 ${
+                          errors.maxApplicants
+                            ? "border-red-300 focus:ring-1 sm:focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                            : "border-gray-300 focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        } transition-shadow`}
+                        placeholder="e.g. 10"
+                      />
+                      {errors.maxApplicants && (
+                        <p
+                          id="maxApplicants-error"
+                          className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-xs">
+                            error
+                          </span>
+                          {errors.maxApplicants}
                         </p>
                       )}
                     </div>
 
                     <div>
                       <label
-                        htmlFor="date"
+                        htmlFor="location"
                         className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2"
                       >
-                        Preferred Date (Optional)
+                        Location <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="date"
-                        name="date"
-                        id="date"
-                        value={formData.date}
-                        onChange={handleChange}
-                        className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border border-gray-300 text-sm sm:text-base text-gray-900 focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="maxApplicants"
-                      className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2"
-                    >
-                      Max Applicants (Optional)
-                    </label>
-                    <p className="text-xs sm:text-sm text-gray-500 mb-2">
-                      Limit the number of proposals you receive.
-                    </p>
-                    <input
-                      type="number"
-                      name="maxApplicants"
-                      id="maxApplicants"
-                      min="1"
-                      value={formData.maxApplicants}
-                      onChange={handleChange}
-                      aria-invalid={!!errors.maxApplicants}
-                      aria-describedby={
-                        errors.maxApplicants ? "maxApplicants-error" : undefined
-                      }
-                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border text-sm sm:text-base text-gray-900 ${
-                        errors.maxApplicants
-                          ? "border-red-300 focus:ring-1 sm:focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                          : "border-gray-300 focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                      } transition-shadow`}
-                      placeholder="e.g. 10"
-                    />
-                    {errors.maxApplicants && (
-                      <p
-                        id="maxApplicants-error"
-                        className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-xs">
-                          error
-                        </span>
-                        {errors.maxApplicants}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="location"
-                      className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2"
-                    >
-                      Location <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="material-symbols-outlined text-gray-400 text-sm">
-                          location_on
-                        </span>
-                      </span>
-                      <input
-                        type="text"
-                        name="location"
-                        id="location"
-                        value={formData.location}
-                        onChange={handleChange}
-                        aria-invalid={!!errors.location}
-                        aria-describedby={
-                          errors.location ? "location-error" : undefined
-                        }
-                        className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border text-sm sm:text-base text-gray-900 ${
-                          errors.location
-                            ? "border-red-300 focus:ring-1 sm:focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                            : "border-gray-300 focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                        } transition-shadow`}
-                        placeholder="e.g. Westlands, Nairobi"
-                      />
-                    </div>
-                    {errors.location && (
-                      <p
-                        id="location-error"
-                        className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-xs">
-                          error
-                        </span>
-                        {errors.location}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {currentStep === 4 && (
-                <div className="space-y-4 sm:space-y-6">
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
-                      Review & Post
-                    </h2>
-                    <p className="text-xs sm:text-sm text-gray-500">
-                      Review your job details before posting.
-                    </p>
-                  </div>
-
-                  <div className="bg-gray-50 rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-6 border border-gray-200">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                          Job Title
-                        </h3>
-                        <p className="text-base sm:text-lg font-bold text-gray-900">
-                          {formData.title}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setCurrentStep(1)}
-                        className="text-emerald-600 text-xs sm:text-sm font-medium hover:underline whitespace-nowrap ml-2"
-                      >
-                        Edit
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                      <div>
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                          Category
-                        </h3>
-                        <div className="flex items-center gap-1.5 sm:gap-2">
-                          {categoriesData.find(
-                            (c: Category) => c.id === formData.category
-                          )?.image ? (
-                            <img
-                              src={
-                                categoriesData.find(
-                                  (c: Category) => c.id === formData.category
-                                )?.image
-                              }
-                              alt="Category"
-                              className="w-5 h-5 sm:w-6 sm:h-6 object-contain"
-                            />
-                          ) : (
-                            <span className="material-symbols-outlined text-gray-600 text-base">
-                              {
-                                categoriesData.find(
-                                  (c: Category) => c.id === formData.category
-                                )?.icon
-                              }
-                            </span>
-                          )}
-                          <p className="text-sm sm:text-base text-gray-900 capitalize truncate">
-                            {
-                              categoriesData.find(
-                                (c: Category) => c.id === formData.category
-                              )?.name
-                            }
-                          </p>
-                        </div>
-                      </div>
-                      <div>
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                          Budget
-                        </h3>
-                        <p className="text-base sm:text-lg text-emerald-600 font-bold">
-                          KES {formData.budget}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                        Description
-                      </h3>
-                      <p className="text-sm sm:text-base text-gray-600 whitespace-pre-wrap max-h-32 overflow-y-auto pr-2">
-                        {formData.description}
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                      <div>
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                          Location
-                        </h3>
-                        <div className="flex items-center gap-1.5 sm:gap-2">
-                          <span className="material-symbols-outlined text-gray-400 text-base">
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span className="material-symbols-outlined text-gray-400 text-sm">
                             location_on
                           </span>
-                          <p className="text-sm sm:text-base text-gray-900 truncate">
-                            {formData.location}
-                          </p>
-                        </div>
+                        </span>
+                        <input
+                          type="text"
+                          name="location"
+                          id="location"
+                          value={formData.location}
+                          onChange={handleChange}
+                          aria-invalid={!!errors.location}
+                          aria-describedby={
+                            errors.location ? "location-error" : undefined
+                          }
+                          className={`w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border text-sm sm:text-base text-gray-900 ${
+                            errors.location
+                              ? "border-red-300 focus:ring-1 sm:focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                              : "border-gray-300 focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          } transition-shadow`}
+                          placeholder="e.g. Westlands, Nairobi"
+                        />
                       </div>
-                      <div>
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                          Date
-                        </h3>
-                        <div className="flex items-center gap-1.5 sm:gap-2">
-                          <span className="material-symbols-outlined text-gray-400 text-base">
-                            calendar_today
+                      {errors.location && (
+                        <p
+                          id="location-error"
+                          className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-xs">
+                            error
                           </span>
-                          <p className="text-sm sm:text-base text-gray-900">
-                            {formData.date || "Flexible"}
-                          </p>
-                        </div>
-                      </div>
-                      {formData.maxApplicants && (
+                          {errors.location}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {currentStep === 4 && (
+                  <div className="space-y-4 sm:space-y-6">
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
+                        Review & Post
+                      </h2>
+                      <p className="text-xs sm:text-sm text-gray-500">
+                        Review your job details before posting.
+                      </p>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 space-y-4 sm:space-y-6 border border-gray-200">
+                      <div className="flex justify-between items-start">
                         <div>
                           <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                            Max Applicants
+                            Job Title
                           </h3>
-                          <p className="text-sm sm:text-base text-gray-900">
-                            {formData.maxApplicants}
+                          <p className="text-base sm:text-lg font-bold text-gray-900">
+                            {formData.title}
                           </p>
+                        </div>
+                        <button
+                          onClick={() => setCurrentStep(1)}
+                          className="text-emerald-600 text-xs sm:text-sm font-medium hover:underline whitespace-nowrap ml-2"
+                        >
+                          Edit
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                        <div>
+                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                            Category
+                          </h3>
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            {categoriesData.find(
+                              (c: Category) => c.id === formData.category,
+                            )?.image ? (
+                              <img
+                                src={
+                                  categoriesData.find(
+                                    (c: Category) => c.id === formData.category,
+                                  )?.image
+                                }
+                                alt="Category"
+                                className="w-5 h-5 sm:w-6 sm:h-6 object-contain"
+                              />
+                            ) : (
+                              <span className="material-symbols-outlined text-gray-600 text-base">
+                                {
+                                  categoriesData.find(
+                                    (c: Category) => c.id === formData.category,
+                                  )?.icon
+                                }
+                              </span>
+                            )}
+                            <p className="text-sm sm:text-base text-gray-900 capitalize truncate">
+                              {
+                                categoriesData.find(
+                                  (c: Category) => c.id === formData.category,
+                                )?.name
+                              }
+                            </p>
+                          </div>
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                            Budget
+                          </h3>
+                          <p className="text-base sm:text-lg text-emerald-600 font-bold">
+                            KES {formData.budget}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                          Description
+                        </h3>
+                        <p className="text-sm sm:text-base text-gray-600 whitespace-pre-wrap max-h-32 overflow-y-auto pr-2">
+                          {formData.description}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                        <div>
+                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                            Location
+                          </h3>
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <span className="material-symbols-outlined text-gray-400 text-base">
+                              location_on
+                            </span>
+                            <p className="text-sm sm:text-base text-gray-900 truncate">
+                              {formData.location}
+                            </p>
+                          </div>
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                            Date
+                          </h3>
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <span className="material-symbols-outlined text-gray-400 text-base">
+                              calendar_today
+                            </span>
+                            <p className="text-sm sm:text-base text-gray-900">
+                              {formData.date || "Flexible"}
+                            </p>
+                          </div>
+                        </div>
+                        {formData.maxApplicants && (
+                          <div>
+                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                              Max Applicants
+                            </h3>
+                            <p className="text-sm sm:text-base text-gray-900">
+                              {formData.maxApplicants}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {uploadedImages.length > 0 && (
+                        <div>
+                          <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                            Photos ({uploadedImages.length})
+                          </h3>
+                          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                            {uploadedImages.slice(0, 3).map((image, index) => (
+                              <img
+                                key={index}
+                                src={image.url}
+                                alt={`Job photo ${index + 1}`}
+                                className="aspect-square object-cover rounded-lg"
+                              />
+                            ))}
+                            {uploadedImages.length > 3 && (
+                              <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+                                <span className="text-xs sm:text-sm font-bold text-gray-600">
+                                  +{uploadedImages.length - 3} more
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
-
-                    {uploadedImages.length > 0 && (
-                      <div>
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
-                          Photos ({uploadedImages.length})
-                        </h3>
-                        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                          {uploadedImages.slice(0, 3).map((image, index) => (
-                            <img
-                              key={index}
-                              src={image.url}
-                              alt={`Job photo ${index + 1}`}
-                              className="aspect-square object-cover rounded-lg"
-                            />
-                          ))}
-                          {uploadedImages.length > 3 && (
-                            <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
-                              <span className="text-xs sm:text-sm font-bold text-gray-600">
-                                +{uploadedImages.length - 3} more
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
-                </div>
-              )}
-            </motion.div>
-          </AnimatePresence>
+                )}
+              </motion.div>
+            </AnimatePresence>
 
-          <div className="mt-6 sm:mt-8 lg:mt-10 flex justify-between pt-4 sm:pt-6 border-t border-gray-100">
-            <button
-              onClick={handleBack}
-              disabled={currentStep === 1}
-              className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-medium transition-colors text-sm sm:text-base ${
-                currentStep === 1
-                  ? "text-gray-300 cursor-not-allowed"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-              }`}
-            >
-              Back
-            </button>
-            <button
-              onClick={currentStep === steps.length ? handleSubmit : handleNext}
-              disabled={createJobMutation.isPending}
-              className="bg-linear-to-r from-emerald-500 to-emerald-600 text-white px-5 sm:px-8 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-bold hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base"
-            >
-              {createJobMutation.isPending ? (
-                <>
-                  <span className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  <span className="text-xs sm:text-sm">Posting...</span>
-                </>
-              ) : currentStep === steps.length ? (
-                "Post Job Now"
-              ) : (
-                "Continue"
-              )}
-            </button>
+            <div className="mt-6 sm:mt-8 lg:mt-10 flex justify-between pt-4 sm:pt-6 border-t border-gray-100">
+              <button
+                onClick={handleBack}
+                disabled={currentStep === 1}
+                className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-medium transition-colors text-sm sm:text-base ${
+                  currentStep === 1
+                    ? "text-gray-300 cursor-not-allowed"
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                }`}
+              >
+                Back
+              </button>
+              <button
+                onClick={
+                  currentStep === steps.length ? handleSubmit : handleNext
+                }
+                disabled={createJobMutation.isPending}
+                className="bg-linear-to-r from-emerald-500 to-emerald-600 text-white px-5 sm:px-8 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-bold hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg shadow-emerald-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-1.5 sm:gap-2 text-sm sm:text-base"
+              >
+                {createJobMutation.isPending ? (
+                  <>
+                    <span className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <span className="text-xs sm:text-sm">Posting...</span>
+                  </>
+                ) : currentStep === steps.length ? (
+                  "Post Job Now"
+                ) : (
+                  "Continue"
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1136,7 +1151,9 @@ function PostJobPageContent() {
             <div className="sticky top-6 space-y-4">
               <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-bold text-gray-900">Completion</h3>
+                  <h3 className="text-sm font-bold text-gray-900">
+                    Completion
+                  </h3>
                   <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full">
                     {completionPercent}%
                   </span>
@@ -1150,19 +1167,33 @@ function PostJobPageContent() {
                 <ul className="space-y-2 text-xs">
                   <li className="flex items-center justify-between">
                     <span className="text-gray-600">Basics</span>
-                    <span className={basicsComplete ? "text-emerald-600" : "text-gray-400"}>
+                    <span
+                      className={
+                        basicsComplete ? "text-emerald-600" : "text-gray-400"
+                      }
+                    >
                       {basicsComplete ? "Done" : "Pending"}
                     </span>
                   </li>
                   <li className="flex items-center justify-between">
                     <span className="text-gray-600">Details</span>
-                    <span className={detailsComplete ? "text-emerald-600" : "text-gray-400"}>
+                    <span
+                      className={
+                        detailsComplete ? "text-emerald-600" : "text-gray-400"
+                      }
+                    >
                       {detailsComplete ? "Done" : "Pending"}
                     </span>
                   </li>
                   <li className="flex items-center justify-between">
                     <span className="text-gray-600">Preferences</span>
-                    <span className={preferencesComplete ? "text-emerald-600" : "text-gray-400"}>
+                    <span
+                      className={
+                        preferencesComplete
+                          ? "text-emerald-600"
+                          : "text-gray-400"
+                      }
+                    >
                       {preferencesComplete ? "Done" : "Pending"}
                     </span>
                   </li>
@@ -1170,17 +1201,25 @@ function PostJobPageContent() {
               </div>
 
               <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
-                <h3 className="text-sm font-bold text-gray-900 mb-2">Live Preview</h3>
+                <h3 className="text-sm font-bold text-gray-900 mb-2">
+                  Live Preview
+                </h3>
                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Title</p>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">
+                    Title
+                  </p>
                   <p className="text-sm font-semibold text-gray-900 line-clamp-2">
                     {formData.title || "Your job title will appear here"}
                   </p>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide pt-1">Category</p>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide pt-1">
+                    Category
+                  </p>
                   <p className="text-sm text-gray-800">
                     {selectedCategory?.name || "Not selected"}
                   </p>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide pt-1">Budget</p>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide pt-1">
+                    Budget
+                  </p>
                   <p className="text-sm text-gray-800">
                     {formData.budget ? `KES ${formData.budget}` : "Not set"}
                   </p>
@@ -1188,9 +1227,12 @@ function PostJobPageContent() {
               </div>
 
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                <h3 className="text-sm font-bold text-amber-900 mb-1">Quality Tip</h3>
+                <h3 className="text-sm font-bold text-amber-900 mb-1">
+                  Quality Tip
+                </h3>
                 <p className="text-xs text-amber-800">
-                  Jobs with clear title, detailed scope, and realistic budget usually receive better proposals sooner.
+                  Jobs with clear title, detailed scope, and realistic budget
+                  usually receive better proposals sooner.
                 </p>
               </div>
             </div>
