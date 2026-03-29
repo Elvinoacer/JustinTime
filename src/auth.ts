@@ -13,6 +13,7 @@ type CredentialsUserPayload = {
 type DbUserSnapshot = {
   id: string;
   role: string;
+  image: string | null;
   onboardingCompleted: boolean;
   clientInterests: string[];
   emailVerified: Date | string | null;
@@ -45,6 +46,7 @@ async function fetchDbUserByEmail(
       select: {
         id: true,
         role: true,
+        image: true,
         onboardingCompleted: true,
         clientInterests: true,
         emailVerified: true,
@@ -183,6 +185,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (dbUser) {
             token.role = dbUser.role;
             token.id = dbUser.id;
+            token.image = dbUser.image ?? user.image ?? token.image;
             token.onboardingCompleted = dbUser.onboardingCompleted;
             token.clientInterests = dbUser.clientInterests;
             token.emailVerified = dbUser.emailVerified;
@@ -195,6 +198,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const credentialsUser = user as typeof user & CredentialsUserPayload;
           token.role = credentialsUser.role;
           token.id = user.id;
+          token.image = user.image ?? token.image;
           token.onboardingCompleted = credentialsUser.onboardingCompleted;
           token.clientInterests = credentialsUser.clientInterests;
           token.emailVerified = credentialsUser.emailVerified;
@@ -215,6 +219,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (latestDbUser) {
           token.role = latestDbUser.role;
           token.id = latestDbUser.id;
+          token.image = latestDbUser.image ?? token.image;
           token.onboardingCompleted = latestDbUser.onboardingCompleted;
           token.clientInterests = latestDbUser.clientInterests;
           token.emailVerified = latestDbUser.emailVerified;
@@ -231,6 +236,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           session.user.clientInterests ?? token.clientInterests;
         token.emailVerified = session.user.emailVerified ?? token.emailVerified;
         token.authProvider = session.user.authProvider ?? token.authProvider;
+        token.image = session.user.image ?? token.image;
         token.lastDbSyncAt = nowSeconds;
       }
 
@@ -245,6 +251,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.clientInterests = token.clientInterests as string[];
         session.user.emailVerified = token.emailVerified as Date | null;
         session.user.authProvider = token.authProvider as string; // B2/B6
+        session.user.image =
+          (token.image as string | undefined) ?? session.user.image;
       }
       return session;
     },

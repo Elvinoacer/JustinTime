@@ -38,12 +38,16 @@ export async function POST(request: NextRequest) {
     const rawName = String(body?.name ?? "").trim();
     const rawPassword = String(body?.password ?? "").trim();
     const rawPhone = body?.phone ? String(body.phone).trim() : "";
+    const rawReferralCode = body?.referralCode
+      ? String(body.referralCode).trim().toUpperCase()
+      : "";
 
     if (
       rawEmail.length > 254 ||
       rawName.length > 120 ||
       rawPassword.length > 128 ||
-      rawPhone.length > 32
+      rawPhone.length > 32 ||
+      rawReferralCode.length > 20
     ) {
       return NextResponse.json(
         { error: "Invalid signup payload" },
@@ -89,6 +93,24 @@ export async function POST(request: NextRequest) {
       throw new ConflictError("User with this email already exists");
     }
 
+    // Resolve referrer before creating the new user
+    let referrerId: string | null = null;
+    if (validatedData.referralCode) {
+      const referrer = await prisma.user.findUnique({
+        where: { referralCode: validatedData.referralCode },
+        select: { id: true },
+      });
+
+      if (!referrer) {
+        return NextResponse.json(
+          { error: "Invalid referral code" },
+          { status: 400 },
+        );
+      }
+
+      referrerId = referrer.id;
+    }
+
     // Hash password
     const hashedPassword = await hashPassword(validatedData.password);
 
@@ -100,6 +122,7 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         role: validatedData.role || "CLIENT",
         phone: validatedData.phone,
+        ...(referrerId ? { referredById: referrerId } : {}),
       },
       select: {
         id: true,
@@ -110,6 +133,18 @@ export async function POST(request: NextRequest) {
         createdAt: true,
       },
     });
+
+    if (referrerId) {
+      await prisma.referral.create({
+        data: {
+          referrerId,
+          referredUserId: user.id,
+          type: "SIGNUP",
+          status: "PENDING",
+          points: 100,
+        },
+      });
+    }
 
     // Generate verification token
     const token = crypto.randomBytes(32).toString("hex");

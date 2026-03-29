@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 import {
@@ -23,6 +23,7 @@ import {
 
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -30,6 +31,7 @@ export default function SignupPage() {
     score: 0,
     message: "",
   });
+  const referralCode = searchParams.get("ref")?.trim().toUpperCase() || "";
 
   const calculatePasswordStrength = (password: string) => {
     if (password.length === 0) return { score: 0, message: "" };
@@ -90,6 +92,7 @@ export default function SignupPage() {
         .trim()
         .toLowerCase(),
       password: String(formData.get("password") ?? "").trim(),
+      referralCode: referralCode || undefined,
     };
 
     if (
@@ -152,7 +155,7 @@ export default function SignupPage() {
           priority
           sizes="50vw"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-transparent to-transparent" />
         <div className="absolute bottom-0 left-0 p-12 text-white z-10">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -196,7 +199,7 @@ export default function SignupPage() {
           {/* Header */}
           <div className="text-center mb-6 sm:mb-8">
             <div className="flex justify-center mb-4">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-linear-to-br from-emerald-500 to-emerald-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
                 <Users className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
             </div>
@@ -212,6 +215,11 @@ export default function SignupPage() {
                 Sign in instead
               </Link>
             </p>
+            {referralCode && (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                Referral applied: {referralCode}
+              </div>
+            )}
           </div>
 
           {/* Error Alert */}
@@ -223,7 +231,7 @@ export default function SignupPage() {
             {error && (
               <div className="rounded-lg sm:rounded-xl bg-red-50 border border-red-200 p-3 sm:p-4">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                   <p className="text-sm text-red-800">{error}</p>
                 </div>
               </div>

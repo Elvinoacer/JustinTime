@@ -275,11 +275,14 @@ const Hero = () => {
 
   return (
     <section
-      className="group/hero relative w-full overflow-hidden px-4 pb-16 pt-24 sm:px-6 sm:pb-20 sm:pt-28 md:pb-20 md:pt-32 lg:px-8 lg:pb-24 lg:pt-36"
+      className="group/hero relative w-full overflow-hidden px-4 pb-12 pt-20 sm:px-6 sm:pb-20 sm:pt-28 md:pb-20 md:pt-32 lg:px-8 lg:pb-24 lg:pt-36"
       aria-label="Hero"
     >
       {/* ── Background video ── */}
-      <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
+      <div
+        className="pointer-events-none absolute inset-0 -z-10"
+        aria-hidden="true"
+      >
         <video
           autoPlay
           loop
@@ -344,7 +347,7 @@ const Hero = () => {
       ))}
 
       {/* ── Main grid ── */}
-      <div className="relative z-20 mx-auto grid w-full max-w-6xl gap-8 sm:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-12">
+      <div className="relative z-20 mx-auto grid w-full max-w-6xl gap-6 sm:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-12">
         {/* Left column — copy */}
         <div>
           {/* Badge */}
@@ -359,18 +362,18 @@ const Hero = () => {
           </motion.div>
 
           {/* Mode toggle */}
-          <div className="mt-4 inline-flex items-center rounded-full border border-white/10 bg-white/6 p-1 backdrop-blur-md">
+          <div className="mt-4 inline-flex w-full max-w-xs items-center rounded-full border border-white/10 bg-white/6 p-1 backdrop-blur-md sm:w-auto sm:max-w-none">
             <Link
               href="/?focus=booking"
               onClick={() => handleVariantSwitch("booking")}
-              className={`rounded-full px-3.5 py-2 text-[11px] font-semibold transition sm:text-xs ${!isProVariant ? "bg-emerald-500/20 text-emerald-400" : "text-white/50 hover:text-white/70"}`}
+              className={`flex-1 rounded-full px-3.5 py-2 text-center text-[11px] font-semibold transition sm:flex-none sm:text-xs ${!isProVariant ? "bg-emerald-500/20 text-emerald-400" : "text-white/50 hover:text-white/70"}`}
             >
               Hiring Mode
             </Link>
             <Link
               href="/?focus=pro"
               onClick={() => handleVariantSwitch("pro")}
-              className={`rounded-full px-3.5 py-2 text-[11px] font-semibold transition sm:text-xs ${isProVariant ? "bg-emerald-500/20 text-emerald-400" : "text-white/50 hover:text-white/70"}`}
+              className={`flex-1 rounded-full px-3.5 py-2 text-center text-[11px] font-semibold transition sm:flex-none sm:text-xs ${isProVariant ? "bg-emerald-500/20 text-emerald-400" : "text-white/50 hover:text-white/70"}`}
             >
               Pro Growth Mode
             </Link>
@@ -378,7 +381,7 @@ const Hero = () => {
 
           {/* Headline */}
           <motion.h1
-            className="landing-display mt-6 max-w-2xl text-[1.75rem] font-extrabold leading-[1.08] tracking-tight text-white sm:text-[2.5rem] md:text-[2.8rem] lg:text-[3.5rem]"
+            className="landing-display mt-6 max-w-2xl text-[1.58rem] font-extrabold leading-[1.1] tracking-tight text-white sm:text-[2.5rem] md:text-[2.8rem] lg:text-[3.5rem]"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55 }}
@@ -448,13 +451,13 @@ const Hero = () => {
 
           {/* Stats row */}
           <motion.div
-            className="mt-8 grid max-w-xl grid-cols-3 gap-3 sm:gap-4"
+            className="mt-7 grid max-w-xl grid-cols-1 gap-2.5 sm:mt-8 sm:grid-cols-3 sm:gap-4"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.24 }}
           >
             <div
-              className="rounded-2xl border border-white/8 bg-white/5 px-3 py-4 text-center backdrop-blur-sm"
+              className="rounded-2xl border border-white/8 bg-white/5 px-3 py-3.5 text-left backdrop-blur-sm sm:py-4 sm:text-center"
               ref={stat1.ref}
             >
               <div className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
@@ -466,7 +469,7 @@ const Hero = () => {
               </div>
             </div>
             <div
-              className="rounded-2xl border border-white/8 bg-white/5 px-3 py-4 text-center backdrop-blur-sm"
+              className="rounded-2xl border border-white/8 bg-white/5 px-3 py-3.5 text-left backdrop-blur-sm sm:py-4 sm:text-center"
               ref={stat2.ref}
             >
               <div className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
@@ -480,7 +483,7 @@ const Hero = () => {
               </div>
             </div>
             <div
-              className="rounded-2xl border border-white/8 bg-white/5 px-3 py-4 text-center backdrop-blur-sm"
+              className="rounded-2xl border border-white/8 bg-white/5 px-3 py-3.5 text-left backdrop-blur-sm sm:py-4 sm:text-center"
               ref={stat3.ref}
             >
               <div className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
@@ -496,7 +499,7 @@ const Hero = () => {
 
         {/* Right column — search form card */}
         <motion.div
-          className="rounded-3xl border border-white/10 bg-white/6 p-5 sm:p-6 md:p-7 shadow-[0_28px_70px_-38px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+          className="rounded-2xl border border-white/10 bg-white/6 p-4 sm:rounded-3xl sm:p-6 md:p-7 shadow-[0_28px_70px_-38px_rgba(0,0,0,0.6)] backdrop-blur-xl"
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.12 }}
@@ -504,7 +507,7 @@ const Hero = () => {
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-400 sm:text-xs">
             Find your specialist
           </p>
-          <h2 className="landing-display mt-2.5 text-lg font-bold tracking-tight text-white sm:text-xl md:text-2xl">
+          <h2 className="landing-display mt-2.5 text-base font-bold tracking-tight text-white sm:text-xl md:text-2xl">
             {copy.searchTitle}
           </h2>
 
@@ -619,7 +622,7 @@ const Hero = () => {
           </div>
 
           {/* Trust badges row */}
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-1.5 sm:gap-2">
             {[
               { icon: Shield, text: "Verified Pros" },
               { icon: CreditCard, text: "Secure Payments" },

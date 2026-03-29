@@ -23,6 +23,12 @@ export const signupSchema = z.object({
     .trim()
     .max(20, "Phone must not exceed 20 characters")
     .optional(),
+  referralCode: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^JIT-[A-HJ-NP-Z2-9]{6}$/, "Invalid referral code format")
+    .optional(),
 });
 
 export const loginSchema = z.object({

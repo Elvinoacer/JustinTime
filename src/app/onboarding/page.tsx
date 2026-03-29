@@ -330,6 +330,7 @@ export default function OnboardingPage() {
         user: {
           role: "PROVIDER",
           onboardingCompleted: true,
+          image: selfieUrl || session?.user?.image,
           clientInterests: session?.user?.clientInterests,
           emailVerified: session?.user?.emailVerified,
           authProvider: session?.user?.authProvider,

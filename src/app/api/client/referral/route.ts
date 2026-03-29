@@ -74,11 +74,11 @@ export async function GET(request: NextRequest) {
 
     const totalReferrals = referrals.length;
     const completedReferrals = referrals.filter(
-      (r) => r.status === "COMPLETED"
+      (r) => r.status === "COMPLETED",
     ).length;
     const totalPoints = referrals.reduce((sum, r) => sum + r.points, 0);
     const pendingRewards = referrals.filter(
-      (r) => r.status === "PENDING"
+      (r) => r.status === "PENDING",
     ).length;
 
     // Calculate redeemable value (e.g., 100 points = $1)
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
     ];
 
     const baseUrl = process.env.NEXTAUTH_URL || "https://justintime.com";
-    const referralLink = `${baseUrl}/join?ref=${referralCode}`;
+    const referralLink = `${baseUrl}/auth/signup?ref=${encodeURIComponent(referralCode)}`;
 
     const responseData = {
       referralCode,
