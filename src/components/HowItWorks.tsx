@@ -42,20 +42,23 @@ const stepItem = {
 
 const HowItWorks = () => {
   return (
-    <section className="px-4 py-14 sm:px-6 sm:py-18 md:py-20 lg:px-8">
+    <section
+      className="px-4 py-12 sm:px-6 sm:py-16 md:py-20 lg:px-8"
+      aria-label="How it works"
+    >
       <div className="mx-auto max-w-6xl">
         {/* Header */}
         <motion.div
-          className="mb-9 sm:mb-12"
+          className="mb-8 sm:mb-12"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           viewport={{ once: true, margin: "-50px" }}
         >
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 sm:text-xs">
             Step 3: Book
           </p>
-          <h2 className="landing-display text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl lg:text-5xl">
+          <h2 className="landing-display text-[1.5rem] font-bold tracking-tight text-white sm:text-3xl md:text-4xl lg:text-5xl">
             Three clear steps to completed work
           </h2>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">
@@ -66,7 +69,7 @@ const HowItWorks = () => {
 
         {/* Steps */}
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8"
+          className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3 md:gap-8"
           variants={stepsContainer}
           initial="hidden"
           whileInView="show"
@@ -80,12 +83,12 @@ const HowItWorks = () => {
                 className="glass-card glass-card-hover relative flex flex-col rounded-2xl p-5 sm:p-6"
                 variants={stepItem}
               >
-                {/* Step number */}
+                {/* Step number + icon */}
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-500/15">
-                    <Icon className="h-5 w-5 text-emerald-400" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-500/15 sm:h-10 sm:w-10">
+                    <Icon className="h-5 w-5 text-emerald-400" aria-hidden="true" />
                   </div>
-                  <span className="text-3xl font-bold text-emerald-400/20">
+                  <span className="text-3xl font-bold text-emerald-400/20" aria-hidden="true">
                     {step.num}
                   </span>
                 </div>
@@ -99,7 +102,10 @@ const HowItWorks = () => {
 
                 {/* Mobile connector */}
                 {index < steps.length - 1 && (
-                  <div className="mb-2 ml-5 mt-6 h-6 w-px bg-emerald-400/30 md:hidden" />
+                  <div
+                    className="mx-auto mt-5 h-6 w-px bg-emerald-400/30 md:hidden"
+                    aria-hidden="true"
+                  />
                 )}
               </motion.div>
             );

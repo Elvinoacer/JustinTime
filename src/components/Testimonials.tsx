@@ -1,5 +1,5 @@
 "use client";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { testimonials } from "@/lib/dummyData/testimonials";
 import { Star, ChevronLeft, ChevronRight, Quote } from "lucide-react";
@@ -30,23 +30,27 @@ const Testimonials = () => {
       <Star
         key={i}
         className={`w-3.5 h-3.5 ${i < rating ? "fill-amber-400 text-amber-400" : "fill-white/10 text-white/10"}`}
+        aria-hidden="true"
       />
     ));
 
   return (
-    <section className="px-4 py-14 sm:px-6 sm:py-18 md:py-20 lg:px-8">
+    <section
+      className="px-4 py-12 sm:px-6 sm:py-16 md:py-20 lg:px-8"
+      aria-label="Client testimonials"
+    >
       <div className="mx-auto max-w-6xl">
         <motion.div
-          className="mb-9 sm:mb-10"
+          className="mb-8 sm:mb-10"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           viewport={{ once: true, margin: "-50px" }}
         >
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 sm:text-xs">
             Client Stories
           </p>
-          <h2 className="landing-display text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+          <h2 className="landing-display text-[1.5rem] font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
             What customers say after booking
           </h2>
         </motion.div>
@@ -62,7 +66,7 @@ const Testimonials = () => {
               transition={{ duration: 0.5, delay: index * 0.1 }}
               viewport={{ once: true, margin: "-50px" }}
             >
-              <Quote className="mb-4 h-10 w-10 rotate-180 text-emerald-400/30" />
+              <Quote className="mb-4 h-10 w-10 rotate-180 text-emerald-400/30" aria-hidden="true" />
 
               <blockquote className="mb-6 text-sm leading-relaxed text-white/80 sm:text-base">
                 {t.quote}
@@ -120,63 +124,71 @@ const Testimonials = () => {
           ))}
         </div>
 
-        {/* Mobile Carousel */}
+        {/* Mobile Carousel — enhanced with better spacing and touch targets */}
         <div className="md:hidden">
-          <motion.div
-            key={currentIndex}
-            className="glass-card rounded-2xl p-5"
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Quote className="mb-3 h-8 w-8 rotate-180 text-emerald-400/30" />
-            <blockquote className="mb-4 text-sm leading-relaxed text-white/80">
-              {testimonials[currentIndex].quote}
-            </blockquote>
-            <div className="flex items-center gap-3 border-t border-white/[0.08] pt-4">
-              <div
-                className="h-9 w-9 rounded-full bg-cover bg-center ring-2 ring-emerald-400/40 ring-offset-1 ring-offset-[#0a0f0d]"
-                style={{
-                  backgroundImage: `url("${testimonials[currentIndex].avatarUrl}")`,
-                }}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentIndex}
+              className="glass-card rounded-2xl p-5"
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -30 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Quote
+                className="mb-3 h-8 w-8 rotate-180 text-emerald-400/30"
+                aria-hidden="true"
               />
-              <div>
-                <p className="text-sm font-semibold text-white">
-                  {testimonials[currentIndex].name}
-                </p>
-                <p className="text-xs text-white/50">
-                  {testimonials[currentIndex].role}
-                </p>
+              <blockquote className="mb-4 text-[0.9375rem] leading-relaxed text-white/80">
+                {testimonials[currentIndex].quote}
+              </blockquote>
+              <div className="flex items-center gap-3 border-t border-white/[0.08] pt-4">
+                <div
+                  className="h-10 w-10 shrink-0 rounded-full bg-cover bg-center ring-2 ring-emerald-400/40 ring-offset-1 ring-offset-[#0a0f0d]"
+                  style={{
+                    backgroundImage: `url("${testimonials[currentIndex].avatarUrl}")`,
+                  }}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-white truncate">
+                    {testimonials[currentIndex].name}
+                  </p>
+                  <p className="text-xs text-white/50 truncate">
+                    {testimonials[currentIndex].role}
+                  </p>
+                </div>
+                <div className="ml-auto flex items-center gap-0.5 shrink-0">
+                  {renderStars(testimonials[currentIndex].rating)}
+                </div>
               </div>
-              <div className="ml-auto flex items-center gap-0.5">
-                {renderStars(testimonials[currentIndex].rating)}
-              </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </AnimatePresence>
 
           {/* Navigation */}
-          <div className="flex items-center justify-center gap-4 mt-5">
+          <div className="flex items-center justify-center gap-5 mt-6">
             <button
               onClick={prevTestimonial}
-              className="rounded-full border border-white/[0.12] bg-white/[0.04] p-2 transition-colors hover:border-emerald-400/30 hover:bg-white/[0.08]"
-              aria-label="Previous"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.12] bg-white/[0.04] transition-colors hover:border-emerald-400/30 hover:bg-white/[0.08]"
+              aria-label="Previous testimonial"
             >
               <ChevronLeft className="h-4 w-4 text-white/60" />
             </button>
-            <div className="flex gap-1.5">
+            <div className="flex gap-2" role="tablist">
               {testimonials.map((_, index) => (
                 <button
                   key={index}
+                  role="tab"
+                  aria-selected={index === currentIndex}
                   onClick={() => setCurrentIndex(index)}
-                  className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${index === currentIndex ? "w-5 bg-emerald-400" : "bg-white/20"}`}
+                  className={`h-2 rounded-full transition-all duration-300 ${index === currentIndex ? "w-6 bg-emerald-400" : "w-2 bg-white/20"}`}
                   aria-label={`Testimonial ${index + 1}`}
                 />
               ))}
             </div>
             <button
               onClick={nextTestimonial}
-              className="rounded-full border border-white/[0.12] bg-white/[0.04] p-2 transition-colors hover:border-emerald-400/30 hover:bg-white/[0.08]"
-              aria-label="Next"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.12] bg-white/[0.04] transition-colors hover:border-emerald-400/30 hover:bg-white/[0.08]"
+              aria-label="Next testimonial"
             >
               <ChevronRight className="h-4 w-4 text-white/60" />
             </button>

@@ -40,21 +40,24 @@ const FAQ = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section className="px-4 py-14 sm:px-6 sm:py-18 md:py-20 lg:px-8">
+    <section
+      className="px-4 py-12 sm:px-6 sm:py-16 md:py-20 lg:px-8"
+      aria-label="Frequently asked questions"
+    >
       <div className="mx-auto max-w-3xl">
         {/* Header */}
         <motion.div
-          className="mb-9 text-center sm:mb-10"
+          className="mb-8 text-center sm:mb-10"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           viewport={{ once: true, margin: "-50px" }}
         >
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-white/[0.06] px-4 py-1.5 text-xs font-semibold text-emerald-400 backdrop-blur-sm">
-            <HelpCircle className="w-3.5 h-3.5" />
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-white/[0.06] px-4 py-1.5 text-[11px] font-semibold text-emerald-400 backdrop-blur-sm sm:text-xs">
+            <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
             FAQ
           </div>
-          <h2 className="landing-display text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+          <h2 className="landing-display text-[1.5rem] font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
             Questions before you book?
           </h2>
           <p className="mx-auto mt-3 max-w-md text-sm text-white/60 sm:text-base">
@@ -81,9 +84,11 @@ const FAQ = () => {
                 viewport={{ once: true, margin: "-30px" }}
               >
                 <button
-                  className="w-full flex items-center justify-between p-4 sm:p-5 text-left"
+                  className="w-full flex items-center justify-between p-4 text-left sm:p-5"
                   onClick={() => setOpenIndex(isOpen ? null : index)}
                   aria-expanded={isOpen}
+                  aria-controls={`faq-panel-${index}`}
+                  id={`faq-button-${index}`}
                 >
                   <span className="pr-4 text-sm font-medium text-white/90 sm:text-base">
                     {faq.question}
@@ -95,6 +100,7 @@ const FAQ = () => {
                   >
                     <ChevronDown
                       className={`h-4 w-4 transition-colors ${isOpen ? "text-emerald-400" : "text-white/40"}`}
+                      aria-hidden="true"
                     />
                   </motion.div>
                 </button>
@@ -102,14 +108,17 @@ const FAQ = () => {
                 <AnimatePresence initial={false}>
                   {isOpen && (
                     <motion.div
+                      id={`faq-panel-${index}`}
+                      role="region"
+                      aria-labelledby={`faq-button-${index}`}
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.25, ease: "easeInOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="px-4 sm:px-5 pb-4 sm:pb-5">
-                        <p className="text-xs leading-relaxed text-white/60 sm:text-sm">
+                      <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+                        <p className="text-sm leading-[1.7] text-white/60">
                           {faq.answer}
                         </p>
                       </div>

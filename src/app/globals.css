@@ -11,6 +11,9 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   ACCESSIBILITY — SCREEN READER ONLY
+   ═══════════════════════════════════════════════════════════════ */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -23,48 +26,66 @@
   border-width: 0;
 }
 
-/* Custom thin scrollbar for sidebar */
+/* ═══════════════════════════════════════════════════════════════
+   SMOOTH SCROLL + REDUCED MOTION
+   ═══════════════════════════════════════════════════════════════ */
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SCROLLBAR STYLES
+   ═══════════════════════════════════════════════════════════════ */
 nav::-webkit-scrollbar {
   width: 4px;
 }
-
 nav::-webkit-scrollbar-track {
   background: transparent;
 }
-
 nav::-webkit-scrollbar-thumb {
   background: #374151;
   border-radius: 2px;
 }
-
 nav::-webkit-scrollbar-thumb:hover {
   background: #4b5563;
 }
 
-/* Custom thin scrollbar for horizontal overflow (categories, etc) */
 .overflow-x-auto::-webkit-scrollbar {
   height: 4px;
 }
-
 .overflow-x-auto::-webkit-scrollbar-track {
   background: transparent;
 }
-
 .overflow-x-auto::-webkit-scrollbar-thumb {
   background: #d1d5db;
   border-radius: 2px;
 }
-
 .overflow-x-auto::-webkit-scrollbar-thumb:hover {
   background: #10b981;
 }
-
-/* Firefox thin scrollbar */
 .overflow-x-auto {
   scrollbar-width: thin;
   scrollbar-color: #d1d5db transparent;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   THEME TOKENS (SHADCN)
+   ═══════════════════════════════════════════════════════════════ */
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -104,9 +125,7 @@ nav::-webkit-scrollbar-thumb:hover {
 }
 
 :root {
-  /* Fixed public header + iOS safe area — use for padding-top & sticky offsets */
   --public-header-h: calc(3.75rem + env(safe-area-inset-top, 0px));
-  /* Approx. height of services page sticky toolbar (search + categories) */
   --services-toolbar-h: 9rem;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -185,25 +204,15 @@ nav::-webkit-scrollbar-thumb:hover {
   }
 }
 
-/* Hide scrollbar but keep scroll (category rails, horizontal filters) */
+/* ═══════════════════════════════════════════════════════════════
+   UTILITY: HIDE SCROLLBAR (category rails, horizontal filters)
+   ═══════════════════════════════════════════════════════════════ */
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
-}
-
-/* Landing page typography system */
-.landing-shell {
-  font-family: inherit;
-  letter-spacing: inherit;
-}
-
-.landing-display {
-  font-family: inherit;
-  letter-spacing: -0.01em;
-  text-wrap: balance;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -222,7 +231,18 @@ nav::-webkit-scrollbar-thumb:hover {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Glassmorphism card — base */
+/* Landing display text — balanced wrap for headlines */
+.landing-display {
+  font-family: inherit;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GLASSMORPHISM CARDS
+   ═══════════════════════════════════════════════════════════════ */
 .glass-card {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -230,7 +250,6 @@ nav::-webkit-scrollbar-thumb:hover {
   -webkit-backdrop-filter: blur(24px);
 }
 
-/* Glassmorphism card — hover with emerald glow */
 .glass-card-hover {
   transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -242,14 +261,20 @@ nav::-webkit-scrollbar-thumb:hover {
   transform: translateY(-2px);
 }
 
-/* Glass card — stronger for mobile readability */
+/* Stronger glass on mobile for better readability against dark bg */
 @media (max-width: 640px) {
   .glass-card {
     background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .glass-card-hover:hover {
+    transform: none; /* Avoid jank on touch */
   }
 }
 
-/* Emerald glow pulse animation */
+/* ═══════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════ */
 @keyframes emerald-pulse {
   0%,
   100% {
@@ -260,7 +285,6 @@ nav::-webkit-scrollbar-thumb:hover {
   }
 }
 
-/* Subtle float animation for decorative elements */
 @keyframes gentle-float {
   0%,
   100% {
@@ -271,7 +295,6 @@ nav::-webkit-scrollbar-thumb:hover {
   }
 }
 
-/* Emerald shimmer for accents */
 @keyframes emerald-shimmer {
   0% {
     opacity: 0.4;
@@ -292,7 +315,9 @@ nav::-webkit-scrollbar-thumb:hover {
   animation: gentle-float 6s ease-in-out infinite;
 }
 
-/* Dark scrollbar for landing shell */
+/* ═══════════════════════════════════════════════════════════════
+   SCROLLBAR — DARK SHELL
+   ═══════════════════════════════════════════════════════════════ */
 .landing-shell::-webkit-scrollbar {
   width: 6px;
 }
@@ -307,20 +332,24 @@ nav::-webkit-scrollbar-thumb:hover {
   background: rgba(52, 211, 153, 0.35);
 }
 
-/* Video background responsive framing */
+/* ═══════════════════════════════════════════════════════════════
+   VIDEO BACKGROUND — RESPONSIVE FRAMING
+   ═══════════════════════════════════════════════════════════════ */
 .landing-video {
   object-fit: cover;
   object-position: center;
 }
+
 .hero-bg-video {
   object-fit: cover;
   object-position: center;
   filter: saturate(0.8) contrast(0.95) brightness(0.85);
 }
+
+/* Keep cover on ALL viewports — contain causes blank gaps on mobile */
 @media (max-width: 1024px) {
   .hero-bg-video {
-    /* Show the full video frame on smaller layouts to avoid horizontal crop. */
-    object-fit: contain;
+    object-fit: cover;
     object-position: center center;
   }
 }
@@ -329,7 +358,48 @@ nav::-webkit-scrollbar-thumb:hover {
     object-position: 60% center;
   }
   .hero-bg-video {
-    object-fit: contain;
+    object-fit: cover;
     object-position: center top;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE-SPECIFIC LANDING ENHANCEMENTS
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Guarantee gradient overlays render on mobile Safari/Chrome */
+@media (max-width: 640px) {
+  .landing-shell {
+    /* Force GPU compositing for gradient layers */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+
+  /* Better section spacing rhythm on mobile */
+  .landing-shell section {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FOCUS STATES — ACCESSIBILITY
+   ═══════════════════════════════════════════════════════════════ */
+.landing-shell button:focus-visible,
+.landing-shell a:focus-visible,
+.landing-shell input:focus-visible,
+.landing-shell select:focus-visible {
+  outline: 2px solid rgba(52, 211, 153, 0.6);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TOUCH TARGET MINIMUMS — WCAG 2.5.5
+   ═══════════════════════════════════════════════════════════════ */
+@media (pointer: coarse) {
+  .landing-shell button,
+  .landing-shell a {
+    min-height: 44px;
+    min-width: 44px;
   }
 }

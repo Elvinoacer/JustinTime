@@ -64,35 +64,39 @@ const TrustBanner = () => {
   ];
 
   return (
-    <section className="px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+    <section
+      className="px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16"
+      aria-label="Trust metrics"
+    >
       <div className="mx-auto max-w-5xl">
         <motion.div
-          className="glass-card rounded-3xl p-6 sm:p-8 md:p-10"
+          className="glass-card rounded-2xl p-5 sm:rounded-3xl sm:p-8 md:p-10"
           initial={{ opacity: 0, y: 25 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           viewport={{ once: true, margin: "-50px" }}
         >
-          <p className="mb-1 text-center text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
+          <p className="mb-1 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 sm:text-xs">
             Platform trust
           </p>
-          <h3 className="landing-display mb-6 text-center text-xl font-bold text-white sm:text-2xl">
+          <h3 className="landing-display mb-6 text-center text-lg font-bold text-white sm:text-xl md:text-2xl">
             Real platform performance, visible before you commit
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-4 md:gap-8">
             {metrics.map((metric, index) => {
               const Icon = metric.icon;
               const counter = counters[index];
               return (
                 <div
                   key={index}
-                  className="rounded-2xl border border-white/[0.06] bg-white/[0.03] px-3 py-4 text-center"
+                  className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-4 text-center sm:rounded-2xl sm:px-4 sm:py-5"
                   ref={counter.ref}
                 >
                   <Icon
                     className={`w-5 h-5 sm:w-6 sm:h-6 ${metric.color} mx-auto mb-2`}
+                    aria-hidden="true"
                   />
-                  <div className="text-xl sm:text-2xl md:text-3xl font-bold text-white tabular-nums">
+                  <div className="text-xl font-bold text-white tabular-nums sm:text-2xl md:text-3xl">
                     {metric.isDecimal
                       ? (counter.count / 10).toFixed(1)
                       : counter.count >= 1000
@@ -100,7 +104,7 @@ const TrustBanner = () => {
                         : counter.count}
                     <span className="text-emerald-400">{metric.suffix}</span>
                   </div>
-                  <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/50 sm:text-xs">
+                  <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/50 sm:text-xs sm:tracking-[0.15em]">
                     {metric.label}
                   </div>
                 </div>

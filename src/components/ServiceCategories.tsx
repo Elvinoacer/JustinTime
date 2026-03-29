@@ -119,20 +119,23 @@ const cardVariants = {
 
 const ServiceCategories = () => {
   return (
-    <section className="px-4 py-14 sm:px-6 sm:py-18 md:py-20 lg:px-8">
+    <section
+      className="px-4 py-12 sm:px-6 sm:py-16 md:py-20 lg:px-8"
+      aria-label="Service categories"
+    >
       <div className="mx-auto max-w-6xl">
         {/* Header */}
         <motion.div
-          className="mb-9 sm:mb-10"
+          className="mb-8 sm:mb-10"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           viewport={{ once: true, margin: "-50px" }}
         >
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 sm:text-xs">
             Step 1: Discover
           </p>
-          <h2 className="landing-display text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+          <h2 className="landing-display text-[1.5rem] font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
             Pick the lane that fits your task
           </h2>
           <p className="mt-3 max-w-lg text-sm leading-relaxed text-white/70 sm:text-base">
@@ -141,9 +144,9 @@ const ServiceCategories = () => {
           </p>
         </motion.div>
 
-        {/* Category Grid */}
+        {/* Category Grid — 3 cols on mobile for compact fit, scales up */}
         <motion.div
-          className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-6"
+          className="grid grid-cols-3 gap-2.5 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-6"
           variants={containerVariants}
           initial="hidden"
           whileInView="show"
@@ -154,21 +157,24 @@ const ServiceCategories = () => {
             return (
               <motion.div key={index} variants={cardVariants}>
                 <Link href={category.href}>
-                  <div className="group relative flex min-h-32.5 cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border border-white/8 bg-[linear-gradient(145deg,rgba(255,255,255,0.065),rgba(255,255,255,0.02))] p-4 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300/30 sm:p-5">
+                  <div className="group relative flex min-h-[7.5rem] cursor-pointer flex-col items-center justify-center gap-2.5 overflow-hidden rounded-2xl border border-white/8 bg-[linear-gradient(145deg,rgba(255,255,255,0.065),rgba(255,255,255,0.02))] p-3 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300/30 sm:min-h-[8.5rem] sm:gap-3 sm:p-5">
                     <div
                       className={`pointer-events-none absolute -top-9 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full bg-linear-to-br ${category.color} opacity-55 blur-2xl transition-opacity duration-300 group-hover:opacity-75`}
+                      aria-hidden="true"
                     />
                     <div
-                      className={`relative flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-[#071610]/85 shadow-[0_10px_28px_-16px_rgba(0,0,0,0.9)] transition-transform duration-300 group-hover:scale-110 sm:h-12 sm:w-12`}
+                      className={`relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-[#071610]/85 shadow-[0_10px_28px_-16px_rgba(0,0,0,0.9)] transition-transform duration-300 group-hover:scale-110 sm:h-12 sm:w-12`}
                     >
                       <span
                         className={`absolute inset-0 rounded-xl bg-linear-to-br ${category.color} opacity-35`}
+                        aria-hidden="true"
                       />
                       <Icon
                         className={`h-5 w-5 ${category.iconColor} sm:h-6 sm:w-6`}
+                        aria-hidden="true"
                       />
                     </div>
-                    <span className="text-center text-[11px] font-semibold leading-tight text-white/78 transition-colors group-hover:text-white sm:text-xs">
+                    <span className="text-center text-[10px] font-semibold leading-tight text-white/78 transition-colors group-hover:text-white sm:text-xs">
                       {category.name}
                     </span>
                   </div>

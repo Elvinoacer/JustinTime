@@ -44,11 +44,37 @@ export default function Home() {
           }),
         }}
       />
-      <main className="landing-shell relative overflow-hidden bg-[#06110d]">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute inset-0 bg-[linear-gradient(112deg,rgba(5,29,22,0.96)_0%,rgba(4,22,18,0.95)_32%,rgba(3,20,16,0.93)_56%,rgba(2,17,14,0.97)_100%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(120%_70%_at_10%_6%,rgba(34,197,94,0.16),transparent_52%),radial-gradient(85%_58%_at_86%_14%,rgba(16,185,129,0.14),transparent_55%),radial-gradient(90%_65%_at_52%_84%,rgba(20,184,166,0.11),transparent_60%)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,17,14,0.28)_0%,rgba(6,17,14,0.05)_22%,rgba(6,17,14,0.3)_52%,rgba(5,14,12,0.58)_100%)]" />
+      <main className="landing-shell relative overflow-hidden bg-[#06110d]" role="main">
+        {/* ── Background gradient layers ── */}
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+          {/* Base gradient */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(112deg, rgba(5,29,22,0.96) 0%, rgba(4,22,18,0.95) 32%, rgba(3,20,16,0.93) 56%, rgba(2,17,14,0.97) 100%)",
+            }}
+          />
+          {/* Emerald radial glows — using inline styles for reliable mobile rendering */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: [
+                "radial-gradient(120% 70% at 10% 6%, rgba(34,197,94,0.16), transparent 52%)",
+                "radial-gradient(85% 58% at 86% 14%, rgba(16,185,129,0.14), transparent 55%)",
+                "radial-gradient(90% 65% at 52% 84%, rgba(20,184,166,0.11), transparent 60%)",
+              ].join(", "),
+            }}
+          />
+          {/* Vignette layer */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(6,17,14,0.28) 0%, rgba(6,17,14,0.05) 22%, rgba(6,17,14,0.3) 52%, rgba(5,14,12,0.58) 100%)",
+            }}
+          />
+          {/* Subtle grid texture */}
           <div
             className="absolute inset-0 opacity-[0.08]"
             style={{
@@ -58,6 +84,7 @@ export default function Home() {
             }}
           />
         </div>
+
         <div className="relative z-10">
           {/* 1. Hero — headline, search, avatars, stats */}
           <Suspense fallback={<div className="min-h-[70vh]" />}>

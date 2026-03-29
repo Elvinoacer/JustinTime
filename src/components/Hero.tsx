@@ -266,9 +266,20 @@ const Hero = () => {
         secondaryCtaHref: "/services",
       };
 
+  const trustBadges = [
+    "ID-verified professionals",
+    "M-Pesa and card payments",
+    "Response within minutes",
+    "Transparent ratings and reviews",
+  ];
+
   return (
-    <section className="group/hero relative w-full overflow-hidden px-4 pb-12 pt-20 sm:px-6 sm:pb-16 sm:pt-24 md:pb-18 md:pt-28 lg:px-8 lg:pb-24 lg:pt-32">
-      <div className="pointer-events-none absolute inset-0 -z-10">
+    <section
+      className="group/hero relative w-full overflow-hidden px-4 pb-16 pt-24 sm:px-6 sm:pb-20 sm:pt-28 md:pb-20 md:pt-32 lg:px-8 lg:pb-24 lg:pt-36"
+      aria-label="Hero"
+    >
+      {/* ── Background video ── */}
+      <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
         <video
           autoPlay
           loop
@@ -279,10 +290,25 @@ const Hero = () => {
         >
           <source src="/videos/bannervid.mp4" type="video/mp4" />
         </video>
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(4,16,13,0.62)_0%,rgba(6,20,16,0.48)_28%,rgba(5,17,14,0.58)_64%,rgba(4,14,11,0.74)_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(55%_45%_at_20%_14%,rgba(16,185,129,0.14),transparent_70%),radial-gradient(42%_36%_at_86%_18%,rgba(20,184,166,0.12),transparent_72%)]" />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(4,16,13,0.62) 0%, rgba(6,20,16,0.48) 28%, rgba(5,17,14,0.58) 64%, rgba(4,14,11,0.74) 100%)",
+          }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: [
+              "radial-gradient(55% 45% at 20% 14%, rgba(16,185,129,0.14), transparent 70%)",
+              "radial-gradient(42% 36% at 86% 18%, rgba(20,184,166,0.12), transparent 72%)",
+            ].join(", "),
+          }}
+        />
       </div>
 
+      {/* ── Floating avatars (desktop only) ── */}
       {floatingAvatars.map((avatar, i) => (
         <motion.div
           key={i}
@@ -294,14 +320,16 @@ const Hero = () => {
             ease: "easeInOut",
             delay: avatar.delay,
           }}
+          aria-hidden="true"
         >
           <div
             className={`${avatar.size} overflow-hidden rounded-full ring-2 ring-emerald-400/40 shadow-lg shadow-emerald-500/20`}
           >
             <img
               src={avatar.img}
-              alt={avatar.name}
+              alt=""
               className="w-full h-full object-cover"
+              loading="lazy"
             />
           </div>
           <div className="mt-1 rounded-full border border-white/10 bg-white/8 px-2 py-1 text-center backdrop-blur-md">
@@ -315,37 +343,42 @@ const Hero = () => {
         </motion.div>
       ))}
 
-      <div className="relative z-20 mx-auto grid w-full max-w-6xl gap-6 sm:gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-10">
+      {/* ── Main grid ── */}
+      <div className="relative z-20 mx-auto grid w-full max-w-6xl gap-8 sm:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-12">
+        {/* Left column — copy */}
         <div>
+          {/* Badge */}
           <motion.div
-            className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-white/6 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400 backdrop-blur-md"
+            className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-white/6 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 backdrop-blur-md sm:text-xs"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45 }}
           >
-            <Shield className="h-3.5 w-3.5" />
+            <Shield className="h-3.5 w-3.5" aria-hidden="true" />
             {copy.badge}
           </motion.div>
 
+          {/* Mode toggle */}
           <div className="mt-4 inline-flex items-center rounded-full border border-white/10 bg-white/6 p-1 backdrop-blur-md">
             <Link
               href="/?focus=booking"
               onClick={() => handleVariantSwitch("booking")}
-              className={`rounded-full px-3 py-1.5 text-[11px] font-semibold transition ${!isProVariant ? "bg-emerald-500/20 text-emerald-400" : "text-white/50 hover:text-white/70"}`}
+              className={`rounded-full px-3.5 py-2 text-[11px] font-semibold transition sm:text-xs ${!isProVariant ? "bg-emerald-500/20 text-emerald-400" : "text-white/50 hover:text-white/70"}`}
             >
               Hiring Mode
             </Link>
             <Link
               href="/?focus=pro"
               onClick={() => handleVariantSwitch("pro")}
-              className={`rounded-full px-3 py-1.5 text-[11px] font-semibold transition ${isProVariant ? "bg-emerald-500/20 text-emerald-400" : "text-white/50 hover:text-white/70"}`}
+              className={`rounded-full px-3.5 py-2 text-[11px] font-semibold transition sm:text-xs ${isProVariant ? "bg-emerald-500/20 text-emerald-400" : "text-white/50 hover:text-white/70"}`}
             >
               Pro Growth Mode
             </Link>
           </div>
 
+          {/* Headline */}
           <motion.h1
-            className="landing-display mt-5 max-w-2xl text-[2rem] font-extrabold leading-[1.04] tracking-tight text-white sm:text-[2.8rem] lg:text-[3.5rem]"
+            className="landing-display mt-6 max-w-2xl text-[1.75rem] font-extrabold leading-[1.08] tracking-tight text-white sm:text-[2.5rem] md:text-[2.8rem] lg:text-[3.5rem]"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55 }}
@@ -353,8 +386,9 @@ const Hero = () => {
             {copy.title}
           </motion.h1>
 
+          {/* Subtitle */}
           <motion.p
-            className="mt-4 max-w-xl text-sm leading-relaxed text-white/70 sm:text-base"
+            className="mt-4 max-w-xl text-[0.875rem] leading-[1.7] text-white/65 sm:text-base sm:leading-relaxed"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.1 }}
@@ -362,6 +396,7 @@ const Hero = () => {
             {copy.subtitle}
           </motion.p>
 
+          {/* Secondary CTA */}
           <motion.div
             className="mt-5"
             initial={{ opacity: 0, y: 14 }}
@@ -379,7 +414,7 @@ const Hero = () => {
               }
             >
               <motion.button
-                className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/6 px-4 py-2 text-xs font-semibold text-white backdrop-blur-md transition hover:border-emerald-400/30 hover:bg-white/10 sm:text-sm"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/6 px-5 py-2.5 text-xs font-semibold text-white backdrop-blur-md transition hover:border-emerald-400/30 hover:bg-white/10 sm:text-sm"
                 whileInView={{ scale: 1.02, y: 0 }}
                 initial={{ scale: 0.95, y: 4 }}
                 transition={{ duration: 0.4, delay: 0.24 }}
@@ -390,105 +425,122 @@ const Hero = () => {
             </Link>
           </motion.div>
 
+          {/* Trust badges */}
           <motion.div
-            className="mt-5 grid gap-2 sm:gap-3 sm:grid-cols-2"
+            className="mt-6 grid gap-2.5 sm:grid-cols-2 sm:gap-3"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.18 }}
           >
-            {[
-              "ID-verified professionals",
-              "M-Pesa and card payments",
-              "Response within minutes",
-              "Transparent ratings and reviews",
-            ].map((item) => (
+            {trustBadges.map((item) => (
               <div
                 key={item}
-                className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/5 px-3 py-2 text-xs sm:text-sm backdrop-blur-sm"
+                className="flex items-center gap-2.5 rounded-xl border border-white/8 bg-white/5 px-3.5 py-2.5 text-[13px] backdrop-blur-sm sm:text-sm"
               >
-                <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-400 shrink-0" />
+                <CheckCircle2
+                  className="h-4 w-4 text-emerald-400 shrink-0"
+                  aria-hidden="true"
+                />
                 <span className="font-medium text-white/80">{item}</span>
               </div>
             ))}
           </motion.div>
 
+          {/* Stats row */}
           <motion.div
-            className="mt-7 grid max-w-xl grid-cols-3 gap-2.5 sm:gap-4"
+            className="mt-8 grid max-w-xl grid-cols-3 gap-3 sm:gap-4"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.24 }}
           >
             <div
-              className="rounded-2xl border border-white/8 bg-white/5 px-2.5 py-3 sm:px-3 text-center backdrop-blur-sm text-xs sm:text-sm"
+              className="rounded-2xl border border-white/8 bg-white/5 px-3 py-4 text-center backdrop-blur-sm"
               ref={stat1.ref}
             >
-              <div className="text-lg font-extrabold tabular-nums text-white sm:text-2xl">
+              <div className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
                 {stat1.count}
                 <span className="text-emerald-400">+</span>
               </div>
-              <div className="mt-1 text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.14em] sm:tracking-[0.16em] text-white/50">
+              <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/50 sm:text-[11px]">
                 Pros
               </div>
             </div>
             <div
-              className="rounded-2xl border border-white/8 bg-white/5 px-2.5 py-3 sm:px-3 text-center backdrop-blur-sm text-xs sm:text-sm"
+              className="rounded-2xl border border-white/8 bg-white/5 px-3 py-4 text-center backdrop-blur-sm"
               ref={stat2.ref}
             >
-              <div className="text-lg font-extrabold tabular-nums text-white sm:text-2xl">
+              <div className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
                 {stat2.count >= 1000
                   ? `${(stat2.count / 1000).toFixed(1)}k`
                   : stat2.count}
                 <span className="text-emerald-400">+</span>
               </div>
-              <div className="mt-1 text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.14em] sm:tracking-[0.16em] text-white/50">
+              <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/50 sm:text-[11px]">
                 Clients
               </div>
             </div>
             <div
-              className="rounded-2xl border border-white/8 bg-white/5 px-2.5 py-3 sm:px-3 text-center backdrop-blur-sm text-xs sm:text-sm"
+              className="rounded-2xl border border-white/8 bg-white/5 px-3 py-4 text-center backdrop-blur-sm"
               ref={stat3.ref}
             >
-              <div className="text-lg font-extrabold tabular-nums text-white sm:text-2xl">
+              <div className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
                 {stat3.count}
                 <span className="text-emerald-400">%</span>
               </div>
-              <div className="mt-1 text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.14em] sm:tracking-[0.16em] text-white/50">
+              <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/50 sm:text-[11px]">
                 Satisfaction
               </div>
             </div>
           </motion.div>
         </div>
 
+        {/* Right column — search form card */}
         <motion.div
-          className="rounded-3xl border border-white/10 bg-white/6 p-3 sm:p-4 md:p-6 shadow-[0_28px_70px_-38px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+          className="rounded-3xl border border-white/10 bg-white/6 p-5 sm:p-6 md:p-7 shadow-[0_28px_70px_-38px_rgba(0,0,0,0.6)] backdrop-blur-xl"
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.12 }}
         >
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-400">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-400 sm:text-xs">
             Find your specialist
           </p>
-          <h2 className="landing-display mt-2 text-xl font-bold tracking-tight text-white sm:text-2xl">
+          <h2 className="landing-display mt-2.5 text-lg font-bold tracking-tight text-white sm:text-xl md:text-2xl">
             {copy.searchTitle}
           </h2>
 
-          <div className="mt-5 space-y-2.5 sm:space-y-3">
+          <div className="mt-5 space-y-3">
+            {/* Search input */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-400" />
+              <Search
+                className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-400"
+                aria-hidden="true"
+              />
+              <label htmlFor="hero-search-input" className="sr-only">
+                Search for a service
+              </label>
               <input
-                className="w-full rounded-2xl border border-white/10 bg-white/6 px-10 py-2.5 sm:py-3.5 text-xs sm:text-sm font-medium text-white placeholder-white/40 outline-none transition focus:border-emerald-400/40 focus:ring-2 focus:ring-emerald-400/20"
-                placeholder="Plumber for kitchen leak, same day cleaning, CCTV install..."
+                id="hero-search-input"
+                className="w-full rounded-2xl border border-white/10 bg-white/6 py-3 pl-11 pr-4 text-sm font-medium text-white placeholder-white/40 outline-none transition focus:border-emerald-400/40 focus:ring-2 focus:ring-emerald-400/20 sm:py-3.5"
+                placeholder="Plumber for kitchen leak, same day cleaning..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               />
             </div>
 
-            <div className="grid gap-2.5 sm:gap-3 sm:grid-cols-2">
+            {/* Country + Location row */}
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="relative">
-                <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-400" />
+                <Globe
+                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-400"
+                  aria-hidden="true"
+                />
+                <label htmlFor="hero-country-select" className="sr-only">
+                  Select country
+                </label>
                 <select
-                  className="w-full appearance-none rounded-2xl border border-white/10 bg-white/6 px-10 py-2.5 sm:py-3.5 text-xs sm:text-sm font-medium text-white/80 outline-none transition focus:border-emerald-400/40 focus:ring-2 focus:ring-emerald-400/20 [&>option]:bg-[#0a0f0d] [&>option]:text-white"
+                  id="hero-country-select"
+                  className="w-full appearance-none rounded-2xl border border-white/10 bg-white/6 py-3 pl-11 pr-4 text-sm font-medium text-white/80 outline-none transition focus:border-emerald-400/40 focus:ring-2 focus:ring-emerald-400/20 [&>option]:bg-[#0a0f0d] [&>option]:text-white sm:py-3.5"
                   value={selectedCountry.code}
                   onChange={(e) => handleCountryChange(e.target.value)}
                 >
@@ -500,10 +552,15 @@ const Hero = () => {
                 </select>
               </div>
               <div className="relative">
-                <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-400" />
+                <MapPin
+                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-400"
+                  aria-hidden="true"
+                />
                 <button
                   onClick={() => setIsLocationOpen(!isLocationOpen)}
-                  className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/6 px-10 py-2.5 sm:py-3.5 text-left text-xs sm:text-sm font-medium text-white/80 transition hover:border-white/15"
+                  className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/6 py-3 pl-11 pr-4 text-left text-sm font-medium text-white/80 transition hover:border-white/15 sm:py-3.5"
+                  aria-expanded={isLocationOpen}
+                  aria-haspopup="listbox"
                 >
                   <span className="truncate">
                     {selectedLocation === selectedCountry.subdivisions[0]
@@ -515,6 +572,7 @@ const Hero = () => {
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    aria-hidden="true"
                   >
                     <path
                       strokeLinecap="round"
@@ -526,15 +584,20 @@ const Hero = () => {
                 </button>
 
                 {isLocationOpen && (
-                  <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-60 sm:max-h-72 overflow-y-auto rounded-2xl border border-white/10 bg-[#0a0f0d]/95 py-1 shadow-xl backdrop-blur-xl">
+                  <div
+                    className="absolute left-0 right-0 top-full z-50 mt-2 max-h-56 overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-[#0a0f0d]/95 py-1 shadow-xl backdrop-blur-xl sm:max-h-72"
+                    role="listbox"
+                  >
                     {selectedCountry.subdivisions.map((sub, idx) => (
                       <button
                         key={idx}
+                        role="option"
+                        aria-selected={selectedLocation === sub}
                         onClick={() => {
                           setSelectedLocation(sub);
                           setIsLocationOpen(false);
                         }}
-                        className={`w-full px-4 py-2 text-left text-xs sm:text-sm transition ${selectedLocation === sub ? "bg-emerald-500/15 font-semibold text-emerald-400" : "text-white/60 hover:bg-white/5 hover:text-white/80"}`}
+                        className={`w-full px-4 py-2.5 text-left text-sm transition ${selectedLocation === sub ? "bg-emerald-500/15 font-semibold text-emerald-400" : "text-white/60 hover:bg-white/5 hover:text-white/80"}`}
                       >
                         {sub}
                       </button>
@@ -544,8 +607,9 @@ const Hero = () => {
               </div>
             </div>
 
+            {/* Search button */}
             <motion.button
-              className="w-full rounded-2xl bg-linear-to-r from-emerald-500 to-teal-500 px-5 py-2.5 sm:py-3.5 text-xs sm:text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-400 hover:shadow-emerald-500/35"
+              className="w-full rounded-2xl bg-linear-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-400 hover:shadow-emerald-500/35 sm:py-3.5"
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
               onClick={handleSearch}
@@ -554,7 +618,8 @@ const Hero = () => {
             </motion.button>
           </div>
 
-          <div className="mt-3 sm:mt-4 flex flex-wrap items-center gap-1.5 sm:gap-2">
+          {/* Trust badges row */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             {[
               { icon: Shield, text: "Verified Pros" },
               { icon: CreditCard, text: "Secure Payments" },
@@ -562,9 +627,12 @@ const Hero = () => {
             ].map((badge, idx) => (
               <div
                 key={idx}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/8 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-white/70 backdrop-blur-sm"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/8 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-white/70 backdrop-blur-sm sm:text-xs"
               >
-                <badge.icon className="h-3.5 w-3.5 text-emerald-400" />
+                <badge.icon
+                  className="h-3.5 w-3.5 text-emerald-400"
+                  aria-hidden="true"
+                />
                 {badge.text}
               </div>
             ))}

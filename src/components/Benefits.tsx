@@ -58,20 +58,23 @@ const benefitItem = {
 
 const Benefits = () => {
   return (
-    <section className="px-4 py-14 sm:px-6 sm:py-18 md:py-20 lg:px-8">
+    <section
+      className="px-4 py-12 sm:px-6 sm:py-16 md:py-20 lg:px-8"
+      aria-label="Benefits"
+    >
       <div className="mx-auto max-w-6xl">
         {/* Header */}
         <motion.div
-          className="mb-9 sm:mb-10"
+          className="mb-8 sm:mb-10"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           viewport={{ once: true, margin: "-50px" }}
         >
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
-            Step 4: Trust & Repeat
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 sm:text-xs">
+            Step 4: Trust &amp; Repeat
           </p>
-          <h2 className="landing-display text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+          <h2 className="landing-display text-[1.5rem] font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
             Why clients keep coming back
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/70 sm:text-base">
@@ -80,9 +83,9 @@ const Benefits = () => {
           </p>
         </motion.div>
 
-        {/* Grid */}
+        {/* Grid — 1 col mobile, 2 col sm, 3 col lg */}
         <motion.div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5"
+          className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3"
           variants={benefitsContainer}
           initial="hidden"
           whileInView="show"
@@ -96,13 +99,13 @@ const Benefits = () => {
                 className="group glass-card glass-card-hover rounded-2xl p-5 sm:p-6"
                 variants={benefitItem}
               >
-                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-500/15 transition-colors group-hover:bg-emerald-500/25">
-                  <Icon className="h-5 w-5 text-emerald-400" />
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-500/15 transition-colors group-hover:bg-emerald-500/25 sm:h-10 sm:w-10">
+                  <Icon className="h-5 w-5 text-emerald-400" aria-hidden="true" />
                 </div>
                 <h3 className="landing-display mb-1.5 text-base font-semibold text-white sm:text-lg">
                   {benefit.title}
                 </h3>
-                <p className="text-xs leading-relaxed text-white/60 sm:text-sm">
+                <p className="text-sm leading-relaxed text-white/60">
                   {benefit.description}
                 </p>
               </motion.div>
