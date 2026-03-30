@@ -75,6 +75,17 @@ function getErrorMessage(error: unknown) {
   return "Failed to submit proposal";
 }
 
+function buildProviderMessagesHref(
+  partnerId: string,
+  partnerName?: string,
+  partnerImage?: string | null,
+) {
+  const params = new URLSearchParams({ partnerId });
+  if (partnerName) params.set("partnerName", partnerName);
+  if (partnerImage) params.set("partnerImage", partnerImage);
+  return `/dashboard/messages?${params.toString()}`;
+}
+
 export default function JobDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -256,6 +267,36 @@ export default function JobDetailPage() {
     } catch {
       toast.error("Unable to share this job right now");
     }
+  };
+
+  const handleMessageClient = () => {
+    if (!session) {
+      router.push(`/auth/login?callbackUrl=/jobs/${jobId}`);
+      return;
+    }
+
+    if (!isProvider) {
+      toast.error("Only providers can message clients from this page");
+      return;
+    }
+
+    if (!job?.client?.id) {
+      toast.error("Client account is unavailable");
+      return;
+    }
+
+    if (session.user.id === job.client.id) {
+      toast.info("This is your own job posting");
+      return;
+    }
+
+    router.push(
+      buildProviderMessagesHref(
+        job.client.id,
+        job.client.name || undefined,
+        job.client.image,
+      ),
+    );
   };
 
   const openApplyFlow = () => {
@@ -679,6 +720,16 @@ export default function JobDetailPage() {
                   </p>
                 </div>
               </div>
+
+              {isProvider && !isJobOwner ? (
+                <button
+                  onClick={handleMessageClient}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 transition-colors hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Message client
+                </button>
+              ) : null}
             </motion.section>
 
             <motion.section

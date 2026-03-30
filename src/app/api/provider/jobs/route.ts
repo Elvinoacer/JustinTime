@@ -10,7 +10,9 @@ export async function GET(request: Request) {
     }
 
     if (session.user.role !== "PROVIDER") {
-      return new NextResponse("Only providers can access this endpoint", { status: 403 });
+      return new NextResponse("Only providers can access this endpoint", {
+        status: 403,
+      });
     }
 
     const { searchParams } = new URL(request.url);
@@ -26,7 +28,12 @@ export async function GET(request: Request) {
     switch (tab) {
       case "available": {
         // Jobs provider can apply to (OPEN status, no existing proposal from this provider)
-        const where: any = { status: "OPEN" };
+        const where: any = {
+          status: "OPEN",
+          proposals: {
+            none: { providerId: session.user.id },
+          },
+        };
         if (categoryId) where.categoryId = categoryId;
 
         const [allJobs, count] = await Promise.all([
@@ -37,10 +44,6 @@ export async function GET(request: Request) {
             include: {
               client: { select: { id: true, name: true, image: true } },
               category: { select: { id: true, name: true, slug: true } },
-              proposals: {
-                where: { providerId: session.user.id },
-                select: { id: true, status: true, price: true },
-              },
               _count: { select: { proposals: true } },
             },
             orderBy: { createdAt: "desc" },
@@ -48,9 +51,168 @@ export async function GET(request: Request) {
           prisma.job.count({ where }),
         ]);
 
-        // Filter out jobs where provider already has a proposal
-        jobs = allJobs.filter((job) => job.proposals.length === 0);
-        total = count; // Note: This is approximate, actual available count needs adjustment
+        jobs = allJobs;
+        total = count;
+
+        break;
+      }
+
+      case "recommended": {
+        const provider = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: {
+            profile: { select: { location: true } },
+            services: { select: { categoryId: true } },
+          },
+        });
+
+        const [
+          acceptedProposals,
+          totalProposals,
+          completedBookings,
+          cancelledBookings,
+        ] = await Promise.all([
+          prisma.proposal.count({
+            where: {
+              providerId: session.user.id,
+              status: "ACCEPTED",
+            },
+          }),
+          prisma.proposal.count({
+            where: { providerId: session.user.id },
+          }),
+          prisma.booking.count({
+            where: {
+              providerId: session.user.id,
+              status: "COMPLETED",
+            },
+          }),
+          prisma.booking.count({
+            where: {
+              providerId: session.user.id,
+              status: "CANCELLED",
+            },
+          }),
+        ]);
+
+        const proposalWinRate =
+          totalProposals > 0 ? acceptedProposals / totalProposals : 0;
+        const completionRate =
+          completedBookings + cancelledBookings > 0
+            ? completedBookings / (completedBookings + cancelledBookings)
+            : 0;
+
+        const providerCategoryIds = Array.from(
+          new Set(
+            (provider?.services ?? []).map((service) => service.categoryId),
+          ),
+        );
+
+        const where: any = {
+          status: "OPEN",
+          proposals: {
+            none: { providerId: session.user.id },
+          },
+          ...(providerCategoryIds.length > 0
+            ? { categoryId: { in: providerCategoryIds } }
+            : {}),
+        };
+
+        if (categoryId) where.categoryId = categoryId;
+
+        const [candidateJobs, count] = await Promise.all([
+          prisma.job.findMany({
+            where,
+            include: {
+              client: { select: { id: true, name: true, image: true } },
+              category: { select: { id: true, name: true, slug: true } },
+              _count: { select: { proposals: true } },
+            },
+            orderBy: { createdAt: "desc" },
+            take: pageSize * 4,
+          }),
+          prisma.job.count({ where }),
+        ]);
+
+        const providerLocation = provider?.profile?.location
+          ?.toLowerCase()
+          .trim();
+        const now = Date.now();
+
+        const scored = candidateJobs
+          .map((job) => {
+            let score = 0;
+            const reasons: string[] = [];
+
+            if (providerCategoryIds.includes(job.categoryId)) {
+              score += 3;
+              reasons.push("category-match");
+            }
+
+            const jobLocation = job.location?.toLowerCase().trim();
+            if (
+              providerLocation &&
+              jobLocation &&
+              providerLocation === jobLocation
+            ) {
+              score += 2;
+              reasons.push("nearby");
+            }
+
+            const applicants = job._count?.proposals ?? 0;
+            if (applicants <= 2) {
+              score += 2;
+              reasons.push("low-competition");
+            }
+
+            if (job.budget && Number(job.budget) >= 5000) {
+              score += 1;
+              reasons.push("good-budget");
+            }
+
+            if (job.deadline) {
+              const hoursToDeadline =
+                (new Date(job.deadline).getTime() - now) / (1000 * 60 * 60);
+              if (hoursToDeadline > 0 && hoursToDeadline <= 48) {
+                score += 1;
+                reasons.push("urgent");
+              }
+
+              if (hoursToDeadline > 48 && hoursToDeadline <= 168) {
+                score += 1;
+                reasons.push("this-week");
+              }
+            }
+
+            if (proposalWinRate >= 0.35) {
+              score += 1;
+              reasons.push("high-win-rate");
+            }
+
+            if (completionRate >= 0.7 && completedBookings >= 5) {
+              score += 1;
+              reasons.push("reliable-history");
+            }
+
+            return {
+              ...job,
+              recommendation: {
+                score,
+                reasons,
+              },
+            };
+          })
+          .sort((a, b) => {
+            const scoreDiff =
+              (b.recommendation?.score ?? 0) - (a.recommendation?.score ?? 0);
+            if (scoreDiff !== 0) return scoreDiff;
+            return (
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+          });
+
+        jobs = scored.slice(skip, skip + pageSize);
+        total = count;
 
         break;
       }
@@ -78,7 +240,12 @@ export async function GET(request: Request) {
 
         jobs = proposals.map((p) => ({
           ...p.job,
-          proposal: { id: p.id, status: p.status, price: p.price, createdAt: p.createdAt },
+          proposal: {
+            id: p.id,
+            status: p.status,
+            price: p.price,
+            createdAt: p.createdAt,
+          },
         }));
         total = count;
 
@@ -134,10 +301,10 @@ export async function GET(request: Request) {
             where: {
               providerId: session.user.id,
               status: "ACCEPTED",
-              job: { 
-                is: { 
-                  status: "COMPLETED" 
-                } 
+              job: {
+                is: {
+                  status: "COMPLETED",
+                },
               },
             },
             skip,
@@ -156,10 +323,10 @@ export async function GET(request: Request) {
             where: {
               providerId: session.user.id,
               status: "ACCEPTED",
-              job: { 
-                is: { 
-                  status: "COMPLETED" 
-                } 
+              job: {
+                is: {
+                  status: "COMPLETED",
+                },
               },
             },
           }),

@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { submitProposal } from "@/lib/proposals/submitProposal";
 import { z } from "zod";
 
 const createJobProposalSchema = z
@@ -63,12 +64,78 @@ export async function GET(
         ...(isAdmin || isJobOwner ? {} : { providerId: session.user.id }),
       },
       include: {
-        provider: { select: { id: true, name: true, image: true } },
+        provider: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            profile: {
+              select: {
+                isVerified: true,
+                verificationStatus: true,
+                skills: true,
+                certifications: true,
+              },
+            },
+            receivedReviews: {
+              select: { rating: true },
+            },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(proposals);
+    const jobBookings = await prisma.booking.findMany({
+      where: {
+        jobId: id,
+        providerId: {
+          in: proposals.map((proposal) => proposal.providerId),
+        },
+      },
+      select: {
+        id: true,
+        providerId: true,
+      },
+    });
+
+    const bookingByProviderId = new Map(
+      jobBookings.map((booking) => [booking.providerId, booking.id]),
+    );
+
+    const proposalsWithTrust = proposals.map((proposal) => {
+      const ratings = proposal.provider.receivedReviews.map((r) => r.rating);
+      const reviewCount = ratings.length;
+      const avgRating =
+        reviewCount > 0
+          ? Number(
+              (
+                ratings.reduce((sum, rating) => sum + rating, 0) / reviewCount
+              ).toFixed(1),
+            )
+          : 0;
+
+      const providerProfile = proposal.provider.profile;
+
+      return {
+        ...proposal,
+        bookingId: bookingByProviderId.get(proposal.providerId) ?? null,
+        provider: {
+          id: proposal.provider.id,
+          name: proposal.provider.name,
+          image: proposal.provider.image,
+          avgRating,
+          reviewCount,
+          isVerified:
+            Boolean(providerProfile?.isVerified) ||
+            providerProfile?.verificationStatus === "VERIFIED",
+          skills: providerProfile?.skills ?? [],
+          certifications: providerProfile?.certifications ?? [],
+        },
+      };
+    });
+
+    return NextResponse.json(proposalsWithTrust);
   } catch (error) {
     console.error("[PROPOSALS_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });
@@ -92,64 +159,62 @@ export async function POST(
       });
     }
 
-    const job = await prisma.job.findUnique({ where: { id } });
-    if (!job) {
-      return new NextResponse("Job not found", { status: 404 });
-    }
-
-    if (job.status !== "OPEN") {
-      return new NextResponse("This job is no longer accepting proposals", {
-        status: 409,
-      });
-    }
-
-    if (
-      typeof job.maxApplicants === "number" &&
-      job.maxApplicants > 0
-    ) {
-      const proposalCount = await prisma.proposal.count({
-        where: { jobId: id },
-      });
-
-      if (proposalCount >= job.maxApplicants) {
-        return new NextResponse("This job has reached its applicant limit", {
-          status: 409,
-        });
-      }
-    }
-
-    const existingProposal = await prisma.proposal.findFirst({
-      where: { jobId: id, providerId: session.user.id },
-    });
-
-    if (existingProposal) {
-      return new NextResponse(
-        "You have already submitted a proposal for this job",
-        { status: 409 },
-      );
-    }
-
     const body = await request.json();
     const validatedData = createJobProposalSchema.parse(body);
 
-    const proposal = await prisma.proposal.create({
-      data: {
+    const proposal = await submitProposal({
+      providerId: session.user.id,
+      input: {
         jobId: id,
-        providerId: session.user.id,
-        price: validatedData.price ?? validatedData.amount ?? 0,
-        coverLetter:
-          validatedData.coverLetter ?? validatedData.message ?? "",
+        amount: validatedData.amount,
+        message: validatedData.message,
+        price: validatedData.price,
+        coverLetter: validatedData.coverLetter,
         estimatedDays: validatedData.estimatedDays,
         attachments: validatedData.attachments,
       },
-      include: {
-        provider: { select: { id: true, name: true, image: true } },
-        job: { select: { id: true, title: true } },
-      },
+      enforceCreditLimit: true,
+      notifyClient: true,
     });
 
     return NextResponse.json(proposal, { status: 201 });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues }, { status: 400 });
+    }
+
+    if (error instanceof Error) {
+      if (error.message === "JOB_NOT_FOUND") {
+        return new NextResponse("Job not found", { status: 404 });
+      }
+      if (error.message === "JOB_NOT_OPEN") {
+        return new NextResponse("This job is no longer accepting proposals", {
+          status: 409,
+        });
+      }
+      if (error.message === "MAX_APPLICANTS_REACHED") {
+        return new NextResponse("This job has reached its applicant limit", {
+          status: 409,
+        });
+      }
+      if (error.message === "PROPOSAL_ALREADY_EXISTS") {
+        return new NextResponse(
+          "You have already submitted a proposal for this job",
+          { status: 409 },
+        );
+      }
+      if (error.message === "INSUFFICIENT_CREDITS") {
+        return NextResponse.json(
+          {
+            error: "Weekly limit reached & Insufficient Credits",
+            message:
+              "You reached your weekly proposal limit. Purchase Lead Credits to continue.",
+          },
+          { status: 429 },
+        );
+      }
+    }
+
     console.error("[PROPOSALS_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }

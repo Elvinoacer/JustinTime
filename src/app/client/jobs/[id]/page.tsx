@@ -8,6 +8,7 @@ import { useState } from "react";
 
 interface Proposal {
   id: string;
+  bookingId?: string | null;
   providerId: string;
   price: number;
   coverLetter: string;
@@ -17,6 +18,11 @@ interface Proposal {
     id: string;
     name: string;
     image: string | null;
+    avgRating?: number;
+    reviewCount?: number;
+    isVerified?: boolean;
+    skills?: string[];
+    certifications?: unknown[];
   };
 }
 
@@ -43,6 +49,17 @@ const statusColors: Record<string, string> = {
   COMPLETED: "bg-green-100 text-green-700 border-green-200",
   CANCELLED: "bg-red-100 text-red-700 border-red-200",
 };
+
+function buildMessagesHref(
+  partnerId: string,
+  partnerName?: string,
+  partnerImage?: string | null,
+) {
+  const params = new URLSearchParams({ partnerId });
+  if (partnerName) params.set("partnerName", partnerName);
+  if (partnerImage) params.set("partnerImage", partnerImage);
+  return `/client/messages?${params.toString()}`;
+}
 
 export default function JobDetailsPage() {
   const params = useParams();
@@ -118,8 +135,42 @@ export default function JobDetailsPage() {
     router.push(`/client/post-job?edit=${jobId}`);
   };
 
-  const handleMessage = (providerId: string) => {
-    showToastMessage("Messaging feature coming soon!");
+  const handleMessage = (
+    providerId: string,
+    providerName?: string,
+    providerImage?: string | null,
+  ) => {
+    router.push(buildMessagesHref(providerId, providerName, providerImage));
+  };
+
+  const handleDispute = async (bookingId?: string | null) => {
+    if (!bookingId) {
+      showToastMessage("No booking found for this proposal yet.");
+      return;
+    }
+
+    const reason = window.prompt(
+      "Please describe the issue in at least 20 characters:",
+    );
+
+    if (!reason) {
+      return;
+    }
+
+    if (reason.trim().length < 20) {
+      showToastMessage("Dispute reason must be at least 20 characters.");
+      return;
+    }
+
+    try {
+      await apiClient.post(`/bookings/${bookingId}/dispute`, {
+        reason: reason.trim(),
+      });
+      showToastMessage("Dispute submitted. Our team will review it shortly.");
+      queryClient.invalidateQueries({ queryKey: ["job", jobId, "proposals"] });
+    } catch {
+      showToastMessage("Failed to submit dispute. Please try again.");
+    }
   };
 
   const proposals = proposalsData || [];
@@ -197,7 +248,7 @@ export default function JobDetailsPage() {
         </button>
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-1.5 sm:mb-2 break-words">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-1.5 sm:mb-2 wrap-break-word">
               {job.title}
             </h1>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 md:gap-4 text-xs sm:text-sm text-gray-600">
@@ -211,7 +262,7 @@ export default function JobDetailsPage() {
                 <span className="material-symbols-outlined text-xs sm:text-sm">
                   location_on
                 </span>
-                <span className="truncate max-w-[120px] sm:max-w-[200px]">
+                <span className="truncate max-w-30 sm:max-w-50">
                   {job.location}
                 </span>
               </span>
@@ -316,7 +367,7 @@ export default function JobDetailsPage() {
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 mb-2 sm:mb-3">
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
                           {proposal.provider.image ? (
                             <img
                               src={proposal.provider.image}
@@ -340,9 +391,24 @@ export default function JobDetailsPage() {
                               {
                                 month: "short",
                                 day: "numeric",
-                              }
+                              },
                             )}
                           </p>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs">
+                            {proposal.provider.isVerified ? (
+                              <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">
+                                Verified
+                              </span>
+                            ) : null}
+                            {(proposal.provider.reviewCount || 0) > 0 ? (
+                              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
+                                ⭐ {proposal.provider.avgRating} (
+                                {proposal.provider.reviewCount} review
+                                {proposal.provider.reviewCount === 1 ? "" : "s"}
+                                )
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                       <div className="text-left sm:text-right">
@@ -357,6 +423,26 @@ export default function JobDetailsPage() {
                     <p className="text-sm text-gray-700 leading-relaxed mb-2 sm:mb-3 line-clamp-3 sm:line-clamp-4">
                       {proposal.coverLetter}
                     </p>
+                    {(proposal.provider.skills?.length || 0) > 0 ? (
+                      <div className="mb-3 flex flex-wrap gap-1.5">
+                        {proposal.provider.skills!.slice(0, 4).map((skill) => (
+                          <span
+                            key={`${proposal.id}-${skill}`}
+                            className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] sm:text-xs text-slate-700"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                        {(proposal.provider.certifications?.length || 0) > 0 ? (
+                          <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] sm:text-xs text-indigo-700">
+                            {proposal.provider.certifications!.length} cert
+                            {proposal.provider.certifications!.length === 1
+                              ? ""
+                              : "s"}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {proposal.status === "PENDING" && job.status === "OPEN" && (
                       <div className="flex flex-col xs:flex-row gap-2 mt-2">
                         <button
@@ -381,7 +467,13 @@ export default function JobDetailsPage() {
                           )}
                         </button>
                         <button
-                          onClick={() => handleMessage(proposal.providerId)}
+                          onClick={() =>
+                            handleMessage(
+                              proposal.providerId,
+                              proposal.provider.name,
+                              proposal.provider.image,
+                            )
+                          }
                           className="px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors font-medium text-sm sm:text-base touch-manipulation flex items-center justify-center gap-1.5"
                         >
                           <span className="material-symbols-outlined text-sm">
@@ -392,8 +484,16 @@ export default function JobDetailsPage() {
                       </div>
                     )}
                     {proposal.status === "ACCEPTED" && (
-                      <div className="mt-2 px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs sm:text-sm font-medium text-center">
-                        ✓ Accepted
+                      <div className="mt-2 space-y-2">
+                        <div className="px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs sm:text-sm font-medium text-center">
+                          ✓ Accepted
+                        </div>
+                        <button
+                          onClick={() => handleDispute(proposal.bookingId)}
+                          className="w-full px-3 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 active:bg-amber-100 transition-colors font-medium text-xs sm:text-sm"
+                        >
+                          Report Issue
+                        </button>
                       </div>
                     )}
                     {proposal.status === "REJECTED" && (
@@ -488,7 +588,7 @@ export default function JobDetailsPage() {
                 <span className="font-bold text-gray-900 text-sm sm:text-base">
                   {Math.floor(
                     (Date.now() - new Date(job.createdAt).getTime()) /
-                      (1000 * 60 * 60 * 24)
+                      (1000 * 60 * 60 * 24),
                   )}{" "}
                   days
                 </span>

@@ -1,0 +1,93 @@
+import { auth } from "@/auth";
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { z } from "zod";
+
+const createDisputeSchema = z.object({
+  reason: z.string().trim().min(20, "Reason must be at least 20 characters"),
+});
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const validated = createDisputeSchema.parse(body);
+
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        clientId: true,
+        providerId: true,
+        status: true,
+        dispute: {
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!booking) {
+      return new NextResponse("Booking not found", { status: 404 });
+    }
+
+    const isClient = booking.clientId === session.user.id;
+    const isProvider = booking.providerId === session.user.id;
+
+    if (!isClient && !isProvider) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    if (booking.dispute) {
+      return NextResponse.json(
+        {
+          message: "Dispute already exists for this booking",
+          disputeId: booking.dispute.id,
+        },
+        { status: 409 },
+      );
+    }
+
+    if (booking.status === "COMPLETED") {
+      return new NextResponse("Completed bookings cannot be disputed", {
+        status: 400,
+      });
+    }
+
+    const defendantId = isClient ? booking.providerId : booking.clientId;
+
+    const dispute = await prisma.$transaction(async (tx) => {
+      const createdDispute = await tx.dispute.create({
+        data: {
+          bookingId: booking.id,
+          creatorId: session.user.id,
+          defendantId,
+          reason: validated.reason,
+        },
+      });
+
+      await tx.booking.update({
+        where: { id: booking.id },
+        data: { status: "DISPUTED" },
+      });
+
+      return createdDispute;
+    });
+
+    return NextResponse.json(dispute, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues }, { status: 400 });
+    }
+
+    console.error("[BOOKING_DISPUTE_POST]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}

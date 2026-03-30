@@ -9,9 +9,10 @@ import {
 import { toast } from "sonner";
 import Link from "next/link";
 
-const tabs = ["available", "applied", "active", "completed"];
+const tabs = ["recommended", "available", "applied", "active", "completed"];
 
 const tabLabels: Record<string, string> = {
+  recommended: "Recommended",
   available: "Available",
   applied: "Applied",
   active: "Active",
@@ -118,7 +119,7 @@ export default function JobApplicationsPage() {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap min-w-[80px] ${
+            className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap min-w-20 ${
               activeTab === tab
                 ? "bg-gray-900 text-white shadow-sm"
                 : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
@@ -145,12 +146,14 @@ export default function JobApplicationsPage() {
             </h3>
             <p className="text-gray-600 text-xs sm:text-sm">
               {activeTab === "available"
-                ? "Check back later for new opportunities"
-                : activeTab === "applied"
-                ? "You haven't applied to any jobs yet"
-                : activeTab === "active"
-                ? "No active jobs at the moment"
-                : "No completed jobs yet"}
+                ? "Check your recommended jobs for best matches"
+                : activeTab === "recommended"
+                  ? "Check back later for new opportunities"
+                  : activeTab === "applied"
+                    ? "You haven't applied to any jobs yet"
+                    : activeTab === "active"
+                      ? "No active jobs at the moment"
+                      : "No completed jobs yet"}
             </p>
           </div>
         ) : (
@@ -168,7 +171,7 @@ export default function JobApplicationsPage() {
               >
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
                   <div className="flex items-start gap-3 flex-1">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg sm:rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors flex-shrink-0">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg sm:rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors shrink-0">
                       <span className="material-symbols-outlined text-base sm:text-lg md:text-xl">
                         work
                       </span>
@@ -185,7 +188,7 @@ export default function JobApplicationsPage() {
                           <span className="material-symbols-outlined text-xs sm:text-sm">
                             person
                           </span>
-                          <span className="truncate max-w-[100px] sm:max-w-none">
+                          <span className="truncate max-w-25 sm:max-w-none">
                             {job.client?.name || "Client"}
                           </span>
                         </div>
@@ -194,7 +197,7 @@ export default function JobApplicationsPage() {
                             <span className="material-symbols-outlined text-xs sm:text-sm">
                               location_on
                             </span>
-                            <span className="truncate max-w-[80px] sm:max-w-none">
+                            <span className="truncate max-w-20 sm:max-w-none">
                               {job.location}
                             </span>
                           </div>
@@ -215,7 +218,52 @@ export default function JobApplicationsPage() {
                               {job._count.proposals !== 1 ? "s" : ""}
                             </div>
                           )}
+                        {(activeTab === "recommended" ||
+                          activeTab === "available") &&
+                          job.deadline && (
+                            <div className="flex items-center gap-1 text-rose-600 whitespace-nowrap">
+                              <span className="material-symbols-outlined text-xs sm:text-sm">
+                                timer
+                              </span>
+                              Due {new Date(job.deadline).toLocaleDateString()}
+                            </div>
+                          )}
                       </div>
+                      {activeTab === "recommended" &&
+                      Array.isArray(job.recommendation?.reasons) &&
+                      job.recommendation.reasons.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {job.recommendation.reasons.map((reason: string) => {
+                            const label =
+                              reason === "category-match"
+                                ? "Category Match"
+                                : reason === "nearby"
+                                  ? "Nearby"
+                                  : reason === "low-competition"
+                                    ? "Low Competition"
+                                    : reason === "good-budget"
+                                      ? "Good Budget"
+                                      : reason === "urgent"
+                                        ? "Urgent"
+                                        : reason === "this-week"
+                                          ? "This Week"
+                                          : reason === "high-win-rate"
+                                            ? "High Win Rate"
+                                            : reason === "reliable-history"
+                                              ? "Reliable History"
+                                              : reason;
+
+                            return (
+                              <span
+                                key={`${job.id}-${reason}`}
+                                className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
+                              >
+                                {label}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 
@@ -248,7 +296,8 @@ export default function JobApplicationsPage() {
                       className="flex gap-1.5 sm:gap-2"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {activeTab === "available" && (
+                      {(activeTab === "available" ||
+                        activeTab === "recommended") && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -303,7 +352,7 @@ export default function JobApplicationsPage() {
                 </h2>
                 <button
                   onClick={() => setShowProposalModal(false)}
-                  className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0 ml-2"
+                  className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors shrink-0 ml-2"
                 >
                   <span className="material-symbols-outlined text-lg sm:text-xl">
                     close
@@ -419,7 +468,7 @@ export default function JobApplicationsPage() {
                 </h2>
                 <button
                   onClick={() => setShowJobDetailsModal(false)}
-                  className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0 ml-2"
+                  className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors shrink-0 ml-2"
                 >
                   <span className="material-symbols-outlined text-lg sm:text-xl">
                     close
@@ -504,10 +553,10 @@ export default function JobApplicationsPage() {
                       <img
                         src={selectedJob.client.image}
                         alt={selectedJob.client.name}
-                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover flex-shrink-0"
+                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover shrink-0"
                       />
                     ) : (
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
                         <span className="material-symbols-outlined text-gray-500 text-lg sm:text-xl">
                           person
                         </span>
@@ -521,17 +570,18 @@ export default function JobApplicationsPage() {
                   </div>
                 </div>
 
-                {activeTab === "available" && !selectedJob.proposal && (
-                  <button
-                    onClick={() => {
-                      setShowJobDetailsModal(false);
-                      handleApplyClick(selectedJob);
-                    }}
-                    className="w-full px-4 py-2.5 sm:py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold text-sm sm:text-base"
-                  >
-                    Apply to This Job
-                  </button>
-                )}
+                {(activeTab === "available" || activeTab === "recommended") &&
+                  !selectedJob.proposal && (
+                    <button
+                      onClick={() => {
+                        setShowJobDetailsModal(false);
+                        handleApplyClick(selectedJob);
+                      }}
+                      className="w-full px-4 py-2.5 sm:py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold text-sm sm:text-base"
+                    >
+                      Apply to This Job
+                    </button>
+                  )}
               </div>
             </motion.div>
           </motion.div>

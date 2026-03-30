@@ -2,10 +2,14 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { createBookingNotifications } from "@/lib/utils/notifications";
+import {
+  extractEscrowMilestones,
+  upsertEscrowMilestones,
+} from "@/lib/escrow/milestones";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await auth();
@@ -15,7 +19,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { status, notes } = body;
+    const { status, notes, cancellationReason } = body;
 
     const booking = await prisma.booking.findUnique({
       where: { id },
@@ -49,59 +53,138 @@ export async function PATCH(
     });
 
     if (!isProvider && !isClient) {
-      console.error("[BOOKING_PATCH] Authorization failed - user is neither provider nor client");
+      console.error(
+        "[BOOKING_PATCH] Authorization failed - user is neither provider nor client",
+      );
       return new NextResponse(
-        JSON.stringify({ 
-          error: "Unauthorized", 
-          message: "You do not have permission to update this booking" 
-        }), 
-        { status: 403, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: "Unauthorized",
+          message: "You do not have permission to update this booking",
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } },
       );
     }
 
     if (isClient && !isProvider && status && status !== "CANCELLED") {
-      console.error("[BOOKING_PATCH] Client trying to update to non-CANCELLED status:", status);
+      console.error(
+        "[BOOKING_PATCH] Client trying to update to non-CANCELLED status:",
+        status,
+      );
       return new NextResponse(
-        JSON.stringify({ 
-          error: "Forbidden", 
-          message: "Clients can only cancel bookings" 
-        }), 
-        { status: 403, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: "Forbidden",
+          message: "Clients can only cancel bookings",
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } },
       );
     }
+
+    const { plainNotes, escrow } = extractEscrowMilestones(booking.notes);
+    const notesForUpdate =
+      typeof notes === "string"
+        ? escrow
+          ? upsertEscrowMilestones(notes.trim() || null, escrow)
+          : notes || undefined
+        : undefined;
 
     const updatedBooking = await prisma.booking.update({
       where: { id },
       data: {
         status: status || undefined,
-        notes: notes || undefined,
+        notes: notesForUpdate,
+        ...(status === "CANCELLED"
+          ? {
+              cancelledAt: new Date(),
+              cancelledBy: session.user.id,
+              cancellationReason:
+                typeof cancellationReason === "string"
+                  ? cancellationReason.trim().slice(0, 500)
+                  : undefined,
+            }
+          : {}),
       },
     });
+
+    if (status && status !== booking.status) {
+      if (status === "COMPLETED") {
+        if (escrow) {
+          escrow.milestones = escrow.milestones.map((milestone) =>
+            milestone.status === "RELEASED"
+              ? milestone
+              : {
+                  ...milestone,
+                  status: "RELEASED",
+                  releasedAt: new Date().toISOString(),
+                },
+          );
+          escrow.releasedAmount = escrow.totalAmount;
+          escrow.updatedAt = new Date().toISOString();
+
+          await prisma.booking.update({
+            where: { id },
+            data: {
+              notes: upsertEscrowMilestones(plainNotes, escrow),
+            },
+          });
+        }
+
+        await prisma.payment.updateMany({
+          where: {
+            bookingId: id,
+            status: "PENDING",
+          },
+          data: {
+            status: "COMPLETED",
+            transactionId: `escrow_release_${id}`,
+          },
+        });
+      }
+
+      if (status === "CANCELLED") {
+        await prisma.payment.updateMany({
+          where: {
+            bookingId: id,
+            status: {
+              in: ["PENDING", "COMPLETED"],
+            },
+          },
+          data: {
+            status: "REFUNDED",
+            transactionId: `escrow_refund_${id}`,
+          },
+        });
+      }
+    }
 
     // Send notifications if status changed
     if (status && status !== booking.status) {
       // Notify the OTHER party
       const recipientId = isProvider ? booking.clientId : booking.providerId;
-      
+
       await createBookingNotifications(
         booking.id,
         session.user.id,
         recipientId,
         status, // Status is used as notification type/content hint
-        booking.service?.title || "Service"
+        booking.service?.title || "Service",
       );
 
       // Send email to client when provider updates status
-      const recipientEmail = isProvider ? booking.client.email : booking.service?.provider?.email;
-      const recipientName = isProvider ? booking.client.name : booking.service?.provider?.name;
-      
+      const recipientEmail = isProvider
+        ? booking.client.email
+        : booking.service?.provider?.email;
+      const recipientName = isProvider
+        ? booking.client.name
+        : booking.service?.provider?.name;
+
       if (recipientEmail && recipientName) {
         // Send email notification when provider updates status
         if (isProvider) {
           try {
-            const { sendBookingStatusUpdateEmail, sendReviewRequestEmail } = await import("@/lib/email");
+            const { sendBookingStatusUpdateEmail, sendReviewRequestEmail } =
+              await import("@/lib/email");
             const providerName = session.user.name || "The provider";
-            
+
             await sendBookingStatusUpdateEmail(
               recipientEmail,
               recipientName,
@@ -110,7 +193,7 @@ export async function PATCH(
               status,
               booking.date,
               booking.id,
-              booking.slots
+              booking.slots,
             );
             console.log(`[BOOKING_PATCH] Email sent to ${recipientEmail}`);
 
@@ -120,17 +203,25 @@ export async function PATCH(
                 recipientName,
                 providerName,
                 booking.service?.title || "Service",
-                booking.id
+                booking.id,
               );
-              console.log(`[BOOKING_PATCH] Review request email sent to ${recipientEmail}`);
-              
+              console.log(
+                `[BOOKING_PATCH] Review request email sent to ${recipientEmail}`,
+              );
+
               // Check and award badges for the provider
               try {
-                const { checkAndAwardBadges } = await import("@/lib/gamification/badge-checker");
+                const { checkAndAwardBadges } =
+                  await import("@/lib/gamification/badge-checker");
                 await checkAndAwardBadges(booking.providerId);
-                console.log(`[BOOKING_PATCH] Badge check completed for provider ${booking.providerId}`);
+                console.log(
+                  `[BOOKING_PATCH] Badge check completed for provider ${booking.providerId}`,
+                );
               } catch (badgeError) {
-                console.error("[BOOKING_PATCH] Error checking badges:", badgeError);
+                console.error(
+                  "[BOOKING_PATCH] Error checking badges:",
+                  badgeError,
+                );
                 // Don't fail the request if badge check fails
               }
             }
@@ -142,7 +233,14 @@ export async function PATCH(
       }
     }
 
-    return NextResponse.json(updatedBooking);
+    const { escrow: updatedEscrow } = extractEscrowMilestones(
+      updatedBooking.notes,
+    );
+
+    return NextResponse.json({
+      ...updatedBooking,
+      escrowMilestones: updatedEscrow,
+    });
   } catch (error) {
     console.error("[BOOKING_PATCH]", error);
     return new NextResponse("Internal Error", { status: 500 });
@@ -151,7 +249,7 @@ export async function PATCH(
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await auth();
@@ -174,9 +272,9 @@ export async function GET(
                 name: true,
                 email: true,
                 image: true,
-              }
-            }
-          }
+              },
+            },
+          },
         },
         client: {
           select: {
@@ -184,7 +282,7 @@ export async function GET(
             email: true,
             image: true,
             phone: true,
-          }
+          },
         },
         slots: true,
       },
@@ -194,11 +292,19 @@ export async function GET(
       return new NextResponse("Booking not found", { status: 404 });
     }
 
-    if (booking.providerId !== session.user.id && booking.clientId !== session.user.id) {
+    if (
+      booking.providerId !== session.user.id &&
+      booking.clientId !== session.user.id
+    ) {
       return new NextResponse("Unauthorized", { status: 403 });
     }
 
-    return NextResponse.json(booking);
+    const { escrow } = extractEscrowMilestones(booking.notes);
+
+    return NextResponse.json({
+      ...booking,
+      escrowMilestones: escrow,
+    });
   } catch (error) {
     console.error("[BOOKING_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });
@@ -208,7 +314,7 @@ export async function GET(
 // DELETE - Permanently delete a booking
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await auth();
@@ -237,16 +343,19 @@ export async function DELETE(
     const isProvider = booking.providerId === session.user.id;
 
     if (!isClient && !isProvider) {
-      return new NextResponse("Unauthorized - You don't have permission to delete this booking", {
-        status: 403,
-      });
+      return new NextResponse(
+        "Unauthorized - You don't have permission to delete this booking",
+        {
+          status: 403,
+        },
+      );
     }
 
     // Additional business rule: Only cancelled or completed bookings can be deleted
     if (!["CANCELLED", "COMPLETED"].includes(booking.status)) {
       return new NextResponse(
         "Cannot delete active booking. Please cancel it first.",
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -255,9 +364,9 @@ export async function DELETE(
       where: { id },
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      message: "Booking deleted successfully" 
+    return NextResponse.json({
+      success: true,
+      message: "Booking deleted successfully",
     });
   } catch (error) {
     console.error("Error deleting booking:", error);

@@ -1012,13 +1012,98 @@ export async function resolveDispute(
   try {
     const admin = await checkAdmin();
 
-    await prisma.dispute.update({
+    const dispute = await prisma.dispute.findUnique({
       where: { id: disputeId },
-      data: {
-        status,
-        resolution,
+      include: {
+        booking: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        defendant: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
     });
+
+    if (!dispute) {
+      return { success: false, error: "Dispute not found" };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.dispute.update({
+        where: { id: disputeId },
+        data: {
+          status,
+          resolution,
+        },
+      });
+
+      if (status === "RESOLVED") {
+        await tx.booking.update({
+          where: { id: dispute.booking.id },
+          data: {
+            status:
+              dispute.booking.status === "COMPLETED"
+                ? "COMPLETED"
+                : "IN_PROGRESS",
+          },
+        });
+      }
+
+      if (status === "CLOSED") {
+        await tx.booking.update({
+          where: { id: dispute.booking.id },
+          data: {
+            status: "CANCELLED",
+          },
+        });
+
+        await tx.payment.updateMany({
+          where: {
+            bookingId: dispute.booking.id,
+            status: {
+              in: ["PENDING", "COMPLETED"],
+            },
+          },
+          data: {
+            status: "REFUNDED",
+            transactionId: `dispute_refund_${dispute.booking.id}`,
+          },
+        });
+      }
+    });
+
+    await Promise.all([
+      sendComprehensiveNotification({
+        userId: dispute.creator.id,
+        title: "Dispute updated",
+        message: `Your dispute has been ${status.toLowerCase()}.`,
+        type: "SYSTEM",
+        emailSubject: `Dispute update: ${status}`,
+        emailHtml: `<p>Hello ${dispute.creator.name || "there"},</p><p>Your dispute has been <strong>${status.toLowerCase()}</strong>.</p><p><strong>Resolution:</strong> ${resolution}</p>`,
+      }),
+      sendComprehensiveNotification({
+        userId: dispute.defendant.id,
+        title: "Dispute updated",
+        message: `A dispute involving your booking has been ${status.toLowerCase()}.`,
+        type: "SYSTEM",
+        emailSubject: `Dispute update: ${status}`,
+        emailHtml: `<p>Hello ${dispute.defendant.name || "there"},</p><p>A dispute involving your booking has been <strong>${status.toLowerCase()}</strong>.</p><p><strong>Resolution:</strong> ${resolution}</p>`,
+      }),
+    ]);
 
     await prisma.adminLog.create({
       data: {

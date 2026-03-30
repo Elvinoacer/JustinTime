@@ -6,6 +6,7 @@ import { NewConversationModal } from "@/components/client/messages/NewConversati
 import apiClient from "@/lib/api/client";
 import { socket } from "@/lib/socket";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 
 // Force dynamic rendering to prevent SSR issues with socket.io
@@ -39,6 +40,7 @@ interface Message {
 
 function ClientMessagesContent() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(
     null,
@@ -51,6 +53,9 @@ function ClientMessagesContent() {
   const [isMobile, setIsMobile] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const selectedPartnerIdRef = useRef<string | null>(selectedPartnerId);
+  const deepLinkPartnerId = searchParams.get("partnerId");
+  const deepLinkPartnerName = searchParams.get("partnerName");
+  const deepLinkPartnerImage = searchParams.get("partnerImage");
 
   useEffect(() => {
     selectedPartnerIdRef.current = selectedPartnerId;
@@ -86,6 +91,34 @@ function ClientMessagesContent() {
       fetchConversations();
     }
   }, [session]);
+
+  useEffect(() => {
+    if (!deepLinkPartnerId) return;
+
+    setSelectedPartnerId(deepLinkPartnerId);
+
+    setConversations((prev) => {
+      const exists = prev.some((c) => c.partner.id === deepLinkPartnerId);
+      if (exists) return prev;
+
+      const starterConversation: Conversation = {
+        partner: {
+          id: deepLinkPartnerId,
+          name: deepLinkPartnerName || "Conversation",
+          image: deepLinkPartnerImage || null,
+        },
+        lastMessage: {
+          content: "",
+          createdAt: new Date().toISOString(),
+          isRead: true,
+          isOwn: false,
+        },
+        unreadCount: 0,
+      };
+
+      return [starterConversation, ...prev];
+    });
+  }, [deepLinkPartnerId, deepLinkPartnerImage, deepLinkPartnerName]);
 
   // Socket connection and listeners
   useEffect(() => {

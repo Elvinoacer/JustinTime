@@ -6,6 +6,7 @@ import { NewConversationModal } from "@/components/client/messages/NewConversati
 import apiClient from "@/lib/api/client";
 import { socket } from "@/lib/socket";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 
 interface Conversation {
@@ -38,6 +39,7 @@ interface Message {
 
 export default function ProviderMessagesPage() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(
     null,
@@ -47,6 +49,9 @@ export default function ProviderMessagesPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const deepLinkPartnerId = searchParams.get("partnerId");
+  const deepLinkPartnerName = searchParams.get("partnerName");
+  const deepLinkPartnerImage = searchParams.get("partnerImage");
 
   // Track recently sent message IDs to prevent duplicates from socket
   const recentlySentIds = useRef<Set<string>>(new Set());
@@ -80,6 +85,33 @@ export default function ProviderMessagesPage() {
       fetchConversations();
     }
   }, [session]);
+
+  useEffect(() => {
+    if (!deepLinkPartnerId) return;
+
+    setSelectedPartnerId(deepLinkPartnerId);
+    setConversations((prev) => {
+      const exists = prev.some((c) => c.partner.id === deepLinkPartnerId);
+      if (exists) return prev;
+
+      const starterConversation: Conversation = {
+        partner: {
+          id: deepLinkPartnerId,
+          name: deepLinkPartnerName || "Conversation",
+          image: deepLinkPartnerImage || null,
+        },
+        lastMessage: {
+          content: "",
+          createdAt: new Date().toISOString(),
+          isRead: true,
+          isOwn: false,
+        },
+        unreadCount: 0,
+      };
+
+      return [starterConversation, ...prev];
+    });
+  }, [deepLinkPartnerId, deepLinkPartnerImage, deepLinkPartnerName]);
 
   // Track selected partner ID in a ref to use in socket listener without re-binding
   const selectedPartnerIdRef = useRef<string | null>(selectedPartnerId);
