@@ -7,7 +7,7 @@ import apiClient from "@/lib/api/client";
 import { socket } from "@/lib/socket";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 
 // Force dynamic rendering to prevent SSR issues with socket.io
 export const dynamic = "force-dynamic";
@@ -421,5 +421,9 @@ function ClientMessagesContent() {
 // Wrapper component that disables SSR for the messages page
 // This prevents socket.io from trying to access window during server-side rendering
 export default function ClientMessagesPage() {
-  return <ClientMessagesContent />;
+  return (
+    <Suspense fallback={null}>
+      <ClientMessagesContent />
+    </Suspense>
+  );
 }

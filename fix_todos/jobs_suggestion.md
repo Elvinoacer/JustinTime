@@ -64,7 +64,7 @@ Scope: Normalize earlier findings into current implementation status for the Job
 
 - Hiring decision assistance UX.
   - Implemented: proposal scoring, sorting, compare mode in client proposals workspace.
-  - Remaining from original suggestion: explicit labels/predictors such as “Best Value”, delivery reliability prediction, and dedicated risk framing.
+  - Remaining from original suggestion: explicit labels/predictors such as "Best Value", delivery reliability prediction, and dedicated risk framing.
 
 - Trust layer depth.
   - Implemented: verified/rating/reviews/skills/certifications and profile snapshot.
