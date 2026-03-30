@@ -105,7 +105,7 @@ const Header = () => {
           isLandingPage
             ? isScrolled
               ? "border-b border-white/[0.06] bg-[#0a0f0d]/85 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
-              : "border-b border-white/[0.04] bg-white/[0.03] backdrop-blur-md"
+              : "border-b border-white/[0.04] bg-transparent backdrop-blur-sm"
             : isScrolled
               ? "bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-200/50"
               : "bg-white border-b border-gray-200"
@@ -115,14 +115,14 @@ const Header = () => {
           <div className="flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-2 sm:gap-3">
-              <Link href="/" className="flex items-center gap-2 sm:gap-3">
+              <Link href="/" className="flex items-center gap-2 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded-lg">
                 <img
                   src="/images/JustinTimeLogo.png"
                   alt="JustInTime Logo"
                   className="h-6 sm:h-8 w-auto"
                 />
                 <h2
-                  className={`text-base sm:text-xl font-bold leading-tight ${isLandingPage ? "text-white" : "text-gray-900"}`}
+                  className={`text-base sm:text-xl font-bold tracking-tight ${isLandingPage ? "text-white" : "text-gray-900"}`}
                 >
                   JustInTime
                 </h2>
@@ -135,7 +135,7 @@ const Header = () => {
                 <Link
                   key={index}
                   href={item.href}
-                  className={`text-sm font-medium px-3 py-2 rounded-lg transition-colors duration-300 relative group ${
+                  className={`text-sm font-medium px-3 py-2 rounded-lg transition-colors duration-300 relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
                     pathname === item.href
                       ? isLandingPage
                         ? "text-emerald-400"
@@ -236,7 +236,7 @@ const Header = () => {
                             })`,
                           }}
                         ></div>
-                        <ChevronDown className={`w-4 h-4 hidden sm:block ${isLandingPage ? "text-white/50" : "text-gray-600"}`} />
+                        <ChevronDown className={`w-4 h-4 hidden sm:block ${isLandingPage ? "text-white/70" : "text-gray-600"}`} />
                       </Popover.Button>
 
                       <Transition
@@ -402,14 +402,14 @@ const Header = () => {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 lg:hidden"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 lg:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsMenuOpen(false)}
           >
             <motion.div
-              className="absolute top-0 right-0 h-full w-4/5 max-w-sm bg-white shadow-2xl flex flex-col"
+              className="absolute top-0 right-0 h-full w-[85%] max-w-sm bg-white shadow-2xl flex flex-col"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -417,19 +417,19 @@ const Header = () => {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Menu Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <div className="flex items-center justify-between p-5 border-b border-gray-100">
                 <div className="flex items-center gap-3">
                   <img
                     src="/images/JustinTimeLogo.png"
                     alt="JustInTime Logo"
                     className="h-6 w-auto"
                   />
-                  <h2 className="text-gray-900 text-base font-bold">
+                  <h2 className="text-gray-900 text-lg font-bold tracking-tight">
                     JustInTime
                   </h2>
                 </div>
                 <button
-                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                   aria-label="Close menu"
                 >
@@ -446,9 +446,9 @@ const Header = () => {
                       <Link
                         key={index}
                         href={item.href}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
                           pathname === item.href
-                            ? "bg-emerald-50 text-emerald-600"
+                            ? "bg-emerald-50 text-emerald-600 font-semibold"
                             : "text-gray-700 hover:bg-gray-50"
                         }`}
                         onClick={() => setIsMenuOpen(false)}

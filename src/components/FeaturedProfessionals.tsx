@@ -13,7 +13,7 @@ type FeaturedService = {
   startingPrice?: number;
   images?: string[];
   provider?: {
-    image?: string;
+    image?: string | null;
     name?: string;
     isVerified?: boolean;
   };
@@ -38,12 +38,12 @@ const FeaturedProfessionals = () => {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            viewport={{ once: true, margin: "-50px" }}
+            viewport={{ once: true, margin: "-20px" }}
           >
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 sm:text-xs">
               Step 3: Choose
             </p>
-            <h2 className="landing-display text-[1.5rem] font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+            <h2 className="gradient-text-hero landing-display text-[1.5rem] font-bold tracking-tight sm:text-3xl md:text-4xl">
               Professionals clients rebook the most
             </h2>
           </motion.div>
@@ -76,17 +76,19 @@ const FeaturedProfessionals = () => {
               return (
                 <motion.div
                   key={service.id}
-                  className="group glass-card glass-card-hover flex flex-col items-center rounded-2xl p-5 text-center sm:p-6"
-                  initial={{ opacity: 0, y: 25 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  viewport={{ once: true, margin: "-50px" }}
+                  className="group glass-card glass-card-hover flex flex-col items-center rounded-2xl p-5 text-center sm:p-6 transition-all duration-500"
+                  initial={{ opacity: 0, y: 25, scale: 0.95 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.45, delay: index * 0.1, ease: [0.23, 1, 0.32, 1] }}
+                  viewport={{ once: true, margin: "-20px" }}
                 >
-                  {/* Avatar with ring */}
+                  {/* Avatar with animated ring */}
                   <div className="relative mb-4">
-                    <div className="h-18 w-18 overflow-hidden rounded-full ring-2 ring-emerald-400/40 ring-offset-2 ring-offset-[#0a0f0d] transition-all duration-300 group-hover:ring-emerald-400/60 sm:h-20 sm:w-20">
+                    {/* Pulse ring */}
+                    <div className="absolute inset-0 rounded-full ring-2 ring-emerald-400/30 animate-pulse-ring" aria-hidden="true" />
+                    <div className="h-18 w-18 overflow-hidden rounded-full ring-2 ring-emerald-400/40 ring-offset-2 ring-offset-[#0a0f0d] transition-all duration-500 group-hover:ring-emerald-400/70 group-hover:ring-offset-4 sm:h-20 sm:w-20">
                       <div
-                        className="w-full h-full bg-center bg-no-repeat bg-cover"
+                        className="w-full h-full bg-center bg-no-repeat bg-cover transition-transform duration-500 group-hover:scale-110"
                         style={{
                           backgroundImage: `url("${service.provider?.image || service.images?.[0] || "/images/placeholder.png"}")`,
                         }}
@@ -103,7 +105,7 @@ const FeaturedProfessionals = () => {
                   <h3 className="landing-display text-base font-semibold text-white sm:text-lg">
                     {service.provider?.name || "Professional"}
                   </h3>
-                  <p className="mt-0.5 text-xs text-white/50">
+                  <p className="mt-0.5 text-xs text-white/70">
                     {service.category?.name || "Specialist"}
                   </p>
 
@@ -111,11 +113,11 @@ const FeaturedProfessionals = () => {
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`w-3.5 h-3.5 ${i < roundedRating && ratingValue > 0 ? "fill-amber-400 text-amber-400" : "fill-white/10 text-white/10"}`}
+                        className={`w-3.5 h-3.5 transition-all duration-300 ${i < roundedRating && ratingValue > 0 ? "fill-amber-400 text-amber-400 group-hover:scale-110" : "fill-white/10 text-white/10"}`}
                         aria-hidden="true"
                       />
                     ))}
-                    <span className="ml-1 text-xs text-white/50">
+                    <span className="ml-1 text-xs text-white/70">
                       {ratingValue > 0
                         ? `${ratingValue.toFixed(1)} (${reviewCount})`
                         : "No reviews yet"}
@@ -127,7 +129,7 @@ const FeaturedProfessionals = () => {
                   </p>
 
                   <div className="mt-4 flex w-full items-center justify-between border-t border-white/8 pt-4">
-                    <span className="text-xs text-white/50">From</span>
+                    <span className="text-xs text-white/70">From</span>
                     <span className="text-sm font-semibold text-emerald-400">
                       Ksh{" "}
                       {Number(

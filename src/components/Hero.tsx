@@ -170,7 +170,7 @@ const floatingAvatars = [
 function useCounter(end: number, duration: number = 2000) {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-50px" });
+  const isInView = useInView(ref, { once: true, margin: "-20px" });
 
   useEffect(() => {
     if (!isInView) return;
@@ -187,6 +187,12 @@ function useCounter(end: number, duration: number = 2000) {
 
   return { count, ref };
 }
+
+const statAccents = [
+  { border: "border-l-emerald-400/50", glow: "shadow-emerald-500/10" },
+  { border: "border-l-cyan-400/50", glow: "shadow-cyan-500/10" },
+  { border: "border-l-amber-400/50", glow: "shadow-amber-500/10" },
+];
 
 const Hero = () => {
   const router = useRouter();
@@ -350,14 +356,17 @@ const Hero = () => {
       <div className="relative z-20 mx-auto grid w-full max-w-6xl gap-6 sm:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-12">
         {/* Left column — copy */}
         <div>
-          {/* Badge */}
+          {/* Badge with pulsing dot */}
           <motion.div
-            className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-white/6 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 backdrop-blur-md sm:text-xs"
+            className="animate-badge-pulse inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-white/6 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 backdrop-blur-md sm:text-xs"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45 }}
           >
-            <Shield className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
             {copy.badge}
           </motion.div>
 
@@ -379,9 +388,9 @@ const Hero = () => {
             </Link>
           </div>
 
-          {/* Headline */}
+          {/* Headline — gradient text */}
           <motion.h1
-            className="landing-display mt-6 max-w-2xl text-[1.58rem] font-extrabold leading-[1.1] tracking-tight text-white sm:text-[2.5rem] md:text-[2.8rem] lg:text-[3.5rem]"
+            className="gradient-text-hero landing-display mt-6 max-w-2xl text-[1.58rem] font-extrabold leading-[1.1] tracking-tight sm:text-[2.5rem] md:text-[2.8rem] lg:text-[3.5rem]"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55 }}
@@ -421,7 +430,7 @@ const Hero = () => {
                 whileInView={{ scale: 1.02, y: 0 }}
                 initial={{ scale: 0.95, y: 4 }}
                 transition={{ duration: 0.4, delay: 0.24 }}
-                viewport={{ once: true, margin: "-50px" }}
+                viewport={{ once: true, margin: "-20px" }}
               >
                 {copy.secondaryCtaLabel}
               </motion.button>
@@ -449,61 +458,53 @@ const Hero = () => {
             ))}
           </motion.div>
 
-          {/* Stats row */}
+          {/* Stats row — with coloured left borders */}
           <motion.div
             className="mt-7 grid max-w-xl grid-cols-1 gap-2.5 sm:mt-8 sm:grid-cols-3 sm:gap-4"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.24 }}
           >
-            <div
-              className="rounded-2xl border border-white/8 bg-white/5 px-3 py-3.5 text-left backdrop-blur-sm sm:py-4 sm:text-center"
-              ref={stat1.ref}
-            >
-              <div className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
-                {stat1.count}
-                <span className="text-emerald-400">+</span>
+            {[
+              { counter: stat1, label: "Pros", suffix: "+", format: (v: number) => String(v) },
+              { counter: stat2, label: "Clients", suffix: "+", format: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v) },
+              { counter: stat3, label: "Satisfaction", suffix: "%", format: (v: number) => String(v) },
+            ].map((stat, idx) => (
+              <div
+                key={stat.label}
+                className={`rounded-2xl border border-white/8 ${statAccents[idx].border} border-l-[3px] bg-white/5 px-3 py-3.5 text-left backdrop-blur-sm shadow-lg ${statAccents[idx].glow} sm:py-4 sm:text-center`}
+                ref={stat.counter.ref}
+              >
+                <div className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
+                  {stat.format(stat.counter.count)}
+                  <span className="text-emerald-400">{stat.suffix}</span>
+                </div>
+                <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60 sm:text-[11px]">
+                  {stat.label}
+                </div>
               </div>
-              <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/50 sm:text-[11px]">
-                Pros
-              </div>
-            </div>
-            <div
-              className="rounded-2xl border border-white/8 bg-white/5 px-3 py-3.5 text-left backdrop-blur-sm sm:py-4 sm:text-center"
-              ref={stat2.ref}
-            >
-              <div className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
-                {stat2.count >= 1000
-                  ? `${(stat2.count / 1000).toFixed(1)}k`
-                  : stat2.count}
-                <span className="text-emerald-400">+</span>
-              </div>
-              <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/50 sm:text-[11px]">
-                Clients
-              </div>
-            </div>
-            <div
-              className="rounded-2xl border border-white/8 bg-white/5 px-3 py-3.5 text-left backdrop-blur-sm sm:py-4 sm:text-center"
-              ref={stat3.ref}
-            >
-              <div className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
-                {stat3.count}
-                <span className="text-emerald-400">%</span>
-              </div>
-              <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/50 sm:text-[11px]">
-                Satisfaction
-              </div>
-            </div>
+            ))}
           </motion.div>
         </div>
 
-        {/* Right column — search form card */}
+        {/* Right column — search form card with glowing ring */}
         <motion.div
-          className="rounded-2xl border border-white/10 bg-white/6 p-4 sm:rounded-3xl sm:p-6 md:p-7 shadow-[0_28px_70px_-38px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+          className="relative rounded-2xl border border-white/10 bg-white/6 p-4 sm:rounded-3xl sm:p-6 md:p-7 shadow-[0_28px_70px_-38px_rgba(0,0,0,0.6)] backdrop-blur-xl"
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.12 }}
         >
+          {/* Glowing ring behind */}
+          <div
+            className="pointer-events-none absolute -inset-[1px] rounded-2xl sm:rounded-3xl opacity-60"
+            style={{
+              background: "linear-gradient(135deg, rgba(52,211,153,0.2), rgba(34,211,238,0.15), rgba(168,85,247,0.1), rgba(52,211,153,0.2))",
+              filter: "blur(1px)",
+              zIndex: -1,
+            }}
+            aria-hidden="true"
+          />
+
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-400 sm:text-xs">
             Find your specialist
           </p>
@@ -610,9 +611,9 @@ const Hero = () => {
               </div>
             </div>
 
-            {/* Search button */}
+            {/* Search button — shimmer sweep */}
             <motion.button
-              className="w-full rounded-2xl bg-linear-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-400 hover:shadow-emerald-500/35 sm:py-3.5"
+              className="shimmer-btn w-full rounded-2xl bg-linear-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-400 hover:shadow-emerald-500/35 sm:py-3.5"
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
               onClick={handleSearch}

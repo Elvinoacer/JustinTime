@@ -9,24 +9,40 @@ const milestones = [
     step: "01",
     title: "Discover",
     description: "Start with service categories that match your exact need.",
+    accent: "text-emerald-400",
+    bg: "bg-emerald-500/15",
+    border: "border-emerald-400/20",
+    glow: "shadow-emerald-500/20",
   },
   {
     icon: SearchCheck,
     step: "02",
     title: "Compare",
     description: "Review top options, ratings, and pricing with full clarity.",
+    accent: "text-cyan-400",
+    bg: "bg-cyan-500/15",
+    border: "border-cyan-400/20",
+    glow: "shadow-cyan-500/20",
   },
   {
     icon: ShieldCheck,
     step: "03",
     title: "Trust",
     description: "Book vetted professionals with secure platform protection.",
+    accent: "text-amber-400",
+    bg: "bg-amber-500/15",
+    border: "border-amber-400/20",
+    glow: "shadow-amber-500/20",
   },
   {
     icon: Sparkles,
     step: "04",
     title: "Delight",
     description: "Get the work done and rebook your favorites in seconds.",
+    accent: "text-violet-400",
+    bg: "bg-violet-500/15",
+    border: "border-violet-400/20",
+    glow: "shadow-violet-500/20",
   },
 ];
 
@@ -59,27 +75,30 @@ const LandingNarrativeRail = () => {
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.35, delay: index * 0.08 }}
                   viewport={{ once: true, margin: "-30px" }}
-                  className="relative rounded-xl border border-white/[0.08] bg-white/[0.04] p-3.5 sm:px-3 sm:py-3"
+                  className={`relative rounded-xl border ${item.border} bg-white/[0.04] p-3.5 sm:px-3 sm:py-3 transition-all duration-300 hover:bg-white/[0.07]`}
                 >
                   {/* Desktop connector line */}
                   {index < milestones.length - 1 && (
                     <div
-                      className="pointer-events-none absolute -right-2 top-1/2 hidden h-px w-4 -translate-y-1/2 bg-emerald-400/30 md:block"
+                      className="pointer-events-none absolute -right-2 top-1/2 hidden h-px w-4 -translate-y-1/2 md:block"
+                      style={{
+                        background: "linear-gradient(90deg, rgba(52,211,153,0.4), rgba(34,211,238,0.3))",
+                      }}
                       aria-hidden="true"
                     />
                   )}
                   <div className="mb-2 flex items-center justify-between">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400 sm:h-8 sm:w-8">
+                    <div className={`relative flex h-9 w-9 items-center justify-center rounded-lg ${item.bg} ${item.accent} shadow-lg ${item.glow} sm:h-8 sm:w-8`}>
                       <Icon className="h-4 w-4" aria-hidden="true" />
                     </div>
-                    <span className="text-[10px] font-bold tracking-[0.16em] text-emerald-400/60">
+                    <span className={`text-[10px] font-bold tracking-[0.16em] ${item.accent} opacity-60`}>
                       {item.step}
                     </span>
                   </div>
-                  <h3 className="landing-display text-sm font-semibold text-white">
+                  <h3 className={`landing-display text-sm font-semibold ${item.accent}`}>
                     {item.title}
                   </h3>
-                  <p className="mt-1 text-xs leading-relaxed text-white/60">
+                  <p className="mt-1 text-xs leading-relaxed text-white/70">
                     {item.description}
                   </p>
                 </motion.div>

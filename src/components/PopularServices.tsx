@@ -23,8 +23,8 @@ const cardsContainer = {
 };
 
 const cardItem = {
-  hidden: { opacity: 0, y: 22 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.36 } },
+  hidden: { opacity: 0, y: 22, scale: 0.96 },
+  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.45, ease: [0.23, 1, 0.32, 1] } },
 };
 
 const PopularServices = () => {
@@ -43,12 +43,12 @@ const PopularServices = () => {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          viewport={{ once: true, margin: "-50px" }}
+          viewport={{ once: true, margin: "-20px" }}
         >
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 sm:text-xs">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-400 sm:text-xs">
             Step 2: Compare
           </p>
-          <h2 className="landing-display text-[1.5rem] font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+          <h2 className="gradient-text-cool landing-display text-[1.5rem] font-bold tracking-tight sm:text-3xl md:text-4xl">
             Most booked services this week
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/70 sm:text-base">
@@ -78,13 +78,13 @@ const PopularServices = () => {
             {services.map((service) => (
               <motion.div
                 key={service.id}
-                className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/3 shadow-[0_16px_45px_-24px_rgba(0,0,0,0.65)]"
+                className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/3 shadow-[0_16px_45px_-24px_rgba(0,0,0,0.65)] transition-all duration-500 hover:border-cyan-400/30 hover:shadow-[0_20px_50px_-20px_rgba(34,211,238,0.2)]"
                 variants={cardItem}
               >
                 <div className="absolute inset-0" aria-hidden="true">
                   {service.images?.[0] || service.imageUrl ? (
                     <div
-                      className="h-full w-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+                      className="h-full w-full bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
                       style={{
                         backgroundImage: `url("${service.images?.[0] || service.imageUrl}")`,
                       }}
@@ -102,7 +102,7 @@ const PopularServices = () => {
                     className="absolute inset-0"
                     style={{
                       background:
-                        "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.82) 100%)",
+                        "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.85) 100%)",
                     }}
                   />
                   <div
@@ -115,11 +115,11 @@ const PopularServices = () => {
                 </div>
 
                 <div className="relative z-10 flex h-52 flex-col justify-end p-5 sm:h-60 sm:p-6">
-                  <p className="mb-2 w-fit rounded-full border border-white/20 bg-black/35 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.13em] text-emerald-200/90 backdrop-blur-sm">
+                  <p className="animate-badge-pulse mb-2 w-fit rounded-full border border-cyan-400/30 bg-black/45 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.13em] text-cyan-200/90 backdrop-blur-sm">
                     Top pick
                   </p>
 
-                  <h3 className="mb-2 line-clamp-1 text-base font-semibold text-white transition-colors group-hover:text-emerald-200 sm:text-lg">
+                  <h3 className="mb-2 line-clamp-1 text-base font-semibold text-white transition-colors group-hover:text-cyan-200 sm:text-lg">
                     {service.title || service.name}
                   </h3>
 
@@ -130,7 +130,7 @@ const PopularServices = () => {
                   <div>
                     <Link
                       href={`/services/${service.id}`}
-                      className="group/link inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/45 px-3.5 py-2 text-xs font-semibold text-white/90 backdrop-blur-sm transition-colors hover:border-emerald-300/45 hover:text-emerald-100 sm:text-sm"
+                      className="group/link inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/45 px-3.5 py-2 text-xs font-semibold text-white/90 backdrop-blur-sm transition-all duration-300 hover:border-cyan-300/45 hover:bg-cyan-500/15 hover:text-cyan-100 sm:text-sm"
                     >
                       Review Service
                       <ArrowRight
@@ -151,11 +151,11 @@ const PopularServices = () => {
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          viewport={{ once: true, margin: "-50px" }}
+          viewport={{ once: true, margin: "-20px" }}
         >
           <Link href="/services">
             <motion.button
-              className="group inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/4 px-6 py-2.5 text-sm font-semibold text-white/80 backdrop-blur-sm transition-all duration-300 hover:border-emerald-400/30 hover:text-emerald-400"
+              className="group inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/4 px-6 py-2.5 text-sm font-semibold text-white/80 backdrop-blur-sm transition-all duration-300 hover:border-cyan-400/30 hover:text-cyan-400"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >

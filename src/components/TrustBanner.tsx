@@ -6,7 +6,7 @@ import { MapPin, Users, Briefcase, Star } from "lucide-react";
 function useAnimatedNumber(end: number, duration = 2000) {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-50px" });
+  const isInView = useInView(ref, { once: true, margin: "-20px" });
 
   useEffect(() => {
     if (!isInView) return;
@@ -29,28 +29,40 @@ const metrics = [
     value: 47,
     suffix: "",
     icon: MapPin,
-    color: "text-emerald-400",
+    accent: "text-emerald-400",
+    border: "border-emerald-400/30",
+    bg: "from-emerald-500/20 to-emerald-500/5",
+    glow: "shadow-emerald-500/15",
   },
   {
     label: "Active Professionals",
     value: 500,
     suffix: "+",
     icon: Users,
-    color: "text-cyan-400",
+    accent: "text-cyan-400",
+    border: "border-cyan-400/30",
+    bg: "from-cyan-500/20 to-cyan-500/5",
+    glow: "shadow-cyan-500/15",
   },
   {
     label: "Services Completed",
     value: 10000,
     suffix: "+",
     icon: Briefcase,
-    color: "text-amber-400",
+    accent: "text-amber-400",
+    border: "border-amber-400/30",
+    bg: "from-amber-500/20 to-amber-500/5",
+    glow: "shadow-amber-500/15",
   },
   {
     label: "Average Rating",
     value: 4.8,
     suffix: "/5",
     icon: Star,
-    color: "text-yellow-400",
+    accent: "text-yellow-400",
+    border: "border-yellow-400/30",
+    bg: "from-yellow-500/20 to-yellow-500/5",
+    glow: "shadow-yellow-500/15",
     isDecimal: true,
   },
 ];
@@ -74,26 +86,47 @@ const TrustBanner = () => {
           initial={{ opacity: 0, y: 25 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          viewport={{ once: true, margin: "-50px" }}
+          viewport={{ once: true, margin: "-20px" }}
         >
-          <p className="mb-1 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 sm:text-xs">
+          <p className="mb-1 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-400 sm:text-xs">
             Platform trust
           </p>
-          <h3 className="landing-display mb-6 text-center text-lg font-bold text-white sm:text-xl md:text-2xl">
+          <h3 className="gradient-text-warm landing-display mb-6 text-center text-lg font-bold sm:text-xl md:text-2xl">
             Real platform performance, visible before you commit
           </h3>
-          <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-4 md:gap-8">
+
+          {/* Bento-style grid: 1 large + 3 smaller on desktop */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 md:gap-5">
             {metrics.map((metric, index) => {
               const Icon = metric.icon;
               const counter = counters[index];
+              const isFirst = index === 0;
               return (
-                <div
+                <motion.div
                   key={index}
-                  className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-4 text-center sm:rounded-2xl sm:px-4 sm:py-5"
+                  className={`relative overflow-hidden rounded-xl border ${metric.border} bg-linear-to-b ${metric.bg} px-3 py-4 text-center sm:rounded-2xl sm:px-4 sm:py-5 shadow-lg ${metric.glow} ${isFirst ? "md:col-span-1" : ""}`}
                   ref={counter.ref}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4, delay: index * 0.08 }}
+                  viewport={{ once: true, margin: "-20px" }}
                 >
+                  {/* Decorative glow blob */}
+                  <div
+                    className="pointer-events-none absolute -top-8 left-1/2 h-16 w-16 -translate-x-1/2 rounded-full opacity-40 blur-2xl"
+                    style={{
+                      background: metric.accent.includes("emerald")
+                        ? "rgba(52,211,153,0.5)"
+                        : metric.accent.includes("cyan")
+                          ? "rgba(34,211,238,0.5)"
+                          : metric.accent.includes("amber")
+                            ? "rgba(251,191,36,0.5)"
+                            : "rgba(250,204,21,0.5)",
+                    }}
+                    aria-hidden="true"
+                  />
                   <Icon
-                    className={`w-5 h-5 sm:w-6 sm:h-6 ${metric.color} mx-auto mb-2`}
+                    className={`w-5 h-5 sm:w-6 sm:h-6 ${metric.accent} mx-auto mb-2`}
                     aria-hidden="true"
                   />
                   <div className="text-xl font-bold text-white tabular-nums sm:text-2xl md:text-3xl">
@@ -102,12 +135,12 @@ const TrustBanner = () => {
                       : counter.count >= 1000
                         ? `${(counter.count / 1000).toFixed(counter.count >= 10000 ? 0 : 1)}k`
                         : counter.count}
-                    <span className="text-emerald-400">{metric.suffix}</span>
+                    <span className={metric.accent}>{metric.suffix}</span>
                   </div>
-                  <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/50 sm:text-xs sm:tracking-[0.15em]">
+                  <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/60 sm:text-xs sm:tracking-[0.15em]">
                     {metric.label}
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>

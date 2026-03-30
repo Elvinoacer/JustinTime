@@ -23,13 +23,13 @@ const JoinAsPro = () => {
           {/* Left — Image */}
           <motion.div
             className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-emerald-400/20 sm:rounded-3xl"
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true, margin: "-50px" }}
+            initial={{ opacity: 0, x: -30, scale: 0.95 }}
+            whileInView={{ opacity: 1, x: 0, scale: 1 }}
+            transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+            viewport={{ once: true, margin: "-20px" }}
           >
             <div
-              className="absolute inset-0 bg-center bg-cover"
+              className="absolute inset-0 bg-center bg-cover transition-transform duration-700 hover:scale-105"
               style={{
                 backgroundImage: `url("https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&h=450&fit=crop")`,
               }}
@@ -43,7 +43,7 @@ const JoinAsPro = () => {
             />
             {/* Floating badge */}
             <div className="absolute bottom-4 left-4 rounded-xl border border-white/[0.12] bg-white/[0.1] px-4 py-3 backdrop-blur-xl">
-              <p className="text-xl font-bold text-white">KSh 85k+</p>
+              <p className="gradient-text-emerald text-xl font-bold">KSh 85k+</p>
               <p className="text-[10px] uppercase tracking-wider text-emerald-400">
                 avg. monthly earnings
               </p>
@@ -55,12 +55,12 @@ const JoinAsPro = () => {
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            viewport={{ once: true, margin: "-50px" }}
+            viewport={{ once: true, margin: "-20px" }}
           >
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 sm:text-xs">
               For Professionals
             </p>
-            <h2 className="landing-display text-[1.5rem] font-bold leading-tight tracking-tight text-white sm:text-3xl md:text-4xl">
+            <h2 className="gradient-text-hero landing-display text-[1.5rem] font-bold leading-tight tracking-tight sm:text-3xl md:text-4xl">
               Turn your skills into recurring income
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-white/70 sm:text-base">
@@ -72,9 +72,13 @@ const JoinAsPro = () => {
             {/* Perks list */}
             <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
               {perks.map((perk, index) => (
-                <div
+                <motion.div
                   key={index}
-                  className="flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3.5 py-3"
+                  className="flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3.5 py-3 transition-all duration-300 hover:border-emerald-400/20 hover:bg-white/[0.07]"
+                  initial={{ opacity: 0, x: -10 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 + index * 0.05 }}
+                  viewport={{ once: true, margin: "-20px" }}
                 >
                   <CheckCircle
                     className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400"
@@ -83,7 +87,7 @@ const JoinAsPro = () => {
                   <span className="text-[13px] text-white/80 sm:text-sm">
                     {perk}
                   </span>
-                </div>
+                </motion.div>
               ))}
             </div>
 
@@ -91,7 +95,7 @@ const JoinAsPro = () => {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Link href="/auth/signup?callbackUrl=/provider/onboarding">
                 <motion.button
-                  className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-emerald-500 to-teal-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-colors hover:from-emerald-400 hover:to-teal-400 sm:w-auto"
+                  className="shimmer-btn group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-emerald-500 to-teal-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-colors hover:from-emerald-400 hover:to-teal-400 sm:w-auto"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >

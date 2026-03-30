@@ -9,6 +9,10 @@ const steps = [
     description:
       "Enter what you need in the search bar or browse categories to find the perfect service.",
     icon: Search,
+    accent: "text-emerald-400",
+    bg: "bg-emerald-500/15",
+    borderAccent: "border-t-emerald-400/40",
+    gradient: "from-emerald-500/10 to-transparent",
   },
   {
     num: "02",
@@ -16,6 +20,10 @@ const steps = [
     description:
       "Browse profiles, ratings, and reviews. Pick the professional that fits your budget.",
     icon: UserCheck,
+    accent: "text-cyan-400",
+    bg: "bg-cyan-500/15",
+    borderAccent: "border-t-cyan-400/40",
+    gradient: "from-cyan-500/10 to-transparent",
   },
   {
     num: "03",
@@ -23,6 +31,10 @@ const steps = [
     description:
       "Confirm your booking, pay securely with M-Pesa, and let the professional handle the rest.",
     icon: CalendarCheck,
+    accent: "text-amber-400",
+    bg: "bg-amber-500/15",
+    borderAccent: "border-t-amber-400/40",
+    gradient: "from-amber-500/10 to-transparent",
   },
 ];
 
@@ -36,8 +48,8 @@ const stepsContainer = {
 };
 
 const stepItem = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.42 } },
+  hidden: { opacity: 0, y: 24, scale: 0.95 },
+  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.5, ease: [0.23, 1, 0.32, 1] } },
 };
 
 const HowItWorks = () => {
@@ -53,12 +65,12 @@ const HowItWorks = () => {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          viewport={{ once: true, margin: "-50px" }}
+          viewport={{ once: true, margin: "-20px" }}
         >
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 sm:text-xs">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-400 sm:text-xs">
             Step 3: Book
           </p>
-          <h2 className="landing-display text-[1.5rem] font-bold tracking-tight text-white sm:text-3xl md:text-4xl lg:text-5xl">
+          <h2 className="gradient-text-cool landing-display text-[1.5rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
             Three clear steps to completed work
           </h2>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">
@@ -80,30 +92,47 @@ const HowItWorks = () => {
             return (
               <motion.div
                 key={index}
-                className="glass-card glass-card-hover relative flex flex-col rounded-2xl p-5 sm:p-6"
+                className={`group glass-card glass-card-hover relative flex flex-col rounded-2xl border-t-2 ${step.borderAccent} p-5 sm:p-6 overflow-hidden`}
                 variants={stepItem}
               >
+                {/* Watermark number */}
+                <span
+                  className="pointer-events-none absolute -right-3 -top-4 text-[6rem] font-black leading-none text-white/[0.03] sm:text-[7rem]"
+                  aria-hidden="true"
+                >
+                  {step.num}
+                </span>
+
+                {/* Gradient backdrop */}
+                <div
+                  className={`pointer-events-none absolute inset-0 bg-linear-to-b ${step.gradient} opacity-50`}
+                  aria-hidden="true"
+                />
+
                 {/* Step number + icon */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-500/15 sm:h-10 sm:w-10">
-                    <Icon className="h-5 w-5 text-emerald-400" aria-hidden="true" />
+                <div className="relative z-10 flex items-center gap-3 mb-4">
+                  <div className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 ${step.bg} shadow-lg sm:h-10 sm:w-10`}>
+                    <Icon className={`h-5 w-5 ${step.accent}`} aria-hidden="true" />
                   </div>
-                  <span className="text-3xl font-bold text-emerald-400/20" aria-hidden="true">
+                  <span className={`text-3xl font-bold ${step.accent} opacity-20`} aria-hidden="true">
                     {step.num}
                   </span>
                 </div>
 
-                <h3 className="landing-display mb-2 text-lg font-semibold text-white">
+                <h3 className={`relative z-10 landing-display mb-2 text-lg font-semibold ${step.accent}`}>
                   {step.title}
                 </h3>
-                <p className="text-sm leading-relaxed text-white/60">
+                <p className="relative z-10 text-sm leading-relaxed text-white/70">
                   {step.description}
                 </p>
 
                 {/* Mobile connector */}
                 {index < steps.length - 1 && (
                   <div
-                    className="mx-auto mt-5 h-6 w-px bg-emerald-400/30 md:hidden"
+                    className="mx-auto mt-5 h-6 w-px md:hidden"
+                    style={{
+                      background: "linear-gradient(180deg, rgba(52,211,153,0.4), rgba(34,211,238,0.2))",
+                    }}
                     aria-hidden="true"
                   />
                 )}

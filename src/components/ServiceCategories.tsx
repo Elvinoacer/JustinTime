@@ -22,6 +22,7 @@ const categories = [
     icon: Wrench,
     color: "from-blue-500/35 to-indigo-500/15",
     iconColor: "text-blue-400",
+    glowColor: "rgba(59,130,246,0.3)",
     href: "/services?category=Home+Maintenance",
   },
   {
@@ -29,6 +30,7 @@ const categories = [
     icon: Sparkles,
     color: "from-cyan-400/35 to-teal-500/15",
     iconColor: "text-cyan-400",
+    glowColor: "rgba(34,211,238,0.3)",
     href: "/services?category=Cleaning",
   },
   {
@@ -36,6 +38,7 @@ const categories = [
     icon: Zap,
     color: "from-amber-400/35 to-yellow-500/15",
     iconColor: "text-amber-400",
+    glowColor: "rgba(251,191,36,0.3)",
     href: "/services?category=Electrical",
   },
   {
@@ -43,6 +46,7 @@ const categories = [
     icon: Paintbrush,
     color: "from-pink-500/35 to-rose-500/15",
     iconColor: "text-pink-400",
+    glowColor: "rgba(236,72,153,0.3)",
     href: "/services?category=Painting",
   },
   {
@@ -50,6 +54,7 @@ const categories = [
     icon: MonitorSmartphone,
     color: "from-violet-500/35 to-fuchsia-500/15",
     iconColor: "text-violet-400",
+    glowColor: "rgba(139,92,246,0.3)",
     href: "/services?category=IT+Support",
   },
   {
@@ -57,6 +62,7 @@ const categories = [
     icon: Utensils,
     color: "from-orange-500/35 to-amber-500/15",
     iconColor: "text-orange-400",
+    glowColor: "rgba(249,115,22,0.3)",
     href: "/services?category=Catering",
   },
   {
@@ -64,6 +70,7 @@ const categories = [
     icon: Hammer,
     color: "from-emerald-500/35 to-teal-500/15",
     iconColor: "text-emerald-400",
+    glowColor: "rgba(52,211,153,0.3)",
     href: "/services?category=Construction",
   },
   {
@@ -71,6 +78,7 @@ const categories = [
     icon: Heart,
     color: "from-rose-500/35 to-pink-500/15",
     iconColor: "text-rose-400",
+    glowColor: "rgba(251,113,133,0.3)",
     href: "/services?category=Beauty",
   },
   {
@@ -78,6 +86,7 @@ const categories = [
     icon: ShieldCheck,
     color: "from-slate-300/35 to-slate-500/15",
     iconColor: "text-slate-300",
+    glowColor: "rgba(148,163,184,0.3)",
     href: "/services?category=Security",
   },
   {
@@ -85,6 +94,7 @@ const categories = [
     icon: Truck,
     color: "from-teal-400/35 to-cyan-500/15",
     iconColor: "text-teal-400",
+    glowColor: "rgba(45,212,191,0.3)",
     href: "/services?category=Moving",
   },
   {
@@ -92,6 +102,7 @@ const categories = [
     icon: GraduationCap,
     color: "from-indigo-500/35 to-blue-500/15",
     iconColor: "text-indigo-400",
+    glowColor: "rgba(99,102,241,0.3)",
     href: "/services?category=Tutoring",
   },
   {
@@ -99,6 +110,7 @@ const categories = [
     icon: Camera,
     color: "from-fuchsia-500/35 to-violet-500/15",
     iconColor: "text-fuchsia-400",
+    glowColor: "rgba(192,38,211,0.3)",
     href: "/services?category=Photography",
   },
 ];
@@ -113,8 +125,8 @@ const containerVariants = {
 };
 
 const cardVariants = {
-  hidden: { opacity: 0, y: 18 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.34 } },
+  hidden: { opacity: 0, y: 18, scale: 0.95 },
+  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4, ease: [0.23, 1, 0.32, 1] } },
 };
 
 const ServiceCategories = () => {
@@ -130,12 +142,12 @@ const ServiceCategories = () => {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          viewport={{ once: true, margin: "-50px" }}
+          viewport={{ once: true, margin: "-20px" }}
         >
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 sm:text-xs">
             Step 1: Discover
           </p>
-          <h2 className="landing-display text-[1.5rem] font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+          <h2 className="gradient-text-hero landing-display text-[1.5rem] font-bold tracking-tight sm:text-3xl md:text-4xl">
             Pick the lane that fits your task
           </h2>
           <p className="mt-3 max-w-lg text-sm leading-relaxed text-white/70 sm:text-base">
@@ -144,9 +156,9 @@ const ServiceCategories = () => {
           </p>
         </motion.div>
 
-        {/* Category Grid — 3 cols on mobile for compact fit, scales up */}
+        {/* Category Grid */}
         <motion.div
-          className="grid grid-cols-3 gap-2.5 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-6"
+          className="grid grid-cols-2 gap-2.5 min-[480px]:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-6"
           variants={containerVariants}
           initial="hidden"
           whileInView="show"
@@ -157,13 +169,17 @@ const ServiceCategories = () => {
             return (
               <motion.div key={index} variants={cardVariants}>
                 <Link href={category.href}>
-                  <div className="group relative flex min-h-[7.5rem] cursor-pointer flex-col items-center justify-center gap-2.5 overflow-hidden rounded-2xl border border-white/8 bg-[linear-gradient(145deg,rgba(255,255,255,0.065),rgba(255,255,255,0.02))] p-3 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300/30 sm:min-h-[8.5rem] sm:gap-3 sm:p-5">
+                  <div className="shimmer-card tilt-card group relative flex min-h-[7.5rem] cursor-pointer flex-col items-center justify-center gap-2.5 overflow-hidden rounded-2xl border border-white/8 bg-[linear-gradient(145deg,rgba(255,255,255,0.065),rgba(255,255,255,0.02))] p-3 backdrop-blur-xl transition-all duration-300 hover:border-emerald-300/30 sm:min-h-[8.5rem] sm:gap-3 sm:p-5">
                     <div
-                      className={`pointer-events-none absolute -top-9 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full bg-linear-to-br ${category.color} opacity-55 blur-2xl transition-opacity duration-300 group-hover:opacity-75`}
+                      className={`pointer-events-none absolute -top-9 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full bg-linear-to-br ${category.color} opacity-55 blur-2xl transition-opacity duration-300 group-hover:opacity-80`}
                       aria-hidden="true"
                     />
                     <div
-                      className={`relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-[#071610]/85 shadow-[0_10px_28px_-16px_rgba(0,0,0,0.9)] transition-transform duration-300 group-hover:scale-110 sm:h-12 sm:w-12`}
+                      className={`relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-[#071610]/85 shadow-[0_10px_28px_-16px_rgba(0,0,0,0.9)] transition-all duration-300 group-hover:scale-110 sm:h-12 sm:w-12`}
+                      style={{
+                        boxShadow: `0 0 0 0 ${category.glowColor}`,
+                        transition: "box-shadow 0.4s ease, transform 0.3s ease",
+                      }}
                     >
                       <span
                         className={`absolute inset-0 rounded-xl bg-linear-to-br ${category.color} opacity-35`}
@@ -174,7 +190,7 @@ const ServiceCategories = () => {
                         aria-hidden="true"
                       />
                     </div>
-                    <span className="text-center text-[10px] font-semibold leading-tight text-white/78 transition-colors group-hover:text-white sm:text-xs">
+                    <span className="relative z-[2] text-center text-[10px] font-semibold leading-tight text-white/78 transition-colors group-hover:text-white sm:text-xs">
                       {category.name}
                     </span>
                   </div>
