@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
+import { hasRole } from "@/lib/auth/roles";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    
-    if (!session || !session.user || session.user.role !== "PROVIDER") {
+
+    if (!session || !session.user || !hasRole(session.user, "PROVIDER")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -35,11 +36,11 @@ export async function GET(request: NextRequest) {
           providerId: userId,
         },
         include: {
-          job: { 
-            select: { 
+          job: {
+            select: {
               title: true,
-              client: { select: { name: true } }
-            } 
+              client: { select: { name: true } },
+            },
           },
         },
         orderBy: { createdAt: "desc" },
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
 
     // Combine and format activities
     const activities = [
-      ...bookings.map(b => ({
+      ...bookings.map((b) => ({
         id: b.id,
         type: "BOOKING",
         title: b.status === "CONFIRMED" ? "New Booking" : "Booking Update",
@@ -70,16 +71,20 @@ export async function GET(request: NextRequest) {
         icon: "event",
         color: "bg-blue-100 text-blue-600",
       })),
-      ...proposals.map(p => ({
+      ...proposals.map((p) => ({
         id: p.id,
         type: "PROPOSAL",
-        title: p.status === "ACCEPTED" ? "Proposal Accepted" : "Proposal Submitted",
+        title:
+          p.status === "ACCEPTED" ? "Proposal Accepted" : "Proposal Submitted",
         desc: `On '${p.job.title}'`,
         time: p.createdAt,
         icon: "description",
-        color: p.status === "ACCEPTED" ? "bg-emerald-100 text-emerald-600" : "bg-amber-100 text-amber-600",
+        color:
+          p.status === "ACCEPTED"
+            ? "bg-emerald-100 text-emerald-600"
+            : "bg-amber-100 text-amber-600",
       })),
-      ...reviews.map(r => ({
+      ...reviews.map((r) => ({
         id: r.id,
         type: "REVIEW",
         title: "New Review",
@@ -89,8 +94,8 @@ export async function GET(request: NextRequest) {
         color: "bg-purple-100 text-purple-600",
       })),
     ]
-    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-    .slice(0, 10);
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+      .slice(0, 10);
 
     return NextResponse.json({ activities });
   } catch (error) {

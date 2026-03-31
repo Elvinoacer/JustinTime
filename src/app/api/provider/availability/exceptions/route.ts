@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { hasAnyRole } from "@/lib/auth/roles";
 
 // POST - Create availability exception
 export async function POST(request: Request) {
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
     }
 
     // Only providers can create exceptions
-    if (session.user.role !== "PROVIDER" && session.user.role !== "ADMIN") {
+    if (!hasAnyRole(session.user, ["PROVIDER", "ADMIN"])) {
       return new NextResponse("Forbidden - Provider access required", {
         status: 403,
       });
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
     if (isAvailable && (!startTime || !endTime)) {
       return new NextResponse(
         "Start and end time required for available exceptions",
-        { status: 400 }
+        { status: 400 },
       );
     }
 

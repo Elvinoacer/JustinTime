@@ -2,10 +2,17 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  useCreateProposalTemplate,
   useProviderJobs,
+  useProposalTemplates,
   useSubmitProposal,
   useWithdrawProposal,
 } from "@/lib/api/hooks/useJobs";
+import { useJobsEvents } from "@/hooks/useJobsEvents";
+import {
+  buildProposalTemplate,
+  type ProposalTemplateKey,
+} from "@/lib/proposals/templates";
 import { toast } from "sonner";
 import Link from "next/link";
 
@@ -44,19 +51,121 @@ export default function JobApplicationsPage() {
   const [coverLetter, setCoverLetter] = useState("");
   const [proposedPrice, setProposedPrice] = useState("");
   const [estimatedDays, setEstimatedDays] = useState("");
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<ProposalTemplateKey | null>(null);
+  const [selectedSavedTemplateId, setSelectedSavedTemplateId] = useState<
+    string | null
+  >(null);
+  const [templateName, setTemplateName] = useState("");
 
   const { data, isLoading } = useProviderJobs(activeTab, 1);
   const submitProposal = useSubmitProposal();
   const withdrawProposal = useWithdrawProposal();
+  const createProposalTemplate = useCreateProposalTemplate();
+  const { data: savedTemplatesData } = useProposalTemplates(true);
+  const { trackEvent } = useJobsEvents();
+  const quickApplyVariant =
+    (process.env.NEXT_PUBLIC_FF_QUICK_APPLY_TEMPLATES || "").toLowerCase() ===
+    "true"
+      ? "quick-apply"
+      : "baseline";
 
   const jobs = data?.items || [];
+  const savedTemplates = savedTemplatesData?.items || [];
 
   const handleApplyClick = (job: any) => {
+    trackEvent("provider_apply_started", {
+      userRole: "PROVIDER",
+      sourcePage: "/dashboard/jobs",
+      experimentVariant: quickApplyVariant,
+      jobId: job?.id,
+      jobCategory: job?.category?.slug,
+    });
     setSelectedJob(job);
     setCoverLetter("");
     setProposedPrice(job.budget?.toString() || "");
     setEstimatedDays("");
+    setSelectedTemplate(null);
+    setSelectedSavedTemplateId(null);
+    setTemplateName("");
     setShowProposalModal(true);
+  };
+
+  const applyTemplate = (template: ProposalTemplateKey) => {
+    if (!selectedJob) return;
+    const next = buildProposalTemplate(
+      template,
+      selectedJob.title || "this job",
+      selectedJob.budget,
+    );
+    setCoverLetter(next.coverLetter);
+    setProposedPrice(next.price);
+    setEstimatedDays(next.estimatedDays);
+    setSelectedTemplate(template);
+    setSelectedSavedTemplateId(null);
+    trackEvent("pricing_hint_applied", {
+      userRole: "PROVIDER",
+      sourcePage: "/dashboard/jobs",
+      experimentVariant: quickApplyVariant,
+      jobId: selectedJob?.id,
+      jobCategory: selectedJob?.category?.slug,
+    });
+  };
+
+  const applySavedTemplate = (template: {
+    id: string;
+    name: string;
+    coverLetter: string;
+    price: number | string;
+    estimatedDays: number | null;
+  }) => {
+    setCoverLetter(template.coverLetter);
+    setProposedPrice(String(template.price));
+    setEstimatedDays(
+      template.estimatedDays !== null ? String(template.estimatedDays) : "",
+    );
+    setSelectedSavedTemplateId(template.id);
+    setSelectedTemplate(null);
+    if (!templateName) {
+      setTemplateName(template.name);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    const normalizedName = templateName.trim();
+    if (!normalizedName) {
+      toast.error("Enter a template name before saving");
+      return;
+    }
+
+    if (coverLetter.trim().length < 50) {
+      toast.error("Cover letter must be at least 50 characters to save");
+      return;
+    }
+
+    const price = Number(proposedPrice);
+    if (!Number.isFinite(price) || price <= 0) {
+      toast.error("Enter a valid price before saving");
+      return;
+    }
+
+    const daysValue = estimatedDays ? Number.parseInt(estimatedDays, 10) : null;
+    if (estimatedDays && (!Number.isFinite(daysValue) || daysValue <= 0)) {
+      toast.error("Estimated days must be a positive number");
+      return;
+    }
+
+    try {
+      await createProposalTemplate.mutateAsync({
+        name: normalizedName,
+        coverLetter: coverLetter.trim(),
+        price,
+        estimatedDays: daysValue,
+      });
+      toast.success("Template saved");
+    } catch {
+      toast.error("Failed to save template");
+    }
   };
 
   const handleJobClick = (job: any) => {
@@ -80,6 +189,13 @@ export default function JobApplicationsPage() {
         coverLetter,
         price: parseFloat(proposedPrice),
         estimatedDays: estimatedDays ? parseInt(estimatedDays) : undefined,
+      });
+      trackEvent("provider_apply_submitted", {
+        userRole: "PROVIDER",
+        sourcePage: "/dashboard/jobs",
+        experimentVariant: quickApplyVariant,
+        jobId: selectedJob?.id,
+        jobCategory: selectedJob?.category?.slug,
       });
       toast.success("Proposal submitted successfully!");
       setShowProposalModal(false);
@@ -377,6 +493,58 @@ export default function JobApplicationsPage() {
               <div className="space-y-3 sm:space-y-4">
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
+                    Quick templates
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {(
+                      [
+                        ["budget", "Budget Offer"],
+                        ["premium", "Premium Offer"],
+                        ["fast", "Fast Delivery"],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => applyTemplate(key)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                          selectedTemplate === key
+                            ? "border-emerald-600 bg-emerald-600 text-white"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {savedTemplates.length > 0 && (
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
+                      Saved templates
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {savedTemplates.slice(0, 6).map((template) => (
+                        <button
+                          key={template.id}
+                          type="button"
+                          onClick={() => applySavedTemplate(template)}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            selectedSavedTemplateId === template.id
+                              ? "border-sky-600 bg-sky-600 text-white"
+                              : "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100"
+                          }`}
+                        >
+                          {template.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                     Cover Letter * (minimum 50 characters)
                   </label>
                   <textarea
@@ -415,6 +583,29 @@ export default function JobApplicationsPage() {
                     className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
                     placeholder="How many days will it take?"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
+                    Save as template
+                  </label>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      type="text"
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm sm:text-base"
+                      placeholder="Template name (e.g. Fast MVP)"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveTemplate}
+                      disabled={createProposalTemplate.isPending}
+                      className="px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs sm:text-sm font-semibold disabled:opacity-50"
+                    >
+                      {createProposalTemplate.isPending ? "Saving..." : "Save"}
+                    </button>
+                  </div>
                 </div>
               </div>
 

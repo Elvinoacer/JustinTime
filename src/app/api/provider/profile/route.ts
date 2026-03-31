@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import { z } from "zod";
+import { hasRole } from "@/lib/auth/roles";
 
 // Schema for profile update
 const updateProfileSchema = z.object({
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session || !session.user || session.user.role !== "PROVIDER") {
+    if (!session || !session.user || !hasRole(session.user, "PROVIDER")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -132,7 +133,7 @@ export async function PUT(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session || !session.user || session.user.role !== "PROVIDER") {
+    if (!session || !session.user || !hasRole(session.user, "PROVIDER")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

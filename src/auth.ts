@@ -2,9 +2,11 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import prisma from "@/lib/prisma";
+import { multiRoleFeatureFlags, normalizeRoles } from "@/lib/auth/roles";
 
 type CredentialsUserPayload = {
   role?: string;
+  roles?: string[];
   onboardingCompleted?: boolean;
   clientInterests?: string[];
   emailVerified?: Date | string | null;
@@ -13,6 +15,7 @@ type CredentialsUserPayload = {
 type DbUserSnapshot = {
   id: string;
   role: string;
+  roles: string[];
   image: string | null;
   onboardingCompleted: boolean;
   clientInterests: string[];
@@ -41,17 +44,46 @@ async function fetchDbUserByEmail(
 
   try {
     const normalizedEmail = email.trim().toLowerCase();
-    const user = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-      select: {
-        id: true,
-        role: true,
-        image: true,
-        onboardingCompleted: true,
-        clientInterests: true,
-        emailVerified: true,
-      },
-    });
+    let user = null;
+
+    try {
+      user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: {
+          id: true,
+          role: true,
+          roles: true,
+          image: true,
+          onboardingCompleted: true,
+          clientInterests: true,
+          emailVerified: true,
+        },
+      });
+    } catch (error) {
+      // Compatibility fallback if the roles column migration is not applied yet.
+      console.warn(
+        "[JWT Sync Warning] roles column unavailable, using legacy role",
+        error,
+      );
+      const legacyUser = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: {
+          id: true,
+          role: true,
+          image: true,
+          onboardingCompleted: true,
+          clientInterests: true,
+          emailVerified: true,
+        },
+      });
+
+      user = legacyUser
+        ? {
+            ...legacyUser,
+            roles: normalizeRoles({ role: legacyUser.role }),
+          }
+        : null;
+    }
 
     if (!user) {
       return null;
@@ -184,6 +216,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const dbUser = await fetchDbUserByEmail(user.email);
           if (dbUser) {
             token.role = dbUser.role;
+            if (multiRoleFeatureFlags.writeEnabled) {
+              token.roles = normalizeRoles({
+                role: dbUser.role,
+                roles: dbUser.roles,
+              });
+            }
             token.id = dbUser.id;
             token.image = dbUser.image ?? user.image ?? token.image;
             token.onboardingCompleted = dbUser.onboardingCompleted;
@@ -197,6 +235,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // Credentials login — user data comes from authorize()
           const credentialsUser = user as typeof user & CredentialsUserPayload;
           token.role = credentialsUser.role;
+          if (multiRoleFeatureFlags.writeEnabled) {
+            token.roles = normalizeRoles({
+              role: credentialsUser.role,
+              roles: credentialsUser.roles,
+            });
+          }
           token.id = user.id;
           token.image = user.image ?? token.image;
           token.onboardingCompleted = credentialsUser.onboardingCompleted;
@@ -218,6 +262,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const latestDbUser = await fetchDbUserByEmail(token.email);
         if (latestDbUser) {
           token.role = latestDbUser.role;
+          if (multiRoleFeatureFlags.writeEnabled) {
+            token.roles = normalizeRoles({
+              role: latestDbUser.role,
+              roles: latestDbUser.roles,
+            });
+          }
           token.id = latestDbUser.id;
           token.image = latestDbUser.image ?? token.image;
           token.onboardingCompleted = latestDbUser.onboardingCompleted;
@@ -232,6 +282,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.onboardingCompleted =
           session.user.onboardingCompleted ?? token.onboardingCompleted;
         token.role = session.user.role ?? token.role;
+        if (multiRoleFeatureFlags.writeEnabled) {
+          token.roles = normalizeRoles({
+            role: session.user.role ?? token.role,
+            roles: session.user.roles ?? token.roles,
+          });
+        }
         token.clientInterests =
           session.user.clientInterests ?? token.clientInterests;
         token.emailVerified = session.user.emailVerified ?? token.emailVerified;
@@ -246,6 +302,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (token && session.user) {
         session.user.role = token.role as string;
+        if (multiRoleFeatureFlags.writeEnabled) {
+          session.user.roles = normalizeRoles({
+            role: token.role,
+            roles: token.roles,
+          });
+        }
         session.user.id = token.id as string;
         session.user.onboardingCompleted = token.onboardingCompleted as boolean;
         session.user.clientInterests = token.clientInterests as string[];

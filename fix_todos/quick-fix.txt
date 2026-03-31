@@ -1,0 +1,4 @@
+I keep hitting this issue where by if I am a provider I am only restricted to specific types of activities, like i cannot be both a provider and a client so that i can post for jobs, and also apply to them
+I need to be able to do both. I should have multiple roles like a client and a provider lets say by default a provider will get both roles: CLIENT AND PROVIDER, a client will have to:
+complete through the onboarding phase for him to have as well the role provider. 
+so we handle the roles in arrays. this will be a major shift in the codebase, but I need you to precisely fix and work on it effectively

@@ -1,19 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import { hasRole } from "@/lib/auth/roles";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await auth();
 
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
@@ -33,18 +31,12 @@ export async function GET(
     });
 
     if (!ticket) {
-      return NextResponse.json(
-        { error: "Ticket not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
     }
 
     // Users can only view their own tickets (admins can view all - future feature)
-    if (ticket.userId !== session.user.id && session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 }
-      );
+    if (ticket.userId !== session.user.id && !hasRole(session.user, "ADMIN")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     return NextResponse.json({ ticket });
@@ -52,7 +44,7 @@ export async function GET(
     console.error("Error fetching ticket:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

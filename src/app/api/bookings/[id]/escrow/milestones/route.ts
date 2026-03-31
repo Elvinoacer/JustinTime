@@ -7,6 +7,7 @@ import {
   upsertEscrowMilestones,
   type EscrowMilestoneState,
 } from "@/lib/escrow/milestones";
+import { hasRole } from "@/lib/auth/roles";
 
 const configureMilestonesSchema = z.object({
   milestones: z
@@ -65,7 +66,7 @@ export async function GET(
     const isParticipant =
       booking.clientId === session.user.id ||
       booking.providerId === session.user.id;
-    const isAdmin = session.user.role === "ADMIN";
+    const isAdmin = hasRole(session.user, "ADMIN");
 
     if (!isParticipant && !isAdmin) {
       return new NextResponse("Forbidden", { status: 403 });
@@ -118,7 +119,7 @@ export async function POST(
       return new NextResponse("Booking not found", { status: 404 });
     }
 
-    const isAdmin = session.user.role === "ADMIN";
+    const isAdmin = hasRole(session.user, "ADMIN");
     const isClient = booking.clientId === session.user.id;
 
     if (!isAdmin && !isClient) {
@@ -235,7 +236,7 @@ export async function PATCH(
       return new NextResponse("Booking not found", { status: 404 });
     }
 
-    const isAdmin = session.user.role === "ADMIN";
+    const isAdmin = hasRole(session.user, "ADMIN");
     const isClient = booking.clientId === session.user.id;
 
     if (!isAdmin && !isClient) {

@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { hasRole } from "@/lib/auth/roles";
 
 export async function GET(request: Request) {
   try {
@@ -9,8 +10,10 @@ export async function GET(request: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    if (session.user.role !== "PROVIDER") {
-      return new NextResponse("Only providers can access this endpoint", { status: 403 });
+    if (!hasRole(session.user, "PROVIDER")) {
+      return new NextResponse("Only providers can access this endpoint", {
+        status: 403,
+      });
     }
 
     const { searchParams } = new URL(request.url);

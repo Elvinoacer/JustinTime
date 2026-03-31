@@ -2,17 +2,26 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { updateJobSchema } from "@/lib/validations/schemas";
+import { hasRole } from "@/lib/auth/roles";
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
     const job = await prisma.job.findUnique({
       where: { id },
       include: {
-        client: { select: { id: true, name: true, email: true, image: true, phone: true } },
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            phone: true,
+          },
+        },
         category: true,
         _count: { select: { proposals: true } },
       },
@@ -31,7 +40,7 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -45,12 +54,15 @@ export async function PUT(
       return new NextResponse("Job not found", { status: 404 });
     }
 
-    if (existingJob.clientId !== session.user.id && session.user.role !== "ADMIN") {
+    if (
+      existingJob.clientId !== session.user.id &&
+      !hasRole(session.user, "ADMIN")
+    ) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
     const body = await request.json();
-    
+
     // If category is provided as a slug, look it up and get the ID
     let categoryId = existingJob.categoryId; // Keep existing if not updating
     if (body.category) {
@@ -73,7 +85,9 @@ export async function PUT(
         categoryId,
         ...(body.images && { images: body.images }),
         ...(body.status && { status: body.status }),
-        ...(body.maxApplicants !== undefined && { maxApplicants: body.maxApplicants }),
+        ...(body.maxApplicants !== undefined && {
+          maxApplicants: body.maxApplicants,
+        }),
       },
       include: {
         client: { select: { id: true, name: true, image: true } },
@@ -90,7 +104,7 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -104,7 +118,10 @@ export async function DELETE(
       return new NextResponse("Job not found", { status: 404 });
     }
 
-    if (existingJob.clientId !== session.user.id && session.user.role !== "ADMIN") {
+    if (
+      existingJob.clientId !== session.user.id &&
+      !hasRole(session.user, "ADMIN")
+    ) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 

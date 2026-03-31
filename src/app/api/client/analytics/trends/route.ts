@@ -2,17 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
+import { hasAnyRole } from "@/lib/auth/roles";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    
+
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    
+
     // Allow both CLIENT and PROVIDER roles to access client analytics
-    if (session.user.role !== "CLIENT" && session.user.role !== "PROVIDER") {
+    if (!hasAnyRole(session.user, ["CLIENT", "PROVIDER"])) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     if (!startDate || !endDate) {
       return NextResponse.json(
         { error: "startDate and endDate are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -92,7 +93,12 @@ export async function GET(request: NextRequest) {
       } else if (interval === "week") {
         // Get ISO week number
         const onejan = new Date(date.getFullYear(), 0, 1);
-        const week = Math.ceil((((date.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
+        const week = Math.ceil(
+          ((date.getTime() - onejan.getTime()) / 86400000 +
+            onejan.getDay() +
+            1) /
+            7,
+        );
         return `${date.getFullYear()}-W${String(week).padStart(2, "0")}`;
       } else {
         // day
@@ -101,34 +107,43 @@ export async function GET(request: NextRequest) {
     };
 
     // Group jobs by date
-    const jobsByDate = jobs.reduce((acc, job) => {
-      const dateKey = formatDate(new Date(job.createdAt));
-      if (!acc[dateKey]) {
-        acc[dateKey] = 0;
-      }
-      acc[dateKey] += 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const jobsByDate = jobs.reduce(
+      (acc, job) => {
+        const dateKey = formatDate(new Date(job.createdAt));
+        if (!acc[dateKey]) {
+          acc[dateKey] = 0;
+        }
+        acc[dateKey] += 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     // Group spending by date
-    const spendingByDate = payments.reduce((acc, payment) => {
-      const dateKey = formatDate(new Date(payment.createdAt));
-      if (!acc[dateKey]) {
-        acc[dateKey] = 0;
-      }
-      acc[dateKey] += Number(payment.amount);
-      return acc;
-    }, {} as Record<string, number>);
+    const spendingByDate = payments.reduce(
+      (acc, payment) => {
+        const dateKey = formatDate(new Date(payment.createdAt));
+        if (!acc[dateKey]) {
+          acc[dateKey] = 0;
+        }
+        acc[dateKey] += Number(payment.amount);
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     // Group proposals by date
-    const proposalsByDate = proposals.reduce((acc, proposal) => {
-      const dateKey = formatDate(new Date(proposal.createdAt));
-      if (!acc[dateKey]) {
-        acc[dateKey] = 0;
-      }
-      acc[dateKey] += 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const proposalsByDate = proposals.reduce(
+      (acc, proposal) => {
+        const dateKey = formatDate(new Date(proposal.createdAt));
+        if (!acc[dateKey]) {
+          acc[dateKey] = 0;
+        }
+        acc[dateKey] += 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     // Get all unique dates and sort them
     const allDates = new Set([
@@ -140,17 +155,17 @@ export async function GET(request: NextRequest) {
     const sortedDates = Array.from(allDates).sort();
 
     // Build response arrays
-    const jobsPosted = sortedDates.map(date => ({
+    const jobsPosted = sortedDates.map((date) => ({
       date,
       count: jobsByDate[date] || 0,
     }));
 
-    const spending = sortedDates.map(date => ({
+    const spending = sortedDates.map((date) => ({
       date,
       amount: spendingByDate[date] || 0,
     }));
 
-    const proposalsReceived = sortedDates.map(date => ({
+    const proposalsReceived = sortedDates.map((date) => ({
       date,
       count: proposalsByDate[date] || 0,
     }));

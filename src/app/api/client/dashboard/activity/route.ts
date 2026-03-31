@@ -2,17 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
+import { hasAnyRole } from "@/lib/auth/roles";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    
+
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    
+
     // Allow both CLIENT and PROVIDER roles to access client dashboard
-    if (session.user.role !== "CLIENT" && session.user.role !== "PROVIDER") {
+    if (!hasAnyRole(session.user, ["CLIENT", "PROVIDER"])) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     // Combine and format activities
     const activities = [
-      ...proposals.map(p => ({
+      ...proposals.map((p) => ({
         id: p.id,
         type: "PROPOSAL",
         title: "Proposal Received",
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
         icon: "description",
         color: "bg-blue-100 text-blue-600",
       })),
-      ...completedJobs.map(j => ({
+      ...completedJobs.map((j) => ({
         id: j.id,
         type: "JOB_COMPLETED",
         title: "Job Completed",
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
         icon: "check_circle",
         color: "bg-emerald-100 text-emerald-600",
       })),
-      ...payments.map(p => ({
+      ...payments.map((p) => ({
         id: p.id,
         type: "PAYMENT",
         title: "Payment Sent",
@@ -90,8 +91,8 @@ export async function GET(request: NextRequest) {
         color: "bg-amber-100 text-amber-600",
       })),
     ]
-    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-    .slice(0, 10); // Return top 10 recent activities
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+      .slice(0, 10); // Return top 10 recent activities
 
     return NextResponse.json({ activities });
   } catch (error) {

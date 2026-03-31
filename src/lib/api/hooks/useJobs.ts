@@ -1,9 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api/client";
 import { z } from "zod";
-import { createJobSchema } from "@/lib/validations/schemas";
+import {
+  createJobSchema,
+  quickCreateJobSchema,
+} from "@/lib/validations/schemas";
 
 type CreateJobInput = z.infer<typeof createJobSchema>;
+type QuickCreateJobInput = z.infer<typeof quickCreateJobSchema> & {
+  mode: "quick";
+};
+type CreateJobPayload = CreateJobInput | QuickCreateJobInput;
 
 export interface JobDetail {
   id: string;
@@ -52,17 +59,31 @@ export interface JobProposal {
   };
 }
 
+export interface SavedProposalTemplate {
+  id: string;
+  name: string;
+  coverLetter: string;
+  price: string | number;
+  estimatedDays: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const useCreateJob = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: CreateJobInput) => {
+    mutationFn: async (data: CreateJobPayload) => {
       const response = await apiClient.post("/jobs", data);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["client", "dashboard", "jobs"] });
-      queryClient.invalidateQueries({ queryKey: ["client", "dashboard", "stats"] });
+      queryClient.invalidateQueries({
+        queryKey: ["client", "dashboard", "jobs"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["client", "dashboard", "stats"],
+      });
     },
   });
 };
@@ -74,7 +95,9 @@ export function useProviderJobs(tab: string = "available", page: number = 1) {
   return useQuery({
     queryKey: ["provider-jobs", tab, page],
     queryFn: async () => {
-      const response = await apiClient.get(`/provider/jobs?tab=${tab}&page=${page}&pageSize=10`);
+      const response = await apiClient.get(
+        `/provider/jobs?tab=${tab}&page=${page}&pageSize=10`,
+      );
       return response.data;
     },
   });
@@ -95,7 +118,7 @@ export function useJob(id: string) {
 // Submit a proposal to a job
 export function useSubmitProposal() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (data: {
       jobId: string;
@@ -133,7 +156,7 @@ export function useJobProposals(jobId: string, enabled: boolean = true) {
 // Withdraw a proposal
 export function useWithdrawProposal() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (proposalId: string) => {
       await apiClient.delete(`/proposals/${proposalId}`);
@@ -160,7 +183,7 @@ export function useProposal(proposalId: string | null) {
 // Update a proposal
 export function useUpdateProposal() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({
       proposalId,
@@ -173,9 +196,82 @@ export function useUpdateProposal() {
       return response.data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["proposal", variables.proposalId] });
+      queryClient.invalidateQueries({
+        queryKey: ["proposal", variables.proposalId],
+      });
       queryClient.invalidateQueries({ queryKey: ["provider-jobs"] });
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
+    },
+  });
+}
+
+export function useProposalTemplates(enabled: boolean = true) {
+  return useQuery<{ items: SavedProposalTemplate[] }>({
+    queryKey: ["proposal-templates"],
+    queryFn: async () => {
+      const response = await apiClient.get("/proposals/templates");
+      return response.data;
+    },
+    enabled,
+  });
+}
+
+export function useCreateProposalTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      name: string;
+      coverLetter: string;
+      price: number;
+      estimatedDays?: number | null;
+    }) => {
+      const response = await apiClient.post("/proposals/templates", data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["proposal-templates"] });
+    },
+  });
+}
+
+export function useUpdateProposalTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      templateId,
+      data,
+    }: {
+      templateId: string;
+      data: {
+        name?: string;
+        coverLetter?: string;
+        price?: number;
+        estimatedDays?: number | null;
+      };
+    }) => {
+      const response = await apiClient.patch(
+        `/proposals/templates/${templateId}`,
+        data,
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["proposal-templates"] });
+    },
+  });
+}
+
+export function useDeleteProposalTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (templateId: string) => {
+      await apiClient.delete(`/proposals/templates/${templateId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["proposal-templates"] });
     },
   });
 }

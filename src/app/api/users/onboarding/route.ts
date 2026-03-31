@@ -3,6 +3,43 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { VALIDATION } from "@/lib/constants/validation";
 import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
+import {
+  getDefaultRolesForPrimaryRole,
+  mergeRoles,
+  multiRoleFeatureFlags,
+} from "@/lib/auth/roles";
+
+async function persistCompatibilityRoles(
+  userId: string,
+  primaryRole: "CLIENT" | "PROVIDER",
+) {
+  if (!multiRoleFeatureFlags.writeEnabled) return;
+
+  const extraRoles =
+    primaryRole === "PROVIDER" ? ["PROVIDER", "CLIENT"] : ["CLIENT"];
+  const normalized = Array.from(new Set(extraRoles));
+
+  try {
+    await prisma.$executeRawUnsafe(
+      `UPDATE "User"
+       SET "roles" = (
+         SELECT ARRAY(
+           SELECT DISTINCT role_item
+           FROM unnest(
+             COALESCE("roles", ARRAY[]::"UserRole"[])
+             || ARRAY[${normalized.map((_, i) => `$${i + 1}::"UserRole"`).join(",")}]::"UserRole"[]
+           ) AS role_item
+         )
+       )
+       WHERE id = $${normalized.length + 1}`,
+      ...normalized,
+      userId,
+    );
+  } catch (error) {
+    // Compatibility writes should not block onboarding if migration is not yet applied.
+    console.warn("[ONBOARDING_COMPAT_ROLES_WRITE_SKIPPED]", error);
+  }
+}
 
 export const POST = auth(async (req) => {
   try {
@@ -219,6 +256,8 @@ export const POST = auth(async (req) => {
       },
     });
 
+    await persistCompatibilityRoles(actingUser.id, role);
+
     if (referralToApplyReferrerId) {
       await prisma.referral.create({
         data: {
@@ -291,7 +330,14 @@ export const POST = auth(async (req) => {
     // For now, we can extend the User model or store in a separate ClientProfile
     // Since the schema doesn't have a specific client profile, we'll just ensure phone is saved above
 
-    return NextResponse.json(updatedUser);
+    return NextResponse.json({
+      ...updatedUser,
+      roles: mergeRoles(
+        [],
+        updatedUser.role,
+        getDefaultRolesForPrimaryRole(updatedUser.role),
+      ),
+    });
   } catch (error: any) {
     console.error("[ONBOARDING_ERROR]", {
       message: error?.message,

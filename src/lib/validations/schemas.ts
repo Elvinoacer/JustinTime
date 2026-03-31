@@ -66,6 +66,12 @@ export const createJobSchema = z.object({
   images: z.array(z.string()).optional(),
 });
 
+export const quickCreateJobSchema = z.object({
+  title: z.string().min(5, "Title must be at least 5 characters"),
+  budget: z.number().positive("Budget must be positive"),
+  location: z.string().min(1, "Location is required"),
+});
+
 export const updateJobSchema = z.object({
   title: z.string().min(5).optional(),
   description: z.string().min(20).optional(),

@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { hasAnyRole, hasRole } from "@/lib/auth/roles";
 
 // GET - Fetch provider's availability schedule
 export async function GET(request: Request) {
@@ -14,8 +15,8 @@ export async function GET(request: Request) {
     const providerId = searchParams.get("providerId") || session.user.id;
 
     //Only allow users to view their own availability unless they're admin
-    if (providerId !== session.user.id && session.user.role !== "ADMIN") {
-     return new NextResponse("Forbidden", { status: 403 });
+    if (providerId !== session.user.id && !hasRole(session.user, "ADMIN")) {
+      return new NextResponse("Forbidden", { status: 403 });
     }
 
     const [weeklyAvailability, exceptions] = await Promise.all([
@@ -51,8 +52,10 @@ export async function POST(request: Request) {
     }
 
     // Only providers can create availability
-    if (session.user.role !== "PROVIDER" && session.user.role !== "ADMIN") {
-      return new NextResponse("Forbidden - Provider access required", { status: 403 });
+    if (!hasAnyRole(session.user, ["PROVIDER", "ADMIN"])) {
+      return new NextResponse("Forbidden - Provider access required", {
+        status: 403,
+      });
     }
 
     const body = await request.json();
@@ -100,8 +103,8 @@ export async function POST(request: Request) {
             endTime: slot.endTime,
             serviceId: slot.serviceId || null,
           },
-        })
-      )
+        }),
+      ),
     );
 
     return NextResponse.json({ success: true, created });

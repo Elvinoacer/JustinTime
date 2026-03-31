@@ -1,11 +1,20 @@
 "use server";
 
 import { auth } from "@/auth";
-import { getUserLoyaltyStatus, awardPoints } from "@/lib/loyalty/tier-calculator";
-import { getAvailableRewards, redeemReward, getUserRedemptions, getLeaderboard } from "@/lib/loyalty/reward-manager";
+import {
+  getUserLoyaltyStatus,
+  awardPoints,
+} from "@/lib/loyalty/tier-calculator";
+import {
+  getAvailableRewards,
+  redeemReward,
+  getUserRedemptions,
+  getLeaderboard,
+} from "@/lib/loyalty/reward-manager";
 import { seedPartners } from "@/lib/loyalty/partner-seeder";
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
+import { hasRole } from "@/lib/auth/roles";
 
 /**
  * Get current user's loyalty status
@@ -20,7 +29,7 @@ export async function getLoyaltyStatus() {
     const status = await getUserLoyaltyStatus(session.user.id);
     return {
       success: true,
-      loyalty: status
+      loyalty: status,
     };
   } catch (error) {
     console.error("[getLoyaltyStatus]", error);
@@ -42,15 +51,15 @@ export async function getPointHistory(limit: number = 20) {
       where: { userId: session.user.id },
       include: {
         pointHistory: {
-          orderBy: { createdAt: 'desc' },
-          take: limit
-        }
-      }
+          orderBy: { createdAt: "desc" },
+          take: limit,
+        },
+      },
     });
 
     return {
       success: true,
-      history: loyalty?.pointHistory || []
+      history: loyalty?.pointHistory || [],
     };
   } catch (error) {
     console.error("[getPointHistory]", error);
@@ -71,7 +80,7 @@ export async function getAvailablePartnerRewards() {
     const result = await getAvailableRewards(session.user.id);
     return {
       success: true,
-      ...result
+      ...result,
     };
   } catch (error) {
     console.error("[getAvailablePartnerRewards]", error);
@@ -111,7 +120,7 @@ export async function getRedemptionHistory() {
     const redemptions = await getUserRedemptions(session.user.id);
     return {
       success: true,
-      redemptions
+      redemptions,
     };
   } catch (error) {
     console.error("[getRedemptionHistory]", error);
@@ -127,7 +136,7 @@ export async function getLoyaltyLeaderboard(limit: number = 10) {
     const leaderboard = await getLeaderboard(limit);
     return {
       success: true,
-      leaderboard
+      leaderboard,
     };
   } catch (error) {
     console.error("[getLoyaltyLeaderboard]", error);
@@ -140,7 +149,7 @@ export async function getLoyaltyLeaderboard(limit: number = 10) {
  */
 export async function seedPartnerEcosystem() {
   const session = await auth();
-  if (!session?.user?.role || session.user.role !== "ADMIN") {
+  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
     return { success: false, error: "Unauthorized - Admin only" };
   }
 
@@ -149,7 +158,7 @@ export async function seedPartnerEcosystem() {
     revalidatePath("/dashboard/loyalty");
     return {
       success: true,
-      ...results
+      ...results,
     };
   } catch (error) {
     console.error("[seedPartnerEcosystem]", error);
@@ -163,10 +172,10 @@ export async function seedPartnerEcosystem() {
 export async function manuallyAwardPoints(
   userId: string,
   points: number,
-  reason: string
+  reason: string,
 ) {
   const session = await auth();
-  if (!session?.user?.role || session.user.role !== "ADMIN") {
+  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
     return { success: false, error: "Unauthorized - Admin only" };
   }
 

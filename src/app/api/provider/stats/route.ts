@@ -2,56 +2,58 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
+import { hasRole } from "@/lib/auth/roles";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    
-    if (!session || !session.user || session.user.role !== "PROVIDER") {
+
+    if (!session || !session.user || !hasRole(session.user, "PROVIDER")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const userId = session.user.id;
 
     // Fetch stats in parallel
-    const [totalEarnings, activeJobs, pendingRequests, completedJobs] = await Promise.all([
-      // Total Earnings (Completed payments)
-      prisma.payment.aggregate({
-        where: {
-          booking: {
-            providerId: userId,
+    const [totalEarnings, activeJobs, pendingRequests, completedJobs] =
+      await Promise.all([
+        // Total Earnings (Completed payments)
+        prisma.payment.aggregate({
+          where: {
+            booking: {
+              providerId: userId,
+            },
+            status: "COMPLETED",
           },
-          status: "COMPLETED",
-        },
-        _sum: {
-          amount: true,
-        },
-      }),
-      
-      // Active Jobs (Confirmed or In Progress bookings)
-      prisma.booking.count({
-        where: {
-          providerId: userId,
-          status: { in: ["CONFIRMED", "IN_PROGRESS"] },
-        },
-      }),
+          _sum: {
+            amount: true,
+          },
+        }),
 
-      // Pending Requests (Pending proposals)
-      prisma.proposal.count({
-        where: {
-          providerId: userId,
-          status: "PENDING",
-        },
-      }),
+        // Active Jobs (Confirmed or In Progress bookings)
+        prisma.booking.count({
+          where: {
+            providerId: userId,
+            status: { in: ["CONFIRMED", "IN_PROGRESS"] },
+          },
+        }),
 
-      // Completed Jobs
-      prisma.booking.count({
-        where: {
-          providerId: userId,
-          status: "COMPLETED",
-        },
-      }),
-    ]);
+        // Pending Requests (Pending proposals)
+        prisma.proposal.count({
+          where: {
+            providerId: userId,
+            status: "PENDING",
+          },
+        }),
+
+        // Completed Jobs
+        prisma.booking.count({
+          where: {
+            providerId: userId,
+            status: "COMPLETED",
+          },
+        }),
+      ]);
 
     const stats = [
       {

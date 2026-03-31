@@ -19,6 +19,7 @@ import {
   enforceRateLimits,
   getClientIpFromHeaders,
 } from "@/lib/auth/rate-limit";
+import { getDefaultRolesForPrimaryRole } from "@/lib/auth/roles";
 
 export async function POST(request: NextRequest) {
   try {
@@ -185,7 +186,10 @@ export async function POST(request: NextRequest) {
     // Return success - client will then sign in with NextAuth
     return successResponse(
       {
-        user,
+        user: {
+          ...user,
+          roles: getDefaultRolesForPrimaryRole(user.role),
+        },
         message:
           "Account created successfully. Please check your email to verify your account.",
       },

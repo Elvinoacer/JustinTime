@@ -33,6 +33,7 @@ model User {
   phone                 String?                @unique
   whatsappNumber        String?
   role                  UserRole               @default(CLIENT)
+  roles                 UserRole[]             @default([CLIENT])
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   onboardingCompleted   Boolean                @default(false)
@@ -124,8 +125,9 @@ model User {
 
   // WebAuthn Biometric Authentication
   webAuthnCredentialId  String?
-  webAuthnPublicKey     String?   @db.Text
+  webAuthnPublicKey     String?            @db.Text
   biometricRegisteredAt DateTime?
+  proposalTemplates     ProposalTemplate[]
 }
 
 // Promo Codes / Vouchers
@@ -358,6 +360,21 @@ model Proposal {
   provider      User     @relation(fields: [providerId], references: [id], onDelete: Cascade)
   estimatedDays Int?
   attachments   String[]
+}
+
+model ProposalTemplate {
+  id            String   @id @default(cuid())
+  providerId    String
+  name          String
+  coverLetter   String   @db.Text
+  price         Decimal  @db.Decimal(10, 2)
+  estimatedDays Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  provider User @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, createdAt])
 }
 
 // Bookings
@@ -1881,17 +1898,17 @@ enum ReportStatus {
 }
 
 model MessageReport {
-  id          String       @id @default(cuid())
-  reporterId  String
-  reportedId  String
-  reason      ReportReason
-  details     String?      @db.Text
-  messageId   String?      // Optional: specific message being reported
-  status      ReportStatus @default(PENDING)
-  adminNotes  String?      @db.Text
-  resolvedAt  DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id         String       @id @default(cuid())
+  reporterId String
+  reportedId String
+  reason     ReportReason
+  details    String?      @db.Text
+  messageId  String? // Optional: specific message being reported
+  status     ReportStatus @default(PENDING)
+  adminNotes String?      @db.Text
+  resolvedAt DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 
   reporter User @relation("ReportsMade", fields: [reporterId], references: [id])
   reported User @relation("ReportsReceived", fields: [reportedId], references: [id])
@@ -1904,8 +1921,8 @@ model MessageReport {
 // Blocked Users
 model BlockedUser {
   id        String   @id @default(cuid())
-  userId    String   // who blocked
-  blockedId String   // who got blocked
+  userId    String // who blocked
+  blockedId String // who got blocked
   reason    String?
   createdAt DateTime @default(now())
 

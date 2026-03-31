@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Complete Python Course — Beginner to Expert</title>
+<meta name="description" content="A comprehensive Python programming course covering fundamentals to expert-level concepts with working examples.">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="python-course-styles.css">
+</head>
+<body>
+
+<!-- NAVIGATION -->
+<nav id="main-nav">
+  <div class="nav-brand">
+    <span class="nav-icon">🐍</span>
+    <span class="nav-title">Python Mastery</span>
+  </div>
+  <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">☰</button>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="#beginner" class="nav-link" data-level="beginner">Beginner</a></li>
+    <li><a href="#intermediate" class="nav-link" data-level="intermediate">Intermediate</a></li>
+    <li><a href="#advanced" class="nav-link" data-level="advanced">Advanced</a></li>
+    <li><a href="#expert" class="nav-link" data-level="expert">Expert</a></li>
+  </ul>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+</nav>
+
+<!-- HERO -->
+<header id="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-content">
+    <span class="hero-badge">Complete Course · 2025 Edition</span>
+    <h1>Master <span class="gradient-text">Python</span> Programming</h1>
+    <p class="hero-sub">From your first line of code to building production systems. Clear explanations, real examples, zero fluff.</p>
+    <div class="hero-stats">
+      <div class="stat"><span class="stat-num">50+</span><span class="stat-label">Lessons</span></div>
+      <div class="stat"><span class="stat-num">100+</span><span class="stat-label">Examples</span></div>
+      <div class="stat"><span class="stat-num">4</span><span class="stat-label">Levels</span></div>
+    </div>
+    <a href="#beginner" class="cta-btn">Start Learning →</a>
+  </div>
+</header>
+
+<!-- ==================== BEGINNER ==================== -->
+<section id="beginner" class="level-section" data-level="beginner">
+  <div class="level-header">
+    <span class="level-badge beginner-badge">Level 1</span>
+    <h2>Beginner — Python Foundations</h2>
+    <p>Everything you need to write your first programs</p>
+  </div>
+
+  <div class="lessons-grid">
+
+    <!-- 1.1 -->
+    <article class="lesson-card">
+      <h3>1.1 — Hello World & Setup</h3>
+      <p>Python runs line by line. Use <code>print()</code> to display output. Install Python from <b>python.org</b> and run files with <code>python filename.py</code>.</p>
+      <div class="code-block"><pre><code><span class="comment"># Your very first Python program</span>
+print(<span class="string">"Hello, World!"</span>)
+print(<span class="string">"Welcome to Python 🐍"</span>)
+
+<span class="comment"># Math works right away</span>
+print(<span class="number">2</span> + <span class="number">3</span>)       <span class="comment"># 5</span>
+print(<span class="number">10</span> / <span class="number">3</span>)     <span class="comment"># 3.333...</span></code></pre></div>
+      <div class="output-block">Hello, World!<br>Welcome to Python 🐍<br>5<br>3.3333333333333335</div>
+    </article>
+
+    <!-- 1.2 -->
+    <article class="lesson-card">
+      <h3>1.2 — Variables & Data Types</h3>
+      <p>Variables store data. Python figures out the type automatically — no need to declare it. The main types are <code>str</code>, <code>int</code>, <code>float</code>, and <code>bool</code>.</p>
+      <div class="code-block"><pre><code>name = <span class="string">"Alice"</span>          <span class="comment"># str  — text</span>
+age = <span class="number">25</span>                 <span class="comment"># int  — whole number</span>
+height = <span class="number">5.7</span>             <span class="comment"># float — decimal</span>
+is_student = <span class="keyword">True</span>        <span class="comment"># bool — True/False</span>
+
+print(<span class="keyword">type</span>(name))        <span class="comment"># &lt;class 'str'&gt;</span>
+print(<span class="keyword">type</span>(age))         <span class="comment"># &lt;class 'int'&gt;</span>
+
+<span class="comment"># f-strings — the modern way to format text</span>
+print(<span class="string">f"</span><span class="string">{name} is {age} years old"</span>)</code></pre></div>
+      <div class="output-block">Alice is 25 years old</div>
+    </article>
+
+    <!-- 1.3 -->
+    <article class="lesson-card">
+      <h3>1.3 — User Input & Type Conversion</h3>
+      <p><code>input()</code> always returns a string. Convert with <code>int()</code>, <code>float()</code>, etc.</p>
+      <div class="code-block"><pre><code>name = <span class="keyword">input</span>(<span class="string">"What's your name? "</span>)
+age = <span class="keyword">int</span>(<span class="keyword">input</span>(<span class="string">"Your age? "</span>))
+
+birth_year = <span class="number">2025</span> - age
+print(<span class="string">f"Hi {name}! You were born around {birth_year}"</span>)
+
+<span class="comment"># Converting between types</span>
+x = <span class="string">"42"</span>
+print(<span class="keyword">int</span>(x) + <span class="number">8</span>)    <span class="comment"># 50</span>
+print(<span class="keyword">float</span>(x))        <span class="comment"># 42.0</span></code></pre></div>
+    </article>
+
+    <!-- 1.4 -->
+    <article class="lesson-card">
+      <h3>1.4 — Conditionals (if / elif / else)</h3>
+      <p>Control the flow of your program. Indentation (4 spaces) defines code blocks — no curly braces needed.</p>
+      <div class="code-block"><pre><code>score = <span class="number">85</span>
+
+<span class="keyword">if</span> score >= <span class="number">90</span>:
+    grade = <span class="string">"A"</span>
+<span class="keyword">elif</span> score >= <span class="number">80</span>:
+    grade = <span class="string">"B"</span>
+<span class="keyword">elif</span> score >= <span class="number">70</span>:
+    grade = <span class="string">"C"</span>
+<span class="keyword">else</span>:
+    grade = <span class="string">"F"</span>
+
+print(<span class="string">f"Score: {score} → Grade: {grade}"</span>)
+
+<span class="comment"># Ternary (one-liner)</span>
+status = <span class="string">"pass"</span> <span class="keyword">if</span> score >= <span class="number">60</span> <span class="keyword">else</span> <span class="string">"fail"</span></code></pre></div>
+      <div class="output-block">Score: 85 → Grade: B</div>
+    </article>
+
+    <!-- 1.5 -->
+    <article class="lesson-card">
+      <h3>1.5 — Loops (for & while)</h3>
+      <p><code>for</code> iterates over sequences. <code>while</code> repeats until a condition is false.</p>
+      <div class="code-block"><pre><code><span class="comment"># For loop with range</span>
+<span class="keyword">for</span> i <span class="keyword">in</span> <span class="keyword">range</span>(<span class="number">5</span>):
+    print(<span class="string">f"Step {i}"</span>)
+
+<span class="comment"># Loop through a list</span>
+fruits = [<span class="string">"apple"</span>, <span class="string">"banana"</span>, <span class="string">"cherry"</span>]
+<span class="keyword">for</span> fruit <span class="keyword">in</span> fruits:
+    print(fruit.upper())
+
+<span class="comment"># While loop</span>
+count = <span class="number">0</span>
+<span class="keyword">while</span> count < <span class="number">3</span>:
+    print(<span class="string">f"Count: {count}"</span>)
+    count += <span class="number">1</span>
+
+<span class="comment"># break and continue</span>
+<span class="keyword">for</span> n <span class="keyword">in</span> <span class="keyword">range</span>(<span class="number">10</span>):
+    <span class="keyword">if</span> n == <span class="number">3</span>: <span class="keyword">continue</span>  <span class="comment"># skip 3</span>
+    <span class="keyword">if</span> n == <span class="number">7</span>: <span class="keyword">break</span>     <span class="comment"># stop at 7</span>
+    print(n, end=<span class="string">" "</span>)  <span class="comment"># 0 1 2 4 5 6</span></code></pre></div>
+    </article>
+
+    <!-- 1.6 -->
+    <article class="lesson-card">
+      <h3>1.6 — Lists</h3>
+      <p>Ordered, mutable collections. The most-used data structure in Python.</p>
+      <div class="code-block"><pre><code>colors = [<span class="string">"red"</span>, <span class="string">"green"</span>, <span class="string">"blue"</span>]
+
+<span class="comment"># Access & slice</span>
+print(colors[<span class="number">0</span>])        <span class="comment"># "red"</span>
+print(colors[-<span class="number">1</span>])       <span class="comment"># "blue"</span>
+print(colors[<span class="number">1</span>:<span class="number">3</span>])     <span class="comment"># ["green", "blue"]</span>
+
+<span class="comment"># Modify</span>
+colors.append(<span class="string">"yellow"</span>)
+colors.insert(<span class="number">1</span>, <span class="string">"orange"</span>)
+colors.remove(<span class="string">"green"</span>)
+
+<span class="comment"># List comprehension (powerful!)</span>
+squares = [x**<span class="number">2</span> <span class="keyword">for</span> x <span class="keyword">in</span> <span class="keyword">range</span>(<span class="number">6</span>)]
+print(squares)  <span class="comment"># [0, 1, 4, 9, 16, 25]</span>
+
+<span class="comment"># Useful methods</span>
+nums = [<span class="number">3</span>, <span class="number">1</span>, <span class="number">4</span>, <span class="number">1</span>, <span class="number">5</span>]
+print(<span class="keyword">sorted</span>(nums))     <span class="comment"># [1, 1, 3, 4, 5]</span>
+print(<span class="keyword">len</span>(nums))        <span class="comment"># 5</span>
+print(<span class="keyword">sum</span>(nums))        <span class="comment"># 14</span></code></pre></div>
+    </article>
+
+    <!-- 1.7 -->
+    <article class="lesson-card">
+      <h3>1.7 — Dictionaries</h3>
+      <p>Key-value pairs — like a real dictionary. Fast lookups by key.</p>
+      <div class="code-block"><pre><code>person = {
+    <span class="string">"name"</span>: <span class="string">"Alice"</span>,
+    <span class="string">"age"</span>: <span class="number">25</span>,
+    <span class="string">"skills"</span>: [<span class="string">"Python"</span>, <span class="string">"SQL"</span>]
+}
+
+print(person[<span class="string">"name"</span>])           <span class="comment"># Alice</span>
+print(person.get(<span class="string">"email"</span>, <span class="string">"N/A"</span>)) <span class="comment"># N/A (safe)</span>
+
+<span class="comment"># Add / update</span>
+person[<span class="string">"email"</span>] = <span class="string">"alice@mail.com"</span>
+
+<span class="comment"># Loop through</span>
+<span class="keyword">for</span> key, value <span class="keyword">in</span> person.items():
+    print(<span class="string">f"{key}: {value}"</span>)
+
+<span class="comment"># Dict comprehension</span>
+squares = {n: n**<span class="number">2</span> <span class="keyword">for</span> n <span class="keyword">in</span> <span class="keyword">range</span>(<span class="number">5</span>)}
+<span class="comment"># {0: 0, 1: 1, 2: 4, 3: 9, 4: 16}</span></code></pre></div>
+    </article>
+
+    <!-- 1.8 -->
+    <article class="lesson-card">
+      <h3>1.8 — Functions</h3>
+      <p>Reusable blocks of code. Use <code>def</code> to define, <code>return</code> to send back results.</p>
+      <div class="code-block"><pre><code><span class="keyword">def</span> <span class="function">greet</span>(name, greeting=<span class="string">"Hello"</span>):
+    <span class="string">"""Return a greeting message."""</span>
+    <span class="keyword">return</span> <span class="string">f"{greeting}, {name}!"</span>
+
+print(greet(<span class="string">"Alice"</span>))            <span class="comment"># Hello, Alice!</span>
+print(greet(<span class="string">"Bob"</span>, <span class="string">"Hey"</span>))      <span class="comment"># Hey, Bob!</span>
+
+<span class="comment"># Multiple return values</span>
+<span class="keyword">def</span> <span class="function">min_max</span>(numbers):
+    <span class="keyword">return</span> <span class="keyword">min</span>(numbers), <span class="keyword">max</span>(numbers)
+
+lo, hi = min_max([<span class="number">4</span>, <span class="number">2</span>, <span class="number">9</span>, <span class="number">1</span>])
+print(<span class="string">f"Min: {lo}, Max: {hi}"</span>)  <span class="comment"># Min: 1, Max: 9</span>
+
+<span class="comment"># *args and **kwargs</span>
+<span class="keyword">def</span> <span class="function">total</span>(*nums):
+    <span class="keyword">return</span> <span class="keyword">sum</span>(nums)
+
+print(total(<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>))  <span class="comment"># 10</span></code></pre></div>
+    </article>
+
+    <!-- 1.9 -->
+    <article class="lesson-card">
+      <h3>1.9 — String Methods</h3>
+      <p>Strings are immutable sequences of characters with tons of built-in methods.</p>
+      <div class="code-block"><pre><code>text = <span class="string">"  Hello, Python World!  "</span>
+
+print(text.strip())          <span class="comment"># removes whitespace</span>
+print(text.lower())          <span class="comment"># "  hello, python world!  "</span>
+print(text.replace(<span class="string">"Python"</span>, <span class="string">"JS"</span>))
+print(text.split(<span class="string">","</span>))       <span class="comment"># ['  Hello', ' Python World!  ']</span>
+
+<span class="comment"># Check content</span>
+print(<span class="string">"Python"</span> <span class="keyword">in</span> text)    <span class="comment"># True</span>
+print(text.startswith(<span class="string">" "</span>))  <span class="comment"># True</span>
+
+<span class="comment"># Join</span>
+words = [<span class="string">"Learn"</span>, <span class="string">"Python"</span>, <span class="string">"Today"</span>]
+print(<span class="string">" → "</span>.join(words))  <span class="comment"># "Learn → Python → Today"</span></code></pre></div>
+    </article>
+
+    <!-- 1.10 -->
+    <article class="lesson-card">
+      <h3>1.10 — Tuples, Sets & Booleans</h3>
+      <p><b>Tuples</b> are immutable lists. <b>Sets</b> hold unique values only.</p>
+      <div class="code-block"><pre><code><span class="comment"># Tuples — immutable</span>
+point = (<span class="number">10</span>, <span class="number">20</span>)
+x, y = point          <span class="comment"># unpacking</span>
+
+<span class="comment"># Sets — unique, unordered</span>
+a = {<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">3</span>}       <span class="comment"># {1, 2, 3}</span>
+b = {<span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>}
+print(a & b)            <span class="comment"># intersection: {3}</span>
+print(a | b)            <span class="comment"># union: {1, 2, 3, 4, 5}</span>
+print(a - b)            <span class="comment"># difference: {1, 2}</span>
+
+<span class="comment"># Booleans & truthiness</span>
+print(<span class="keyword">bool</span>(<span class="number">0</span>))     <span class="comment"># False</span>
+print(<span class="keyword">bool</span>(<span class="string">""</span>))    <span class="comment"># False</span>
+print(<span class="keyword">bool</span>([]))    <span class="comment"># False</span>
+print(<span class="keyword">bool</span>(<span class="string">"hi"</span>))  <span class="comment"># True</span></code></pre></div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ==================== INTERMEDIATE ==================== -->
+<section id="intermediate" class="level-section" data-level="intermediate">
+  <div class="level-header">
+    <span class="level-badge intermediate-badge">Level 2</span>
+    <h2>Intermediate — Building Real Programs</h2>
+    <p>Object-oriented programming, file I/O, error handling, and modules</p>
+  </div>
+
+  <div class="lessons-grid">
+
+    <article class="lesson-card">
+      <h3>2.1 — Classes & Objects (OOP)</h3>
+      <p>Classes are blueprints for objects. <code>__init__</code> is the constructor. <code>self</code> refers to the instance.</p>
+      <div class="code-block"><pre><code><span class="keyword">class</span> <span class="function">Dog</span>:
+    species = <span class="string">"Canine"</span>  <span class="comment"># class attribute</span>
+
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, name, age):
+        self.name = name    <span class="comment"># instance attribute</span>
+        self.age = age
+
+    <span class="keyword">def</span> <span class="function">bark</span>(self):
+        <span class="keyword">return</span> <span class="string">f"{self.name} says Woof!"</span>
+
+    <span class="keyword">def</span> <span class="function">__str__</span>(self):
+        <span class="keyword">return</span> <span class="string">f"{self.name} ({self.age}y)"</span>
+
+rex = Dog(<span class="string">"Rex"</span>, <span class="number">5</span>)
+print(rex.bark())     <span class="comment"># Rex says Woof!</span>
+print(rex)            <span class="comment"># Rex (5y)</span></code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>2.2 — Inheritance & Polymorphism</h3>
+      <p>Child classes inherit from parents. Override methods to customize behavior.</p>
+      <div class="code-block"><pre><code><span class="keyword">class</span> <span class="function">Animal</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, name):
+        self.name = name
+    <span class="keyword">def</span> <span class="function">speak</span>(self):
+        <span class="keyword">raise</span> NotImplementedError
+
+<span class="keyword">class</span> <span class="function">Cat</span>(Animal):
+    <span class="keyword">def</span> <span class="function">speak</span>(self):
+        <span class="keyword">return</span> <span class="string">f"{self.name}: Meow!"</span>
+
+<span class="keyword">class</span> <span class="function">Dog</span>(Animal):
+    <span class="keyword">def</span> <span class="function">speak</span>(self):
+        <span class="keyword">return</span> <span class="string">f"{self.name}: Woof!"</span>
+
+<span class="comment"># Polymorphism — same method, different behavior</span>
+animals = [Cat(<span class="string">"Luna"</span>), Dog(<span class="string">"Rex"</span>)]
+<span class="keyword">for</span> a <span class="keyword">in</span> animals:
+    print(a.speak())</code></pre></div>
+      <div class="output-block">Luna: Meow!<br>Rex: Woof!</div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>2.3 — Error Handling (try/except)</h3>
+      <p>Gracefully handle errors instead of crashing.</p>
+      <div class="code-block"><pre><code><span class="keyword">def</span> <span class="function">safe_divide</span>(a, b):
+    <span class="keyword">try</span>:
+        result = a / b
+    <span class="keyword">except</span> ZeroDivisionError:
+        <span class="keyword">return</span> <span class="string">"Cannot divide by zero!"</span>
+    <span class="keyword">except</span> TypeError <span class="keyword">as</span> e:
+        <span class="keyword">return</span> <span class="string">f"Type error: {e}"</span>
+    <span class="keyword">else</span>:
+        <span class="keyword">return</span> result        <span class="comment"># runs if no error</span>
+    <span class="keyword">finally</span>:
+        print(<span class="string">"Done."</span>)     <span class="comment"># always runs</span>
+
+print(safe_divide(<span class="number">10</span>, <span class="number">3</span>))   <span class="comment"># 3.333...</span>
+print(safe_divide(<span class="number">10</span>, <span class="number">0</span>))   <span class="comment"># Cannot divide by zero!</span>
+
+<span class="comment"># Custom exceptions</span>
+<span class="keyword">class</span> <span class="function">InsufficientFunds</span>(Exception):
+    <span class="keyword">pass</span></code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>2.4 — File I/O</h3>
+      <p>Read and write files using <code>with</code> statement (auto-closes the file).</p>
+      <div class="code-block"><pre><code><span class="comment"># Write to a file</span>
+<span class="keyword">with</span> <span class="keyword">open</span>(<span class="string">"data.txt"</span>, <span class="string">"w"</span>) <span class="keyword">as</span> f:
+    f.write(<span class="string">"Line 1\n"</span>)
+    f.write(<span class="string">"Line 2\n"</span>)
+
+<span class="comment"># Read entire file</span>
+<span class="keyword">with</span> <span class="keyword">open</span>(<span class="string">"data.txt"</span>, <span class="string">"r"</span>) <span class="keyword">as</span> f:
+    content = f.read()
+    print(content)
+
+<span class="comment"># Read line by line</span>
+<span class="keyword">with</span> <span class="keyword">open</span>(<span class="string">"data.txt"</span>) <span class="keyword">as</span> f:
+    <span class="keyword">for</span> line <span class="keyword">in</span> f:
+        print(line.strip())
+
+<span class="comment"># JSON files</span>
+<span class="keyword">import</span> json
+data = {<span class="string">"users"</span>: [<span class="string">"Alice"</span>, <span class="string">"Bob"</span>]}
+<span class="keyword">with</span> <span class="keyword">open</span>(<span class="string">"data.json"</span>, <span class="string">"w"</span>) <span class="keyword">as</span> f:
+    json.dump(data, f, indent=<span class="number">2</span>)</code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>2.5 — Modules & Imports</h3>
+      <p>Organize code into files. Use built-in modules or install packages with <code>pip</code>.</p>
+      <div class="code-block"><pre><code><span class="comment"># Built-in modules</span>
+<span class="keyword">import</span> os
+<span class="keyword">import</span> math
+<span class="keyword">from</span> datetime <span class="keyword">import</span> datetime
+<span class="keyword">from</span> collections <span class="keyword">import</span> Counter
+
+print(math.pi)              <span class="comment"># 3.14159...</span>
+print(math.sqrt(<span class="number">16</span>))        <span class="comment"># 4.0</span>
+print(os.getcwd())          <span class="comment"># current directory</span>
+print(datetime.now())       <span class="comment"># 2025-01-01 12:00:00</span>
+
+<span class="comment"># Counter — count occurrences</span>
+words = [<span class="string">"a"</span>,<span class="string">"b"</span>,<span class="string">"a"</span>,<span class="string">"c"</span>,<span class="string">"a"</span>,<span class="string">"b"</span>]
+print(Counter(words))
+<span class="comment"># Counter({'a': 3, 'b': 2, 'c': 1})</span></code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>2.6 — Lambda, Map, Filter, Reduce</h3>
+      <p>Functional programming tools for concise data transformations.</p>
+      <div class="code-block"><pre><code><span class="comment"># Lambda — anonymous function</span>
+square = <span class="keyword">lambda</span> x: x ** <span class="number">2</span>
+print(square(<span class="number">5</span>))  <span class="comment"># 25</span>
+
+<span class="comment"># Map — apply function to every item</span>
+nums = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>]
+doubled = <span class="keyword">list</span>(<span class="keyword">map</span>(<span class="keyword">lambda</span> x: x*<span class="number">2</span>, nums))
+<span class="comment"># [2, 4, 6, 8]</span>
+
+<span class="comment"># Filter — keep items that pass a test</span>
+evens = <span class="keyword">list</span>(<span class="keyword">filter</span>(<span class="keyword">lambda</span> x: x%<span class="number">2</span>==<span class="number">0</span>, nums))
+<span class="comment"># [2, 4]</span>
+
+<span class="comment"># Reduce — combine into single value</span>
+<span class="keyword">from</span> functools <span class="keyword">import</span> reduce
+total = reduce(<span class="keyword">lambda</span> a,b: a+b, nums)
+<span class="comment"># 10</span></code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>2.7 — Decorators</h3>
+      <p>Functions that wrap other functions to add behavior. Very Pythonic.</p>
+      <div class="code-block"><pre><code><span class="keyword">import</span> time
+
+<span class="keyword">def</span> <span class="function">timer</span>(func):
+    <span class="keyword">def</span> <span class="function">wrapper</span>(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        elapsed = time.time() - start
+        print(<span class="string">f"{func.__name__} took {elapsed:.3f}s"</span>)
+        <span class="keyword">return</span> result
+    <span class="keyword">return</span> wrapper
+
+<span class="comment">@timer</span>
+<span class="keyword">def</span> <span class="function">slow_sum</span>(n):
+    <span class="keyword">return</span> <span class="keyword">sum</span>(<span class="keyword">range</span>(n))
+
+slow_sum(<span class="number">1_000_000</span>)
+<span class="comment"># slow_sum took 0.045s</span></code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>2.8 — Generators & Iterators</h3>
+      <p><code>yield</code> produces values one at a time — memory efficient for large data.</p>
+      <div class="code-block"><pre><code><span class="keyword">def</span> <span class="function">fibonacci</span>(limit):
+    a, b = <span class="number">0</span>, <span class="number">1</span>
+    <span class="keyword">while</span> a < limit:
+        <span class="keyword">yield</span> a
+        a, b = b, a + b
+
+<span class="comment"># Lazy evaluation — doesn't compute all at once</span>
+<span class="keyword">for</span> num <span class="keyword">in</span> fibonacci(<span class="number">100</span>):
+    print(num, end=<span class="string">" "</span>)
+<span class="comment"># 0 1 1 2 3 5 8 13 21 34 55 89</span>
+
+<span class="comment"># Generator expression (like list comp but lazy)</span>
+big_sum = <span class="keyword">sum</span>(x**<span class="number">2</span> <span class="keyword">for</span> x <span class="keyword">in</span> <span class="keyword">range</span>(<span class="number">1_000_000</span>))
+print(big_sum)</code></pre></div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ==================== ADVANCED ==================== -->
+<section id="advanced" class="level-section" data-level="advanced">
+  <div class="level-header">
+    <span class="level-badge advanced-badge">Level 3</span>
+    <h2>Advanced — Professional Python</h2>
+    <p>Concurrency, testing, design patterns, and performance optimization</p>
+  </div>
+
+  <div class="lessons-grid">
+
+    <article class="lesson-card">
+      <h3>3.1 — Dataclasses & Type Hints</h3>
+      <p>Modern Python uses type hints for clarity and <code>dataclasses</code> to reduce boilerplate.</p>
+      <div class="code-block"><pre><code><span class="keyword">from</span> dataclasses <span class="keyword">import</span> dataclass, field
+<span class="keyword">from</span> typing <span class="keyword">import</span> <span class="keyword">list</span>
+
+<span class="comment">@dataclass</span>
+<span class="keyword">class</span> <span class="function">Product</span>:
+    name: str
+    price: float
+    tags: <span class="keyword">list</span>[str] = field(default_factory=<span class="keyword">list</span>)
+
+    <span class="keyword">@property</span>
+    <span class="keyword">def</span> <span class="function">display_price</span>(self) -> str:
+        <span class="keyword">return</span> <span class="string">f"${self.price:.2f}"</span>
+
+p = Product(<span class="string">"Laptop"</span>, <span class="number">999.99</span>, [<span class="string">"electronics"</span>])
+print(p)             <span class="comment"># Product(name='Laptop', ...)</span>
+print(p.display_price)  <span class="comment"># $999.99</span></code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>3.2 — Context Managers</h3>
+      <p>Manage resources (files, connections, locks) with guaranteed cleanup.</p>
+      <div class="code-block"><pre><code><span class="keyword">from</span> contextlib <span class="keyword">import</span> contextmanager
+
+<span class="comment">@contextmanager</span>
+<span class="keyword">def</span> <span class="function">database_connection</span>(db_name):
+    print(<span class="string">f"Connecting to {db_name}..."</span>)
+    conn = {<span class="string">"db"</span>: db_name, <span class="string">"open"</span>: <span class="keyword">True</span>}
+    <span class="keyword">try</span>:
+        <span class="keyword">yield</span> conn
+    <span class="keyword">finally</span>:
+        conn[<span class="string">"open"</span>] = <span class="keyword">False</span>
+        print(<span class="string">"Connection closed."</span>)
+
+<span class="keyword">with</span> database_connection(<span class="string">"mydb"</span>) <span class="keyword">as</span> db:
+    print(<span class="string">f"Using {db['db']}"</span>)
+<span class="comment"># Automatically closed after block!</span></code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>3.3 — Asyncio (Async/Await)</h3>
+      <p>Handle concurrent I/O-bound tasks efficiently without threads.</p>
+      <div class="code-block"><pre><code><span class="keyword">import</span> asyncio
+
+<span class="keyword">async def</span> <span class="function">fetch_data</span>(url, delay):
+    print(<span class="string">f"Fetching {url}..."</span>)
+    <span class="keyword">await</span> asyncio.sleep(delay)  <span class="comment"># simulates I/O</span>
+    <span class="keyword">return</span> <span class="string">f"Data from {url}"</span>
+
+<span class="keyword">async def</span> <span class="function">main</span>():
+    <span class="comment"># Run concurrently — not sequentially!</span>
+    results = <span class="keyword">await</span> asyncio.gather(
+        fetch_data(<span class="string">"api/users"</span>, <span class="number">2</span>),
+        fetch_data(<span class="string">"api/posts"</span>, <span class="number">1</span>),
+        fetch_data(<span class="string">"api/comments"</span>, <span class="number">3</span>),
+    )
+    <span class="keyword">for</span> r <span class="keyword">in</span> results:
+        print(r)
+
+asyncio.run(main())
+<span class="comment"># All 3 fetched in ~3s, not 6s!</span></code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>3.4 — Unit Testing with pytest</h3>
+      <p>Write reliable tests. Tests are just functions starting with <code>test_</code>.</p>
+      <div class="code-block"><pre><code><span class="comment"># calculator.py</span>
+<span class="keyword">def</span> <span class="function">add</span>(a, b): <span class="keyword">return</span> a + b
+<span class="keyword">def</span> <span class="function">divide</span>(a, b):
+    <span class="keyword">if</span> b == <span class="number">0</span>: <span class="keyword">raise</span> ValueError(<span class="string">"Zero!"</span>)
+    <span class="keyword">return</span> a / b
+
+<span class="comment"># test_calculator.py</span>
+<span class="keyword">import</span> pytest
+
+<span class="keyword">def</span> <span class="function">test_add</span>():
+    <span class="keyword">assert</span> add(<span class="number">2</span>, <span class="number">3</span>) == <span class="number">5</span>
+    <span class="keyword">assert</span> add(-<span class="number">1</span>, <span class="number">1</span>) == <span class="number">0</span>
+
+<span class="keyword">def</span> <span class="function">test_divide_by_zero</span>():
+    <span class="keyword">with</span> pytest.raises(ValueError):
+        divide(<span class="number">10</span>, <span class="number">0</span>)
+
+<span class="comment"># Run: pytest test_calculator.py -v</span></code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>3.5 — Regular Expressions</h3>
+      <p>Pattern matching on strings — powerful for parsing and validation.</p>
+      <div class="code-block"><pre><code><span class="keyword">import</span> re
+
+text = <span class="string">"Contact: alice@mail.com or bob@work.org"</span>
+
+<span class="comment"># Find all emails</span>
+emails = re.findall(
+    <span class="string">r'[\w.+-]+@[\w-]+\.[\w.]+'</span>, text
+)
+print(emails)
+<span class="comment"># ['alice@mail.com', 'bob@work.org']</span>
+
+<span class="comment"># Replace</span>
+clean = re.sub(<span class="string">r'\d+'</span>, <span class="string">'#'</span>, <span class="string">"Order 42, Item 7"</span>)
+<span class="comment"># "Order #, Item #"</span>
+
+<span class="comment"># Validate phone number</span>
+pattern = <span class="string">r'^\+?\d{1,3}[-.\s]?\d{3,14}$'</span>
+<span class="keyword">if</span> re.match(pattern, <span class="string">"+1-555-1234"</span>):
+    print(<span class="string">"Valid phone!"</span>)</code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>3.6 — Working with APIs</h3>
+      <p>Use the <code>requests</code> library to interact with web APIs.</p>
+      <div class="code-block"><pre><code><span class="keyword">import</span> requests
+
+<span class="comment"># GET request</span>
+resp = requests.get(
+    <span class="string">"https://jsonplaceholder.typicode.com/posts/1"</span>
+)
+data = resp.json()
+print(data[<span class="string">"title"</span>])
+
+<span class="comment"># POST request</span>
+new_post = requests.post(
+    <span class="string">"https://jsonplaceholder.typicode.com/posts"</span>,
+    json={<span class="string">"title"</span>: <span class="string">"Hello"</span>, <span class="string">"body"</span>: <span class="string">"World"</span>}
+)
+print(new_post.status_code)  <span class="comment"># 201</span>
+
+<span class="comment"># Error handling</span>
+resp.raise_for_status()  <span class="comment"># raises if 4xx/5xx</span></code></pre></div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ==================== EXPERT ==================== -->
+<section id="expert" class="level-section" data-level="expert">
+  <div class="level-header">
+    <span class="level-badge expert-badge">Level 4</span>
+    <h2>Expert — Python Mastery</h2>
+    <p>Metaclasses, descriptors, CPython internals, and production patterns</p>
+  </div>
+
+  <div class="lessons-grid">
+
+    <article class="lesson-card">
+      <h3>4.1 — Metaclasses</h3>
+      <p>Classes that create classes. The <code>type</code> function is Python's built-in metaclass.</p>
+      <div class="code-block"><pre><code><span class="keyword">class</span> <span class="function">SingletonMeta</span>(<span class="keyword">type</span>):
+    _instances = {}
+
+    <span class="keyword">def</span> <span class="function">__call__</span>(cls, *args, **kwargs):
+        <span class="keyword">if</span> cls <span class="keyword">not in</span> cls._instances:
+            cls._instances[cls] = (
+                <span class="keyword">super</span>().__call__(*args, **kwargs)
+            )
+        <span class="keyword">return</span> cls._instances[cls]
+
+<span class="keyword">class</span> <span class="function">Database</span>(metaclass=SingletonMeta):
+    <span class="keyword">def</span> <span class="function">__init__</span>(self):
+        self.connection = <span class="string">"connected"</span>
+
+db1 = Database()
+db2 = Database()
+print(db1 <span class="keyword">is</span> db2)  <span class="comment"># True — same instance!</span></code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>4.2 — Descriptors Protocol</h3>
+      <p>The mechanism behind <code>@property</code>, <code>classmethod</code>, and ORMs.</p>
+      <div class="code-block"><pre><code><span class="keyword">class</span> <span class="function">Validated</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, min_val, max_val):
+        self.min_val = min_val
+        self.max_val = max_val
+
+    <span class="keyword">def</span> <span class="function">__set_name__</span>(self, owner, name):
+        self.name = name
+
+    <span class="keyword">def</span> <span class="function">__set__</span>(self, obj, value):
+        <span class="keyword">if not</span> self.min_val <= value <= self.max_val:
+            <span class="keyword">raise</span> ValueError(
+                <span class="string">f"{self.name} must be between "</span>
+                <span class="string">f"{self.min_val} and {self.max_val}"</span>
+            )
+        obj.__dict__[self.name] = value
+
+    <span class="keyword">def</span> <span class="function">__get__</span>(self, obj, objtype=<span class="keyword">None</span>):
+        <span class="keyword">return</span> obj.__dict__.get(self.name)
+
+<span class="keyword">class</span> <span class="function">Student</span>:
+    grade = Validated(<span class="number">0</span>, <span class="number">100</span>)
+    age = Validated(<span class="number">5</span>, <span class="number">120</span>)
+
+s = Student()
+s.grade = <span class="number">85</span>   <span class="comment"># OK</span>
+<span class="comment"># s.grade = 150  # ValueError!</span></code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>4.3 — Memory & Performance</h3>
+      <p>Understand CPython internals: reference counting, GIL, <code>__slots__</code>.</p>
+      <div class="code-block"><pre><code><span class="keyword">import</span> sys
+
+<span class="comment"># __slots__ — saves memory (no __dict__)</span>
+<span class="keyword">class</span> <span class="function">Point</span>:
+    __slots__ = [<span class="string">'x'</span>, <span class="string">'y'</span>]
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, x, y):
+        self.x = x
+        self.y = y
+
+<span class="comment"># Check object sizes</span>
+print(sys.getsizeof([]))        <span class="comment"># ~56 bytes</span>
+print(sys.getsizeof({}))        <span class="comment"># ~64 bytes</span>
+
+<span class="comment"># Reference counting</span>
+a = [<span class="number">1</span>, <span class="number">2</span>]
+print(sys.getrefcount(a))       <span class="comment"># 2 (a + arg)</span>
+
+<span class="comment"># Profile with cProfile</span>
+<span class="keyword">import</span> cProfile
+cProfile.run(<span class="string">'sum(range(1000000))'</span>)
+
+<span class="comment"># Use lru_cache for memoization</span>
+<span class="keyword">from</span> functools <span class="keyword">import</span> lru_cache
+
+<span class="comment">@lru_cache</span>(maxsize=<span class="keyword">None</span>)
+<span class="keyword">def</span> <span class="function">fib</span>(n):
+    <span class="keyword">if</span> n < <span class="number">2</span>: <span class="keyword">return</span> n
+    <span class="keyword">return</span> fib(n-<span class="number">1</span>) + fib(n-<span class="number">2</span>)
+
+print(fib(<span class="number">100</span>))  <span class="comment"># instant!</span></code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>4.4 — Design Patterns</h3>
+      <p>Common architectural patterns for clean, maintainable code.</p>
+      <div class="code-block"><pre><code><span class="comment"># Strategy Pattern</span>
+<span class="keyword">from</span> typing <span class="keyword">import</span> Callable
+
+<span class="keyword">class</span> <span class="function">Sorter</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, strategy: Callable):
+        self.strategy = strategy
+
+    <span class="keyword">def</span> <span class="function">sort</span>(self, data):
+        <span class="keyword">return</span> self.strategy(data)
+
+<span class="comment"># Different strategies</span>
+asc = Sorter(<span class="keyword">lambda</span> d: <span class="keyword">sorted</span>(d))
+desc = Sorter(<span class="keyword">lambda</span> d: <span class="keyword">sorted</span>(d, reverse=<span class="keyword">True</span>))
+
+data = [<span class="number">3</span>, <span class="number">1</span>, <span class="number">4</span>, <span class="number">1</span>, <span class="number">5</span>]
+print(asc.sort(data))   <span class="comment"># [1, 1, 3, 4, 5]</span>
+print(desc.sort(data))  <span class="comment"># [5, 4, 3, 1, 1]</span>
+
+<span class="comment"># Observer Pattern</span>
+<span class="keyword">class</span> <span class="function">EventBus</span>:
+    <span class="keyword">def</span> <span class="function">__init__</span>(self):
+        self._subs = {}
+    <span class="keyword">def</span> <span class="function">on</span>(self, event, fn):
+        self._subs.setdefault(event, []).append(fn)
+    <span class="keyword">def</span> <span class="function">emit</span>(self, event, data=<span class="keyword">None</span>):
+        <span class="keyword">for</span> fn <span class="keyword">in</span> self._subs.get(event, []):
+            fn(data)</code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>4.5 — Concurrency Deep Dive</h3>
+      <p>Threads for I/O, processes for CPU. Understand the GIL.</p>
+      <div class="code-block"><pre><code><span class="keyword">from</span> concurrent.futures <span class="keyword">import</span> (
+    ThreadPoolExecutor, ProcessPoolExecutor
+)
+<span class="keyword">import</span> time
+
+<span class="keyword">def</span> <span class="function">cpu_task</span>(n):
+    <span class="keyword">return</span> <span class="keyword">sum</span>(i*i <span class="keyword">for</span> i <span class="keyword">in</span> <span class="keyword">range</span>(n))
+
+<span class="comment"># Threads — good for I/O (network, files)</span>
+<span class="keyword">with</span> ThreadPoolExecutor(max_workers=<span class="number">4</span>) <span class="keyword">as</span> ex:
+    futures = [ex.submit(cpu_task, <span class="number">10</span>**<span class="number">6</span>)
+               <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="keyword">range</span>(<span class="number">4</span>)]
+    results = [f.result() <span class="keyword">for</span> f <span class="keyword">in</span> futures]
+
+<span class="comment"># Processes — bypasses GIL for CPU work</span>
+<span class="keyword">with</span> ProcessPoolExecutor(max_workers=<span class="number">4</span>) <span class="keyword">as</span> ex:
+    results = <span class="keyword">list</span>(ex.map(
+        cpu_task, [<span class="number">10</span>**<span class="number">6</span>]*<span class="number">4</span>
+    ))
+print(results)</code></pre></div>
+    </article>
+
+    <article class="lesson-card">
+      <h3>4.6 — Abstract Base Classes & Protocols</h3>
+      <p>Enforce interfaces. Protocols enable structural (duck) typing with type checkers.</p>
+      <div class="code-block"><pre><code><span class="keyword">from</span> abc <span class="keyword">import</span> ABC, abstractmethod
+<span class="keyword">from</span> typing <span class="keyword">import</span> Protocol, runtime_checkable
+
+<span class="comment"># ABC — explicit interface</span>
+<span class="keyword">class</span> <span class="function">Shape</span>(ABC):
+    <span class="comment">@abstractmethod</span>
+    <span class="keyword">def</span> <span class="function">area</span>(self) -> float: ...
+    <span class="comment">@abstractmethod</span>
+    <span class="keyword">def</span> <span class="function">perimeter</span>(self) -> float: ...
+
+<span class="keyword">class</span> <span class="function">Circle</span>(Shape):
+    <span class="keyword">def</span> <span class="function">__init__</span>(self, r):
+        self.r = r
+    <span class="keyword">def</span> <span class="function">area</span>(self):
+        <span class="keyword">return</span> <span class="number">3.14159</span> * self.r ** <span class="number">2</span>
+    <span class="keyword">def</span> <span class="function">perimeter</span>(self):
+        <span class="keyword">return</span> <span class="number">2</span> * <span class="number">3.14159</span> * self.r
+
+<span class="comment"># Protocol — structural typing</span>
+<span class="comment">@runtime_checkable</span>
+<span class="keyword">class</span> <span class="function">Drawable</span>(Protocol):
+    <span class="keyword">def</span> <span class="function">draw</span>(self) -> <span class="keyword">None</span>: ...</code></pre></div>
+    </article>
+
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer id="course-footer">
+  <div class="footer-content">
+    <p class="footer-brand">🐍 Python Mastery Course</p>
+    <p class="footer-copy">Built with ❤️ — Keep coding, keep learning.</p>
+  </div>
+</footer>
+
+<!-- Back to top -->
+<a href="#hero" class="back-to-top" id="backToTop" aria-label="Back to top">↑</a>
+
+<script>
+// Navigation scroll progress
+const progressFill = document.getElementById('progressFill');
+window.addEventListener('scroll', () => {
+  const scrollTop = window.scrollY;
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  const progress = (scrollTop / docHeight) * 100;
+  progressFill.style.width = progress + '%';
+});
+
+// Back to top visibility
+const backToTop = document.getElementById('backToTop');
+window.addEventListener('scroll', () => {
+  backToTop.classList.toggle('visible', window.scrollY > 600);
+});
+
+// Mobile nav toggle
+const navToggle = document.getElementById('navToggle');
+const navLinks = document.getElementById('navLinks');
+navToggle.addEventListener('click', () => {
+  navLinks.classList.toggle('active');
+});
+
+// Smooth scroll for nav links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function(e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      navLinks.classList.remove('active');
+    }
+  });
+});
+
+// Intersection observer for fade-in animations
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+document.querySelectorAll('.lesson-card, .level-header').forEach(el => {
+  observer.observe(el);
+});
+
+// Active nav link highlight
+const sections = document.querySelectorAll('.level-section');
+const navLinksAll = document.querySelectorAll('.nav-link');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(section => {
+    const sectionTop = section.offsetTop - 120;
+    if (window.scrollY >= sectionTop) {
+      current = section.getAttribute('data-level');
+    }
+  });
+  navLinksAll.forEach(link => {
+    link.classList.toggle('active', link.getAttribute('data-level') === current);
+  });
+});
+</script>
+</body>
+</html>

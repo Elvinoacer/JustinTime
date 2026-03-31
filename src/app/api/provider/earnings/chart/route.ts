@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
+import { hasRole } from "@/lib/auth/roles";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    
-    if (!session || !session.user || session.user.role !== "PROVIDER") {
+
+    if (!session || !session.user || !hasRole(session.user, "PROVIDER")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -32,12 +33,12 @@ export async function GET(request: NextRequest) {
         createdAt: true,
       },
       orderBy: {
-        createdAt: 'asc',
+        createdAt: "asc",
       },
     });
 
     // Group by day
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const earningsByDay: Record<string, number> = {};
 
     // Initialize all days
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Aggregate payments by day
-    payments.forEach(payment => {
+    payments.forEach((payment) => {
       const dayName = dayNames[new Date(payment.createdAt).getDay()];
       earningsByDay[dayName] += Number(payment.amount);
     });

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { submitProposal } from "@/lib/proposals/submitProposal";
 import { z } from "zod";
+import { hasRole } from "@/lib/auth/roles";
 
 const createProposalSchema = z.object({
   jobId: z.string(),
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    if (session.user.role !== "PROVIDER") {
+    if (!hasRole(session.user, "PROVIDER")) {
       return new NextResponse("Only providers can submit proposals", {
         status: 403,
       });
@@ -93,7 +94,7 @@ export async function GET(request: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    if (session.user.role !== "PROVIDER") {
+    if (!hasRole(session.user, "PROVIDER")) {
       return new NextResponse("Only providers can view proposals", {
         status: 403,
       });

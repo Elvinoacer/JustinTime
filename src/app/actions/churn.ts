@@ -3,23 +3,27 @@
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { ChurnRiskLevel } from "@/generated/prisma/client";
-import { calculateChurnScore, analyzeAllUsers } from "@/lib/churn/churn-predictor";
+import {
+  calculateChurnScore,
+  analyzeAllUsers,
+} from "@/lib/churn/churn-predictor";
 import { triggerReEngagement } from "@/lib/churn/re-engagement";
 import { revalidatePath } from "next/cache";
+import { hasRole } from "@/lib/auth/roles";
 
 /**
  * Get all at-risk users (optional filter by risk level)
  */
 export async function getAtRiskUsers(riskLevel?: ChurnRiskLevel) {
   const session = await auth();
-  if (!session?.user?.role || session.user.role !== "ADMIN") {
+  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
     return { success: false, error: "Unauthorized - Admin only" };
   }
 
   try {
-    const where = riskLevel 
-      ? { riskLevel, riskLevel: { not: 'LOW' } }
-      : { riskLevel: { not: 'LOW' } };
+    const where = riskLevel
+      ? { riskLevel, riskLevel: { not: "LOW" } }
+      : { riskLevel: { not: "LOW" } };
 
     const scores = await prisma.churnScore.findMany({
       where,
@@ -31,25 +35,22 @@ export async function getAtRiskUsers(riskLevel?: ChurnRiskLevel) {
             email: true,
             image: true,
             profile: {
-              select: { hourlyRate: true }
-            }
-          }
+              select: { hourlyRate: true },
+            },
+          },
         },
         interventions: {
-          orderBy: { createdAt: 'desc' },
-          take: 1
-        }
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
       },
-      orderBy: [
-        { score: 'desc' },
-        { calculatedAt: 'desc' }
-      ],
-      take: 100
+      orderBy: [{ score: "desc" }, { calculatedAt: "desc" }],
+      take: 100,
     });
 
     return {
       success: true,
-      users: scores
+      users: scores,
     };
   } catch (error) {
     console.error("[getAtRiskUsers]", error);
@@ -67,24 +68,24 @@ export async function getUserChurnScore(userId: string) {
   }
 
   // Admin or own data
-  if (session.user.role !== "ADMIN" && session.user.id !== userId) {
+  if (!hasRole(session.user, "ADMIN") && session.user.id !== userId) {
     return { success: false, error: "Unauthorized" };
   }
 
   try {
     const latestScore = await prisma.churnScore.findFirst({
       where: { userId },
-      orderBy: { calculatedAt: 'desc' },
+      orderBy: { calculatedAt: "desc" },
       include: {
         interventions: {
-          orderBy: { createdAt: 'desc' }
-        }
-      }
+          orderBy: { createdAt: "desc" },
+        },
+      },
     });
 
     return {
       success: true,
-      score: latestScore
+      score: latestScore,
     };
   } catch (error) {
     console.error("[getUserChurnScore]", error);
@@ -97,7 +98,7 @@ export async function getUserChurnScore(userId: string) {
  */
 export async function triggerChurnAnalysis(userId?: string) {
   const session = await auth();
-  if (!session?.user?.role || session.user.role !== "ADMIN") {
+  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
     return { success: false, error: "Unauthorized - Admin only" };
   }
 
@@ -105,7 +106,7 @@ export async function triggerChurnAnalysis(userId?: string) {
     if (userId) {
       // Analyze specific user
       const prediction = await calculateChurnScore(userId);
-      
+
       await prisma.churnScore.create({
         data: {
           userId,
@@ -114,24 +115,24 @@ export async function triggerChurnAnalysis(userId?: string) {
           factors: prediction.factors as any,
           lastActivityDays: prediction.lastActivityDays,
           bookingDecline: prediction.bookingDecline,
-          engagementScore: prediction.engagementScore
-        }
+          engagementScore: prediction.engagementScore,
+        },
       });
 
       revalidatePath("/admin/churn-analysis");
-      
+
       return {
         success: true,
-        prediction
+        prediction,
       };
     } else {
       // Analyze all users
       const results = await analyzeAllUsers();
       revalidatePath("/admin/churn-analysis");
-      
+
       return {
         success: true,
-        results
+        results,
       };
     }
   } catch (error) {
@@ -146,10 +147,10 @@ export async function triggerChurnAnalysis(userId?: string) {
 export async function createManualIntervention(
   userId: string,
   type: string,
-  message: string
+  message: string,
 ) {
   const session = await auth();
-  if (!session?.user?.role || session.user.role !== "ADMIN") {
+  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
     return { success: false, error: "Unauthorized - Admin only" };
   }
 
@@ -157,7 +158,7 @@ export async function createManualIntervention(
     // Get latest churn score
     const latestScore = await prisma.churnScore.findFirst({
       where: { userId },
-      orderBy: { calculatedAt: 'desc' }
+      orderBy: { calculatedAt: "desc" },
     });
 
     if (!latestScore) {
@@ -173,15 +174,15 @@ export async function createManualIntervention(
         message,
         executed: true,
         executedAt: new Date(),
-        successful: true
-      }
+        successful: true,
+      },
     });
 
     revalidatePath("/admin/churn-analysis");
 
     return {
       success: true,
-      intervention
+      intervention,
     };
   } catch (error) {
     console.error("[createManualIntervention]", error);
@@ -194,26 +195,30 @@ export async function createManualIntervention(
  */
 export async function triggerUserReEngagement(userId: string) {
   const session = await auth();
-  if (!session?.user?.role || session.user.role !== "ADMIN") {
+  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
     return { success: false, error: "Unauthorized - Admin only" };
   }
 
   try {
     const latestScore = await prisma.churnScore.findFirst({
       where: { userId },
-      orderBy: { calculatedAt: 'desc' }
+      orderBy: { calculatedAt: "desc" },
     });
 
     if (!latestScore) {
       return { success: false, error: "No churn score found" };
     }
 
-    const result = await triggerReEngagement(userId, latestScore.id, latestScore.riskLevel);
+    const result = await triggerReEngagement(
+      userId,
+      latestScore.id,
+      latestScore.riskLevel,
+    );
     revalidatePath("/admin/churn-analysis");
 
     return {
       success: result.success,
-      interventionId: result.interventionId
+      interventionId: result.interventionId,
     };
   } catch (error) {
     console.error("[triggerUserReEngagement]", error);
@@ -226,7 +231,7 @@ export async function triggerUserReEngagement(userId: string) {
  */
 export async function getInterventionStats() {
   const session = await auth();
-  if (!session?.user?.role || session.user.role !== "ADMIN") {
+  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
     return { success: false, error: "Unauthorized - Admin only" };
   }
 
@@ -234,7 +239,7 @@ export async function getInterventionStats() {
     const [total, successful, executed] = await Promise.all([
       prisma.churnIntervention.count(),
       prisma.churnIntervention.count({ where: { successful: true } }),
-      prisma.churnIntervention.count({ where: { executed: true } })
+      prisma.churnIntervention.count({ where: { executed: true } }),
     ]);
 
     const successRate = executed > 0 ? (successful / executed) * 100 : 0;
@@ -245,8 +250,8 @@ export async function getInterventionStats() {
         total,
         executed,
         successful,
-        successRate: Math.round(successRate)
-      }
+        successRate: Math.round(successRate),
+      },
     };
   } catch (error) {
     console.error("[getInterventionStats]", error);

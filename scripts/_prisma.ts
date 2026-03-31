@@ -1,11 +1,22 @@
+import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
 export function createScriptPrisma() {
+  const connectionString =
+    process.env.DIRECT_DATABASE_URL?.trim() ||
+    process.env.DATABASE_URL?.trim() ||
+    "";
+
+  if (!connectionString) {
+    throw new Error(
+      "Missing database URL. Set DIRECT_DATABASE_URL or DATABASE_URL before running scripts.",
+    );
+  }
+
   const pool = new Pool({
-    connectionString:
-      process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL,
+    connectionString,
   });
 
   const adapter = new PrismaPg(pool);

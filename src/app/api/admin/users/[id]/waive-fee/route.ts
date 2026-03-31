@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hasRole } from "@/lib/auth/roles";
 
 export async function POST(
   req: Request,
@@ -10,7 +11,7 @@ export async function POST(
     const session = await auth();
 
     // Only admins can waive fees
-    if (!session?.user?.id || session.user.role !== "ADMIN") {
+    if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 

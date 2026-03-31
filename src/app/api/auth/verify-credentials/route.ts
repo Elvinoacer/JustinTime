@@ -10,6 +10,7 @@ import {
   enforceRateLimits,
   getClientIpFromHeaders,
 } from "@/lib/auth/rate-limit";
+import { getDefaultRolesForPrimaryRole } from "@/lib/auth/roles";
 
 /**
  * Internal API endpoint for credential verification
@@ -169,6 +170,7 @@ export async function POST(request: NextRequest) {
       email: user.email,
       name: user.name,
       role: user.role,
+      roles: getDefaultRolesForPrimaryRole(user.role),
       image: user.image,
       onboardingCompleted: user.onboardingCompleted,
       clientInterests: user.clientInterests,

@@ -5,6 +5,7 @@ declare module "next-auth" {
     user: {
       id: string;
       role: string;
+      roles?: string[];
       onboardingCompleted: boolean;
       clientInterests: string[];
       emailVerified: Date | null;
@@ -14,6 +15,7 @@ declare module "next-auth" {
 
   interface User {
     role: string;
+    roles?: string[];
     onboardingCompleted: boolean;
     clientInterests: string[];
     emailVerified: Date | null;
@@ -24,6 +26,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     role: string;
+    roles?: string[];
     onboardingCompleted: boolean;
     clientInterests: string[];
     emailVerified: Date | null;

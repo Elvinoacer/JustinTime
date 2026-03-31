@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { PromoType } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
+import { hasRole } from "@/lib/auth/roles";
 
 export async function validatePromoCodeAction(code: string, amount: number) {
   const session = await auth();
@@ -22,7 +23,7 @@ export async function validatePromoCodeAction(code: string, amount: number) {
 export async function createPromoCodeAction(formData: FormData) {
   try {
     const session = await auth();
-    if (session?.user?.role !== "ADMIN") {
+    if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
       return { success: false, error: "Unauthorized" };
     }
 

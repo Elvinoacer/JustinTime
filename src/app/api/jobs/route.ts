@@ -1,9 +1,14 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createJobSchema } from "@/lib/validations/schemas";
+import {
+  createJobSchema,
+  quickCreateJobSchema,
+} from "@/lib/validations/schemas";
 import { sendComprehensiveNotification } from "@/lib/notifications/adminNotifications";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
+import { growthFeatureFlags } from "@/lib/growth/featureFlags";
+import { hasRole } from "@/lib/auth/roles";
 import type { JobListClient } from "@/lib/api/contracts/public-listings";
 
 // Haversine formula to calculate distance between two coordinates in kilometers
@@ -11,7 +16,7 @@ function calculateDistance(
   lat1: number,
   lon1: number,
   lat2: number,
-  lon2: number
+  lon2: number,
 ): number {
   const R = 6371; // Earth's radius in kilometers
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -29,7 +34,9 @@ function calculateDistance(
 // Simple geocoding cache to avoid repeated API calls
 const geocodeCache = new Map<string, { lat: number; lon: number } | null>();
 
-async function geocodeLocation(location: string): Promise<{ lat: number; lon: number } | null> {
+async function geocodeLocation(
+  location: string,
+): Promise<{ lat: number; lon: number } | null> {
   if (geocodeCache.has(location)) {
     return geocodeCache.get(location)!;
   }
@@ -39,21 +46,24 @@ async function geocodeLocation(location: string): Promise<{ lat: number; lon: nu
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}&limit=1`,
       {
         headers: {
-          'User-Agent': 'JustInTime-Job-Platform',
+          "User-Agent": "JustInTime-Job-Platform",
         },
-      }
+      },
     );
     const data = await response.json();
-    
+
     if (data && data.length > 0) {
-      const coords = { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+      const coords = {
+        lat: parseFloat(data[0].lat),
+        lon: parseFloat(data[0].lon),
+      };
       geocodeCache.set(location, coords);
       return coords;
     }
   } catch (error) {
     console.error("Geocoding error:", error);
   }
-  
+
   geocodeCache.set(location, null);
   return null;
 }
@@ -150,17 +160,17 @@ export async function GET(request: Request) {
 
     // Build where clause
     const where: any = {};
-    
+
     // Status filter
     if (searchParams.get("status")) {
       where.status = searchParams.get("status");
     }
-    
+
     // Category filter
     if (searchParams.get("category")) {
       where.categoryId = searchParams.get("category");
     }
-    
+
     // Location filter (partial match)
     if (searchParams.get("location")) {
       where.location = {
@@ -168,7 +178,7 @@ export async function GET(request: Request) {
         mode: "insensitive",
       };
     }
-    
+
     // Budget range filter
     if (searchParams.get("budgetMin") || searchParams.get("budgetMax")) {
       where.budget = {};
@@ -179,7 +189,7 @@ export async function GET(request: Request) {
         where.budget.lte = parseFloat(searchParams.get("budgetMax")!);
       }
     }
-    
+
     // Search filter (title and description)
     if (searchParams.get("search")) {
       const searchTerm = searchParams.get("search")!;
@@ -202,9 +212,9 @@ export async function GET(request: Request) {
     // Sorting
     const sortBy = searchParams.get("sortBy") || "createdAt";
     const sortOrder = searchParams.get("sortOrder") || "desc";
-    
+
     let orderBy: any = { [sortBy]: sortOrder };
-    
+
     // Special case for proposals count sorting
     if (sortBy === "proposals") {
       orderBy = { proposals: { _count: sortOrder } };
@@ -215,7 +225,8 @@ export async function GET(request: Request) {
         where,
         // For distance sorting, fetch more items initially
         skip: sortBy === "distance" && userLat && userLon ? 0 : skip,
-        take: sortBy === "distance" && userLat && userLon ? undefined : pageSize,
+        take:
+          sortBy === "distance" && userLat && userLon ? undefined : pageSize,
         include: {
           client: {
             select: {
@@ -244,7 +255,7 @@ export async function GET(request: Request) {
           let distance = null;
           let jobLat = job.latitude;
           let jobLon = job.longitude;
-          
+
           // Fallback for legacy jobs without stored coordinates
           if ((jobLat === null || jobLon === null) && job.location) {
             try {
@@ -252,7 +263,7 @@ export async function GET(request: Request) {
               if (jobCoords) {
                 jobLat = jobCoords.lat;
                 jobLon = jobCoords.lon;
-                
+
                 // Optional: We could update the job in DB here to persist it for next time
                 // await prisma.job.update({ where: { id: job.id }, data: { latitude: jobLat, longitude: jobLon } });
               }
@@ -272,7 +283,7 @@ export async function GET(request: Request) {
             job,
             distanceKm,
           };
-        })
+        }),
       );
 
       // Sort by distance if requested
@@ -326,29 +337,92 @@ export async function POST(request: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    if (session.user.role !== "CLIENT") {
+    if (!hasRole(session.user, "CLIENT")) {
       return new NextResponse("Only clients can post jobs", { status: 403 });
     }
 
-
     const body = await request.json();
-    const validatedData = createJobSchema.parse(body);
+    const mode =
+      typeof body?.mode === "string" && body.mode.toLowerCase() === "quick"
+        ? "quick"
+        : "full";
 
-    // Look up the category by ID (frontend sends ID)
-    const category = await prisma.category.findUnique({
-      where: { id: validatedData.category },
-    });
-
-    if (!category) {
-      return new NextResponse("Invalid category", { status: 400 });
+    if (mode === "quick" && !growthFeatureFlags.quickPost) {
+      return NextResponse.json(
+        { error: "Quick post is currently disabled" },
+        { status: 403 },
+      );
     }
-    
+
+    let category: { id: string; name: string; slug: string } | null = null;
+    let normalizedData: {
+      title: string;
+      description: string;
+      budget: number;
+      location: string;
+      images: string[];
+      maxApplicants?: number;
+    };
+
+    if (mode === "quick") {
+      const quickData = quickCreateJobSchema.parse(body);
+
+      // Quick posts use a fallback category so clients can publish in one step.
+      category = await prisma.category.findFirst({
+        where: { slug: "general" },
+        select: { id: true, name: true, slug: true },
+      });
+
+      if (!category) {
+        category = await prisma.category.findFirst({
+          orderBy: { name: "asc" },
+          select: { id: true, name: true, slug: true },
+        });
+      }
+
+      if (!category) {
+        return NextResponse.json(
+          { error: "No category available for quick post" },
+          { status: 400 },
+        );
+      }
+
+      normalizedData = {
+        title: quickData.title,
+        description:
+          "Quick post created. Add full details to improve proposal quality.",
+        budget: quickData.budget,
+        location: quickData.location,
+        images: [],
+      };
+    } else {
+      const validatedData = createJobSchema.parse(body);
+
+      category = await prisma.category.findUnique({
+        where: { id: validatedData.category },
+        select: { id: true, name: true, slug: true },
+      });
+
+      if (!category) {
+        return new NextResponse("Invalid category", { status: 400 });
+      }
+
+      normalizedData = {
+        title: validatedData.title,
+        description: validatedData.description,
+        budget: validatedData.budget,
+        location: validatedData.location,
+        images: validatedData.images || [],
+        maxApplicants: validatedData.maxApplicants,
+      };
+    }
+
     // Geocode location before saving
     let latitude = null;
     let longitude = null;
-    if (validatedData.location) {
+    if (normalizedData.location) {
       try {
-        const coords = await geocodeLocation(validatedData.location);
+        const coords = await geocodeLocation(normalizedData.location);
         if (coords) {
           latitude = coords.lat;
           longitude = coords.lon;
@@ -358,19 +432,19 @@ export async function POST(request: Request) {
         // Continue without coordinates if geocoding fails
       }
     }
-    
+
     const job = await prisma.job.create({
       data: {
-        title: validatedData.title,
-        description: validatedData.description,
-        budget: validatedData.budget,
-        location: validatedData.location,
+        title: normalizedData.title,
+        description: normalizedData.description,
+        budget: normalizedData.budget,
+        location: normalizedData.location,
         latitude,
         longitude,
         categoryId: category.id,
         clientId: session.user.id,
-        images: validatedData.images || [], // Include images
-        maxApplicants: validatedData.maxApplicants,
+        images: normalizedData.images,
+        maxApplicants: normalizedData.maxApplicants,
       },
     });
 
@@ -384,40 +458,42 @@ export async function POST(request: Request) {
             role: "PROVIDER",
             profile: {
               skills: {
-                has: category.id
-              }
-            }
+                has: category.id,
+              },
+            },
           },
-          select: { id: true }
+          select: { id: true },
         });
 
-        console.log(`[JobAlert] Found ${matchingProviders.length} matching providers for category ${category.name}`);
+        console.log(
+          `[JobAlert] Found ${matchingProviders.length} matching providers for category ${category.name}`,
+        );
 
         // Send notifications
         for (const provider of matchingProviders) {
           await sendComprehensiveNotification({
             userId: provider.id,
-            title: `New Job: ${validatedData.title}`,
-            message: `A new job matching your skills has been posted: ${validatedData.title} - Budget: Kes ${validatedData.budget || 'Negotiable'}`,
+            title: `New Job: ${normalizedData.title}`,
+            message: `A new job matching your skills has been posted: ${normalizedData.title} - Budget: Kes ${normalizedData.budget || "Negotiable"}`,
             type: "JOB_ALERT",
-            emailSubject: `New Job Alert: ${validatedData.title} - JustInTime`,
+            emailSubject: `New Job Alert: ${normalizedData.title} - JustInTime`,
             emailHtml: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #10b981;">New Job Opportunity!</h2>
                 <p>A new job matching your skills has been posted.</p>
                 
                 <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                  <h3 style="margin-top: 0;">${validatedData.title}</h3>
+                  <h3 style="margin-top: 0;">${normalizedData.title}</h3>
                   <p><strong>Category:</strong> ${category.name}</p>
-                  <p><strong>Budget:</strong> Kes ${validatedData.budget || 'Negotiable'}</p>
-                  <p><strong>Location:</strong> ${validatedData.location || 'Remote/Not specified'}</p>
+                  <p><strong>Budget:</strong> Kes ${normalizedData.budget || "Negotiable"}</p>
+                  <p><strong>Location:</strong> ${normalizedData.location || "Remote/Not specified"}</p>
                   <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 15px 0;" />
-                  <p style="color: #4b5563;">${validatedData.description ? (validatedData.description.length > 150 ? validatedData.description.substring(0, 150) + "..." : validatedData.description) : "No description"}</p>
+                  <p style="color: #4b5563;">${normalizedData.description ? (normalizedData.description.length > 150 ? normalizedData.description.substring(0, 150) + "..." : normalizedData.description) : "No description"}</p>
                 </div>
                 
                 <a href="${process.env.NEXTAUTH_URL}/dashboard/jobs/${job.id}" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">View Job Details</a>
               </div>
-            `
+            `,
           });
         }
       } catch (error) {
@@ -425,7 +501,11 @@ export async function POST(request: Request) {
       }
     })();
 
-    return NextResponse.json(job);
+    return NextResponse.json({
+      ...job,
+      postMode: mode,
+      needsDetails: mode === "quick",
+    });
   } catch (error) {
     console.error("[JOBS_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });

@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
+import { hasRole } from "@/lib/auth/roles";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    
-    if (!session || !session.user || session.user.role !== "PROVIDER") {
+
+    if (!session || !session.user || !hasRole(session.user, "PROVIDER")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate total earnings
     const totalEarnings = bookings.reduce((sum, booking) => {
-      // Assuming price is stored in service or job. 
+      // Assuming price is stored in service or job.
       // Adjust based on your actual schema if price is stored directly on booking or payment.
       // For now, using service price or job price.
       const price = booking.service?.price || booking.job?.budget || 0;
@@ -65,19 +66,22 @@ export async function GET(request: NextRequest) {
     // Calculate breakdown by service
     const breakdownMap = new Map<string, number>();
     bookings.forEach((booking) => {
-      const name = booking.service?.title || booking.job?.title || "Unknown Service";
+      const name =
+        booking.service?.title || booking.job?.title || "Unknown Service";
       const price = Number(booking.service?.price || booking.job?.budget || 0);
       breakdownMap.set(name, (breakdownMap.get(name) || 0) + price);
     });
 
-    const breakdown = Array.from(breakdownMap.entries()).map(([service, amount]) => ({
-      service,
-      amount: `KES ${amount.toLocaleString()}`,
-    }));
+    const breakdown = Array.from(breakdownMap.entries()).map(
+      ([service, amount]) => ({
+        service,
+        amount: `KES ${amount.toLocaleString()}`,
+      }),
+    );
 
     // Fetch payouts (mocked for now as Payment model might not be fully set up for payouts)
     // In a real app, you'd query the Payment model where type is PAYOUT
-    const payouts: any[] = []; 
+    const payouts: any[] = [];
 
     return successResponse({
       total: `KES ${totalEarnings.toLocaleString()}`,

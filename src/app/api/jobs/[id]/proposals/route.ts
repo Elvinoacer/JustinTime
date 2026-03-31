@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { submitProposal } from "@/lib/proposals/submitProposal";
 import { z } from "zod";
+import { hasRole } from "@/lib/auth/roles";
 
 const createJobProposalSchema = z
   .object({
@@ -50,9 +51,9 @@ export async function GET(
       return new NextResponse("Job not found", { status: 404 });
     }
 
-    const isAdmin = session.user.role === "ADMIN";
+    const isAdmin = hasRole(session.user, "ADMIN");
     const isJobOwner = job.clientId === session.user.id;
-    const isProvider = session.user.role === "PROVIDER";
+    const isProvider = hasRole(session.user, "PROVIDER");
 
     if (!isAdmin && !isJobOwner && !isProvider) {
       return new NextResponse("Forbidden", { status: 403 });
@@ -153,7 +154,7 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    if (session.user.role !== "PROVIDER") {
+    if (!hasRole(session.user, "PROVIDER")) {
       return new NextResponse("Only providers can submit proposals", {
         status: 403,
       });

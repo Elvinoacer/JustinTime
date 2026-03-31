@@ -4,10 +4,17 @@ import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import apiClient from "@/lib/api/client";
 import {
+  useCreateProposalTemplate,
   useJob,
   useJobProposals,
+  useProposalTemplates,
   useSubmitProposal,
 } from "@/lib/api/hooks/useJobs";
+import { useJobsEvents } from "@/hooks/useJobsEvents";
+import {
+  buildProposalTemplate,
+  type ProposalTemplateKey,
+} from "@/lib/proposals/templates";
 import { useProviderProfile } from "@/lib/api/hooks/useProvider";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -102,9 +109,21 @@ export default function JobDetailPage() {
   const [attachments, setAttachments] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<ProposalTemplateKey | null>(null);
+  const [selectedSavedTemplateId, setSelectedSavedTemplateId] = useState<
+    string | null
+  >(null);
+  const [templateName, setTemplateName] = useState("");
   const [useProfile, setUseProfile] = useState(false);
   const [showImageGallery, setShowImageGallery] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const { trackEvent } = useJobsEvents();
+  const quickApplyVariant =
+    (process.env.NEXT_PUBLIC_FF_QUICK_APPLY_TEMPLATES || "").toLowerCase() ===
+    "true"
+      ? "quick-apply"
+      : "baseline";
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverLetterRef = useRef<HTMLTextAreaElement>(null);
@@ -118,8 +137,13 @@ export default function JobDetailPage() {
     jobId,
     Boolean(session?.user?.id && isProvider),
   );
+  const { data: savedTemplatesData } = useProposalTemplates(
+    Boolean(session?.user?.id && isProvider),
+  );
+  const createProposalTemplate = useCreateProposalTemplate();
   const submitProposal = useSubmitProposal();
   const providerProfile = profile?.data;
+  const savedTemplates = savedTemplatesData?.items || [];
 
   const existingProposal = myProposals?.[0];
   const isJobOwner = Boolean(
@@ -245,6 +269,79 @@ export default function JobDetailPage() {
     }
   };
 
+  const applyQuickTemplate = (template: ProposalTemplateKey) => {
+    if (!job) return;
+    const next = buildProposalTemplate(template, job.title, job.budget);
+    setCoverLetter(next.coverLetter);
+    setProposedPrice(next.price);
+    setEstimatedDays(next.estimatedDays);
+    setSelectedTemplate(template);
+    setSelectedSavedTemplateId(null);
+    trackEvent("pricing_hint_applied", {
+      userRole: "PROVIDER",
+      sourcePage: "/jobs/[id]",
+      experimentVariant: quickApplyVariant,
+      jobId,
+      jobCategory: job?.category?.slug,
+    });
+  };
+
+  const applySavedTemplate = (template: {
+    id: string;
+    name: string;
+    coverLetter: string;
+    price: number | string;
+    estimatedDays: number | null;
+  }) => {
+    setCoverLetter(template.coverLetter);
+    setProposedPrice(String(template.price));
+    setEstimatedDays(
+      template.estimatedDays !== null ? String(template.estimatedDays) : "",
+    );
+    setSelectedSavedTemplateId(template.id);
+    setSelectedTemplate(null);
+    if (!templateName) {
+      setTemplateName(template.name);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    const normalizedName = templateName.trim();
+    if (!normalizedName) {
+      toast.error("Enter a template name before saving");
+      return;
+    }
+
+    if (coverLetter.trim().length < 50) {
+      toast.error("Cover letter must be at least 50 characters to save");
+      return;
+    }
+
+    const price = Number(proposedPrice);
+    if (!Number.isFinite(price) || price <= 0) {
+      toast.error("Enter a valid price before saving");
+      return;
+    }
+
+    const daysValue = estimatedDays ? Number.parseInt(estimatedDays, 10) : null;
+    if (estimatedDays && (!Number.isFinite(daysValue) || daysValue <= 0)) {
+      toast.error("Estimated days must be a positive number");
+      return;
+    }
+
+    try {
+      await createProposalTemplate.mutateAsync({
+        name: normalizedName,
+        coverLetter: coverLetter.trim(),
+        price,
+        estimatedDays: daysValue,
+      });
+      toast.success("Template saved");
+    } catch {
+      toast.error("Failed to save template");
+    }
+  };
+
   const handleShare = async () => {
     const url = window.location.href;
 
@@ -320,6 +417,13 @@ export default function JobDetailPage() {
       return;
     }
 
+    trackEvent("provider_apply_started", {
+      userRole: "PROVIDER",
+      sourcePage: "/jobs/[id]",
+      experimentVariant: quickApplyVariant,
+      jobId,
+      jobCategory: job?.category?.slug,
+    });
     setShowForm(true);
   };
 
@@ -364,6 +468,13 @@ export default function JobDetailPage() {
           setAttachments([]);
           setShowForm(false);
           setUseProfile(false);
+          trackEvent("provider_apply_submitted", {
+            userRole: "PROVIDER",
+            sourcePage: "/jobs/[id]",
+            experimentVariant: quickApplyVariant,
+            jobId,
+            jobCategory: job?.category?.slug,
+          });
           toast.success("Proposal submitted successfully");
         },
         onError: (mutationError: unknown) => {
@@ -829,6 +940,58 @@ export default function JobDetailPage() {
                       onSubmit={handleSubmit}
                       className="overflow-hidden space-y-4 border-t border-slate-100 pt-4"
                     >
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-800">
+                          Quick templates
+                        </label>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {(
+                            [
+                              ["budget", "Budget Offer"],
+                              ["premium", "Premium Offer"],
+                              ["fast", "Fast Delivery"],
+                            ] as const
+                          ).map(([key, label]) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => applyQuickTemplate(key)}
+                              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                selectedTemplate === key
+                                  ? "border-emerald-600 bg-emerald-600 text-white"
+                                  : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {savedTemplates.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-800">
+                            Saved templates
+                          </label>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {savedTemplates.slice(0, 6).map((template) => (
+                              <button
+                                key={template.id}
+                                type="button"
+                                onClick={() => applySavedTemplate(template)}
+                                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                  selectedSavedTemplateId === template.id
+                                    ? "border-sky-600 bg-sky-600 text-white"
+                                    : "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100"
+                                }`}
+                              >
+                                {template.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {canAutofill ? (
                         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                           <label
@@ -1029,6 +1192,31 @@ export default function JobDetailPage() {
                             className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                             placeholder="Optional"
                           />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-800">
+                          Save as template
+                        </label>
+                        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                          <input
+                            type="text"
+                            value={templateName}
+                            onChange={(e) => setTemplateName(e.target.value)}
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                            placeholder="Template name (e.g. Electrical urgent)"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleSaveTemplate}
+                            disabled={createProposalTemplate.isPending}
+                            className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+                          >
+                            {createProposalTemplate.isPending
+                              ? "Saving..."
+                              : "Save"}
+                          </button>
                         </div>
                       </div>
 

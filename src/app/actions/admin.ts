@@ -8,10 +8,11 @@ import {
   sendComprehensiveNotification,
   emailTemplates,
 } from "@/lib/notifications/adminNotifications";
+import { hasRole } from "@/lib/auth/roles";
 
 export async function checkAdmin() {
   const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
+  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
     throw new Error("Unauthorized: Admin access required");
   }
   return session.user;

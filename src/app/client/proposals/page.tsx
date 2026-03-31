@@ -27,6 +27,7 @@ import {
   acceptProposal,
   rejectProposal,
 } from "@/app/actions/proposals";
+import { useJobsEvents } from "@/hooks/useJobsEvents";
 import Image from "next/image";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
@@ -142,6 +143,7 @@ function evaluateProposal(proposal: Proposal) {
 }
 
 export default function ClientProposalsPage() {
+  const { trackEvent } = useJobsEvents();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<ProposalStatus | "ALL">(
@@ -181,12 +183,31 @@ export default function ClientProposalsPage() {
   const handleAccept = async (proposalId: string) => {
     try {
       await acceptProposal(proposalId);
+      const accepted = proposals.find((proposal) => proposal.id === proposalId);
+      trackEvent("proposal_accepted", {
+        userRole: "CLIENT",
+        sourcePage: "/client/proposals",
+        experimentVariant: "baseline",
+        proposalId,
+        jobId: accepted?.jobId,
+        jobCategory: accepted?.job?.category?.name,
+      });
       toast.success("Proposal accepted! The provider has been notified.");
       loadProposals();
     } catch (error: any) {
       toast.error(error.message || "Failed to accept proposal");
     }
   };
+
+  useEffect(() => {
+    if (compareIds.length > 0) {
+      trackEvent("proposal_compare_opened", {
+        userRole: "CLIENT",
+        sourcePage: "/client/proposals",
+        experimentVariant: "baseline",
+      });
+    }
+  }, [compareIds, trackEvent]);
 
   const handleReject = async (proposalId: string) => {
     try {
