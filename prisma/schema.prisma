@@ -357,12 +357,28 @@ model Proposal {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  provider      User     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  job           Job                     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  provider      User                    @relation(fields: [providerId], references: [id], onDelete: Cascade)
   estimatedDays Int?
   attachments   String[]
+  statusHistory ProposalStatusHistory[]
 
   @@unique([jobId, providerId])
+}
+
+model ProposalStatusHistory {
+  id              String         @id @default(cuid())
+  proposalId      String
+  status          ProposalStatus
+  reason          String?        @db.Text
+  changedByUserId String?
+  changedByName   String?
+  changedByRole   String?
+  createdAt       DateTime       @default(now())
+
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@index([proposalId, createdAt])
 }
 
 model ProposalTemplate {

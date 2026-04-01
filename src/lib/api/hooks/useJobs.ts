@@ -57,6 +57,14 @@ export interface JobProposal {
   estimatedDays: number | null;
   attachments: string[] | null;
   status: string;
+  latestStatusReason?: string | null;
+  statusHistory?: Array<{
+    status: "PENDING" | "ACCEPTED" | "REJECTED";
+    reason: string | null;
+    changedByName: string | null;
+    changedByRole: string | null;
+    createdAt: string;
+  }>;
   createdAt: string;
   provider?: {
     id: string;

@@ -222,7 +222,7 @@ export async function submitProposal({
           }
 
           try {
-            return await tx.proposal.create({
+            const createdProposal = await tx.proposal.create({
               data: {
                 jobId,
                 providerId,
@@ -247,6 +247,19 @@ export async function submitProposal({
                 },
               },
             });
+
+            await tx.proposalStatusHistory.create({
+              data: {
+                proposalId: createdProposal.id,
+                status: "PENDING",
+                reason: "Application submitted and awaiting client review.",
+                changedByUserId: providerId,
+                changedByName: createdProposal.provider?.name || "Provider",
+                changedByRole: "PROVIDER",
+              },
+            });
+
+            return createdProposal;
           } catch (error) {
             if (
               typeof error === "object" &&

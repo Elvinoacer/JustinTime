@@ -256,8 +256,17 @@ export default function JobDetailsPage() {
 
   // Accept proposal mutation
   const acceptProposalMutation = useMutation({
-    mutationFn: async (proposalId: string) => {
-      await apiClient.patch(`/jobs/${jobId}/proposals/${proposalId}`);
+    mutationFn: async ({
+      proposalId,
+      reason,
+    }: {
+      proposalId: string;
+      reason?: string;
+    }) => {
+      await apiClient.patch(`/jobs/${jobId}/proposals/${proposalId}`, {
+        status: "ACCEPTED",
+        reason,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["job", jobId] });
@@ -266,6 +275,29 @@ export default function JobDetailsPage() {
     },
     onError: () => {
       showToastMessage("Failed to accept proposal. Please try again.");
+    },
+  });
+
+  const inReviewProposalMutation = useMutation({
+    mutationFn: async ({
+      proposalId,
+      reason,
+    }: {
+      proposalId: string;
+      reason?: string;
+    }) => {
+      await apiClient.patch(`/jobs/${jobId}/proposals/${proposalId}`, {
+        status: "PENDING",
+        reason,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["job", jobId] });
+      queryClient.invalidateQueries({ queryKey: ["job", jobId, "proposals"] });
+      showToastMessage("Provider updated: proposal remains in review.");
+    },
+    onError: () => {
+      showToastMessage("Failed to send in-review update.");
     },
   });
 
@@ -305,6 +337,36 @@ export default function JobDetailsPage() {
     providerImage?: string | null,
   ) => {
     router.push(buildMessagesHref(providerId, providerName, providerImage));
+  };
+
+  const handleAcceptProposal = (proposalId: string) => {
+    const reason = window.prompt(
+      "Add a reason to share with the provider (optional). Click Cancel to abort acceptance.",
+    );
+
+    if (reason === null) {
+      return;
+    }
+
+    acceptProposalMutation.mutate({
+      proposalId,
+      reason: reason.trim() || undefined,
+    });
+  };
+
+  const handleInReviewProposal = (proposalId: string) => {
+    const reason = window.prompt(
+      "Share a quick in-review update (optional). Click Cancel to stop.",
+    );
+
+    if (reason === null) {
+      return;
+    }
+
+    inReviewProposalMutation.mutate({
+      proposalId,
+      reason: reason.trim() || undefined,
+    });
   };
 
   const handleDispute = async (bookingId?: string | null) => {
@@ -1137,7 +1199,7 @@ export default function JobDetailsPage() {
                             <div className="flex flex-col xs:flex-row gap-2 mt-2">
                               <button
                                 onClick={() =>
-                                  acceptProposalMutation.mutate(proposal.id)
+                                  handleAcceptProposal(proposal.id)
                                 }
                                 disabled={acceptProposalMutation.isPending}
                                 className="flex-1 px-3 py-2 sm:px-4 sm:py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 transition-colors font-medium disabled:opacity-50 text-sm sm:text-base touch-manipulation flex items-center justify-center gap-1.5"
@@ -1155,6 +1217,22 @@ export default function JobDetailsPage() {
                                     <span>Accept Proposal</span>
                                   </>
                                 )}
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleInReviewProposal(proposal.id)
+                                }
+                                disabled={inReviewProposalMutation.isPending}
+                                className="px-3 py-2 sm:px-4 sm:py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 active:bg-amber-100 transition-colors font-medium text-sm sm:text-base touch-manipulation flex items-center justify-center gap-1.5 disabled:opacity-50"
+                              >
+                                <span className="material-symbols-outlined text-sm">
+                                  schedule
+                                </span>
+                                <span>
+                                  {inReviewProposalMutation.isPending
+                                    ? "Sending..."
+                                    : "In Review"}
+                                </span>
                               </button>
                               <button
                                 onClick={() =>

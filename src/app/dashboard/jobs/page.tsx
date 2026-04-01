@@ -40,6 +40,14 @@ type ProviderJob = {
     status: string;
     price?: number | string;
     createdAt?: string;
+    latestStatusReason?: string | null;
+    statusHistory?: Array<{
+      status: "PENDING" | "ACCEPTED" | "REJECTED";
+      reason: string | null;
+      changedByName: string | null;
+      changedByRole: string | null;
+      createdAt: string;
+    }>;
   };
   recommendation?: { reasons?: string[] };
   winProbabilityBand?: "HIGH" | "MEDIUM" | "LOW";
@@ -73,7 +81,11 @@ const statusConfig: Record<
   { bg: string; text: string; label: string }
 > = {
   OPEN: { bg: "bg-blue-100", text: "text-blue-700", label: "Open" },
-  PENDING: { bg: "bg-amber-100", text: "text-amber-700", label: "Pending" },
+  PENDING: {
+    bg: "bg-amber-100",
+    text: "text-amber-700",
+    label: "In Review",
+  },
   ACCEPTED: {
     bg: "bg-emerald-100",
     text: "text-emerald-700",
@@ -82,6 +94,42 @@ const statusConfig: Record<
   REJECTED: { bg: "bg-red-100", text: "text-red-700", label: "Rejected" },
   CLOSED: { bg: "bg-gray-100", text: "text-gray-700", label: "Closed" },
 };
+
+function formatTimelineDate(value: string | undefined) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed.toLocaleString();
+}
+
+function getProposalTimeline(job: ProviderJob) {
+  if (!job.proposal) {
+    return [];
+  }
+
+  if (
+    Array.isArray(job.proposal.statusHistory) &&
+    job.proposal.statusHistory.length > 0
+  ) {
+    return job.proposal.statusHistory;
+  }
+
+  return [
+    {
+      status:
+        (job.proposal.status as "PENDING" | "ACCEPTED" | "REJECTED") ||
+        "PENDING",
+      reason:
+        job.proposal.latestStatusReason ||
+        "Application submitted and awaiting client review.",
+      changedByName: null,
+      changedByRole: "SYSTEM",
+      createdAt: job.proposal.createdAt || new Date().toISOString(),
+    },
+  ];
+}
 
 export default function JobApplicationsPage() {
   const [activeTab, setActiveTab] = useState("available");
@@ -612,6 +660,21 @@ export default function JobApplicationsPage() {
                           >
                             {statusConfig[job.proposal.status]?.label}
                           </span>
+                          {job.proposal.latestStatusReason ? (
+                            <span className="text-[11px] text-gray-500 max-w-56 text-right line-clamp-2">
+                              {job.proposal.latestStatusReason}
+                            </span>
+                          ) : null}
+                          {formatTimelineDate(
+                            job.proposal.statusHistory?.[0]?.createdAt,
+                          ) ? (
+                            <span className="text-[11px] text-gray-400">
+                              Updated{" "}
+                              {formatTimelineDate(
+                                job.proposal.statusHistory?.[0]?.createdAt,
+                              )}
+                            </span>
+                          ) : null}
                           {job.proposal.price && (
                             <span className="text-xs text-gray-500">
                               Your bid: KES{" "}
@@ -1062,6 +1125,46 @@ export default function JobApplicationsPage() {
                     </div>
                   </div>
                 </div>
+
+                {selectedJob.proposal ? (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
+                    <h4 className="font-bold text-gray-900 text-sm sm:text-base mb-2">
+                      Application Tracker
+                    </h4>
+                    <div className="space-y-2.5">
+                      {getProposalTimeline(selectedJob).map((entry, index) => (
+                        <div
+                          key={`${selectedJob.proposal?.id}-timeline-${index}`}
+                          className="rounded-lg border border-slate-200 bg-white p-2.5 sm:p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${statusConfig[entry.status]?.bg || "bg-slate-100"} ${statusConfig[entry.status]?.text || "text-slate-700"}`}
+                            >
+                              {statusConfig[entry.status]?.label ||
+                                entry.status}
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                              {formatTimelineDate(entry.createdAt) ||
+                                "Unknown time"}
+                            </span>
+                          </div>
+                          <p className="text-xs sm:text-sm text-slate-700">
+                            {entry.reason || "No reason provided."}
+                          </p>
+                          {entry.changedByName || entry.changedByRole ? (
+                            <p className="mt-1 text-[11px] text-slate-500">
+                              By{" "}
+                              {entry.changedByName ||
+                                entry.changedByRole ||
+                                "System"}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
 
                 {(activeTab === "available" || activeTab === "recommended") &&
                   !selectedJob.proposal && (

@@ -6,6 +6,14 @@ import type { Prisma } from "@/generated/prisma/client";
 
 type WinProbabilityBand = "HIGH" | "MEDIUM" | "LOW";
 
+type ProposalStatusHistoryItem = {
+  status: "PENDING" | "ACCEPTED" | "REJECTED";
+  reason: string | null;
+  changedByName: string | null;
+  changedByRole: string | null;
+  createdAt: Date;
+};
+
 function getWinProbability(
   applicants: number,
   proposalWinRate: number,
@@ -35,6 +43,31 @@ function getWinProbability(
     winProbabilityReason:
       "Highly competitive job relative to your current historical win profile.",
   };
+}
+
+function buildStatusHistory(
+  history: ProposalStatusHistoryItem[],
+  submittedAt: Date,
+) {
+  if (history.length > 0) {
+    return history.map((entry) => ({
+      status: entry.status,
+      reason: entry.reason,
+      changedByName: entry.changedByName,
+      changedByRole: entry.changedByRole,
+      createdAt: entry.createdAt.toISOString(),
+    }));
+  }
+
+  return [
+    {
+      status: "PENDING",
+      reason: "Application submitted and awaiting client review.",
+      changedByName: null,
+      changedByRole: "SYSTEM",
+      createdAt: submittedAt.toISOString(),
+    },
+  ];
 }
 
 export async function GET(request: Request) {
@@ -274,6 +307,17 @@ export async function GET(request: Request) {
                   _count: { select: { proposals: true } },
                 },
               },
+              statusHistory: {
+                orderBy: { createdAt: "desc" },
+                take: 8,
+                select: {
+                  status: true,
+                  reason: true,
+                  changedByName: true,
+                  changedByRole: true,
+                  createdAt: true,
+                },
+              },
             },
             orderBy: { createdAt: "desc" },
           }),
@@ -287,6 +331,13 @@ export async function GET(request: Request) {
             status: p.status,
             price: p.price,
             createdAt: p.createdAt,
+            latestStatusReason:
+              p.statusHistory[0]?.reason ||
+              "Application submitted and awaiting client review.",
+            statusHistory: buildStatusHistory(
+              p.statusHistory as ProposalStatusHistoryItem[],
+              p.createdAt,
+            ),
           },
         }));
         total = count;
@@ -315,6 +366,17 @@ export async function GET(request: Request) {
                   },
                 },
               },
+              statusHistory: {
+                orderBy: { createdAt: "desc" },
+                take: 8,
+                select: {
+                  status: true,
+                  reason: true,
+                  changedByName: true,
+                  changedByRole: true,
+                  createdAt: true,
+                },
+              },
             },
             orderBy: { createdAt: "desc" },
           }),
@@ -328,7 +390,19 @@ export async function GET(request: Request) {
 
         jobs = proposals.map((p) => ({
           ...p.job,
-          proposal: { id: p.id, status: p.status, price: p.price },
+          proposal: {
+            id: p.id,
+            status: p.status,
+            price: p.price,
+            createdAt: p.createdAt,
+            latestStatusReason:
+              p.statusHistory[0]?.reason ||
+              "Application accepted and work is active.",
+            statusHistory: buildStatusHistory(
+              p.statusHistory as ProposalStatusHistoryItem[],
+              p.createdAt,
+            ),
+          },
           bookings: p.job.bookings,
         }));
         total = count;
@@ -358,6 +432,17 @@ export async function GET(request: Request) {
                   category: { select: { id: true, name: true, slug: true } },
                 },
               },
+              statusHistory: {
+                orderBy: { createdAt: "desc" },
+                take: 8,
+                select: {
+                  status: true,
+                  reason: true,
+                  changedByName: true,
+                  changedByRole: true,
+                  createdAt: true,
+                },
+              },
             },
             orderBy: { updatedAt: "desc" },
           }),
@@ -376,7 +461,19 @@ export async function GET(request: Request) {
 
         jobs = proposals.map((p) => ({
           ...p.job,
-          proposal: { id: p.id, status: p.status, price: p.price },
+          proposal: {
+            id: p.id,
+            status: p.status,
+            price: p.price,
+            createdAt: p.createdAt,
+            latestStatusReason:
+              p.statusHistory[0]?.reason ||
+              "Application accepted and job marked as completed.",
+            statusHistory: buildStatusHistory(
+              p.statusHistory as ProposalStatusHistoryItem[],
+              p.createdAt,
+            ),
+          },
         }));
         total = count;
 

@@ -28,6 +28,7 @@ import {
   getClientProposals,
   acceptProposal,
   rejectProposal,
+  markProposalInReview,
 } from "@/app/actions/proposals";
 import { useJobsEvents } from "@/hooks/useJobsEvents";
 import Image from "next/image";
@@ -416,8 +417,16 @@ export default function ClientProposalsPage() {
   }, [loadProposals]);
 
   const handleAccept = async (proposalId: string) => {
+    const reason = window.prompt(
+      "Share a reason with the provider (optional). Click Cancel to stop.",
+    );
+
+    if (reason === null) {
+      return;
+    }
+
     try {
-      await acceptProposal(proposalId);
+      await acceptProposal(proposalId, reason.trim() || undefined);
       const accepted = proposals.find((proposal) => proposal.id === proposalId);
       trackEvent("proposal_accepted", {
         userRole: "CLIENT",
@@ -447,13 +456,43 @@ export default function ClientProposalsPage() {
   }, [compareIds, recommendationsVariant, trackEvent]);
 
   const handleReject = async (proposalId: string) => {
+    const reason = window.prompt(
+      "Please provide a rejection reason to help the provider improve (optional). Click Cancel to stop.",
+    );
+
+    if (reason === null) {
+      return;
+    }
+
     try {
-      await rejectProposal(proposalId);
+      await rejectProposal(proposalId, reason.trim() || undefined);
       toast.success("Proposal rejected");
       loadProposals();
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Failed to reject proposal";
+      toast.error(message);
+    }
+  };
+
+  const handleInReview = async (proposalId: string) => {
+    const reason = window.prompt(
+      "Add your review update for the provider (optional). Click Cancel to stop.",
+    );
+
+    if (reason === null) {
+      return;
+    }
+
+    try {
+      await markProposalInReview(proposalId, reason.trim() || undefined);
+      toast.success("Provider notified: proposal remains in review");
+      loadProposals();
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to update in-review status";
       toast.error(message);
     }
   };
@@ -1552,6 +1591,14 @@ export default function ClientProposalsPage() {
                                 } px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-gray-200 text-gray-700 rounded-lg sm:rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all font-medium text-xs sm:text-sm`}
                               >
                                 Reject
+                              </button>
+                              <button
+                                onClick={() => handleInReview(proposal.id)}
+                                className={`${
+                                  isMobile ? "w-full" : ""
+                                } px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg sm:rounded-xl hover:bg-amber-100 hover:border-amber-300 transition-all font-medium text-xs sm:text-sm`}
+                              >
+                                In Review Note
                               </button>
                               <button
                                 onClick={() => handleAccept(proposal.id)}

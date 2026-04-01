@@ -3,6 +3,10 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import {
+  applyProposalDecision,
+  PROPOSAL_DECISION_ERRORS,
+} from "@/lib/proposals/decisionFlow";
 
 type ClientProposalsWhere = {
   job: { clientId: string };
@@ -367,7 +371,41 @@ export async function getClientProposals(jobId?: string) {
   }
 }
 
-export async function acceptProposal(proposalId: string) {
+function toClientDecisionErrorMessage(error: Error, fallback: string) {
+  if (error.message === PROPOSAL_DECISION_ERRORS.NOT_FOUND) {
+    return "Proposal not found";
+  }
+
+  if (error.message === PROPOSAL_DECISION_ERRORS.UNAUTHORIZED) {
+    return "Unauthorized";
+  }
+
+  if (error.message === PROPOSAL_DECISION_ERRORS.JOB_NOT_OPEN) {
+    return "Job is not open for new acceptances";
+  }
+
+  if (
+    error.message === PROPOSAL_DECISION_ERRORS.MAX_ACCEPTED_PROVIDERS_REACHED
+  ) {
+    return "This job has reached its accepted providers limit";
+  }
+
+  if (error.message === PROPOSAL_DECISION_ERRORS.ALREADY_ACCEPTED) {
+    return "This proposal is already accepted";
+  }
+
+  if (error.message === PROPOSAL_DECISION_ERRORS.ALREADY_REJECTED) {
+    return "This proposal is already rejected";
+  }
+
+  if (error.message === PROPOSAL_DECISION_ERRORS.NOT_PENDING) {
+    return "Only pending proposals can be updated";
+  }
+
+  return fallback;
+}
+
+export async function acceptProposal(proposalId: string, reason?: string) {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -375,63 +413,31 @@ export async function acceptProposal(proposalId: string) {
   }
 
   try {
-    // Get the proposal
-    const proposal = await prisma.proposal.findUnique({
-      where: { id: proposalId },
-      include: {
-        job: true,
-      },
-    });
-
-    if (!proposal) {
-      throw new Error("Proposal not found");
-    }
-
-    // Verify the job belongs to the client
-    if (proposal.job.clientId !== session.user.id) {
-      throw new Error("Unauthorized");
-    }
-
-    // Update the proposal status
-    const updatedProposal = await prisma.proposal.update({
-      where: { id: proposalId },
-      data: {
-        status: "ACCEPTED",
-      },
-    });
-
-    // Reject all other proposals for this job
-    await prisma.proposal.updateMany({
-      where: {
-        jobId: proposal.jobId,
-        id: {
-          not: proposalId,
-        },
-      },
-      data: {
-        status: "REJECTED",
-      },
-    });
-
-    // Update job status to IN_PROGRESS
-    await prisma.job.update({
-      where: { id: proposal.jobId },
-      data: {
-        status: "IN_PROGRESS",
-      },
+    const result = await applyProposalDecision({
+      proposalId,
+      actorUserId: session.user.id,
+      actorName: session.user.name,
+      actorRole: "CLIENT",
+      targetStatus: "ACCEPTED",
+      reason,
     });
 
     revalidatePath("/client/proposals");
     revalidatePath("/client/jobs");
 
-    return { success: true, proposal: updatedProposal };
+    return { success: true, ...result };
   } catch (error) {
     console.error("Error accepting proposal:", error);
+    if (error instanceof Error) {
+      throw new Error(
+        toClientDecisionErrorMessage(error, "Failed to accept proposal"),
+      );
+    }
     throw new Error("Failed to accept proposal");
   }
 }
 
-export async function rejectProposal(proposalId: string) {
+export async function rejectProposal(proposalId: string, reason?: string) {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -439,33 +445,58 @@ export async function rejectProposal(proposalId: string) {
   }
 
   try {
-    const proposal = await prisma.proposal.findUnique({
-      where: { id: proposalId },
-      include: {
-        job: true,
-      },
-    });
-
-    if (!proposal) {
-      throw new Error("Proposal not found");
-    }
-
-    if (proposal.job.clientId !== session.user.id) {
-      throw new Error("Unauthorized");
-    }
-
-    const updatedProposal = await prisma.proposal.update({
-      where: { id: proposalId },
-      data: {
-        status: "REJECTED",
-      },
+    const result = await applyProposalDecision({
+      proposalId,
+      actorUserId: session.user.id,
+      actorName: session.user.name,
+      actorRole: "CLIENT",
+      targetStatus: "REJECTED",
+      reason,
     });
 
     revalidatePath("/client/proposals");
+    revalidatePath("/client/jobs");
 
-    return { success: true, proposal: updatedProposal };
+    return { success: true, ...result };
   } catch (error) {
     console.error("Error rejecting proposal:", error);
+    if (error instanceof Error) {
+      throw new Error(
+        toClientDecisionErrorMessage(error, "Failed to reject proposal"),
+      );
+    }
     throw new Error("Failed to reject proposal");
+  }
+}
+
+export async function markProposalInReview(proposalId: string, reason?: string) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
+  }
+
+  try {
+    const result = await applyProposalDecision({
+      proposalId,
+      actorUserId: session.user.id,
+      actorName: session.user.name,
+      actorRole: "CLIENT",
+      targetStatus: "PENDING",
+      reason,
+    });
+
+    revalidatePath("/client/proposals");
+    revalidatePath("/client/jobs");
+
+    return { success: true, ...result };
+  } catch (error) {
+    console.error("Error marking proposal in review:", error);
+    if (error instanceof Error) {
+      throw new Error(
+        toClientDecisionErrorMessage(error, "Failed to mark proposal as in review"),
+      );
+    }
+    throw new Error("Failed to mark proposal as in review");
   }
 }

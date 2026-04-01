@@ -1,7 +1,7 @@
-import { prisma } from '@/lib/prisma';
-import { sendNotificationToUser } from '@/lib/notifications/dispatcher';
-import { Resend } from 'resend';
-import { getFromEmail } from '@/lib/email';
+import { prisma } from "@/lib/prisma";
+import { sendNotificationToUser } from "@/lib/notifications/dispatcher";
+import { Resend } from "resend";
+import { getFromEmail } from "@/lib/email";
 
 // Initialize Resend client
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -19,131 +19,172 @@ interface NotificationPayload {
  * Send comprehensive notification (Push + Email + Database)
  * @param payload Notification details
  */
-export async function sendComprehensiveNotification(payload: NotificationPayload) {
-  const {
-    userId,
-    title,
-    message,
-    type,
-    emailSubject,
-    emailHtml
-  } = payload;
+export async function sendComprehensiveNotification(
+  payload: NotificationPayload,
+) {
+  const { userId, title, message, type, emailSubject, emailHtml } = payload;
 
-  console.log('[Notification] Starting comprehensive notification for user:', userId, 'Type:', type);
+  console.log(
+    "[Notification] Starting comprehensive notification for user:",
+    userId,
+    "Type:",
+    type,
+  );
 
   try {
     // Get user details WITH notification preferences
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { 
-        email: true, 
+      select: {
+        email: true,
         name: true,
-        notificationPreferences: true
-      }
+        notificationPreferences: true,
+      },
     });
 
     if (!user) {
-      console.error('[Notification] User not found:', userId);
-      throw new Error('User not found');
+      console.error("[Notification] User not found:", userId);
+      throw new Error("User not found");
     }
 
-    console.log('[Notification] User found:', user.email);
+    console.log("[Notification] User found:", user.email);
 
     // Parse notification preferences (stored as JSON)
-    const prefs = (user.notificationPreferences as any) || {};
-    console.log('[Notification] User preferences:', prefs);
+    const prefs =
+      (user.notificationPreferences as Record<string, boolean> | null) || {};
+    console.log("[Notification] User preferences:", prefs);
 
     // Map notification type to email preference key
     const getEmailPreferenceKey = (notifType: string): string | null => {
-      if (notifType === 'BOOKING_CREATED') return 'emailBookings';
-      if (notifType === 'MESSAGE') return 'emailMessages';
-      if (notifType === 'REVIEW') return 'emailReviews';
-      if (notifType === 'JOB_ALERT') return 'emailJobAlerts';
+      if (notifType === "BOOKING_CREATED") return "emailBookings";
+      if (notifType === "MESSAGE") return "emailMessages";
+      if (notifType === "REVIEW") return "emailReviews";
+      if (notifType === "JOB_ALERT") return "emailJobAlerts";
+      if (notifType === "NEW_PROPOSAL") return "emailJobAlerts";
+      if (notifType === "PROPOSAL_STATUS_UPDATE") return "emailJobAlerts";
       return null; // For admin actions, always send
     };
 
     // 1. Create notification in database (always create DB record)
-    console.log('[Notification] Creating database record...');
+    console.log("[Notification] Creating database record...");
     const dbNotification = await prisma.notification.create({
       data: {
         userId,
         title,
         message,
         type,
-        isRead: false
-      }
+        isRead: false,
+      },
     });
-    console.log('[Notification] Database record created:', dbNotification.id);
+    console.log("[Notification] Database record created:", dbNotification.id);
 
     // 2. Send push notification (via FCM) - Check preference
     const shouldSendPush = prefs.pushNotifications !== false;
-    console.log('[Notification] Push notification enabled:', shouldSendPush);
-    
+    console.log("[Notification] Push notification enabled:", shouldSendPush);
+
     if (shouldSendPush) {
-      console.log('[Notification] Attempting to send push notification...');
+      console.log("[Notification] Attempting to send push notification...");
       try {
         await sendNotificationToUser(userId, {
           notification: {
             title,
-            body: message
+            body: message,
           },
           data: {
             type,
             notificationId: dbNotification.id,
-            url: '/dashboard/notifications'
-          }
+            url: "/dashboard/notifications",
+          },
         });
-        console.log('[Notification] Push notification sent successfully');
+        console.log("[Notification] Push notification sent successfully");
       } catch (pushError) {
-        console.error('[Notification] Failed to send push notification:', pushError);
+        console.error(
+          "[Notification] Failed to send push notification:",
+          pushError,
+        );
         // Don't throw - email and DB notification are still sent
       }
     } else {
-      console.log('[Notification] Push notifications disabled by user, skipping');
+      console.log(
+        "[Notification] Push notifications disabled by user, skipping",
+      );
     }
 
     // 3. Send email notification - Check preference
     if (emailSubject && emailHtml) {
       const emailPrefKey = getEmailPreferenceKey(type);
       const shouldSendEmail = !emailPrefKey || prefs[emailPrefKey] !== false;
-      
-      console.log('[Notification] Email preference key:', emailPrefKey, 'Enabled:', shouldSendEmail);
+
+      console.log(
+        "[Notification] Email preference key:",
+        emailPrefKey,
+        "Enabled:",
+        shouldSendEmail,
+      );
 
       if (shouldSendEmail) {
-        console.log('[Notification] Attempting to send email to:', user.email);
+        console.log("[Notification] Attempting to send email to:", user.email);
         try {
           const emailResult = await resend.emails.send({
             from: `JustInTime <${getFromEmail()}>`,
             to: user.email,
             subject: emailSubject,
-            html: emailHtml
+            html: emailHtml,
           });
-          console.log('[Notification] Email sent successfully to', user.email, 'ID:', emailResult.data?.id);
-        } catch (emailError: any) {
-          console.error('[Notification] Failed to send email notification:');
-          console.error('[Notification] Error message:', emailError.message);
-          console.error('[Notification] Error code:', emailError.code);
-          console.error('[Notification] Full error:', JSON.stringify(emailError, null, 2));
+          console.log(
+            "[Notification] Email sent successfully to",
+            user.email,
+            "ID:",
+            emailResult.data?.id,
+          );
+        } catch (emailError: unknown) {
+          const normalizedEmailError =
+            typeof emailError === "object" && emailError !== null
+              ? (emailError as { message?: string; code?: string })
+              : {};
+
+          console.error("[Notification] Failed to send email notification:");
+          console.error(
+            "[Notification] Error message:",
+            normalizedEmailError.message,
+          );
+          console.error(
+            "[Notification] Error code:",
+            normalizedEmailError.code,
+          );
+          console.error(
+            "[Notification] Full error:",
+            JSON.stringify(emailError, null, 2),
+          );
           // Don't throw - DB and push notification are still sent
         }
       } else {
-        console.log('[Notification] Email notifications disabled by user for type:', type);
+        console.log(
+          "[Notification] Email notifications disabled by user for type:",
+          type,
+        );
       }
     } else {
-      console.log('[Notification] No email subject/html provided, skipping email');
+      console.log(
+        "[Notification] No email subject/html provided, skipping email",
+      );
     }
 
-    console.log('[Notification] Comprehensive notification completed successfully');
+    console.log(
+      "[Notification] Comprehensive notification completed successfully",
+    );
     return {
       success: true,
-      notificationId: dbNotification.id
+      notificationId: dbNotification.id,
     };
-
   } catch (error) {
-    console.error('[Notification] Failed to send comprehensive notification:', error);
+    console.error(
+      "[Notification] Failed to send comprehensive notification:",
+      error,
+    );
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -153,7 +194,7 @@ export async function sendComprehensiveNotification(payload: NotificationPayload
  */
 export const emailTemplates = {
   userBanned: (userName: string, reason?: string) => ({
-    subject: 'Account Status Update - JustInTime',
+    subject: "Account Status Update - JustInTime",
     html: `
       <!DOCTYPE html>
       <html>
@@ -182,7 +223,7 @@ export const emailTemplates = {
               
               <p>Your JustInTime account has been suspended due to a violation of our community guidelines or terms of service.</p>
               
-              ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+              ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ""}
               
               <p>During this suspension:</p>
               <ul>
@@ -202,11 +243,11 @@ export const emailTemplates = {
           </div>
         </body>
       </html>
-    `
+    `,
   }),
 
   userUnbanned: (userName: string) => ({
-    subject: 'Welcome Back - Account Reinstated - JustInTime',
+    subject: "Welcome Back - Account Reinstated - JustInTime",
     html: `
       <!DOCTYPE html>
       <html>
@@ -253,11 +294,11 @@ export const emailTemplates = {
           </div>
         </body>
       </html>
-    `
+    `,
   }),
 
   roleChanged: (userName: string, oldRole: string, newRole: string) => ({
-    subject: 'Your Account Role Has Been Updated - JustInTime',
+    subject: "Your Account Role Has Been Updated - JustInTime",
     html: `
       <!DOCTYPE html>
       <html>
@@ -310,11 +351,15 @@ export const emailTemplates = {
           </div>
         </body>
       </html>
-    `
+    `,
   }),
 
-  accountDeletionScheduled: (userName: string, reason: string, deletionDate: Date) => ({
-    subject: 'Account Deletion Scheduled - JustInTime',
+  accountDeletionScheduled: (
+    userName: string,
+    reason: string,
+    deletionDate: Date,
+  ) => ({
+    subject: "Account Deletion Scheduled - JustInTime",
     html: `
       <!DOCTYPE html>
       <html>
@@ -369,11 +414,11 @@ export const emailTemplates = {
           </div>
         </body>
       </html>
-    `
+    `,
   }),
 
   accountDeletionCancelled: (userName: string) => ({
-    subject: 'Account Deletion Cancelled - JustInTime',
+    subject: "Account Deletion Cancelled - JustInTime",
     html: `
       <!DOCTYPE html>
       <html>
@@ -413,11 +458,11 @@ export const emailTemplates = {
           </div>
         </body>
       </html>
-    `
+    `,
   }),
 
   passwordResetRequested: (userName: string, resetLink: string) => ({
-    subject: 'Password Reset Request - JustInTime',
+    subject: "Password Reset Request - JustInTime",
     html: `
       <!DOCTYPE html>
       <html>
@@ -458,7 +503,7 @@ export const emailTemplates = {
           </div>
         </body>
       </html>
-    `
+    `,
   }),
 
   newBooking: (
@@ -471,7 +516,7 @@ export const emailTemplates = {
     location: string,
     totalAmount: number,
     notes: string,
-    bookingId: string
+    bookingId: string,
   ) => ({
     subject: `New Booking: ${serviceTitle} - JustInTime`,
     html: `
@@ -519,7 +564,7 @@ export const emailTemplates = {
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Date:</span>
-                  <span class="detail-value">${bookingDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  <span class="detail-value">${bookingDate.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">Time:</span>
@@ -535,12 +580,16 @@ export const emailTemplates = {
                 </div>
               </div>
               
-              ${notes ? `
+              ${
+                notes
+                  ? `
               <div class="notes-box">
                 <strong>📝 Client Notes:</strong><br/>
                 <p style="margin: 10px 0 0 0;">${notes}</p>
               </div>
-              ` : ''}
+              `
+                  : ""
+              }
               
               <p><strong>Next Steps:</strong></p>
               <ul>
@@ -561,6 +610,6 @@ export const emailTemplates = {
           </div>
         </body>
       </html>
-    `
-  })
+    `,
+  }),
 };

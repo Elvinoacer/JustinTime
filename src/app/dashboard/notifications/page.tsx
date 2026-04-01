@@ -13,10 +13,22 @@ interface Notification {
   createdAt: string;
 }
 
+const APPLICATION_NOTIFICATION_TYPES = [
+  "PROPOSAL_STATUS_UPDATE",
+  "NEW_PROPOSAL",
+  "PROPOSAL",
+];
+
+function isApplicationNotification(type: string) {
+  return APPLICATION_NOTIFICATION_TYPES.includes(type);
+}
+
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [filter, setFilter] = useState<"all" | "unread" | "applications">(
+    "all",
+  );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -52,7 +64,7 @@ const NotificationsPage = () => {
 
   const markAsRead = async (id: string) => {
     try {
-      const response = await fetch(`/api/notifications/${id}/read`, {
+      const response = await fetch(`/api/notifications/${id}`, {
         method: "PATCH",
       });
       if (response.ok) {
@@ -123,12 +135,22 @@ const NotificationsPage = () => {
     }
   };
 
-  const filteredNotifications =
-    filter === "unread"
-      ? notifications.filter((n) => !n.isRead)
-      : notifications;
+  const filteredNotifications = notifications.filter((notification) => {
+    if (filter === "unread") {
+      return !notification.isRead;
+    }
+
+    if (filter === "applications") {
+      return isApplicationNotification(notification.type);
+    }
+
+    return true;
+  });
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const applicationCount = notifications.filter((n) =>
+    isApplicationNotification(n.type),
+  ).length;
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -143,6 +165,8 @@ const NotificationsPage = () => {
       case "JOB":
         return "work";
       case "PROPOSAL":
+      case "PROPOSAL_STATUS_UPDATE":
+      case "NEW_PROPOSAL":
         return "description";
       default:
         return "notifications";
@@ -162,6 +186,8 @@ const NotificationsPage = () => {
       case "JOB":
         return "text-indigo-600 bg-indigo-100";
       case "PROPOSAL":
+      case "PROPOSAL_STATUS_UPDATE":
+      case "NEW_PROPOSAL":
         return "text-pink-600 bg-pink-100";
       default:
         return "text-gray-600 bg-gray-100";
@@ -186,7 +212,7 @@ const NotificationsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[300px] sm:min-h-[400px]">
+      <div className="flex items-center justify-center min-h-75 sm:min-h-100">
         <div
           className={`border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin ${
             isMobile ? "w-8 h-8 border-3" : "w-10 h-10 sm:w-12 sm:h-12 border-4"
@@ -223,9 +249,13 @@ const NotificationsPage = () => {
             <div
               className={`${
                 isMobile ? "text-xs" : "text-sm"
-              } text-gray-600 bg-gray-100 px-2 py-1 rounded-lg font-medium flex-shrink-0 ml-2`}
+              } text-gray-600 bg-gray-100 px-2 py-1 rounded-lg font-medium shrink-0 ml-2`}
             >
-              {filter === "all" ? `${notifications.length}` : `${unreadCount}`}
+              {filter === "all"
+                ? `${notifications.length}`
+                : filter === "unread"
+                  ? `${unreadCount}`
+                  : `${applicationCount}`}
             </div>
           )}
         </div>
@@ -257,6 +287,19 @@ const NotificationsPage = () => {
             }`}
           >
             Unread {unreadCount > 0 && `(${unreadCount})`}
+          </button>
+          <button
+            onClick={() => setFilter("applications")}
+            className={`rounded-lg font-medium transition-colors touch-manipulation whitespace-nowrap ${
+              filter === "applications"
+                ? "bg-emerald-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300"
+            } ${
+              isMobile ? "px-3 py-1.5 text-xs" : "px-3 py-2 sm:px-4 text-sm"
+            }`}
+          >
+            Application Updates
+            {applicationCount > 0 && ` (${applicationCount})`}
           </button>
         </div>
 
@@ -325,6 +368,8 @@ const NotificationsPage = () => {
             >
               {filter === "unread"
                 ? "You're all caught up!"
+                : filter === "applications"
+                  ? "No application updates yet"
                 : "Check back later for updates"}
             </p>
           </div>
@@ -344,7 +389,7 @@ const NotificationsPage = () => {
               <div className="flex items-start gap-2 sm:gap-3 md:gap-4">
                 {/* Icon */}
                 <div
-                  className={`rounded-full flex items-center justify-center flex-shrink-0 ${getNotificationColor(
+                  className={`rounded-full flex items-center justify-center shrink-0 ${getNotificationColor(
                     notification.type
                   )} ${isMobile ? "w-8 h-8" : "w-9 h-9 sm:w-10 sm:h-10"}`}
                 >
@@ -371,7 +416,7 @@ const NotificationsPage = () => {
                         </h3>
                         {!notification.isRead && (
                           <span
-                            className={`bg-emerald-500 rounded-full flex-shrink-0 ${
+                            className={`bg-emerald-500 rounded-full shrink-0 ${
                               isMobile ? "w-1.5 h-1.5" : "w-2 h-2"
                             }`}
                           />
