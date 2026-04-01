@@ -29,7 +29,32 @@ export async function GET(
       return new NextResponse("Job not found", { status: 404 });
     }
 
-    return NextResponse.json(job);
+    const acceptedProposalsCount = await prisma.proposal.count({
+      where: {
+        jobId: id,
+        status: "ACCEPTED",
+      },
+    });
+
+    const effectiveMaxAcceptedProviders =
+      typeof job.maxAcceptedProviders === "number" &&
+      job.maxAcceptedProviders > 0
+        ? job.maxAcceptedProviders
+        : 1;
+    const acceptanceSlotsRemaining = Math.max(
+      effectiveMaxAcceptedProviders - acceptedProposalsCount,
+      0,
+    );
+    const acceptingMoreProviders =
+      job.status === "OPEN" && acceptanceSlotsRemaining > 0;
+
+    return NextResponse.json({
+      ...job,
+      acceptedProposalsCount,
+      effectiveMaxAcceptedProviders,
+      acceptanceSlotsRemaining,
+      acceptingMoreProviders,
+    });
   } catch (error) {
     console.error("[JOB_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });
@@ -83,6 +108,26 @@ export async function PUT(
       return new NextResponse("Invalid deadline", { status: 400 });
     }
 
+    const nextMaxApplicants =
+      body.maxApplicants !== undefined
+        ? body.maxApplicants
+        : existingJob.maxApplicants;
+    const nextMaxAcceptedProviders =
+      body.maxAcceptedProviders !== undefined
+        ? body.maxAcceptedProviders
+        : existingJob.maxAcceptedProviders;
+
+    if (
+      typeof nextMaxApplicants === "number" &&
+      typeof nextMaxAcceptedProviders === "number" &&
+      nextMaxAcceptedProviders > nextMaxApplicants
+    ) {
+      return new NextResponse(
+        "Accepted providers limit cannot exceed max applicants",
+        { status: 400 },
+      );
+    }
+
     const updatedJob = await prisma.job.update({
       where: { id },
       data: {
@@ -96,6 +141,9 @@ export async function PUT(
         ...(body.deadline !== undefined && { deadline }),
         ...(body.maxApplicants !== undefined && {
           maxApplicants: body.maxApplicants,
+        }),
+        ...(body.maxAcceptedProviders !== undefined && {
+          maxAcceptedProviders: body.maxAcceptedProviders,
         }),
       },
       include: {

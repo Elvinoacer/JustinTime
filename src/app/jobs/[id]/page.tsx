@@ -188,7 +188,15 @@ export default function JobDetailPage() {
   const isMaxApplicantsReached =
     !!job?.maxApplicants &&
     Number(job?._count?.proposals || 0) >= Number(job.maxApplicants);
+  const acceptedProposalsCount = Number(job?.acceptedProposalsCount || 0);
+  const effectiveMaxAcceptedProviders = Number(
+    job?.effectiveMaxAcceptedProviders || job?.maxAcceptedProviders || 1,
+  );
+  const isAcceptedProvidersLimitReached =
+    acceptedProposalsCount >= effectiveMaxAcceptedProviders;
   const isJobClosed = !!job && job.status !== "OPEN";
+  const isApplyingClosed =
+    isJobClosed || isMaxApplicantsReached || isAcceptedProvidersLimitReached;
   const canAutofill = Boolean(
     isProvider &&
     providerProfile &&
@@ -260,6 +268,11 @@ export default function JobDetailPage() {
         ? `${proposalsCount} / ${job.maxApplicants}`
         : `${proposalsCount}`,
       icon: MessageSquare,
+    },
+    {
+      label: "Hires",
+      value: `${acceptedProposalsCount} / ${effectiveMaxAcceptedProviders}`,
+      icon: Shield,
     },
   ];
 
@@ -563,7 +576,7 @@ export default function JobDetailPage() {
       return;
     }
 
-    if (!isProvider || isJobOwner || existingProposal || isJobClosed) {
+    if (!isProvider || isJobOwner || existingProposal || isApplyingClosed) {
       return;
     }
 
@@ -1082,6 +1095,13 @@ export default function JobDetailPage() {
                   </div>
                 ) : null}
 
+                {isAcceptedProvidersLimitReached ? (
+                  <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-800">
+                    Hiring is full for this job ({acceptedProposalsCount}/
+                    {effectiveMaxAcceptedProviders} accepted).
+                  </div>
+                ) : null}
+
                 {existingProposal ? (
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                     <p className="text-sm font-semibold text-emerald-900">
@@ -1145,10 +1165,7 @@ export default function JobDetailPage() {
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                     This is your own job posting, so you can&apos;t apply to it.
                   </div>
-                ) : !showForm &&
-                  !existingProposal &&
-                  !isJobClosed &&
-                  !isMaxApplicantsReached ? (
+                ) : !showForm && !existingProposal && !isApplyingClosed ? (
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <button
                       onClick={handleQuickApply}
@@ -1170,10 +1187,7 @@ export default function JobDetailPage() {
                 ) : null}
 
                 <AnimatePresence initial={false}>
-                  {showForm &&
-                  !existingProposal &&
-                  !isJobClosed &&
-                  !isMaxApplicantsReached ? (
+                  {showForm && !existingProposal && !isApplyingClosed ? (
                     <motion.form
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}

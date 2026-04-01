@@ -25,6 +25,14 @@ export function toSubmitProposalErrorResponse(
       status: 409,
     });
   }
+  if (error.message === "MAX_ACCEPTED_PROVIDERS_REACHED") {
+    return new NextResponse(
+      "This job has reached its accepted providers limit",
+      {
+        status: 409,
+      },
+    );
+  }
   if (error.message === "PROPOSAL_ALREADY_EXISTS") {
     return new NextResponse(
       "You have already submitted a proposal for this job",

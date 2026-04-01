@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import ServiceCard from "./ServiceCard";
 import {
   useServicesInfinite,
@@ -8,6 +9,11 @@ import {
   ServicesResponse,
 } from "@/lib/api/hooks/useServices";
 import InfiniteScrollSentinel from "@/components/shared/InfiniteScrollSentinel";
+import RadarBrowse, {
+  type RadarBrowseItem,
+} from "@/components/marketplace/RadarBrowse";
+import StickyRadarCta from "@/components/marketplace/StickyRadarCta";
+import { calculateBearing, calculateDistance } from "@/lib/utils/geolocation";
 
 /** API may return `subscription` as `{ plan, isActive }` or legacy string */
 function subscriptionPlanLabel(sub: unknown): string | null {
@@ -32,6 +38,7 @@ const ServicesList = ({
   onSortChange,
   onBrowseAll,
 }: ServicesListProps) => {
+  const [viewMode, setViewMode] = useState<"cards" | "radar">("cards");
   const {
     data,
     isLoading,
@@ -99,8 +106,51 @@ const ServicesList = ({
     );
   }
 
-  const services = data?.pages.flatMap((page: ServicesResponse) => page.services) || [];
+  const services =
+    data?.pages.flatMap((page: ServicesResponse) => page.services) || [];
   const pagination = data?.pages[0]?.pagination;
+
+  const radarItems = useMemo<RadarBrowseItem[]>(() => {
+    if (filters.latitude == null || filters.longitude == null) return [];
+
+    return services
+      .filter(
+        (service) =>
+          service.provider?.latitude != null &&
+          service.provider?.longitude != null,
+      )
+      .map((service) => {
+        const lat = service.provider?.latitude as number;
+        const lon = service.provider?.longitude as number;
+        const distanceKm =
+          service.distance ??
+          calculateDistance(
+            filters.latitude as number,
+            filters.longitude as number,
+            lat,
+            lon,
+          );
+        const bearingDeg = calculateBearing(
+          filters.latitude as number,
+          filters.longitude as number,
+          lat,
+          lon,
+        );
+
+        return {
+          id: service.id,
+          href: `/services/${service.id}`,
+          name: service.title,
+          subtitle:
+            service.provider?.name ||
+            service.provider?.location ||
+            "Nearby service",
+          type: "service",
+          distanceKm,
+          bearingDeg,
+        };
+      });
+  }, [filters.latitude, filters.longitude, services]);
 
   if (services.length === 0) {
     return (
@@ -115,8 +165,8 @@ const ServicesList = ({
             No services match
           </h3>
           <p className="mb-8 max-w-md text-center text-sm text-slate-600 sm:text-base">
-            Loosen your filters, try another category, or start fresh to see more
-            listings.
+            Loosen your filters, try another category, or start fresh to see
+            more listings.
           </p>
           <div className="flex w-full max-w-sm flex-col gap-3 sm:flex-row sm:justify-center">
             <button
@@ -155,7 +205,7 @@ const ServicesList = ({
     sortOptions.find((opt) => opt.value === filters.sort)?.label || "Relevance";
 
   return (
-    <div className="flex-1">
+    <div className="flex-1 pb-24 md:pb-0">
       <header className="mb-6 flex flex-col gap-4 border-b border-slate-200/80 pb-6 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">
@@ -165,8 +215,8 @@ const ServicesList = ({
             Services for you
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-[15px]">
-            Tap a card for full details, reviews, and booking. Sort and filters stay
-            in sync across desktop and mobile.
+            Tap a card for full details, reviews, and booking. Sort and filters
+            stay in sync across desktop and mobile.
           </p>
         </div>
 
@@ -203,6 +253,37 @@ const ServicesList = ({
               ))}
             </select>
           </div>
+
+          <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+            <Link
+              href="/radar"
+              className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
+            >
+              Unified Radar
+            </Link>
+            <button
+              type="button"
+              onClick={() => setViewMode("cards")}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                viewMode === "cards"
+                  ? "bg-emerald-600 text-white"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              Cards
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("radar")}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                viewMode === "radar"
+                  ? "bg-emerald-600 text-white"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              Radar
+            </button>
+          </div>
         </div>
       </header>
 
@@ -212,7 +293,9 @@ const ServicesList = ({
         </span>
         <span>
           Showing{" "}
-          <strong className="font-semibold text-slate-900">{services.length}</strong>{" "}
+          <strong className="font-semibold text-slate-900">
+            {services.length}
+          </strong>{" "}
           loaded
           {pagination?.total != null ? (
             <>
@@ -226,37 +309,49 @@ const ServicesList = ({
         </span>
       </p>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
-        {services.map((service: ServiceListItem, index: number) => (
-          <ServiceCard
-            key={service.id}
-            service={{
-              id: service.id,
-              name: service.title,
-              category: service.category?.name || "General",
-              description: service.description,
-              rating: service.rating || 0,
-              reviewCount: service.reviews ?? 0,
-              startingPrice: service.price,
-              isVerified: service.provider?.isVerified || false,
-              imageUrl:
-                service.images?.[0] ||
-                service.provider?.image ||
-                "/images/placeholder.png",
-              distance: service.distance,
-              provider: {
-                name: service.provider?.name || "Unknown Provider",
-                image: service.provider?.image,
-                subscription: subscriptionPlanLabel(
-                  (service.provider as { subscription?: unknown })?.subscription
-                ),
-                verified: service.provider?.isVerified || false,
-              },
-            }}
-            index={index}
-          />
-        ))}
-      </div>
+      {viewMode === "cards" ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+          {services.map((service: ServiceListItem, index: number) => (
+            <ServiceCard
+              key={service.id}
+              service={{
+                id: service.id,
+                name: service.title,
+                category: service.category?.name || "General",
+                description: service.description,
+                rating: service.rating || 0,
+                reviewCount: service.reviews ?? 0,
+                startingPrice: service.price,
+                isVerified: service.provider?.isVerified || false,
+                imageUrl:
+                  service.images?.[0] ||
+                  service.provider?.image ||
+                  "/images/placeholder.png",
+                distance: service.distance,
+                provider: {
+                  name: service.provider?.name || "Unknown Provider",
+                  image: service.provider?.image,
+                  subscription: subscriptionPlanLabel(
+                    (service.provider as { subscription?: unknown })
+                      ?.subscription,
+                  ),
+                  verified: service.provider?.isVerified || false,
+                },
+              }}
+              index={index}
+            />
+          ))}
+        </div>
+      ) : (
+        <RadarBrowse
+          title="Services radar"
+          description="Visualize nearby services by exact distance and compass bearing from your current location."
+          hasUserLocation={
+            filters.latitude != null && filters.longitude != null
+          }
+          items={radarItems}
+        />
+      )}
 
       <InfiniteScrollSentinel
         hasNextPage={!!hasNextPage}
@@ -296,6 +391,8 @@ const ServicesList = ({
           </Link>
         </div>
       </div>
+
+      <StickyRadarCta />
     </div>
   );
 };

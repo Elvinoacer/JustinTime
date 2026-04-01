@@ -69,6 +69,7 @@ function PostJobPageContent() {
     location: "",
     date: "",
     maxApplicants: "",
+    maxAcceptedProviders: "",
   });
 
   // Improved image upload tracking
@@ -164,6 +165,8 @@ function PostJobPageContent() {
           ? new Date(existingJob.deadline).toISOString().split("T")[0]
           : "",
         maxApplicants: existingJob.maxApplicants?.toString() || "",
+        maxAcceptedProviders:
+          existingJob.maxAcceptedProviders?.toString() || "",
       });
       // Prefill images if they exist
       if (existingJob.images && existingJob.images.length > 0) {
@@ -278,14 +281,38 @@ function PostJobPageContent() {
           newErrors.maxApplicants = "Please enter a valid number";
           isValid = false;
         }
+        if (
+          formData.maxAcceptedProviders &&
+          isNaN(Number(formData.maxAcceptedProviders))
+        ) {
+          newErrors.maxAcceptedProviders = "Please enter a valid number";
+          isValid = false;
+        }
+        if (
+          formData.maxApplicants &&
+          formData.maxAcceptedProviders &&
+          Number(formData.maxAcceptedProviders) > Number(formData.maxApplicants)
+        ) {
+          newErrors.maxAcceptedProviders =
+            "Accepted providers limit cannot exceed max applicants";
+          isValid = false;
+        }
         if (isValid) {
           createJobSchema
-            .pick({ budget: true, location: true, maxApplicants: true })
+            .pick({
+              budget: true,
+              location: true,
+              maxApplicants: true,
+              maxAcceptedProviders: true,
+            })
             .parse({
               budget: Number(formData.budget),
               location: formData.location,
               maxApplicants: formData.maxApplicants
                 ? Number(formData.maxApplicants)
+                : undefined,
+              maxAcceptedProviders: formData.maxAcceptedProviders
+                ? Number(formData.maxAcceptedProviders)
                 : undefined,
             });
         }
@@ -326,6 +353,9 @@ function PostJobPageContent() {
   ) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+    if (name === "location" && locationFetchError) {
+      setLocationFetchError("");
+    }
     if (errors[name]) {
       setErrors({ ...errors, [name]: "" });
     }
@@ -468,6 +498,9 @@ function PostJobPageContent() {
         images: uploadedImages.map((img) => img.url),
         maxApplicants: formData.maxApplicants
           ? Number(formData.maxApplicants)
+          : undefined,
+        maxAcceptedProviders: formData.maxAcceptedProviders
+          ? Number(formData.maxAcceptedProviders)
           : undefined,
       };
 
@@ -636,22 +669,25 @@ function PostJobPageContent() {
                 )}
               </div>
               <div>
-                <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Location
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleUseCurrentLocation}
-                    disabled={isFetchingLocation}
-                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <span className="material-symbols-outlined text-sm">
-                      my_location
-                    </span>
-                    {isFetchingLocation ? "Locating..." : "Use Current"}
-                  </button>
-                </div>
+                <label className="mb-1.5 block text-sm font-semibold text-gray-700">
+                  Location
+                </label>
+                <button
+                  type="button"
+                  onClick={handleUseCurrentLocation}
+                  disabled={isFetchingLocation}
+                  className="mb-2.5 inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-bold text-emerald-800 shadow-sm transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span className="material-symbols-outlined text-base">
+                    near_me
+                  </span>
+                  {isFetchingLocation
+                    ? "Detecting your location..."
+                    : "Use My Current Location"}
+                </button>
+                <p className="mb-2 text-xs text-gray-500">
+                  Tap once to auto-fill your current address.
+                </p>
                 <input
                   type="text"
                   name="location"
@@ -1219,27 +1255,74 @@ function PostJobPageContent() {
                         </div>
 
                         <div>
-                          <div className="mb-1.5 sm:mb-2 flex items-center justify-between gap-2">
+                          <label
+                            htmlFor="maxAcceptedProviders"
+                            className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2"
+                          >
+                            Max Providers to Hire (Optional)
+                          </label>
+                          <p className="text-xs sm:text-sm text-gray-500 mb-2">
+                            How many proposals can be accepted before hiring
+                            closes.
+                          </p>
+                          <input
+                            type="number"
+                            name="maxAcceptedProviders"
+                            id="maxAcceptedProviders"
+                            min="1"
+                            value={formData.maxAcceptedProviders}
+                            onChange={handleChange}
+                            aria-invalid={!!errors.maxAcceptedProviders}
+                            aria-describedby={
+                              errors.maxAcceptedProviders
+                                ? "maxAcceptedProviders-error"
+                                : undefined
+                            }
+                            className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border text-sm sm:text-base text-gray-900 ${
+                              errors.maxAcceptedProviders
+                                ? "border-red-300 focus:ring-1 sm:focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                : "border-gray-300 focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                            } transition-shadow`}
+                            placeholder="e.g. 2"
+                          />
+                          {errors.maxAcceptedProviders && (
+                            <p
+                              id="maxAcceptedProviders-error"
+                              className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-xs">
+                                error
+                              </span>
+                              {errors.maxAcceptedProviders}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <div className="mb-1.5 sm:mb-2">
                             <label
                               htmlFor="location"
                               className="block text-sm font-bold text-gray-700"
                             >
                               Location <span className="text-red-500">*</span>
                             </label>
-                            <button
-                              type="button"
-                              onClick={handleUseCurrentLocation}
-                              disabled={isFetchingLocation}
-                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              <span className="material-symbols-outlined text-sm">
-                                my_location
-                              </span>
-                              {isFetchingLocation
-                                ? "Detecting..."
-                                : "Use Current Location"}
-                            </button>
                           </div>
+                          <button
+                            type="button"
+                            onClick={handleUseCurrentLocation}
+                            disabled={isFetchingLocation}
+                            className="mb-2.5 inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 shadow-sm transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <span className="material-symbols-outlined text-base">
+                              near_me
+                            </span>
+                            {isFetchingLocation
+                              ? "Detecting your location..."
+                              : "Use My Current Location"}
+                          </button>
+                          <p className="mb-2 text-xs sm:text-sm text-gray-500">
+                            Fast option: auto-fill where you are now.
+                          </p>
                           <div className="relative">
                             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                               <span className="material-symbols-outlined text-gray-400 text-sm">
@@ -1408,6 +1491,16 @@ function PostJobPageContent() {
                                 </h3>
                                 <p className="text-sm sm:text-base text-gray-900">
                                   {formData.maxApplicants}
+                                </p>
+                              </div>
+                            )}
+                            {formData.maxAcceptedProviders && (
+                              <div>
+                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                  Max Providers To Hire
+                                </h3>
+                                <p className="text-sm sm:text-base text-gray-900">
+                                  {formData.maxAcceptedProviders}
                                 </p>
                               </div>
                             )}

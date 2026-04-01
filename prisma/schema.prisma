@@ -310,21 +310,22 @@ enum JobStatus {
 }
 
 model Job {
-  id            String    @id @default(cuid())
-  clientId      String
-  categoryId    String
-  title         String
-  description   String    @db.Text
-  budget        Decimal?  @db.Decimal(10, 2)
-  location      String?
-  latitude      Float?
-  longitude     Float?
-  deadline      DateTime?
-  maxApplicants Int? // Maximum number of proposals allowed
-  status        JobStatus @default(OPEN)
-  images        String[] // URLs to job images/photos
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                   String    @id @default(cuid())
+  clientId             String
+  categoryId           String
+  title                String
+  description          String    @db.Text
+  budget               Decimal?  @db.Decimal(10, 2)
+  location             String?
+  latitude             Float?
+  longitude            Float?
+  deadline             DateTime?
+  maxApplicants        Int? // Maximum number of proposals allowed
+  maxAcceptedProviders Int? // Maximum number of proposals the client can accept
+  status               JobStatus @default(OPEN)
+  images               String[] // URLs to job images/photos
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   client    User       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   category  Category   @relation(fields: [categoryId], references: [id])

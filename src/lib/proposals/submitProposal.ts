@@ -117,6 +117,7 @@ export async function submitProposal({
               status: true,
               clientId: true,
               maxApplicants: true,
+              maxAcceptedProviders: true,
             },
           });
 
@@ -148,6 +149,21 @@ export async function submitProposal({
             if (proposalCount >= job.maxApplicants) {
               throw new Error("MAX_APPLICANTS_REACHED");
             }
+          }
+
+          const acceptedProvidersLimit =
+            typeof job.maxAcceptedProviders === "number" &&
+            job.maxAcceptedProviders > 0
+              ? job.maxAcceptedProviders
+              : 1;
+          const acceptedProvidersCount = await tx.proposal.count({
+            where: {
+              jobId,
+              status: "ACCEPTED",
+            },
+          });
+          if (acceptedProvidersCount >= acceptedProvidersLimit) {
+            throw new Error("MAX_ACCEPTED_PROVIDERS_REACHED");
           }
 
           if (enforceCreditLimit) {

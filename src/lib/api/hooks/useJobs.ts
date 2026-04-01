@@ -23,6 +23,11 @@ export interface JobDetail {
   updatedAt: string;
   status: "OPEN" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | string;
   maxApplicants: number | null;
+  maxAcceptedProviders: number | null;
+  acceptedProposalsCount?: number;
+  effectiveMaxAcceptedProviders?: number;
+  acceptanceSlotsRemaining?: number;
+  acceptingMoreProviders?: boolean;
   images: string[];
   category: {
     id: string;

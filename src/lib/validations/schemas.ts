@@ -64,6 +64,11 @@ export const createJobSchema = z.object({
     .int()
     .positive("Max applicants must be a positive number")
     .optional(),
+  maxAcceptedProviders: z
+    .number()
+    .int()
+    .positive("Max accepted providers must be a positive number")
+    .optional(),
   images: z.array(z.string()).optional(),
 });
 
@@ -81,6 +86,7 @@ export const updateJobSchema = z.object({
   location: z.string().optional(),
   deadline: z.string().optional(),
   maxApplicants: z.number().int().positive().optional(),
+  maxAcceptedProviders: z.number().int().positive().optional(),
   status: z.enum(["OPEN", "IN_PROGRESS", "COMPLETED", "CANCELLED"]).optional(),
   images: z.array(z.string()).optional(),
 });

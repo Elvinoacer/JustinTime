@@ -26,6 +26,8 @@ export interface ServiceListItem {
     name: string;
     image: string | null;
     isVerified: boolean;
+    latitude?: number | null;
+    longitude?: number | null;
     location?: string | null;
     subscription: {
       plan: string;

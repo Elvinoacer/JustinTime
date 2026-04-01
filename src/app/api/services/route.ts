@@ -202,6 +202,8 @@ export async function GET(request: NextRequest) {
           name: service.provider.name || "Unknown Provider",
           image: service.provider.image,
           isVerified: service.provider.profile?.isVerified || false,
+          latitude: service.provider.profile?.latitude ?? null,
+          longitude: service.provider.profile?.longitude ?? null,
           location: service.provider.profile?.location,
           subscription: {
             plan: service.provider.subscription?.plan || "FREE",

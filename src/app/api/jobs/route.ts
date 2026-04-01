@@ -368,6 +368,7 @@ export async function POST(request: Request) {
       deadline?: Date;
       images: string[];
       maxApplicants?: number;
+      maxAcceptedProviders?: number;
     };
 
     if (mode === "quick") {
@@ -403,6 +404,18 @@ export async function POST(request: Request) {
       };
     } else {
       const validatedData = createJobSchema.parse(body);
+
+      if (
+        typeof validatedData.maxApplicants === "number" &&
+        typeof validatedData.maxAcceptedProviders === "number" &&
+        validatedData.maxAcceptedProviders > validatedData.maxApplicants
+      ) {
+        return new NextResponse(
+          "Accepted providers limit cannot exceed max applicants",
+          { status: 400 },
+        );
+      }
+
       const deadlineDate = validatedData.deadline
         ? new Date(validatedData.deadline)
         : undefined;
@@ -428,6 +441,7 @@ export async function POST(request: Request) {
         deadline: deadlineDate,
         images: validatedData.images || [],
         maxApplicants: validatedData.maxApplicants,
+        maxAcceptedProviders: validatedData.maxAcceptedProviders,
       };
     }
 
@@ -460,6 +474,7 @@ export async function POST(request: Request) {
         images: normalizedData.images,
         deadline: normalizedData.deadline,
         maxApplicants: normalizedData.maxApplicants,
+        maxAcceptedProviders: normalizedData.maxAcceptedProviders,
       },
     });
 

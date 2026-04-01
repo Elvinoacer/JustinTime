@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useCategories } from "@/lib/api/hooks/useServices";
 import { usePublicJobsInfinite } from "@/lib/api/hooks/usePublicJobs";
 import { useHeroToolbarCompact } from "@/lib/hooks/useHeroToolbarCompact";
@@ -12,7 +13,12 @@ import BrowseStickyToolbar from "@/components/marketplace/BrowseStickyToolbar";
 import GuestCTAStrip from "@/components/shared/GuestCTAStrip";
 import PageHeader from "@/components/shared/PageHeader";
 import EmptyState from "@/components/shared/EmptyState";
+import RadarBrowse, {
+  type RadarBrowseItem,
+} from "@/components/marketplace/RadarBrowse";
+import StickyRadarCta from "@/components/marketplace/StickyRadarCta";
 import JobCard from "./JobCard";
+import { calculateBearing, calculateDistance } from "@/lib/utils/geolocation";
 import {
   Search,
   Filter,
@@ -21,6 +27,8 @@ import {
   ChevronDown,
   Building,
   Briefcase,
+  Radar,
+  LayoutGrid,
 } from "lucide-react";
 
 const STATUS_TABS = [
@@ -39,6 +47,7 @@ const JobsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<"cards" | "radar">("cards");
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -89,6 +98,38 @@ const JobsPage = () => {
   );
 
   const totalLoaded = jobs.length;
+
+  const radarItems = useMemo<RadarBrowseItem[]>(() => {
+    if (!userLocation) return [];
+
+    return jobs
+      .filter((job) => job.latitude != null && job.longitude != null)
+      .map((job) => {
+        const distanceKm =
+          job.distanceKm ??
+          calculateDistance(
+            userLocation.latitude,
+            userLocation.longitude,
+            job.latitude as number,
+            job.longitude as number,
+          );
+        const bearingDeg = calculateBearing(
+          userLocation.latitude,
+          userLocation.longitude,
+          job.latitude as number,
+          job.longitude as number,
+        );
+        return {
+          id: job.id,
+          href: `/jobs/${job.id}`,
+          name: job.title,
+          subtitle: job.location ?? job.category?.name ?? "Nearby job",
+          type: "job",
+          distanceKm,
+          bearingDeg,
+        };
+      });
+  }, [jobs, userLocation]);
 
   const searchInputClasses = toolbarCompact
     ? "min-h-10 py-2 pl-9 pr-9 text-sm sm:pl-10"
@@ -150,9 +191,45 @@ const JobsPage = () => {
                 }`}
                 aria-pressed={verifiedOnly}
               >
-                <CheckCircle className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+                <CheckCircle
+                  className="h-3.5 w-3.5 text-emerald-600"
+                  aria-hidden
+                />
                 Verified clients
               </button>
+              <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+                <Link
+                  href="/radar"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
+                >
+                  <Radar className="h-3.5 w-3.5" />
+                  Unified Radar
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("cards")}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    viewMode === "cards"
+                      ? "bg-emerald-600 text-white"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  Cards
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("radar")}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    viewMode === "radar"
+                      ? "bg-emerald-600 text-white"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  <Radar className="h-3.5 w-3.5" />
+                  Radar
+                </button>
+              </div>
             </div>
           }
         >
@@ -191,7 +268,9 @@ const JobsPage = () => {
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   aria-label="Category"
                   className={`w-full cursor-pointer appearance-none rounded-2xl border border-slate-200/90 bg-slate-50/90 py-2.5 pl-9 pr-8 text-sm text-slate-900 shadow-inner shadow-slate-200/40 outline-none transition-[background-color,border-color] focus:border-emerald-500/70 focus:bg-white focus:ring-4 focus:ring-emerald-500/12 lg:min-h-12 lg:py-3 lg:pl-10 ${
-                    toolbarCompact ? "min-h-10 py-2 pl-8 text-xs sm:text-sm" : ""
+                    toolbarCompact
+                      ? "min-h-10 py-2 pl-8 text-xs sm:text-sm"
+                      : ""
                   }`}
                 >
                   <option value="">All categories</option>
@@ -275,7 +354,7 @@ const JobsPage = () => {
           </div>
         ) : null}
 
-        <main className="mx-auto max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+        <main className="mx-auto max-w-7xl flex-1 px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-10 lg:px-8 lg:py-10">
           {isLoading && jobs.length === 0 ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
               {[...Array(6)].map((_, i) => (
@@ -326,7 +405,9 @@ const JobsPage = () => {
             <>
               <p className="mb-4 text-sm text-slate-600 lg:mb-6">
                 Showing{" "}
-                <span className="font-semibold text-slate-900">{totalLoaded}</span>{" "}
+                <span className="font-semibold text-slate-900">
+                  {totalLoaded}
+                </span>{" "}
                 job{totalLoaded === 1 ? "" : "s"}
                 {data?.pages[0]?.pagination.total != null ? (
                   <>
@@ -339,10 +420,20 @@ const JobsPage = () => {
                 ) : null}
               </p>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
-                {jobs.map((job, index) => (
-                  <JobCard key={job.id} job={job} priority={index < 6} />
-                ))}
+                {viewMode === "cards"
+                  ? jobs.map((job, index) => (
+                      <JobCard key={job.id} job={job} priority={index < 6} />
+                    ))
+                  : null}
               </div>
+              {viewMode === "radar" ? (
+                <RadarBrowse
+                  title="Jobs radar"
+                  description="Scan opportunities by true distance and direction from where you are now."
+                  hasUserLocation={Boolean(userLocation)}
+                  items={radarItems}
+                />
+              ) : null}
             </>
           )}
 
@@ -370,6 +461,8 @@ const JobsPage = () => {
           />
         </main>
       </div>
+
+      <StickyRadarCta />
 
       <Footer />
     </div>

@@ -170,6 +170,7 @@ interface Job {
   budget: number;
   location: string;
   status: string;
+  maxAcceptedProviders?: number | null;
   createdAt: string;
   images?: string[];
   category: {
@@ -337,6 +338,14 @@ export default function JobDetailsPage() {
   };
 
   const proposals = useMemo(() => proposalsData ?? [], [proposalsData]);
+  const acceptedProposalsCount = useMemo(
+    () => proposals.filter((proposal) => proposal.status === "ACCEPTED").length,
+    [proposals],
+  );
+  const effectiveMaxAcceptedProviders =
+    Number(job?.maxAcceptedProviders || 1) || 1;
+  const hasReachedAcceptedProvidersLimit =
+    acceptedProposalsCount >= effectiveMaxAcceptedProviders;
 
   useEffect(() => {
     const acceptedBookingIds = Array.from(
@@ -755,6 +764,14 @@ export default function JobDetailsPage() {
               </h2>
             </div>
 
+            <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs sm:text-sm text-emerald-800">
+              Accepted providers: <strong>{acceptedProposalsCount}</strong> /{" "}
+              <strong>{effectiveMaxAcceptedProviders}</strong>
+              {hasReachedAcceptedProvidersLimit
+                ? " (Hiring limit reached)"
+                : " (You can still accept more)"}
+            </div>
+
             {proposals.length === 0 ? (
               <div className="text-center py-6 sm:py-8 md:py-12">
                 <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
@@ -1115,7 +1132,8 @@ export default function JobDetailsPage() {
                           </div>
                         ) : null}
                         {proposal.status === "PENDING" &&
-                          job.status === "OPEN" && (
+                          job.status === "OPEN" &&
+                          !hasReachedAcceptedProvidersLimit && (
                             <div className="flex flex-col xs:flex-row gap-2 mt-2">
                               <button
                                 onClick={() =>

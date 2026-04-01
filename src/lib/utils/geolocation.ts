@@ -14,7 +14,7 @@ export function calculateDistance(
   lat1: number,
   lon1: number,
   lat2: number,
-  lon2: number
+  lon2: number,
 ): number {
   const R = 6371; // Earth's radius in kilometers
   const dLat = toRadians(lat2 - lat1);
@@ -34,6 +34,39 @@ export function calculateDistance(
 }
 
 /**
+ * Calculate the initial compass bearing from point A to point B.
+ * Returns degrees normalized to [0, 360), where 0 is North.
+ */
+export function calculateBearing(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const phi1 = toRadians(lat1);
+  const phi2 = toRadians(lat2);
+  const dLambda = toRadians(lon2 - lon1);
+
+  const y = Math.sin(dLambda) * Math.cos(phi2);
+  const x =
+    Math.cos(phi1) * Math.sin(phi2) -
+    Math.sin(phi1) * Math.cos(phi2) * Math.cos(dLambda);
+
+  const theta = Math.atan2(y, x);
+  const bearing = ((theta * 180) / Math.PI + 360) % 360;
+  return Math.round(bearing * 10) / 10;
+}
+
+/**
+ * Convert bearing angle into a short compass direction label.
+ */
+export function bearingToCompass(bearing: number): string {
+  const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  const idx = Math.round((((bearing % 360) + 360) % 360) / 45) % dirs.length;
+  return dirs[idx];
+}
+
+/**
  * Convert degrees to radians
  */
 function toRadians(degrees: number): number {
@@ -49,40 +82,80 @@ export function getCurrentLocation(): Promise<{
   longitude: number;
   address?: string;
 }> {
-  return new Promise((resolve, reject) => {
+  const resolvePosition = (
+    options: PositionOptions,
+  ): Promise<{ latitude: number; longitude: number }> => {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        (error) => reject(error),
+        options,
+      );
+    });
+  };
+
+  const toError = (error: GeolocationPositionError) => {
+    let errorMessage = "Unable to retrieve location";
+
+    switch (error.code) {
+      case error.PERMISSION_DENIED:
+        errorMessage =
+          "Location permission denied. Please allow location access in your browser.";
+        break;
+      case error.POSITION_UNAVAILABLE:
+        errorMessage = "Location information unavailable";
+        break;
+      case error.TIMEOUT:
+        errorMessage =
+          "Location request timed out. Try again in an open area or enter location manually.";
+        break;
+      default:
+        break;
+    }
+
+    return new Error(errorMessage);
+  };
+
+  return new Promise(async (resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error("Geolocation is not supported by your browser"));
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      },
-      (error) => {
-        let errorMessage = "Unable to retrieve location";
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = "Location permission denied";
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = "Location information unavailable";
-            break;
-          case error.TIMEOUT:
-            errorMessage = "Location request timed out";
-            break;
-        }
-        reject(new Error(errorMessage));
-      },
-      {
+    try {
+      // Attempt 1: Fast and accurate for devices with a good sensor/GPS fix.
+      const precise = await resolvePosition({
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 8000,
         maximumAge: 0,
+      });
+      resolve(precise);
+      return;
+    } catch (firstError) {
+      const geoError = firstError as GeolocationPositionError;
+
+      if (geoError.code === geoError.PERMISSION_DENIED) {
+        reject(toError(geoError));
+        return;
       }
-    );
+
+      try {
+        // Attempt 2: More lenient fallback that can use cached/network-based location.
+        const fallback = await resolvePosition({
+          enableHighAccuracy: false,
+          timeout: 15000,
+          maximumAge: 300000,
+        });
+        resolve(fallback);
+      } catch (secondError) {
+        reject(toError(secondError as GeolocationPositionError));
+      }
+    }
   });
 }
 
@@ -120,7 +193,7 @@ export function getLocationFromStorage(): {
 } | null {
   const stored = localStorage.getItem("userLocation");
   if (!stored) return null;
-  
+
   try {
     return JSON.parse(stored);
   } catch {
