@@ -64,6 +64,57 @@ export default function BookingDateTimeSelection({
     return normalized;
   };
 
+  const monthLabels = React.useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, monthIndex) =>
+        new Date(2026, monthIndex, 1).toLocaleString("default", {
+          month: "short",
+        }),
+      ),
+    [],
+  );
+
+  const yearOptions = React.useMemo(
+    () =>
+      Array.from(
+        { length: maxMonth.getFullYear() - minMonth.getFullYear() + 1 },
+        (_, offset) => minMonth.getFullYear() + offset,
+      ),
+    [minMonth, maxMonth],
+  );
+
+  const selectedYear = visibleMonth.getFullYear();
+  const selectedMonthIndex = visibleMonth.getMonth();
+  const minAllowedMonthIndex =
+    selectedYear === minMonth.getFullYear() ? minMonth.getMonth() : 0;
+  const maxAllowedMonthIndex =
+    selectedYear === maxMonth.getFullYear() ? maxMonth.getMonth() : 11;
+
+  const setCalendarMonth = (month: Date) => {
+    const clampedMonth = clampMonth(month);
+    setVisibleMonth(clampedMonth);
+    fetchMonthlyAvailability(format(clampedMonth, "yyyy-MM"));
+  };
+
+  const handleMonthSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const monthIndex = Number(event.target.value);
+    setCalendarMonth(new Date(selectedYear, monthIndex, 1));
+  };
+
+  const handleYearSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextYear = Number(event.target.value);
+    const yearMinMonth =
+      nextYear === minMonth.getFullYear() ? minMonth.getMonth() : 0;
+    const yearMaxMonth =
+      nextYear === maxMonth.getFullYear() ? maxMonth.getMonth() : 11;
+    const nextMonth = Math.min(
+      Math.max(selectedMonthIndex, yearMinMonth),
+      yearMaxMonth,
+    );
+
+    setCalendarMonth(new Date(nextYear, nextMonth, 1));
+  };
+
   React.useEffect(() => {
     if (selectedDates.length === 0) return;
     const normalized = startOfMonth(selectedDates[0]);
@@ -110,9 +161,51 @@ export default function BookingDateTimeSelection({
         ) : null}
 
         <div className="rounded-[1.5rem] border border-slate-200 bg-white p-2.5 shadow-sm sm:p-5">
+          <div className="mb-3 flex items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-2.5 py-2 sm:mb-4 sm:px-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              Jump to
+            </p>
+            <div className="flex items-center gap-2">
+              <select
+                aria-label="Select month"
+                value={selectedMonthIndex}
+                onChange={handleMonthSelect}
+                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[12px] font-semibold text-slate-800 outline-none focus:border-emerald-500 sm:h-9 sm:text-sm"
+              >
+                {monthLabels.map((monthLabel, monthIndex) => {
+                  const isOutOfRange =
+                    monthIndex < minAllowedMonthIndex ||
+                    monthIndex > maxAllowedMonthIndex;
+
+                  return (
+                    <option
+                      key={monthLabel}
+                      value={monthIndex}
+                      disabled={isOutOfRange}
+                    >
+                      {monthLabel}
+                    </option>
+                  );
+                })}
+              </select>
+
+              <select
+                aria-label="Select year"
+                value={selectedYear}
+                onChange={handleYearSelect}
+                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[12px] font-semibold text-slate-800 outline-none focus:border-emerald-500 sm:h-9 sm:text-sm"
+              >
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <Calendar
             mode="multiple"
-            captionLayout="dropdown"
             hideNavigation
             showOutsideDays={false}
             month={visibleMonth}
@@ -149,24 +242,15 @@ export default function BookingDateTimeSelection({
               (date) => disabledDates.includes(format(date, "yyyy-MM-dd")),
             ]}
             onMonthChange={(month) => {
-              const clampedMonth = clampMonth(month);
-              setVisibleMonth(clampedMonth);
-              fetchMonthlyAvailability(format(clampedMonth, "yyyy-MM"));
+              setVisibleMonth(clampMonth(month));
             }}
             className="!w-full max-w-none p-0 [&_.rdp-month]:!w-full [&_.rdp-month_grid]:!w-full [&_.rdp-month_grid]:table-fixed [&_.rdp-weeks]:!w-full"
             classNames={{
               root: "!w-full max-w-none",
               months: "!w-full",
               month: "!w-full space-y-2.5 sm:space-y-3",
-              month_caption:
-                "relative mb-2.5 flex h-9 w-full items-center justify-center sm:mb-3 sm:h-10",
-              caption_label: "text-[15px] font-bold text-slate-950 sm:text-lg",
-              dropdowns:
-                "flex h-9 w-full items-center justify-center gap-2 sm:h-10",
-              dropdown_root:
-                "relative h-8 rounded-md border border-slate-200 bg-white px-1 text-[12px] font-semibold text-slate-700 sm:h-9 sm:text-sm",
-              dropdown:
-                "absolute inset-0 cursor-pointer rounded-md border-0 bg-transparent px-2 pr-6 text-[12px] font-semibold text-slate-800 outline-none sm:text-sm",
+              month_caption: "sr-only",
+              caption_label: "sr-only",
               button_previous:
                 "absolute left-0 h-8 w-8 rounded-full border border-slate-200 bg-white sm:h-9 sm:w-9",
               button_next:
