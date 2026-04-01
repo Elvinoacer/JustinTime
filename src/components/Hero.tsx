@@ -10,6 +10,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { useLandingCopyVariant } from "@/hooks/useLandingCopyVariant";
@@ -139,7 +140,7 @@ const floatingAvatars = [
     size: "w-12 h-12",
   },
   {
-    name: "David",
+    name: "James",
     role: "Fundi",
     img: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop",
     position: "top-[16%] right-[7%]",
@@ -154,10 +155,10 @@ const floatingAvatars = [
     position: "top-[42%] right-[5%]",
     delay: 1.8,
     duration: 6.5,
-    size: "w-13 h-13",
+    size: "w-12 h-12",
   },
   {
-    name: "Anita",
+    name: "Grace",
     role: "Painter",
     img: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
     position: "bottom-[28%] right-[7%]",
@@ -171,7 +172,6 @@ function useCounter(end: number, duration: number = 2000) {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-20px" });
-
   useEffect(() => {
     if (!isInView) return;
     let startTime: number;
@@ -184,7 +184,6 @@ function useCounter(end: number, duration: number = 2000) {
     };
     requestAnimationFrame(step);
   }, [isInView, end, duration]);
-
   return { count, ref };
 }
 
@@ -217,14 +216,12 @@ const Hero = () => {
       params.append("location", selectedLocation);
     if (selectedCountry.code !== "KE")
       params.append("country", selectedCountry.code);
-
     trackEvent("landing:search_initiated", {
       searchQuery,
       location: selectedLocation,
       country: selectedCountry.code,
       variant,
     });
-
     router.push(`/services?${params.toString()}`);
   };
 
@@ -242,9 +239,8 @@ const Hero = () => {
   }, [trackEvent, variant]);
 
   const handleVariantSwitch = (newVariant: "booking" | "pro") => {
-    if (newVariant !== variant) {
+    if (newVariant !== variant)
       trackEvent("landing:variant_switched", { variant: newVariant });
-    }
   };
 
   const copy = isProVariant
@@ -266,7 +262,7 @@ const Hero = () => {
         subtitle:
           "JustInTime connects homes and businesses to vetted experts for cleaning, repairs, installation, and more. Compare top options instantly and confirm with secure checkout.",
         searchTitle:
-          "Tell us what you need and we will route you to the best matches",
+          "Tell us what you need and we'll route you to the best matches",
         searchAction: "Find My Best Matches",
         secondaryCtaLabel: "Browse Top Services",
         secondaryCtaHref: "/services",
@@ -281,10 +277,10 @@ const Hero = () => {
 
   return (
     <section
-      className="group/hero relative w-full overflow-hidden px-4 pb-12 pt-20 sm:px-6 sm:pb-20 sm:pt-28 md:pb-20 md:pt-32 lg:px-8 lg:pb-24 lg:pt-36"
+      className="group/hero relative w-full overflow-hidden px-4 pb-12 pt-20 sm:px-6 sm:pb-20 sm:pt-28 md:pt-32 lg:px-8 lg:pb-24 lg:pt-36"
       aria-label="Hero"
     >
-      {/* ── Background video ── */}
+      {/* Background video */}
       <div
         className="pointer-events-none absolute inset-0 -z-10"
         aria-hidden="true"
@@ -295,7 +291,7 @@ const Hero = () => {
           muted
           playsInline
           preload="metadata"
-          className="hero-bg-video absolute inset-0 h-full w-full opacity-[0.1] transition-opacity duration-700 group-hover/hero:opacity-[0.16] group-focus-within/hero:opacity-[0.2]"
+          className="hero-bg-video absolute inset-0 h-full w-full opacity-[0.1] transition-opacity duration-700 group-hover/hero:opacity-[0.16]"
         >
           <source src="/videos/bannervid.mp4" type="video/mp4" />
         </video>
@@ -317,7 +313,7 @@ const Hero = () => {
         />
       </div>
 
-      {/* ── Floating avatars (desktop only) ── */}
+      {/* Floating avatars — desktop only */}
       {floatingAvatars.map((avatar, i) => (
         <motion.div
           key={i}
@@ -332,12 +328,14 @@ const Hero = () => {
           aria-hidden="true"
         >
           <div
-            className={`${avatar.size} overflow-hidden rounded-full ring-2 ring-emerald-400/40 shadow-lg shadow-emerald-500/20`}
+            className={`${avatar.size} relative overflow-hidden rounded-full ring-2 ring-emerald-400/40 shadow-lg shadow-emerald-500/20`}
           >
-            <img
+            <Image
               src={avatar.img}
               alt=""
-              className="w-full h-full object-cover"
+              fill
+              sizes="64px"
+              className="object-cover"
               loading="lazy"
             />
           </div>
@@ -352,11 +350,11 @@ const Hero = () => {
         </motion.div>
       ))}
 
-      {/* ── Main grid ── */}
-      <div className="relative z-20 mx-auto grid w-full max-w-6xl gap-6 sm:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-12">
+      {/* Main grid */}
+      <div className="relative z-20 mx-auto grid w-full max-w-6xl gap-8 sm:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-12">
         {/* Left column — copy */}
         <div>
-          {/* Badge with pulsing dot */}
+          {/* Badge */}
           <motion.div
             className="animate-badge-pulse inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-white/6 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-400 backdrop-blur-md sm:text-xs"
             initial={{ opacity: 0, y: 12 }}
@@ -371,26 +369,34 @@ const Hero = () => {
           </motion.div>
 
           {/* Mode toggle */}
-          <div className="mt-4 inline-flex w-full max-w-xs items-center rounded-full border border-white/10 bg-white/6 p-1 backdrop-blur-md sm:w-auto sm:max-w-none">
+          <div className="mt-4 inline-flex w-full max-w-xs items-center rounded-full border border-white/10 bg-white/[0.06] p-1 backdrop-blur-md sm:w-auto sm:max-w-none">
             <Link
               href="/?focus=booking"
               onClick={() => handleVariantSwitch("booking")}
-              className={`flex-1 rounded-full px-3.5 py-2 text-center text-[11px] font-semibold transition sm:flex-none sm:text-xs ${!isProVariant ? "bg-emerald-500/20 text-emerald-400" : "text-white/50 hover:text-white/70"}`}
+              className={`flex-1 rounded-full px-4 py-2 text-center text-[11px] font-semibold transition sm:flex-none sm:text-xs ${
+                !isProVariant
+                  ? "bg-emerald-500/20 text-emerald-400"
+                  : "text-white/50 hover:text-white/70"
+              }`}
             >
               Hiring Mode
             </Link>
             <Link
               href="/?focus=pro"
               onClick={() => handleVariantSwitch("pro")}
-              className={`flex-1 rounded-full px-3.5 py-2 text-center text-[11px] font-semibold transition sm:flex-none sm:text-xs ${isProVariant ? "bg-emerald-500/20 text-emerald-400" : "text-white/50 hover:text-white/70"}`}
+              className={`flex-1 rounded-full px-4 py-2 text-center text-[11px] font-semibold transition sm:flex-none sm:text-xs ${
+                isProVariant
+                  ? "bg-emerald-500/20 text-emerald-400"
+                  : "text-white/50 hover:text-white/70"
+              }`}
             >
               Pro Growth Mode
             </Link>
           </div>
 
-          {/* Headline — gradient text */}
+          {/* Headline */}
           <motion.h1
-            className="gradient-text-hero landing-display mt-6 max-w-2xl text-[1.58rem] font-extrabold leading-[1.1] tracking-tight sm:text-[2.5rem] md:text-[2.8rem] lg:text-[3.5rem]"
+            className="gradient-text-hero landing-display mt-5 max-w-2xl text-[1.6rem] font-extrabold leading-[1.1] tracking-tight sm:text-[2.5rem] md:text-[2.8rem] lg:text-[3.5rem]"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55 }}
@@ -400,7 +406,7 @@ const Hero = () => {
 
           {/* Subtitle */}
           <motion.p
-            className="mt-4 max-w-xl text-[0.875rem] leading-[1.7] text-white/65 sm:text-base sm:leading-relaxed"
+            className="mt-4 max-w-xl text-[0.9rem] leading-[1.75] text-white/60 sm:text-base"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.1 }}
@@ -426,11 +432,9 @@ const Hero = () => {
               }
             >
               <motion.button
-                className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/6 px-5 py-2.5 text-xs font-semibold text-white backdrop-blur-md transition hover:border-emerald-400/30 hover:bg-white/10 sm:text-sm"
-                whileInView={{ scale: 1.02, y: 0 }}
-                initial={{ scale: 0.95, y: 4 }}
-                transition={{ duration: 0.4, delay: 0.24 }}
-                viewport={{ once: true, margin: "-20px" }}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/[0.12] bg-white/[0.06] px-5 py-2.5 text-xs font-semibold text-white backdrop-blur-md transition hover:border-emerald-400/30 hover:bg-white/10 sm:text-sm"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
                 {copy.secondaryCtaLabel}
               </motion.button>
@@ -439,7 +443,7 @@ const Hero = () => {
 
           {/* Trust badges */}
           <motion.div
-            className="mt-6 grid gap-2.5 sm:grid-cols-2 sm:gap-3"
+            className="mt-6 grid gap-2 sm:grid-cols-2 sm:gap-2.5"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.18 }}
@@ -447,7 +451,7 @@ const Hero = () => {
             {trustBadges.map((item) => (
               <div
                 key={item}
-                className="flex items-center gap-2.5 rounded-xl border border-white/8 bg-white/5 px-3.5 py-2.5 text-[13px] backdrop-blur-sm sm:text-sm"
+                className="flex items-center gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.05] px-3.5 py-2.5 text-[13px] backdrop-blur-sm sm:text-sm"
               >
                 <CheckCircle2
                   className="h-4 w-4 text-emerald-400 shrink-0"
@@ -458,21 +462,37 @@ const Hero = () => {
             ))}
           </motion.div>
 
-          {/* Stats row — with coloured left borders */}
+          {/* Stats row */}
           <motion.div
-            className="mt-7 grid max-w-xl grid-cols-1 gap-2.5 sm:mt-8 sm:grid-cols-3 sm:gap-4"
+            className="mt-7 grid max-w-xl grid-cols-3 gap-2.5 sm:mt-8 sm:gap-4"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.24 }}
           >
             {[
-              { counter: stat1, label: "Pros", suffix: "+", format: (v: number) => String(v) },
-              { counter: stat2, label: "Clients", suffix: "+", format: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v) },
-              { counter: stat3, label: "Satisfaction", suffix: "%", format: (v: number) => String(v) },
+              {
+                counter: stat1,
+                label: "Pros",
+                suffix: "+",
+                format: (v: number) => String(v),
+              },
+              {
+                counter: stat2,
+                label: "Clients",
+                suffix: "+",
+                format: (v: number) =>
+                  v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v),
+              },
+              {
+                counter: stat3,
+                label: "Satisfaction",
+                suffix: "%",
+                format: (v: number) => String(v),
+              },
             ].map((stat, idx) => (
               <div
                 key={stat.label}
-                className={`rounded-2xl border border-white/8 ${statAccents[idx].border} border-l-[3px] bg-white/5 px-3 py-3.5 text-left backdrop-blur-sm shadow-lg ${statAccents[idx].glow} sm:py-4 sm:text-center`}
+                className={`rounded-2xl border border-white/[0.08] ${statAccents[idx].border} border-l-[3px] bg-white/[0.05] px-3 py-3.5 text-left backdrop-blur-sm shadow-lg ${statAccents[idx].glow}`}
                 ref={stat.counter.ref}
               >
                 <div className="text-xl font-extrabold tabular-nums text-white sm:text-2xl">
@@ -487,18 +507,18 @@ const Hero = () => {
           </motion.div>
         </div>
 
-        {/* Right column — search form card with glowing ring */}
+        {/* Right column — search card */}
         <motion.div
-          className="relative rounded-2xl border border-white/10 bg-white/6 p-4 sm:rounded-3xl sm:p-6 md:p-7 shadow-[0_28px_70px_-38px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+          className="relative rounded-2xl border border-white/10 bg-white/[0.06] p-4 sm:rounded-3xl sm:p-6 md:p-7 shadow-[0_28px_70px_-38px_rgba(0,0,0,0.6)] backdrop-blur-xl"
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.12 }}
         >
-          {/* Glowing ring behind */}
           <div
             className="pointer-events-none absolute -inset-[1px] rounded-2xl sm:rounded-3xl opacity-60"
             style={{
-              background: "linear-gradient(135deg, rgba(52,211,153,0.2), rgba(34,211,238,0.15), rgba(168,85,247,0.1), rgba(52,211,153,0.2))",
+              background:
+                "linear-gradient(135deg, rgba(52,211,153,0.2), rgba(34,211,238,0.15), rgba(168,85,247,0.1), rgba(52,211,153,0.2))",
               filter: "blur(1px)",
               zIndex: -1,
             }}
@@ -524,8 +544,8 @@ const Hero = () => {
               </label>
               <input
                 id="hero-search-input"
-                className="w-full rounded-2xl border border-white/10 bg-white/6 py-3 pl-11 pr-4 text-sm font-medium text-white placeholder-white/40 outline-none transition focus:border-emerald-400/40 focus:ring-2 focus:ring-emerald-400/20 sm:py-3.5"
-                placeholder="Plumber for kitchen leak, same day cleaning..."
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.06] py-3 pl-11 pr-4 text-sm font-medium text-white placeholder-white/40 outline-none transition focus:border-emerald-400/40 focus:ring-2 focus:ring-emerald-400/20 sm:py-3.5"
+                placeholder="Plumber for kitchen leak, same-day cleaning..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -544,7 +564,7 @@ const Hero = () => {
                 </label>
                 <select
                   id="hero-country-select"
-                  className="w-full appearance-none rounded-2xl border border-white/10 bg-white/6 py-3 pl-11 pr-4 text-sm font-medium text-white/80 outline-none transition focus:border-emerald-400/40 focus:ring-2 focus:ring-emerald-400/20 [&>option]:bg-[#0a0f0d] [&>option]:text-white sm:py-3.5"
+                  className="w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.06] py-3 pl-11 pr-4 text-sm font-medium text-white/80 outline-none transition focus:border-emerald-400/40 focus:ring-2 focus:ring-emerald-400/20 [&>option]:bg-[#0a0f0d] [&>option]:text-white sm:py-3.5"
                   value={selectedCountry.code}
                   onChange={(e) => handleCountryChange(e.target.value)}
                 >
@@ -562,7 +582,7 @@ const Hero = () => {
                 />
                 <button
                   onClick={() => setIsLocationOpen(!isLocationOpen)}
-                  className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/6 py-3 pl-11 pr-4 text-left text-sm font-medium text-white/80 transition hover:border-white/15 sm:py-3.5"
+                  className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/[0.06] py-3 pl-11 pr-4 text-left text-sm font-medium text-white/80 transition hover:border-white/15 sm:py-3.5"
                   aria-expanded={isLocationOpen}
                   aria-haspopup="listbox"
                 >
@@ -586,10 +606,9 @@ const Hero = () => {
                     />
                   </svg>
                 </button>
-
                 {isLocationOpen && (
                   <div
-                    className="absolute left-0 right-0 top-full z-50 mt-2 max-h-56 overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-[#0a0f0d]/95 py-1 shadow-xl backdrop-blur-xl sm:max-h-72"
+                    className="absolute left-0 right-0 top-full z-50 mt-2 max-h-56 overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-[#0a0f0d]/95 py-1 shadow-xl backdrop-blur-xl"
                     role="listbox"
                   >
                     {selectedCountry.subdivisions.map((sub, idx) => (
@@ -601,7 +620,11 @@ const Hero = () => {
                           setSelectedLocation(sub);
                           setIsLocationOpen(false);
                         }}
-                        className={`w-full px-4 py-2.5 text-left text-sm transition ${selectedLocation === sub ? "bg-emerald-500/15 font-semibold text-emerald-400" : "text-white/60 hover:bg-white/5 hover:text-white/80"}`}
+                        className={`w-full px-4 py-2.5 text-left text-sm transition ${
+                          selectedLocation === sub
+                            ? "bg-emerald-500/15 font-semibold text-emerald-400"
+                            : "text-white/60 hover:bg-white/[0.05] hover:text-white/80"
+                        }`}
                       >
                         {sub}
                       </button>
@@ -611,9 +634,9 @@ const Hero = () => {
               </div>
             </div>
 
-            {/* Search button — shimmer sweep */}
+            {/* Search button */}
             <motion.button
-              className="shimmer-btn w-full rounded-2xl bg-linear-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-400 hover:shadow-emerald-500/35 sm:py-3.5"
+              className="shimmer-btn w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-400 sm:py-3.5"
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
               onClick={handleSearch}
@@ -622,7 +645,7 @@ const Hero = () => {
             </motion.button>
           </div>
 
-          {/* Trust badges row */}
+          {/* Trust pills */}
           <div className="mt-4 flex flex-wrap items-center gap-1.5 sm:gap-2">
             {[
               { icon: Shield, text: "Verified Pros" },
@@ -631,7 +654,7 @@ const Hero = () => {
             ].map((badge, idx) => (
               <div
                 key={idx}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/8 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-white/70 backdrop-blur-sm sm:text-xs"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.05] px-3 py-1.5 text-[11px] font-semibold text-white/70 backdrop-blur-sm sm:text-xs"
               >
                 <badge.icon
                   className="h-3.5 w-3.5 text-emerald-400"

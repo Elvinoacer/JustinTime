@@ -12,14 +12,8 @@ type FeaturedService = {
   price?: number;
   startingPrice?: number;
   images?: string[];
-  provider?: {
-    image?: string | null;
-    name?: string;
-    isVerified?: boolean;
-  };
-  category?: {
-    name?: string;
-  };
+  provider?: { image?: string | null; name?: string; isVerified?: boolean };
+  category?: { name?: string };
 };
 
 const FeaturedProfessionals = () => {
@@ -32,7 +26,6 @@ const FeaturedProfessionals = () => {
       aria-label="Featured professionals"
     >
       <div className="mx-auto max-w-6xl">
-        {/* Header */}
         <div className="mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -55,13 +48,12 @@ const FeaturedProfessionals = () => {
           </Link>
         </div>
 
-        {/* Cards */}
         {isLoading ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
             {[...Array(3)].map((_, i) => (
               <div
                 key={i}
-                className="h-64 animate-pulse rounded-2xl border border-white/6 bg-white/3"
+                className="h-64 animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.03]"
               />
             ))}
           </div>
@@ -72,21 +64,25 @@ const FeaturedProfessionals = () => {
                 typeof service.rating === "number" ? service.rating : 0;
               const roundedRating = Math.round(ratingValue);
               const reviewCount = service.reviews || 0;
-
               return (
                 <motion.div
                   key={service.id}
-                  className="group glass-card glass-card-hover flex flex-col items-center rounded-2xl p-5 text-center sm:p-6 transition-all duration-500"
+                  className="group glass-card glass-card-hover flex flex-col items-center rounded-2xl p-5 text-center sm:p-6 transition-all duration-500 hover:-translate-y-1"
                   initial={{ opacity: 0, y: 25, scale: 0.95 }}
                   whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ duration: 0.45, delay: index * 0.1, ease: [0.23, 1, 0.32, 1] }}
+                  transition={{
+                    duration: 0.45,
+                    delay: index * 0.1,
+                    ease: [0.23, 1, 0.32, 1],
+                  }}
                   viewport={{ once: true, margin: "-20px" }}
                 >
-                  {/* Avatar with animated ring */}
                   <div className="relative mb-4">
-                    {/* Pulse ring */}
-                    <div className="absolute inset-0 rounded-full ring-2 ring-emerald-400/30 animate-pulse-ring" aria-hidden="true" />
-                    <div className="h-18 w-18 overflow-hidden rounded-full ring-2 ring-emerald-400/40 ring-offset-2 ring-offset-[#0a0f0d] transition-all duration-500 group-hover:ring-emerald-400/70 group-hover:ring-offset-4 sm:h-20 sm:w-20">
+                    <div
+                      className="absolute inset-0 rounded-full ring-2 ring-emerald-400/30 animate-pulse-ring"
+                      aria-hidden="true"
+                    />
+                    <div className="h-20 w-20 overflow-hidden rounded-full ring-2 ring-emerald-400/40 ring-offset-2 ring-offset-[#0a0f0d] transition-all duration-500 group-hover:ring-emerald-400/70 group-hover:ring-offset-4">
                       <div
                         className="w-full h-full bg-center bg-no-repeat bg-cover transition-transform duration-500 group-hover:scale-110"
                         style={{
@@ -95,7 +91,7 @@ const FeaturedProfessionals = () => {
                       />
                     </div>
                     {service.provider?.isVerified && (
-                      <div className="absolute -bottom-1 -right-1 rounded-full bg-emerald-500 p-0.5 text-white shadow-md shadow-emerald-500/30">
+                      <div className="absolute -bottom-1 -right-1 rounded-full bg-emerald-500 p-1 text-white shadow-md shadow-emerald-500/30">
                         <Check className="w-3 h-3" aria-hidden="true" />
                         <span className="sr-only">Verified</span>
                       </div>
@@ -105,19 +101,22 @@ const FeaturedProfessionals = () => {
                   <h3 className="landing-display text-base font-semibold text-white sm:text-lg">
                     {service.provider?.name || "Professional"}
                   </h3>
-                  <p className="mt-0.5 text-xs text-white/70">
+                  <p className="mt-0.5 text-xs text-white/65">
                     {service.category?.name || "Specialist"}
                   </p>
 
-                  <div className="flex items-center gap-1 mt-2.5" aria-label={`${ratingValue.toFixed(1)} out of 5 stars`}>
+                  <div
+                    className="flex items-center gap-1 mt-2.5"
+                    aria-label={`${ratingValue.toFixed(1)} out of 5 stars`}
+                  >
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`w-3.5 h-3.5 transition-all duration-300 ${i < roundedRating && ratingValue > 0 ? "fill-amber-400 text-amber-400 group-hover:scale-110" : "fill-white/10 text-white/10"}`}
+                        className={`w-3.5 h-3.5 transition-all duration-300 ${i < roundedRating && ratingValue > 0 ? "fill-amber-400 text-amber-400" : "fill-white/10 text-white/10"}`}
                         aria-hidden="true"
                       />
                     ))}
-                    <span className="ml-1 text-xs text-white/70">
+                    <span className="ml-1 text-xs text-white/65">
                       {ratingValue > 0
                         ? `${ratingValue.toFixed(1)} (${reviewCount})`
                         : "No reviews yet"}
@@ -128,8 +127,8 @@ const FeaturedProfessionals = () => {
                     {service.rebookedCount || 0} repeat bookings
                   </p>
 
-                  <div className="mt-4 flex w-full items-center justify-between border-t border-white/8 pt-4">
-                    <span className="text-xs text-white/70">From</span>
+                  <div className="mt-4 flex w-full items-center justify-between border-t border-white/[0.08] pt-4">
+                    <span className="text-xs text-white/65">From</span>
                     <span className="text-sm font-semibold text-emerald-400">
                       Ksh{" "}
                       {Number(
@@ -142,7 +141,7 @@ const FeaturedProfessionals = () => {
                     href={`/services/${service.id}`}
                     className="w-full mt-3"
                   >
-                    <button className="w-full rounded-xl border border-white/10 bg-white/4 px-4 py-2.5 text-xs font-semibold text-white/80 transition-all duration-300 hover:border-emerald-400/30 hover:bg-emerald-500/10 hover:text-emerald-400 sm:text-sm">
+                    <button className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-semibold text-white/80 transition-all duration-300 hover:border-emerald-400/30 hover:bg-emerald-500/10 hover:text-emerald-400 sm:text-sm">
                       Shortlist Pro
                     </button>
                   </Link>
@@ -152,13 +151,13 @@ const FeaturedProfessionals = () => {
           </div>
         )}
 
-        {/* Mobile View All */}
         <div className="mt-8 text-center sm:hidden">
           <Link
             href="/professionals"
             className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-400"
           >
-            View All Professionals <ArrowRight className="w-4 h-4" aria-hidden="true" />
+            View All Professionals{" "}
+            <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </Link>
         </div>
       </div>

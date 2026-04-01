@@ -1,5 +1,4 @@
 "use client";
-
 import { motion } from "framer-motion";
 import { Compass, SearchCheck, ShieldCheck, Sparkles } from "lucide-react";
 
@@ -63,9 +62,7 @@ const LandingNarrativeRail = () => {
           <p className="mb-4 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-400 sm:text-xs">
             Your Booking Journey
           </p>
-
-          {/* Mobile: vertical stack. Desktop: horizontal 4-col grid. */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4 md:gap-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
             {milestones.map((item, index) => {
               const Icon = item.icon;
               return (
@@ -75,30 +72,36 @@ const LandingNarrativeRail = () => {
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.35, delay: index * 0.08 }}
                   viewport={{ once: true, margin: "-30px" }}
-                  className={`relative rounded-xl border ${item.border} bg-white/[0.04] p-3.5 sm:px-3 sm:py-3 transition-all duration-300 hover:bg-white/[0.07]`}
+                  className={`relative rounded-xl border ${item.border} bg-white/[0.04] p-3.5 transition-all duration-300 hover:bg-white/[0.07]`}
                 >
-                  {/* Desktop connector line */}
                   {index < milestones.length - 1 && (
                     <div
                       className="pointer-events-none absolute -right-2 top-1/2 hidden h-px w-4 -translate-y-1/2 md:block"
                       style={{
-                        background: "linear-gradient(90deg, rgba(52,211,153,0.4), rgba(34,211,238,0.3))",
+                        background:
+                          "linear-gradient(90deg, rgba(52,211,153,0.4), rgba(34,211,238,0.3))",
                       }}
                       aria-hidden="true"
                     />
                   )}
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className={`relative flex h-9 w-9 items-center justify-center rounded-lg ${item.bg} ${item.accent} shadow-lg ${item.glow} sm:h-8 sm:w-8`}>
+                  <div className="mb-2.5 flex items-center justify-between">
+                    <div
+                      className={`flex h-9 w-9 items-center justify-center rounded-lg ${item.bg} ${item.accent} shadow-lg ${item.glow}`}
+                    >
                       <Icon className="h-4 w-4" aria-hidden="true" />
                     </div>
-                    <span className={`text-[10px] font-bold tracking-[0.16em] ${item.accent} opacity-60`}>
+                    <span
+                      className={`text-[10px] font-bold tracking-[0.16em] ${item.accent} opacity-50`}
+                    >
                       {item.step}
                     </span>
                   </div>
-                  <h3 className={`landing-display text-sm font-semibold ${item.accent}`}>
+                  <h3
+                    className={`landing-display text-sm font-semibold ${item.accent}`}
+                  >
                     {item.title}
                   </h3>
-                  <p className="mt-1 text-xs leading-relaxed text-white/70">
+                  <p className="mt-1 text-xs leading-relaxed text-white/65">
                     {item.description}
                   </p>
                 </motion.div>

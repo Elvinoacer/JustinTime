@@ -18,7 +18,6 @@ const benefits = [
     bg: "bg-emerald-500/15",
     borderTop: "border-t-emerald-400/40",
     gradient: "from-emerald-500/8 to-transparent",
-    featured: true,
   },
   {
     title: "Instant Booking",
@@ -28,7 +27,6 @@ const benefits = [
     bg: "bg-cyan-500/15",
     borderTop: "border-t-cyan-400/40",
     gradient: "from-cyan-500/8 to-transparent",
-    featured: true,
   },
   {
     title: "M-Pesa Payments",
@@ -38,7 +36,6 @@ const benefits = [
     bg: "bg-amber-500/15",
     borderTop: "border-t-amber-400/40",
     gradient: "from-amber-500/8 to-transparent",
-    featured: false,
   },
   {
     title: "Happiness Guarantee",
@@ -48,7 +45,6 @@ const benefits = [
     bg: "bg-rose-500/15",
     borderTop: "border-t-rose-400/40",
     gradient: "from-rose-500/8 to-transparent",
-    featured: false,
   },
   {
     title: "24/7 Support",
@@ -58,7 +54,6 @@ const benefits = [
     bg: "bg-violet-500/15",
     borderTop: "border-t-violet-400/40",
     gradient: "from-violet-500/8 to-transparent",
-    featured: false,
   },
   {
     title: "Top-Rated Quality",
@@ -68,22 +63,22 @@ const benefits = [
     bg: "bg-teal-500/15",
     borderTop: "border-t-teal-400/40",
     gradient: "from-teal-500/8 to-transparent",
-    featured: false,
   },
 ];
 
 const benefitsContainer = {
   hidden: {},
-  show: {
-    transition: {
-      staggerChildren: 0.07,
-    },
-  },
+  show: { transition: { staggerChildren: 0.07 } },
 };
 
 const benefitItem = {
   hidden: { opacity: 0, y: 20, scale: 0.95 },
-  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.45, ease: [0.23, 1, 0.32, 1] } },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.45, ease: [0.23, 1, 0.32, 1] },
+  },
 };
 
 const Benefits = () => {
@@ -93,7 +88,6 @@ const Benefits = () => {
       aria-label="Benefits"
     >
       <div className="mx-auto max-w-6xl">
-        {/* Header */}
         <motion.div
           className="mb-8 sm:mb-10"
           initial={{ opacity: 0, y: 20 }}
@@ -107,13 +101,12 @@ const Benefits = () => {
           <h2 className="gradient-text-hero landing-display text-[1.5rem] font-bold tracking-tight sm:text-3xl md:text-4xl">
             Why clients keep coming back
           </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/70 sm:text-base">
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/65 sm:text-base">
             Designed to remove friction and risk, so every booking feels easy
             and dependable.
           </p>
         </motion.div>
 
-        {/* Bento Grid — 2 large + 4 smaller on desktop */}
         <motion.div
           className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3"
           variants={benefitsContainer}
@@ -126,22 +119,27 @@ const Benefits = () => {
             return (
               <motion.div
                 key={index}
-                className={`group glass-card glass-card-hover relative overflow-hidden rounded-2xl border-t-2 ${benefit.borderTop} p-5 sm:p-6 ${benefit.featured ? "lg:row-span-1" : ""}`}
+                className={`group glass-card glass-card-hover relative overflow-hidden rounded-2xl border-t-2 ${benefit.borderTop} p-5 sm:p-6 transition-all duration-300 hover:-translate-y-0.5`}
                 variants={benefitItem}
               >
-                {/* Gradient backdrop */}
                 <div
-                  className={`pointer-events-none absolute inset-0 bg-linear-to-br ${benefit.gradient} opacity-60`}
+                  className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${benefit.gradient} opacity-60`}
                   aria-hidden="true"
                 />
-
-                <div className={`relative z-10 mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 ${benefit.bg} transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg sm:h-10 sm:w-10`}>
-                  <Icon className={`h-5 w-5 ${benefit.accent}`} aria-hidden="true" />
+                <div
+                  className={`relative z-10 mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 ${benefit.bg} transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg`}
+                >
+                  <Icon
+                    className={`h-5 w-5 ${benefit.accent}`}
+                    aria-hidden="true"
+                  />
                 </div>
-                <h3 className={`relative z-10 landing-display mb-1.5 text-base font-semibold ${benefit.accent} sm:text-lg`}>
+                <h3
+                  className={`relative z-10 landing-display mb-1.5 text-base font-semibold ${benefit.accent} sm:text-lg`}
+                >
                   {benefit.title}
                 </h3>
-                <p className="relative z-10 text-sm leading-relaxed text-white/70">
+                <p className="relative z-10 text-sm leading-relaxed text-white/65">
                   {benefit.description}
                 </p>
               </motion.div>

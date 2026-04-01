@@ -45,7 +45,6 @@ const FAQ = () => {
       aria-label="Frequently asked questions"
     >
       <div className="mx-auto max-w-3xl">
-        {/* Header */}
         <motion.div
           className="mb-8 text-center sm:mb-10"
           initial={{ opacity: 0, y: 20 }}
@@ -60,13 +59,12 @@ const FAQ = () => {
           <h2 className="landing-display text-[1.5rem] font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
             Questions before you book?
           </h2>
-          <p className="mx-auto mt-3 max-w-md text-sm text-white/70 sm:text-base">
+          <p className="mx-auto mt-3 max-w-md text-sm text-white/65 sm:text-base">
             Clear answers on verification, payments, guarantees, and
             cancellations.
           </p>
         </motion.div>
 
-        {/* Accordion */}
         <div className="space-y-3">
           {faqs.map((faq, index) => {
             const isOpen = openIndex === index;
@@ -84,14 +82,16 @@ const FAQ = () => {
                 viewport={{ once: true, margin: "-30px" }}
               >
                 <button
-                  className="w-full flex items-center justify-between p-4 text-left sm:p-5"
+                  className="w-full flex items-center justify-between p-4 text-left sm:p-5 min-h-[60px]"
                   onClick={() => setOpenIndex(isOpen ? null : index)}
                   aria-expanded={isOpen}
                   aria-controls={`faq-panel-${index}`}
                   id={`faq-button-${index}`}
                 >
                   <div className="flex items-center gap-3 pr-4">
-                    <span className={`text-xs font-bold tabular-nums ${isOpen ? "text-violet-400" : "text-white/30"}`}>
+                    <span
+                      className={`text-xs font-bold tabular-nums shrink-0 ${isOpen ? "text-violet-400" : "text-white/30"}`}
+                    >
                       {String(index + 1).padStart(2, "0")}
                     </span>
                     <span className="text-sm font-medium text-white/90 sm:text-base">
@@ -122,8 +122,8 @@ const FAQ = () => {
                       transition={{ duration: 0.25, ease: "easeInOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="px-4 pb-4 sm:px-5 sm:pb-5 pl-12 sm:pl-14">
-                        <p className="text-sm leading-[1.7] text-white/70">
+                      <div className="px-4 pb-5 sm:px-5 pl-12 sm:pl-14">
+                        <p className="text-sm leading-[1.75] text-white/65">
                           {faq.answer}
                         </p>
                       </div>

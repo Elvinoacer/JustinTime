@@ -7,7 +7,6 @@ function useAnimatedNumber(end: number, duration = 2000) {
   const [count, setCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-20px" });
-
   useEffect(() => {
     if (!isInView) return;
     let startTime: number;
@@ -19,7 +18,6 @@ function useAnimatedNumber(end: number, duration = 2000) {
     };
     requestAnimationFrame(step);
   }, [isInView, end, duration]);
-
   return { count, ref };
 }
 
@@ -72,7 +70,7 @@ const TrustBanner = () => {
     useAnimatedNumber(47, 1800),
     useAnimatedNumber(500, 2000),
     useAnimatedNumber(10000, 2400),
-    useAnimatedNumber(48, 2000), // 4.8 * 10
+    useAnimatedNumber(48, 2000),
   ];
 
   return (
@@ -89,29 +87,25 @@ const TrustBanner = () => {
           viewport={{ once: true, margin: "-20px" }}
         >
           <p className="mb-1 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-400 sm:text-xs">
-            Platform trust
+            Platform Trust
           </p>
           <h3 className="gradient-text-warm landing-display mb-6 text-center text-lg font-bold sm:text-xl md:text-2xl">
             Real platform performance, visible before you commit
           </h3>
-
-          {/* Bento-style grid: 1 large + 3 smaller on desktop */}
           <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 md:gap-5">
             {metrics.map((metric, index) => {
               const Icon = metric.icon;
               const counter = counters[index];
-              const isFirst = index === 0;
               return (
                 <motion.div
                   key={index}
-                  className={`relative overflow-hidden rounded-xl border ${metric.border} bg-linear-to-b ${metric.bg} px-3 py-4 text-center sm:rounded-2xl sm:px-4 sm:py-5 shadow-lg ${metric.glow} ${isFirst ? "md:col-span-1" : ""}`}
+                  className={`relative overflow-hidden rounded-xl border ${metric.border} bg-gradient-to-b ${metric.bg} px-3 py-4 text-center sm:rounded-2xl sm:px-4 sm:py-5 shadow-lg ${metric.glow}`}
                   ref={counter.ref}
                   initial={{ opacity: 0, scale: 0.9 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.4, delay: index * 0.08 }}
                   viewport={{ once: true, margin: "-20px" }}
                 >
-                  {/* Decorative glow blob */}
                   <div
                     className="pointer-events-none absolute -top-8 left-1/2 h-16 w-16 -translate-x-1/2 rounded-full opacity-40 blur-2xl"
                     style={{
@@ -137,7 +131,7 @@ const TrustBanner = () => {
                         : counter.count}
                     <span className={metric.accent}>{metric.suffix}</span>
                   </div>
-                  <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/60 sm:text-xs sm:tracking-[0.15em]">
+                  <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/60 sm:text-xs">
                     {metric.label}
                   </div>
                 </motion.div>

@@ -41,9 +41,10 @@ const JoinAsPro = () => {
                   "linear-gradient(to top, rgba(10,15,13,0.7) 0%, rgba(10,15,13,0.2) 50%, transparent 100%)",
               }}
             />
-            {/* Floating badge */}
             <div className="absolute bottom-4 left-4 rounded-xl border border-white/[0.12] bg-white/[0.1] px-4 py-3 backdrop-blur-xl">
-              <p className="gradient-text-emerald text-xl font-bold">KSh 85k+</p>
+              <p className="gradient-text-emerald text-xl font-bold">
+                KSh 85k+
+              </p>
               <p className="text-[10px] uppercase tracking-wider text-emerald-400">
                 avg. monthly earnings
               </p>
@@ -63,14 +64,13 @@ const JoinAsPro = () => {
             <h2 className="gradient-text-hero landing-display text-[1.5rem] font-bold leading-tight tracking-tight sm:text-3xl md:text-4xl">
               Turn your skills into recurring income
             </h2>
-            <p className="mt-3 text-sm leading-relaxed text-white/70 sm:text-base">
+            <p className="mt-3 text-sm leading-relaxed text-white/65 sm:text-base">
               Join Kenya&apos;s fastest-growing marketplace for service
               professionals. Reach more clients, manage bookings in one place,
               and get paid faster.
             </p>
 
-            {/* Perks list */}
-            <div className="mt-6 grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
+            <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5">
               {perks.map((perk, index) => (
                 <motion.div
                   key={index}
@@ -91,11 +91,10 @@ const JoinAsPro = () => {
               ))}
             </div>
 
-            {/* CTA */}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Link href="/auth/signup?callbackUrl=/provider/onboarding">
                 <motion.button
-                  className="shimmer-btn group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-emerald-500 to-teal-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-colors hover:from-emerald-400 hover:to-teal-400 sm:w-auto"
+                  className="shimmer-btn group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-colors hover:from-emerald-400 hover:to-teal-400 sm:w-auto"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >

@@ -40,16 +40,17 @@ const steps = [
 
 const stepsContainer = {
   hidden: {},
-  show: {
-    transition: {
-      staggerChildren: 0.12,
-    },
-  },
+  show: { transition: { staggerChildren: 0.12 } },
 };
 
 const stepItem = {
   hidden: { opacity: 0, y: 24, scale: 0.95 },
-  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.5, ease: [0.23, 1, 0.32, 1] } },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.5, ease: [0.23, 1, 0.32, 1] },
+  },
 };
 
 const HowItWorks = () => {
@@ -59,7 +60,6 @@ const HowItWorks = () => {
       aria-label="How it works"
     >
       <div className="mx-auto max-w-6xl">
-        {/* Header */}
         <motion.div
           className="mb-8 sm:mb-12"
           initial={{ opacity: 0, y: 20 }}
@@ -73,13 +73,12 @@ const HowItWorks = () => {
           <h2 className="gradient-text-cool landing-display text-[1.5rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
             Three clear steps to completed work
           </h2>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/65 sm:text-base">
             No confusion, no back-and-forth. Just a clean path from request to
             confirmed booking.
           </p>
         </motion.div>
 
-        {/* Steps */}
         <motion.div
           className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-3 md:gap-8"
           variants={stepsContainer}
@@ -95,43 +94,46 @@ const HowItWorks = () => {
                 className={`group glass-card glass-card-hover relative flex flex-col rounded-2xl border-t-2 ${step.borderAccent} p-5 sm:p-6 overflow-hidden`}
                 variants={stepItem}
               >
-                {/* Watermark number */}
                 <span
-                  className="pointer-events-none absolute -right-3 -top-4 text-[6rem] font-black leading-none text-white/[0.03] sm:text-[7rem]"
+                  className="pointer-events-none absolute -right-3 -top-4 text-[6rem] font-black leading-none text-white/[0.025] sm:text-[7rem]"
                   aria-hidden="true"
                 >
                   {step.num}
                 </span>
-
-                {/* Gradient backdrop */}
                 <div
-                  className={`pointer-events-none absolute inset-0 bg-linear-to-b ${step.gradient} opacity-50`}
+                  className={`pointer-events-none absolute inset-0 bg-gradient-to-b ${step.gradient} opacity-50`}
                   aria-hidden="true"
                 />
-
-                {/* Step number + icon */}
                 <div className="relative z-10 flex items-center gap-3 mb-4">
-                  <div className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 ${step.bg} shadow-lg sm:h-10 sm:w-10`}>
-                    <Icon className={`h-5 w-5 ${step.accent}`} aria-hidden="true" />
+                  <div
+                    className={`flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 ${step.bg} shadow-lg`}
+                  >
+                    <Icon
+                      className={`h-5 w-5 ${step.accent}`}
+                      aria-hidden="true"
+                    />
                   </div>
-                  <span className={`text-3xl font-bold ${step.accent} opacity-20`} aria-hidden="true">
+                  <span
+                    className={`text-3xl font-bold ${step.accent} opacity-20`}
+                    aria-hidden="true"
+                  >
                     {step.num}
                   </span>
                 </div>
-
-                <h3 className={`relative z-10 landing-display mb-2 text-lg font-semibold ${step.accent}`}>
+                <h3
+                  className={`relative z-10 landing-display mb-2 text-lg font-semibold ${step.accent}`}
+                >
                   {step.title}
                 </h3>
-                <p className="relative z-10 text-sm leading-relaxed text-white/70">
+                <p className="relative z-10 text-sm leading-relaxed text-white/65">
                   {step.description}
                 </p>
-
-                {/* Mobile connector */}
                 {index < steps.length - 1 && (
                   <div
                     className="mx-auto mt-5 h-6 w-px md:hidden"
                     style={{
-                      background: "linear-gradient(180deg, rgba(52,211,153,0.4), rgba(34,211,238,0.2))",
+                      background:
+                        "linear-gradient(180deg, rgba(52,211,153,0.4), rgba(34,211,238,0.2))",
                     }}
                     aria-hidden="true"
                   />

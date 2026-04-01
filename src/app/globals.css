@@ -244,7 +244,13 @@ nav::-webkit-scrollbar-thumb:hover {
    GRADIENT TEXT — MULTI-CHROMATIC HEADLINES
    ═══════════════════════════════════════════════════════════════ */
 .gradient-text-hero {
-  background: linear-gradient(135deg, #ffffff 0%, #6ee7b7 40%, #2dd4bf 70%, #a5f3fc 100%);
+  background: linear-gradient(
+    135deg,
+    #ffffff 0%,
+    #6ee7b7 40%,
+    #2dd4bf 70%,
+    #a5f3fc 100%
+  );
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -479,7 +485,8 @@ nav::-webkit-scrollbar-thumb:hover {
    AURORA GRADIENT BACKGROUND — ANIMATED MESH
    ═══════════════════════════════════════════════════════════════ */
 @keyframes aurora-shift {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
   }
   25% {
@@ -495,10 +502,26 @@ nav::-webkit-scrollbar-thumb:hover {
 
 .aurora-bg {
   background:
-    radial-gradient(ellipse 80% 60% at 10% 10%, rgba(16, 185, 129, 0.12), transparent 50%),
-    radial-gradient(ellipse 60% 50% at 90% 15%, rgba(34, 211, 238, 0.08), transparent 50%),
-    radial-gradient(ellipse 70% 55% at 50% 90%, rgba(168, 85, 247, 0.06), transparent 50%),
-    radial-gradient(ellipse 50% 40% at 80% 60%, rgba(20, 184, 166, 0.1), transparent 50%);
+    radial-gradient(
+      ellipse 80% 60% at 10% 10%,
+      rgba(16, 185, 129, 0.12),
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 60% 50% at 90% 15%,
+      rgba(34, 211, 238, 0.08),
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 70% 55% at 50% 90%,
+      rgba(168, 85, 247, 0.06),
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse 50% 40% at 80% 60%,
+      rgba(20, 184, 166, 0.1),
+      transparent 50%
+    );
   background-size: 200% 200%;
   animation: aurora-shift 25s ease-in-out infinite;
 }
@@ -507,7 +530,8 @@ nav::-webkit-scrollbar-thumb:hover {
    ANIMATIONS — ENHANCED
    ═══════════════════════════════════════════════════════════════ */
 @keyframes emerald-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 12px -4px rgba(52, 211, 153, 0.3);
   }
   50% {
@@ -516,7 +540,8 @@ nav::-webkit-scrollbar-thumb:hover {
 }
 
 @keyframes gentle-float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -525,9 +550,15 @@ nav::-webkit-scrollbar-thumb:hover {
 }
 
 @keyframes emerald-shimmer {
-  0% { opacity: 0.4; }
-  50% { opacity: 0.8; }
-  100% { opacity: 0.4; }
+  0% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0.4;
+  }
 }
 
 @keyframes pulse-ring {
@@ -546,7 +577,8 @@ nav::-webkit-scrollbar-thumb:hover {
 }
 
 @keyframes badge-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4);
   }
   50% {
@@ -555,7 +587,8 @@ nav::-webkit-scrollbar-thumb:hover {
 }
 
 @keyframes float-particle {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0) translateX(0) scale(1);
     opacity: 0.3;
   }
@@ -574,8 +607,12 @@ nav::-webkit-scrollbar-thumb:hover {
 }
 
 @keyframes gradient-border-spin {
-  0% { --angle: 0deg; }
-  100% { --angle: 360deg; }
+  0% {
+    --angle: 0deg;
+  }
+  100% {
+    --angle: 360deg;
+  }
 }
 
 @keyframes scale-in-blur {

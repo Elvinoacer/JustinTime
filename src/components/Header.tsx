@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { Popover, Transition } from "@headlessui/react";
@@ -48,9 +49,7 @@ const Header = () => {
   ];
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -59,6 +58,18 @@ const Header = () => {
     setIsMenuOpen(false);
     setIsMobileSearchOpen(false);
   }, [pathname]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMenuOpen]);
 
   const handlePostService = () => {
     if (!isAuthenticated) {
@@ -76,14 +87,6 @@ const Header = () => {
     router.push("/dashboard/notifications");
   };
 
-  const handleProfileClick = () => {
-    if (!isAuthenticated) {
-      signIn();
-      return;
-    }
-    router.push("/dashboard/profile");
-  };
-
   const handleSearch = () => {
     if (searchQuery.trim()) {
       router.push(`/services?search=${encodeURIComponent(searchQuery.trim())}`);
@@ -93,9 +96,7 @@ const Header = () => {
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      handleSearch();
-    }
+    if (e.key === "Enter") handleSearch();
   };
 
   return (
@@ -104,68 +105,66 @@ const Header = () => {
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isLandingPage
             ? isScrolled
-              ? "border-b border-white/[0.06] bg-[#0a0f0d]/85 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
+              ? "border-b border-white/[0.06] bg-[#0a0f0d]/90 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.6)] backdrop-blur-2xl"
               : "border-b border-white/[0.04] bg-transparent backdrop-blur-sm"
             : isScrolled
               ? "bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-200/50"
               : "bg-white border-b border-gray-200"
         }`}
       >
-        <div className="px-3 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3">
-          <div className="flex items-center justify-between">
+        <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-3.5">
+          <div className="flex items-center justify-between gap-4">
             {/* Logo */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Link href="/" className="flex items-center gap-2 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded-lg">
-                <img
-                  src="/images/JustinTimeLogo.png"
-                  alt="JustInTime Logo"
-                  className="h-6 sm:h-8 w-auto"
-                />
-                <h2
-                  className={`text-base sm:text-xl font-bold tracking-tight ${isLandingPage ? "text-white" : "text-gray-900"}`}
-                >
-                  JustInTime
-                </h2>
-              </Link>
-            </div>
+            <Link
+              href="/"
+              className="flex items-center gap-2 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded-lg shrink-0"
+            >
+              <Image
+                src="/images/JustinTimeLogo.png"
+                alt="JustInTime Logo"
+                width={128}
+                height={32}
+                className="h-7 sm:h-8 w-auto"
+              />
+              <span
+                className={`text-base sm:text-lg font-bold tracking-tight ${
+                  isLandingPage ? "text-white" : "text-gray-900"
+                }`}
+              >
+                JustInTime
+              </span>
+            </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-4 lg:gap-6 xl:gap-8">
+            <nav className="hidden lg:flex items-center gap-1">
               {navItems.map((item, index) => (
                 <Link
                   key={index}
                   href={item.href}
-                  className={`text-sm font-medium px-3 py-2 rounded-lg transition-colors duration-300 relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+                  className={`text-sm font-medium px-3 py-2 rounded-lg transition-colors duration-200 relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
                     pathname === item.href
                       ? isLandingPage
-                        ? "text-emerald-400"
+                        ? "text-emerald-400 bg-emerald-400/10"
                         : "text-emerald-600 bg-emerald-50"
                       : isLandingPage
-                        ? "text-white/70 hover:text-white"
+                        ? "text-white/65 hover:text-white hover:bg-white/[0.06]"
                         : "text-gray-600 hover:text-emerald-600 hover:bg-gray-50"
                   }`}
                 >
                   {item.name}
-                  <span
-                    className={`absolute -bottom-1 left-3 right-3 h-0.5 transition-all duration-300 ${
-                      isLandingPage ? "bg-emerald-400" : "bg-emerald-500"
-                    } ${
-                      pathname === item.href
-                        ? "w-full"
-                        : "w-0 group-hover:w-full"
-                    }`}
-                  ></span>
                 </Link>
               ))}
             </nav>
 
             {/* Desktop Actions */}
-            <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               {/* Mobile Search Button */}
               <button
                 onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
-                className={`lg:hidden p-2 rounded-lg transition-colors ${isLandingPage ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"}`}
-                aria-label="Search"
+                className={`lg:hidden p-2 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center ${
+                  isLandingPage ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"
+                }`}
+                aria-label="Toggle search"
               >
                 <svg
                   className={`w-5 h-5 ${isLandingPage ? "text-white/70" : "text-gray-600"}`}
@@ -183,28 +182,34 @@ const Header = () => {
               </button>
 
               {isLoading ? (
-                <div className="hidden lg:flex items-center gap-4">
-                  <div className={`w-8 h-8 rounded-full animate-pulse ${isLandingPage ? "bg-white/10" : "bg-gray-200"}`}></div>
+                <div className="hidden lg:flex items-center gap-3">
+                  <div
+                    className={`w-8 h-8 rounded-full animate-pulse ${isLandingPage ? "bg-white/10" : "bg-gray-200"}`}
+                  />
                 </div>
               ) : isAuthenticated ? (
                 <>
                   {/* Mobile Notification Bell */}
                   <button
                     onClick={handleNotifications}
-                    className={`lg:hidden relative p-2 rounded-lg transition-colors ${isLandingPage ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"}`}
+                    className={`lg:hidden relative p-2 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center ${
+                      isLandingPage
+                        ? "hover:bg-white/[0.08]"
+                        : "hover:bg-gray-100"
+                    }`}
                     aria-label="Notifications"
                   >
                     <Bell
                       className={`w-5 h-5 ${isLandingPage ? "text-white/70" : "text-gray-600"}`}
                     />
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-400 rounded-full"></span>
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-400 rounded-full" />
                   </button>
 
                   {/* Desktop Authenticated Actions */}
-                  <div className="hidden lg:flex items-center gap-2 md:gap-3">
+                  <div className="hidden lg:flex items-center gap-2">
                     <motion.button
                       onClick={handlePostService}
-                      className={`flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors sm:px-4 ${
+                      className={`flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors ${
                         isLandingPage
                           ? "bg-emerald-500/90 hover:bg-emerald-500 shadow-emerald-500/20"
                           : "bg-emerald-600 hover:bg-emerald-700"
@@ -213,32 +218,49 @@ const Header = () => {
                       whileTap={{ scale: 0.98 }}
                     >
                       <PlusCircle className="w-4 h-4" />
-                      <span className="hidden sm:inline">Post Service</span>
+                      Post Service
                     </motion.button>
 
                     <button
                       onClick={handleNotifications}
-                      className={`relative p-2 rounded-lg transition-colors ${isLandingPage ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"}`}
+                      className={`relative p-2 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center ${
+                        isLandingPage
+                          ? "hover:bg-white/[0.08]"
+                          : "hover:bg-gray-100"
+                      }`}
                       aria-label="Notifications"
                     >
-                      <Bell className={`w-5 h-5 ${isLandingPage ? "text-white/70" : "text-gray-600"}`} />
-                      <span className={`absolute top-1 right-1 w-2 h-2 rounded-full ${isLandingPage ? "bg-emerald-400" : "bg-red-500"}`}></span>
+                      <Bell
+                        className={`w-5 h-5 ${isLandingPage ? "text-white/70" : "text-gray-600"}`}
+                      />
+                      <span
+                        className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${isLandingPage ? "bg-emerald-400" : "bg-red-500"}`}
+                      />
                     </button>
 
                     {/* User Profile Dropdown */}
                     <Popover className="relative">
-                      <Popover.Button className={`outline-none flex items-center gap-2 p-1 rounded-lg transition-colors ${isLandingPage ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"}`}>
+                      <Popover.Button
+                        className={`outline-none flex items-center gap-2 p-1.5 rounded-lg transition-colors ${
+                          isLandingPage
+                            ? "hover:bg-white/[0.08]"
+                            : "hover:bg-gray-100"
+                        }`}
+                      >
                         <div
-                          className={`w-8 h-8 rounded-full bg-cover bg-center border-2 ${isLandingPage ? "border-emerald-400/60" : "border-emerald-500"}`}
+                          className={`w-8 h-8 rounded-full bg-cover bg-center border-2 ${
+                            isLandingPage
+                              ? "border-emerald-400/60"
+                              : "border-emerald-500"
+                          }`}
                           style={{
-                            backgroundImage: `url(${
-                              session.user?.image || "/default-avatar.png"
-                            })`,
+                            backgroundImage: `url(${session.user?.image || "/default-avatar.png"})`,
                           }}
-                        ></div>
-                        <ChevronDown className={`w-4 h-4 hidden sm:block ${isLandingPage ? "text-white/70" : "text-gray-600"}`} />
+                        />
+                        <ChevronDown
+                          className={`w-4 h-4 ${isLandingPage ? "text-white/70" : "text-gray-600"}`}
+                        />
                       </Popover.Button>
-
                       <Transition
                         as={Fragment}
                         enter="transition ease-out duration-200"
@@ -249,7 +271,7 @@ const Header = () => {
                         leaveTo="opacity-0 translate-y-1"
                       >
                         <Popover.Panel className="absolute right-0 z-10 mt-3 w-56 origin-top-right">
-                          <div className="overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5">
+                          <div className="overflow-hidden rounded-xl bg-white shadow-xl ring-1 ring-black/5">
                             <div className="p-3 border-b border-gray-100">
                               <p className="text-sm font-semibold text-gray-900 truncate">
                                 {session.user?.name}
@@ -259,34 +281,37 @@ const Header = () => {
                               </p>
                             </div>
                             <div className="py-2">
-                              <Link
-                                href="/dashboard/profile"
-                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
-                              >
-                                <User className="w-4 h-4" />
-                                My Profile
-                              </Link>
-                              <Link
-                                href="/dashboard"
-                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
-                              >
-                                <LayoutDashboard className="w-4 h-4" />
-                                Dashboard
-                              </Link>
-                              <Link
-                                href="/client/bookings"
-                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
-                              >
-                                <Calendar className="w-4 h-4" />
-                                My Bookings
-                              </Link>
-                              <Link
-                                href="/dashboard/settings"
-                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
-                              >
-                                <Settings className="w-4 h-4" />
-                                Settings
-                              </Link>
+                              {[
+                                {
+                                  href: "/dashboard/profile",
+                                  icon: User,
+                                  label: "My Profile",
+                                },
+                                {
+                                  href: "/dashboard",
+                                  icon: LayoutDashboard,
+                                  label: "Dashboard",
+                                },
+                                {
+                                  href: "/client/bookings",
+                                  icon: Calendar,
+                                  label: "My Bookings",
+                                },
+                                {
+                                  href: "/dashboard/settings",
+                                  icon: Settings,
+                                  label: "Settings",
+                                },
+                              ].map(({ href, icon: Icon, label }) => (
+                                <Link
+                                  key={href}
+                                  href={href}
+                                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                                >
+                                  <Icon className="w-4 h-4" />
+                                  {label}
+                                </Link>
+                              ))}
                             </div>
                             <div className="py-2 border-t border-gray-100">
                               <button
@@ -306,28 +331,30 @@ const Header = () => {
                   {/* Mobile Avatar */}
                   <button
                     onClick={() => setIsMenuOpen(true)}
-                    className="lg:hidden"
+                    className="lg:hidden min-w-[40px] min-h-[40px] flex items-center justify-center"
                     aria-label="Open menu"
                   >
                     <div
-                      className={`w-8 h-8 rounded-full bg-cover bg-center border-2 ${isLandingPage ? "border-emerald-400/60" : "border-emerald-500"}`}
+                      className={`w-8 h-8 rounded-full bg-cover bg-center border-2 ${
+                        isLandingPage
+                          ? "border-emerald-400/60"
+                          : "border-emerald-500"
+                      }`}
                       style={{
-                        backgroundImage: `url(${
-                          session.user?.image || "/default-avatar.png"
-                        })`,
+                        backgroundImage: `url(${session.user?.image || "/default-avatar.png"})`,
                       }}
-                    ></div>
+                    />
                   </button>
                 </>
               ) : (
                 <>
-                  {/* Desktop Unauthenticated Actions */}
+                  {/* Desktop Unauthenticated */}
                   <div className="hidden lg:flex items-center gap-2">
                     <Link
                       href="/auth/login"
-                      className={`px-4 py-2 text-sm font-semibold transition-colors ${
+                      className={`px-4 py-2 text-sm font-semibold transition-colors rounded-lg ${
                         isLandingPage
-                          ? "text-white/70 hover:text-white"
+                          ? "text-white/70 hover:text-white hover:bg-white/[0.06]"
                           : "text-gray-700 hover:text-emerald-600"
                       }`}
                     >
@@ -335,16 +362,20 @@ const Header = () => {
                     </Link>
                     <Link
                       href="/auth/signup"
-                      className="rounded-xl bg-linear-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-bold text-white transition-all hover:shadow-lg hover:shadow-emerald-500/25"
+                      className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-bold text-white transition-all hover:shadow-lg hover:shadow-emerald-500/25 hover:scale-[1.02]"
                     >
                       Get Started →
                     </Link>
                   </div>
 
-                  {/* Mobile Menu Button for Unauthenticated */}
+                  {/* Mobile Menu Button */}
                   <button
                     onClick={() => setIsMenuOpen(true)}
-                    className={`lg:hidden p-2 rounded-lg transition-colors ${isLandingPage ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"}`}
+                    className={`lg:hidden p-2 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center ${
+                      isLandingPage
+                        ? "hover:bg-white/[0.08]"
+                        : "hover:bg-gray-100"
+                    }`}
                     aria-label="Open menu"
                   >
                     <Menu
@@ -363,7 +394,7 @@ const Header = () => {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="lg:hidden mt-3"
+                className="lg:hidden mt-3 overflow-hidden"
               >
                 <div className="relative">
                   <input
@@ -372,6 +403,7 @@ const Header = () => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={handleSearchKeyDown}
+                    autoFocus
                     className={`w-full pl-10 pr-4 py-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
                       isLandingPage
                         ? "bg-white/[0.06] border border-white/[0.1] text-white placeholder-white/40"
@@ -379,7 +411,7 @@ const Header = () => {
                     }`}
                   />
                   <svg
-                    className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isLandingPage ? "text-white/40" : "text-gray-400"}`}
+                    className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isLandingPage ? "text-white/40" : "text-gray-400"}`}
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -398,7 +430,7 @@ const Header = () => {
         </div>
       </header>
 
-      {/* Mobile Menu Overlay — stays white for cross-page consistency */}
+      {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
@@ -413,23 +445,25 @@ const Header = () => {
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              transition={{ type: "spring", damping: 28, stiffness: 220 }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Menu Header */}
               <div className="flex items-center justify-between p-5 border-b border-gray-100">
                 <div className="flex items-center gap-3">
-                  <img
+                  <Image
                     src="/images/JustinTimeLogo.png"
                     alt="JustInTime Logo"
-                    className="h-6 w-auto"
+                    width={112}
+                    height={28}
+                    className="h-7 w-auto"
                   />
-                  <h2 className="text-gray-900 text-lg font-bold tracking-tight">
+                  <span className="text-gray-900 text-lg font-bold tracking-tight">
                     JustInTime
-                  </h2>
+                  </span>
                 </div>
                 <button
-                  className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+                  className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
                   onClick={() => setIsMenuOpen(false)}
                   aria-label="Close menu"
                 >
@@ -446,37 +480,33 @@ const Header = () => {
                       <Link
                         key={index}
                         href={item.href}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+                        className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors ${
                           pathname === item.href
                             ? "bg-emerald-50 text-emerald-600 font-semibold"
                             : "text-gray-700 hover:bg-gray-50"
                         }`}
                         onClick={() => setIsMenuOpen(false)}
                       >
-                        <Icon className="w-5 h-5" />
+                        <Icon className="w-5 h-5 shrink-0" />
                         <span className="font-medium">{item.name}</span>
                       </Link>
                     );
                   })}
                 </div>
 
-                {/* Divider */}
                 {isAuthenticated && (
-                  <div className="border-t border-gray-200 my-4"></div>
+                  <div className="border-t border-gray-200 my-4" />
                 )}
 
-                {/* User Info & Actions */}
                 {isAuthenticated ? (
                   <>
-                    <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-lg mb-4">
+                    <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-xl mb-4">
                       <div
-                        className="w-10 h-10 rounded-full bg-cover bg-center border-2 border-emerald-500"
+                        className="w-10 h-10 rounded-full bg-cover bg-center border-2 border-emerald-500 shrink-0"
                         style={{
-                          backgroundImage: `url(${
-                            session.user?.image || "/default-avatar.png"
-                          })`,
+                          backgroundImage: `url(${session.user?.image || "/default-avatar.png"})`,
                         }}
-                      ></div>
+                      />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">
                           {session.user?.name}
@@ -486,45 +516,44 @@ const Header = () => {
                         </p>
                       </div>
                     </div>
-
                     <div className="space-y-1">
-                      <Link
-                        href="/dashboard"
-                        onClick={() => setIsMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg transition-colors"
-                      >
-                        <LayoutDashboard className="w-5 h-5" />
-                        <span className="font-medium">Dashboard</span>
-                      </Link>
-                      <Link
-                        href="/client/bookings"
-                        onClick={() => setIsMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg transition-colors"
-                      >
-                        <Calendar className="w-5 h-5" />
-                        <span className="font-medium">My Bookings</span>
-                      </Link>
-                      <Link
-                        href="/dashboard/profile"
-                        onClick={() => setIsMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg transition-colors"
-                      >
-                        <User className="w-5 h-5" />
-                        <span className="font-medium">My Profile</span>
-                      </Link>
-                      <Link
-                        href="/dashboard/settings"
-                        onClick={() => setIsMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg transition-colors"
-                      >
-                        <Settings className="w-5 h-5" />
-                        <span className="font-medium">Settings</span>
-                      </Link>
+                      {[
+                        {
+                          href: "/dashboard",
+                          icon: LayoutDashboard,
+                          label: "Dashboard",
+                        },
+                        {
+                          href: "/client/bookings",
+                          icon: Calendar,
+                          label: "My Bookings",
+                        },
+                        {
+                          href: "/dashboard/profile",
+                          icon: User,
+                          label: "My Profile",
+                        },
+                        {
+                          href: "/dashboard/settings",
+                          icon: Settings,
+                          label: "Settings",
+                        },
+                      ].map(({ href, icon: Icon, label }) => (
+                        <Link
+                          key={href}
+                          href={href}
+                          onClick={() => setIsMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3.5 text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-colors"
+                        >
+                          <Icon className="w-5 h-5 shrink-0" />
+                          <span className="font-medium">{label}</span>
+                        </Link>
+                      ))}
                     </div>
                   </>
                 ) : (
-                  <div className="mt-8">
-                    <p className="text-sm text-gray-500 mb-4 px-4">
+                  <div className="mt-6 px-4">
+                    <p className="text-sm text-gray-500">
                       Sign in to access all features
                     </p>
                   </div>
@@ -537,8 +566,8 @@ const Header = () => {
                   <div className="space-y-3">
                     <motion.button
                       onClick={handlePostService}
-                      className="flex w-full items-center justify-center gap-2 px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-sm"
-                      whileHover={{ scale: 1.02 }}
+                      className="flex w-full items-center justify-center gap-2 px-6 py-3.5 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm text-sm"
+                      whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <PlusCircle className="w-5 h-5" />
@@ -549,7 +578,7 @@ const Header = () => {
                         setIsMenuOpen(false);
                         signOut({ callbackUrl: "/" });
                       }}
-                      className="flex w-full items-center justify-center gap-2 px-6 py-3 text-red-600 font-semibold hover:bg-red-50 rounded-lg transition-colors text-sm"
+                      className="flex w-full items-center justify-center gap-2 px-6 py-3 text-red-600 font-semibold hover:bg-red-50 rounded-xl transition-colors text-sm"
                     >
                       <LogOut className="w-5 h-5" />
                       Sign Out
@@ -560,14 +589,14 @@ const Header = () => {
                     <Link
                       href="/auth/signup"
                       onClick={() => setIsMenuOpen(false)}
-                      className="block w-full px-4 py-3 bg-emerald-600 text-white rounded-xl text-center font-bold"
+                      className="block w-full px-4 py-3.5 bg-emerald-600 text-white rounded-xl text-center font-bold text-sm"
                     >
                       Get Started
                     </Link>
                     <Link
                       href="/auth/login"
                       onClick={() => setIsMenuOpen(false)}
-                      className="block w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-xl text-center font-semibold"
+                      className="block w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-xl text-center font-semibold text-sm"
                     >
                       Sign In
                     </Link>

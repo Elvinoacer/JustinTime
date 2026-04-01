@@ -15,16 +15,17 @@ type LandingService = {
 
 const cardsContainer = {
   hidden: {},
-  show: {
-    transition: {
-      staggerChildren: 0.07,
-    },
-  },
+  show: { transition: { staggerChildren: 0.07 } },
 };
 
 const cardItem = {
   hidden: { opacity: 0, y: 22, scale: 0.96 },
-  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.45, ease: [0.23, 1, 0.32, 1] } },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.45, ease: [0.23, 1, 0.32, 1] },
+  },
 };
 
 const PopularServices = () => {
@@ -37,7 +38,6 @@ const PopularServices = () => {
       aria-label="Popular services"
     >
       <div className="mx-auto max-w-6xl">
-        {/* Section Header */}
         <motion.div
           className="mb-8 sm:mb-10"
           initial={{ opacity: 0, y: 20 }}
@@ -51,19 +51,18 @@ const PopularServices = () => {
           <h2 className="gradient-text-cool landing-display text-[1.5rem] font-bold tracking-tight sm:text-3xl md:text-4xl">
             Most booked services this week
           </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/70 sm:text-base">
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/65 sm:text-base">
             Start with proven options that consistently deliver quality and
             client satisfaction.
           </p>
         </motion.div>
 
-        {/* Cards Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
               <div
                 key={i}
-                className="h-52 animate-pulse rounded-2xl border border-white/6 bg-white/3 sm:h-56"
+                className="h-52 animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.03] sm:h-56"
               />
             ))}
           </div>
@@ -78,7 +77,7 @@ const PopularServices = () => {
             {services.map((service) => (
               <motion.div
                 key={service.id}
-                className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/3 shadow-[0_16px_45px_-24px_rgba(0,0,0,0.65)] transition-all duration-500 hover:border-cyan-400/30 hover:shadow-[0_20px_50px_-20px_rgba(34,211,238,0.2)]"
+                className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-[0_16px_45px_-24px_rgba(0,0,0,0.65)] transition-all duration-500 hover:border-cyan-400/30 hover:shadow-[0_20px_50px_-20px_rgba(34,211,238,0.2)] hover:-translate-y-1"
                 variants={cardItem}
               >
                 <div className="absolute inset-0" aria-hidden="true">
@@ -102,7 +101,7 @@ const PopularServices = () => {
                     className="absolute inset-0"
                     style={{
                       background:
-                        "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.85) 100%)",
+                        "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.88) 100%)",
                     }}
                   />
                   <div
@@ -118,15 +117,12 @@ const PopularServices = () => {
                   <p className="animate-badge-pulse mb-2 w-fit rounded-full border border-cyan-400/30 bg-black/45 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.13em] text-cyan-200/90 backdrop-blur-sm">
                     Top pick
                   </p>
-
                   <h3 className="mb-2 line-clamp-1 text-base font-semibold text-white transition-colors group-hover:text-cyan-200 sm:text-lg">
                     {service.title || service.name}
                   </h3>
-
-                  <p className="mb-4 line-clamp-2 max-w-[96%] text-xs leading-relaxed text-white/78 sm:text-sm">
+                  <p className="mb-4 line-clamp-2 max-w-[96%] text-xs leading-relaxed text-white/75 sm:text-sm">
                     {service.description}
                   </p>
-
                   <div>
                     <Link
                       href={`/services/${service.id}`}
@@ -145,7 +141,6 @@ const PopularServices = () => {
           </motion.div>
         )}
 
-        {/* View All */}
         <motion.div
           className="mt-10 sm:mt-12"
           initial={{ opacity: 0 }}
@@ -155,7 +150,7 @@ const PopularServices = () => {
         >
           <Link href="/services">
             <motion.button
-              className="group inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/4 px-6 py-2.5 text-sm font-semibold text-white/80 backdrop-blur-sm transition-all duration-300 hover:border-cyan-400/30 hover:text-cyan-400"
+              className="group inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.04] px-6 py-2.5 text-sm font-semibold text-white/80 backdrop-blur-sm transition-all duration-300 hover:border-cyan-400/30 hover:text-cyan-400"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
