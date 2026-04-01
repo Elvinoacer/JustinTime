@@ -80,8 +80,11 @@ function ServicesPageContent() {
     }));
   }, [searchQuery, selectedCategory, userLocation]);
 
-  const { data: categoriesData, isLoading: isCategoriesLoading } = useCategories();
-  const allCategories = categoriesData || [{ name: "All Services", icon: "apps", count: 0 }];
+  const { data: categoriesData, isLoading: isCategoriesLoading } =
+    useCategories();
+  const allCategories = categoriesData || [
+    { name: "All Services", icon: "apps", count: 0 },
+  ];
 
   const topCategories = allCategories
     .filter((cat) => cat.name !== "All Services")
@@ -149,7 +152,10 @@ function ServicesPageContent() {
   }, [userLocation]);
 
   const heroRef = useRef<HTMLElement | null>(null);
+  const lastScrollYRef = useRef(0);
   const [toolbarCompact, setToolbarCompact] = useState(false);
+  const [mobileToolbarExpanded, setMobileToolbarExpanded] = useState(true);
+  const [showMobileActionBar, setShowMobileActionBar] = useState(true);
 
   useEffect(() => {
     const hero = heroRef.current;
@@ -166,6 +172,40 @@ function ServicesPageContent() {
     return () => {
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
+    };
+  }, []);
+
+  useEffect(() => {
+    setMobileToolbarExpanded(!toolbarCompact);
+  }, [toolbarCompact]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handleScrollDirection = () => {
+      const currentY = window.scrollY;
+      const delta = currentY - lastScrollYRef.current;
+
+      if (currentY < 96) {
+        setShowMobileActionBar(true);
+      } else if (delta > 10) {
+        setShowMobileActionBar(false);
+      } else if (delta < -8) {
+        setShowMobileActionBar(true);
+      }
+
+      lastScrollYRef.current = currentY;
+    };
+
+    lastScrollYRef.current = window.scrollY;
+    window.addEventListener("scroll", handleScrollDirection, {
+      passive: true,
+    });
+
+    return () => {
+      window.removeEventListener("scroll", handleScrollDirection);
     };
   }, []);
 
@@ -212,25 +252,31 @@ function ServicesPageContent() {
                   Find the right professional, fast
                 </h1>
                 <p className="mt-4 max-w-xl text-pretty text-base leading-relaxed text-slate-600 sm:text-lg">
-                  Search by what you need, refine by budget and trust signals, and
-                  compare providers in one calm, focused flow—on any device.
+                  Search by what you need, refine by budget and trust signals,
+                  and compare providers in one calm, focused flow—on any device.
                 </p>
                 <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-600">
                   <li className="flex items-center gap-2">
                     <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-                      <span className="material-symbols-outlined text-[20px]">payments</span>
+                      <span className="material-symbols-outlined text-[20px]">
+                        payments
+                      </span>
                     </span>
                     Clear pricing before you book
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
-                      <span className="material-symbols-outlined text-[20px]">map</span>
+                      <span className="material-symbols-outlined text-[20px]">
+                        map
+                      </span>
                     </span>
                     Optional distance sorting
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-800">
-                      <span className="material-symbols-outlined text-[20px]">star</span>
+                      <span className="material-symbols-outlined text-[20px]">
+                        star
+                      </span>
                     </span>
                     Ratings you can scan quickly
                   </li>
@@ -245,7 +291,9 @@ function ServicesPageContent() {
                   <p className="mt-2 text-2xl font-bold tabular-nums text-slate-950 sm:text-3xl">
                     {Math.max(allCategories.length - 1, 0)}
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">Browse or jump to one</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Browse or jump to one
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-white/80 bg-white/95 p-4 shadow-sm ring-1 ring-slate-200/60 backdrop-blur-sm sm:p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
@@ -260,7 +308,9 @@ function ServicesPageContent() {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100/90">
                     Refinements
                   </p>
-                  <p className="mt-2 text-3xl font-bold tabular-nums sm:text-4xl">{activeFilterCount}</p>
+                  <p className="mt-2 text-3xl font-bold tabular-nums sm:text-4xl">
+                    {activeFilterCount}
+                  </p>
                   <p className="mt-1 text-xs text-emerald-100/90">
                     Active signals (search, filters, location)
                   </p>
@@ -311,14 +361,34 @@ function ServicesPageContent() {
                     className={`absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 ${toolbarCompact ? "h-8 w-8" : "h-9 w-9"}`}
                     aria-label="Clear search"
                   >
-                    <span className="material-symbols-outlined text-[20px]">close</span>
+                    <span className="material-symbols-outlined text-[20px]">
+                      close
+                    </span>
                   </button>
                 ) : null}
               </div>
 
+              <button
+                type="button"
+                onClick={() => setMobileToolbarExpanded((v) => !v)}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/60 lg:hidden"
+                aria-expanded={mobileToolbarExpanded}
+                aria-controls="services-toolbar-advanced"
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  tune
+                </span>
+                {mobileToolbarExpanded ? "Hide filters" : "Show filters"}
+                {activeFilterCount > 0 ? (
+                  <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
+              </button>
+
               <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-stretch lg:w-auto lg:shrink-0 lg:items-center">
                 <div
-                  className={`min-w-0 flex-1 sm:[&_button]:w-auto ${toolbarCompact ? "[&_button]:min-h-10 [&_button]:w-full lg:[&_button]:min-h-10" : "[&_button]:min-h-[48px] [&_button]:w-full lg:[&_button]:min-h-[52px]"}`}
+                  className={`${mobileToolbarExpanded ? "block" : "hidden"} min-w-0 flex-1 sm:[&_button]:w-auto lg:block ${toolbarCompact ? "[&_button]:min-h-10 [&_button]:w-full lg:[&_button]:min-h-10" : "[&_button]:min-h-[48px] [&_button]:w-full lg:[&_button]:min-h-[52px]"}`}
                 >
                   <LocationPicker
                     key={locationPickerKey}
@@ -342,7 +412,8 @@ function ServicesPageContent() {
             </div>
 
             <div
-              className={`flex flex-col border-slate-100 lg:flex-row lg:items-center ${toolbarCompact ? "mt-2 gap-2 border-t pt-2 sm:mt-2 sm:pt-2" : "mt-3 gap-3 border-t pt-3 sm:mt-4 sm:pt-4"}`}
+              id="services-toolbar-advanced"
+              className={`${mobileToolbarExpanded ? "flex" : "hidden"} flex-col border-slate-100 lg:flex lg:flex-row lg:items-center ${toolbarCompact ? "mt-2 gap-2 border-t pt-2 sm:mt-2 sm:pt-2" : "mt-3 gap-3 border-t pt-3 sm:mt-4 sm:pt-4"}`}
             >
               <div className="w-full lg:hidden">
                 <CategoryDropdown
@@ -410,34 +481,10 @@ function ServicesPageContent() {
         </div>
 
         <main className="flex-1">
-          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-            <div className="mb-6 flex gap-3 lg:hidden">
-              <button
-                type="button"
-                onClick={() => setShowMobileFilters((v) => !v)}
-                className="flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm active:scale-[0.99]"
-                aria-expanded={showMobileFilters}
-              >
-                <span className="material-symbols-outlined text-[20px]">tune</span>
-                Filters
-                {activeFilterCount > 0 ? (
-                  <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">
-                    {activeFilterCount}
-                  </span>
-                ) : null}
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsSortOpen(true)}
-                className="flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm active:scale-[0.99]"
-              >
-                <span className="material-symbols-outlined text-[20px]">sort</span>
-                Sort
-              </button>
-            </div>
-
+          <div className="mx-auto max-w-7xl px-3 py-6 pb-24 sm:px-6 sm:py-10 sm:pb-10 lg:px-8">
             <div className="flex flex-col gap-8 lg:flex-row lg:gap-10">
               <aside
+                id="services-mobile-filters"
                 className={`${
                   showMobileFilters ? "block" : "hidden"
                 } lg:block lg:w-80 lg:shrink-0`}
@@ -456,7 +503,9 @@ function ServicesPageContent() {
                   filters={filters}
                   onPageChange={handlePageChange}
                   onSortChange={(sort) =>
-                    handleFilterChange({ sort: sort as ServicesFilters["sort"] })
+                    handleFilterChange({
+                      sort: sort as ServicesFilters["sort"],
+                    })
                   }
                   onBrowseAll={resetToBrowseAll}
                 />
@@ -470,6 +519,38 @@ function ServicesPageContent() {
             </div>
           </div>
         </main>
+      </div>
+
+      <div
+        className={`fixed bottom-4 left-1/2 z-50 flex w-[min(92vw,22rem)] -translate-x-1/2 items-center gap-2 rounded-2xl border border-slate-200/90 bg-white/95 p-2 shadow-[0_14px_40px_-18px_rgba(15,23,42,0.45)] backdrop-blur-sm transition-all duration-200 lg:hidden ${
+          showMobileActionBar
+            ? "translate-y-0 opacity-100"
+            : "translate-y-20 opacity-0 pointer-events-none"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => setShowMobileFilters((v) => !v)}
+          className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 text-sm font-semibold text-slate-800"
+          aria-expanded={showMobileFilters}
+          aria-controls="services-mobile-filters"
+        >
+          <span className="material-symbols-outlined text-[18px]">tune</span>
+          Filters
+          {activeFilterCount > 0 ? (
+            <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white">
+              {activeFilterCount}
+            </span>
+          ) : null}
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsSortOpen(true)}
+          className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 text-sm font-semibold text-white"
+        >
+          <span className="material-symbols-outlined text-[18px]">sort</span>
+          Sort
+        </button>
       </div>
 
       <Footer />

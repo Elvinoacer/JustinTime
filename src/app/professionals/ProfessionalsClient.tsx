@@ -53,6 +53,7 @@ const SORT_OPTIONS = (
 
 export default function ProfessionalsPage() {
   const heroRef = useRef<HTMLElement>(null);
+  const lastScrollYRef = useRef(0);
   const toolbarCompact = useHeroToolbarCompact(heroRef);
 
   const [searchInput, setSearchInput] = useState("");
@@ -64,6 +65,8 @@ export default function ProfessionalsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "radar">("cards");
+  const [mobileToolbarExpanded, setMobileToolbarExpanded] = useState(true);
+  const [showMobileActionBar, setShowMobileActionBar] = useState(true);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -166,6 +169,46 @@ export default function ProfessionalsPage() {
     : "min-h-11 py-2.5 pl-11 pr-10 text-sm sm:min-h-12 sm:py-3 sm:pl-12 sm:text-base";
 
   const searchIconPad = toolbarCompact ? "left-2.5" : "left-3 sm:left-4";
+  const activeMobileFilterCount =
+    (minPrice != null ? 1 : 0) +
+    (maxPrice != null ? 1 : 0) +
+    (verifiedOnly ? 1 : 0) +
+    (sortBy !== "rating" ? 1 : 0) +
+    (userLocation ? 1 : 0);
+
+  useEffect(() => {
+    setMobileToolbarExpanded(!toolbarCompact);
+  }, [toolbarCompact]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handleScrollDirection = () => {
+      const currentY = window.scrollY;
+      const delta = currentY - lastScrollYRef.current;
+
+      if (currentY < 96) {
+        setShowMobileActionBar(true);
+      } else if (delta > 10) {
+        setShowMobileActionBar(false);
+      } else if (delta < -8) {
+        setShowMobileActionBar(true);
+      }
+
+      lastScrollYRef.current = currentY;
+    };
+
+    lastScrollYRef.current = window.scrollY;
+    window.addEventListener("scroll", handleScrollDirection, {
+      passive: true,
+    });
+
+    return () => {
+      window.removeEventListener("scroll", handleScrollDirection);
+    };
+  }, []);
 
   return (
     <div className="relative flex min-h-screen flex-col bg-slate-50">
@@ -206,7 +249,26 @@ export default function ProfessionalsPage() {
               ) : null}
             </div>
 
-            <div className="flex w-full items-center gap-2 sm:w-auto sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setMobileToolbarExpanded((v) => !v)}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/60 lg:hidden"
+              aria-expanded={mobileToolbarExpanded}
+              aria-controls="professionals-toolbar-advanced"
+            >
+              <Filter className="h-4 w-4 text-slate-600" />
+              {mobileToolbarExpanded ? "Hide controls" : "Show controls"}
+              {activeMobileFilterCount > 0 ? (
+                <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                  {activeMobileFilterCount}
+                </span>
+              ) : null}
+            </button>
+
+            <div
+              id="professionals-toolbar-advanced"
+              className={`${mobileToolbarExpanded ? "flex" : "hidden"} w-full items-center gap-2 sm:w-auto sm:justify-end lg:flex`}
+            >
               <div className="min-w-0 flex-1 sm:max-w-[min(100%,13rem)] lg:max-w-[min(100%,14rem)]">
                 <LocationPicker
                   compact={toolbarCompact}
@@ -239,7 +301,7 @@ export default function ProfessionalsPage() {
           </div>
         </BrowseStickyToolbar>
 
-        <div className="mx-auto max-w-7xl flex-1 px-4 py-5 pb-24 sm:px-6 sm:py-7 sm:pb-10 lg:px-8">
+        <div className="mx-auto max-w-7xl flex-1 px-2.5 py-5 pb-24 sm:px-6 sm:py-7 sm:pb-10 lg:px-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
             <aside
               id="professionals-sidebar-filters"
@@ -482,7 +544,7 @@ export default function ProfessionalsPage() {
                   }}
                 />
               ) : viewMode === "cards" ? (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+                <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 md:gap-5">
                   {professionals.map((pro) => (
                     <ProfessionalCard key={pro.id} professional={pro} />
                   ))}
@@ -494,6 +556,7 @@ export default function ProfessionalsPage() {
                   hasUserLocation={Boolean(userLocation)}
                   items={radarItems}
                   allowedTypes={["professional"]}
+                  autoFullscreenOnMount
                 />
               )}
 
@@ -522,6 +585,47 @@ export default function ProfessionalsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div
+        className={`fixed bottom-4 left-1/2 z-50 flex w-[min(94vw,24rem)] -translate-x-1/2 items-center gap-2 rounded-2xl border border-slate-200/90 bg-white/95 p-2 shadow-[0_14px_40px_-18px_rgba(15,23,42,0.45)] backdrop-blur-sm transition-all duration-200 lg:hidden ${
+          showMobileActionBar
+            ? "translate-y-0 opacity-100"
+            : "translate-y-20 opacity-0 pointer-events-none"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => setShowMobileFilters((v) => !v)}
+          className="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-2 text-sm font-semibold text-slate-800"
+          aria-expanded={showMobileFilters}
+          aria-controls="professionals-sidebar-filters"
+        >
+          <Filter className="h-4 w-4" />
+          Filters
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsSortOpen(true)}
+          className="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-2 text-sm font-semibold text-slate-800"
+        >
+          <ArrowDownWideNarrow className="h-4 w-4" />
+          Sort
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            setViewMode((mode) => (mode === "cards" ? "radar" : "cards"))
+          }
+          className="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-2 text-sm font-semibold text-white"
+        >
+          {viewMode === "cards" ? (
+            <Radar className="h-4 w-4" />
+          ) : (
+            <LayoutGrid className="h-4 w-4" />
+          )}
+          {viewMode === "cards" ? "Radar" : "Cards"}
+        </button>
       </div>
 
       <Footer />

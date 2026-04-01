@@ -37,6 +37,7 @@ const STATUS_TABS = [
 
 const JobsPage = () => {
   const heroRef = useRef<HTMLElement>(null);
+  const lastScrollYRef = useRef(0);
   const toolbarCompact = useHeroToolbarCompact(heroRef);
 
   const [searchInput, setSearchInput] = useState("");
@@ -46,6 +47,8 @@ const JobsPage = () => {
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "radar">("cards");
+  const [mobileToolbarExpanded, setMobileToolbarExpanded] = useState(true);
+  const [showMobileActionBar, setShowMobileActionBar] = useState(true);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -136,6 +139,45 @@ const JobsPage = () => {
     : "min-h-11 py-2.5 pl-11 pr-10 text-sm sm:min-h-12 sm:py-3 sm:pl-12 sm:text-base";
 
   const iconPad = toolbarCompact ? "left-2.5" : "left-3 sm:left-4";
+  const activeMobileFilterCount =
+    (selectedStatus !== "OPEN" ? 1 : 0) +
+    (selectedCategory ? 1 : 0) +
+    (verifiedOnly ? 1 : 0) +
+    (userLocation ? 1 : 0);
+
+  useEffect(() => {
+    setMobileToolbarExpanded(!toolbarCompact);
+  }, [toolbarCompact]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handleScrollDirection = () => {
+      const currentY = window.scrollY;
+      const delta = currentY - lastScrollYRef.current;
+
+      if (currentY < 96) {
+        setShowMobileActionBar(true);
+      } else if (delta > 10) {
+        setShowMobileActionBar(false);
+      } else if (delta < -8) {
+        setShowMobileActionBar(true);
+      }
+
+      lastScrollYRef.current = currentY;
+    };
+
+    lastScrollYRef.current = window.scrollY;
+    window.addEventListener("scroll", handleScrollDirection, {
+      passive: true,
+    });
+
+    return () => {
+      window.removeEventListener("scroll", handleScrollDirection);
+    };
+  }, []);
 
   return (
     <div className="relative flex min-h-screen flex-col bg-slate-50">
@@ -153,7 +195,9 @@ const JobsPage = () => {
         <BrowseStickyToolbar
           compact={toolbarCompact}
           footer={
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+            <div
+              className={`${mobileToolbarExpanded ? "flex" : "hidden"} flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 lg:flex`}
+            >
               <div
                 className="no-scrollbar flex gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]"
                 role="tablist"
@@ -197,7 +241,7 @@ const JobsPage = () => {
                 />
                 Verified clients
               </button>
-              <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+              <div className="hidden items-center gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm lg:flex">
                 <button
                   type="button"
                   onClick={() => setViewMode("cards")}
@@ -253,7 +297,26 @@ const JobsPage = () => {
               ) : null}
             </div>
 
-            <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:shrink-0">
+            <button
+              type="button"
+              onClick={() => setMobileToolbarExpanded((v) => !v)}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/60 lg:hidden"
+              aria-expanded={mobileToolbarExpanded}
+              aria-controls="jobs-toolbar-advanced"
+            >
+              <Filter className="h-4 w-4 text-slate-600" />
+              {mobileToolbarExpanded ? "Hide controls" : "Show controls"}
+              {activeMobileFilterCount > 0 ? (
+                <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                  {activeMobileFilterCount}
+                </span>
+              ) : null}
+            </button>
+
+            <div
+              id="jobs-toolbar-advanced"
+              className={`${mobileToolbarExpanded ? "flex" : "hidden"} w-full min-w-0 items-center gap-2 sm:w-auto sm:shrink-0 lg:flex`}
+            >
               <div className="relative hidden min-w-[8.5rem] flex-1 sm:flex-initial lg:block lg:min-w-[11rem]">
                 <Building className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 sm:left-3 sm:h-5 sm:w-5" />
                 <select
@@ -347,7 +410,7 @@ const JobsPage = () => {
           </div>
         ) : null}
 
-        <main className="mx-auto max-w-7xl flex-1 px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-10 lg:px-8 lg:py-10">
+        <main className="mx-auto max-w-7xl flex-1 px-2.5 py-5 pb-24 sm:px-6 sm:py-8 sm:pb-10 lg:px-8 lg:py-10">
           {isLoading && jobs.length === 0 ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
               {[...Array(6)].map((_, i) => (
@@ -412,7 +475,7 @@ const JobsPage = () => {
                   </>
                 ) : null}
               </p>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+              <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 md:gap-5">
                 {viewMode === "cards"
                   ? jobs.map((job, index) => (
                       <JobCard key={job.id} job={job} priority={index < 6} />
@@ -426,6 +489,7 @@ const JobsPage = () => {
                   hasUserLocation={Boolean(userLocation)}
                   items={radarItems}
                   allowedTypes={["job"]}
+                  autoFullscreenOnMount
                 />
               ) : null}
             </>
@@ -454,6 +518,44 @@ const JobsPage = () => {
             buttonText="Start working"
           />
         </main>
+      </div>
+
+      <div
+        className={`fixed bottom-4 left-1/2 z-50 flex w-[min(92vw,22rem)] -translate-x-1/2 items-center gap-2 rounded-2xl border border-slate-200/90 bg-white/95 p-2 shadow-[0_14px_40px_-18px_rgba(15,23,42,0.45)] backdrop-blur-sm transition-all duration-200 lg:hidden ${
+          showMobileActionBar
+            ? "translate-y-0 opacity-100"
+            : "translate-y-20 opacity-0 pointer-events-none"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => setShowMobileFilters((v) => !v)}
+          className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-100 px-3 text-sm font-semibold text-slate-800"
+          aria-expanded={showMobileFilters}
+          aria-controls="jobs-mobile-filters"
+        >
+          <Filter className="h-4 w-4" />
+          Filters
+          {activeMobileFilterCount > 0 ? (
+            <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white">
+              {activeMobileFilterCount}
+            </span>
+          ) : null}
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            setViewMode((mode) => (mode === "cards" ? "radar" : "cards"))
+          }
+          className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 text-sm font-semibold text-white"
+        >
+          {viewMode === "cards" ? (
+            <Radar className="h-4 w-4" />
+          ) : (
+            <LayoutGrid className="h-4 w-4" />
+          )}
+          {viewMode === "cards" ? "Radar" : "Cards"}
+        </button>
       </div>
 
       <Footer />

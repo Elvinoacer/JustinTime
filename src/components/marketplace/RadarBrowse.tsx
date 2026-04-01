@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { bearingToCompass, formatDistance } from "@/lib/utils/geolocation";
 
 type RadarEntityType = "job" | "service" | "professional";
@@ -24,6 +31,7 @@ interface RadarBrowseProps {
   items: RadarBrowseItem[];
   hasUserLocation: boolean;
   allowedTypes?: RadarEntityType[];
+  autoFullscreenOnMount?: boolean;
 }
 
 const RADAR_COLORS = [
@@ -81,10 +89,19 @@ interface LabelPlacement {
   height: number;
 }
 
+type DeviceOrientationEventWithCompass = DeviceOrientationEvent & {
+  webkitCompassHeading?: number;
+};
+
+type DeviceOrientationCtor = typeof DeviceOrientationEvent & {
+  requestPermission?: () => Promise<"granted" | "denied">;
+};
+
 const RADAR_LAYOUT_SIZE = 560;
 const RADAR_LABEL_WIDTH = 176;
 const RADAR_LABEL_HEIGHT = 48;
 const RADAR_LABEL_PADDING = 6;
+const MIN_DISTANCE_KM = 1;
 
 function rectsIntersect(a: Rect, b: Rect) {
   return !(
@@ -188,17 +205,292 @@ function getLabelPlacement(
   return clamped;
 }
 
+function getHeadingDegrees(event: DeviceOrientationEventWithCompass) {
+  if (
+    typeof event.webkitCompassHeading === "number" &&
+    Number.isFinite(event.webkitCompassHeading)
+  ) {
+    return (event.webkitCompassHeading + 360) % 360;
+  }
+
+  if (typeof event.alpha === "number" && Number.isFinite(event.alpha)) {
+    return (360 - event.alpha + 360) % 360;
+  }
+
+  return null;
+}
+
+function getTouchDistance(touches: TouchList) {
+  if (touches.length < 2) {
+    return 0;
+  }
+
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
+}
+
 export default function RadarBrowse({
   title,
   description,
   items,
   hasUserLocation,
   allowedTypes,
+  autoFullscreenOnMount = false,
 }: RadarBrowseProps) {
+  const radarFrameRef = useRef<HTMLDivElement | null>(null);
+  const headingLockedRef = useRef(false);
+  const attemptedAutoFullscreenRef = useRef(false);
+  const pinchStartRef = useRef<{ distance: number; scale: number } | null>(
+    null,
+  );
+  const [headingDeg, setHeadingDeg] = useState(0);
+  const [headingLocked, setHeadingLocked] = useState(false);
+  const [canTrackHeading, setCanTrackHeading] = useState(false);
+  const [needsCompassPermission, setNeedsCompassPermission] = useState(false);
+  const [compassError, setCompassError] = useState<string | null>(null);
+  const [isNativeFullscreen, setIsNativeFullscreen] = useState(false);
+  const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
+
+  useEffect(() => {
+    headingLockedRef.current = headingLocked;
+  }, [headingLocked]);
+
+  const listenToOrientation = useCallback(() => {
+    const handleOrientation = (event: Event) => {
+      if (headingLockedRef.current) {
+        return;
+      }
+      const heading = getHeadingDegrees(
+        event as DeviceOrientationEventWithCompass,
+      );
+      if (heading == null) {
+        return;
+      }
+      setHeadingDeg(heading);
+      setCompassError(null);
+    };
+
+    window.addEventListener("deviceorientationabsolute", handleOrientation, {
+      capture: true,
+    });
+    window.addEventListener("deviceorientation", handleOrientation, {
+      capture: true,
+    });
+
+    return () => {
+      window.removeEventListener(
+        "deviceorientationabsolute",
+        handleOrientation,
+        {
+          capture: true,
+        },
+      );
+      window.removeEventListener("deviceorientation", handleOrientation, {
+        capture: true,
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (!("DeviceOrientationEvent" in window)) {
+      setCompassError("Compass not supported on this device/browser.");
+      return;
+    }
+
+    const OrientationCtor =
+      window.DeviceOrientationEvent as DeviceOrientationCtor;
+
+    if (typeof OrientationCtor.requestPermission === "function") {
+      setNeedsCompassPermission(true);
+      setCanTrackHeading(false);
+    } else {
+      setNeedsCompassPermission(false);
+      setCanTrackHeading(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!canTrackHeading || typeof window === "undefined") {
+      return;
+    }
+
+    const detach = listenToOrientation();
+    return detach;
+  }, [canTrackHeading, listenToOrientation]);
+
+  const requestCompassPermission = useCallback(async () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const OrientationCtor =
+        window.DeviceOrientationEvent as DeviceOrientationCtor;
+
+      if (typeof OrientationCtor.requestPermission !== "function") {
+        setNeedsCompassPermission(false);
+        setCanTrackHeading(true);
+        return;
+      }
+
+      const result = await OrientationCtor.requestPermission();
+      if (result === "granted") {
+        setNeedsCompassPermission(false);
+        setCanTrackHeading(true);
+        setCompassError(null);
+      } else {
+        setCompassError("Compass access was denied.");
+      }
+    } catch {
+      setCompassError("Unable to enable compass sensors.");
+    }
+  }, []);
+
   const scopedItems =
     allowedTypes && allowedTypes.length > 0
       ? items.filter((item) => allowedTypes.includes(item.type))
       : items;
+
+  const sorted = useMemo(
+    () => [...scopedItems].sort((a, b) => a.distanceKm - b.distanceKm),
+    [scopedItems],
+  );
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const syncFullscreenState = () => {
+      const active = document.fullscreenElement === radarFrameRef.current;
+      setIsNativeFullscreen(active);
+      if (active) {
+        setIsPseudoFullscreen(false);
+      }
+    };
+
+    syncFullscreenState();
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", syncFullscreenState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isPseudoFullscreen || typeof window === "undefined") {
+      return;
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsPseudoFullscreen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [isPseudoFullscreen]);
+
+  const isFullscreenActive = isNativeFullscreen || isPseudoFullscreen;
+
+  const toggleFullscreen = useCallback(async () => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    try {
+      if (document.fullscreenElement === radarFrameRef.current) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      if (
+        radarFrameRef.current &&
+        typeof radarFrameRef.current.requestFullscreen === "function"
+      ) {
+        await radarFrameRef.current.requestFullscreen();
+        return;
+      }
+
+      setIsPseudoFullscreen((prev) => !prev);
+    } catch {
+      setIsPseudoFullscreen((prev) => !prev);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (
+      !autoFullscreenOnMount ||
+      attemptedAutoFullscreenRef.current ||
+      isFullscreenActive ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    if (!window.matchMedia("(max-width: 1023px)").matches) {
+      return;
+    }
+
+    attemptedAutoFullscreenRef.current = true;
+    const timer = window.setTimeout(() => {
+      void toggleFullscreen();
+    }, 80);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [autoFullscreenOnMount, isFullscreenActive, toggleFullscreen]);
+
+  const autoMaxDistanceKm =
+    sorted.length > 0
+      ? Math.max(
+          4,
+          Math.min(120, sorted[Math.min(sorted.length - 1, 24)].distanceKm),
+        )
+      : 10;
+  const sliderMaxDistanceKm = Math.max(80, Math.ceil(autoMaxDistanceKm + 20));
+  const [distanceScaleKm, setDistanceScaleKm] = useState(10);
+
+  const clampDistanceScale = useCallback(
+    (value: number) =>
+      Math.min(Math.max(value, MIN_DISTANCE_KM), sliderMaxDistanceKm),
+    [sliderMaxDistanceKm],
+  );
+
+  useEffect(() => {
+    setDistanceScaleKm((prev) => {
+      const safePrev = Number.isFinite(prev)
+        ? prev
+        : Math.ceil(autoMaxDistanceKm);
+      return clampDistanceScale(safePrev);
+    });
+  }, [autoMaxDistanceKm, clampDistanceScale]);
+
+  const maxDistanceKm = useMemo(
+    () => clampDistanceScale(distanceScaleKm),
+    [clampDistanceScale, distanceScaleKm],
+  );
+
+  const zoomRadarIn = useCallback(() => {
+    setDistanceScaleKm((prev) => clampDistanceScale(prev * 0.85));
+  }, [clampDistanceScale]);
+
+  const zoomRadarOut = useCallback(() => {
+    setDistanceScaleKm((prev) => clampDistanceScale(prev * 1.15));
+  }, [clampDistanceScale]);
+
+  const resetRadarZoom = useCallback(() => {
+    setDistanceScaleKm(clampDistanceScale(autoMaxDistanceKm));
+  }, [autoMaxDistanceKm, clampDistanceScale]);
 
   if (!hasUserLocation) {
     return (
@@ -227,11 +519,6 @@ export default function RadarBrowse({
     );
   }
 
-  const sorted = [...scopedItems].sort((a, b) => a.distanceKm - b.distanceKm);
-  const maxDistanceKm = Math.max(
-    5,
-    Math.min(100, sorted[Math.min(sorted.length - 1, 24)].distanceKm),
-  );
   const plottedItems = sorted.slice(0, 60);
   const occupiedLabelRects: Rect[] = [];
   const pointLayouts = plottedItems.map((item) => {
@@ -310,107 +597,268 @@ export default function RadarBrowse({
       </div>
 
       <div className="grid gap-0 lg:grid-cols-[minmax(340px,1.1fr)_minmax(0,0.9fr)]">
-        <div className="p-4 sm:p-6">
-          <div className="relative mx-auto aspect-square w-full max-w-[560px] overflow-hidden rounded-[2rem] border border-emerald-300/40 bg-[radial-gradient(circle_at_center,_#0f172a_0%,_#052e2b_58%,_#031716_100%)]">
-            <div className="absolute inset-[9%] rounded-full border border-emerald-200/25" />
-            <div className="absolute inset-[22%] rounded-full border border-emerald-200/25" />
-            <div className="absolute inset-[35%] rounded-full border border-emerald-200/25" />
-            <div className="absolute inset-[48%] rounded-full border border-emerald-200/25" />
-            <div className="absolute left-1/2 top-[8%] h-[84%] w-px -translate-x-1/2 bg-emerald-200/20" />
-            <div className="absolute left-[8%] top-1/2 h-px w-[84%] -translate-y-1/2 bg-emerald-200/20" />
-
-            <div className="pointer-events-none absolute inset-0 animate-[spin_9s_linear_infinite] bg-[conic-gradient(from_0deg_at_50%_50%,rgba(16,185,129,0)_0deg,rgba(16,185,129,0.38)_44deg,rgba(16,185,129,0)_88deg)]" />
-
-            <div className="absolute left-1/2 top-1/2 z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.9)]" />
-
-            {pointLayouts.map(
-              ({
-                item,
-                label,
-                pointColor,
-                pos,
-                pointPercent,
-                labelAnchorPercent,
-                labelStyle,
-                connectorStyle,
-              }) => {
-                return (
-                  <Fragment key={item.id}>
-                    {connectorStyle ? (
-                      <span
-                        className="pointer-events-none absolute z-[31] h-px origin-left rounded-full bg-white/45 shadow-[0_0_10px_rgba(255,255,255,0.25)]"
-                        style={connectorStyle}
-                      />
-                    ) : null}
-                    {connectorStyle ? (
-                      <span
-                        className="pointer-events-none absolute z-[32] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/70 bg-slate-900 shadow-[0_0_10px_rgba(255,255,255,0.35)]"
-                        style={labelAnchorPercent}
-                      />
-                    ) : null}
-                    {connectorStyle ? (
-                      <span
-                        className="pointer-events-none absolute z-[32] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/60 bg-white/80 shadow-[0_0_8px_rgba(255,255,255,0.45)]"
-                        style={pointPercent}
-                      />
-                    ) : null}
-                    <Link
-                      href={item.href}
-                      className="group absolute z-30"
-                      style={{
-                        left: `${pos.x}%`,
-                        top: `${pos.y}%`,
-                        transform: "translate(-50%, -50%)",
-                      }}
-                      aria-label={`${item.name}, ${label}, ${formatDistance(item.distanceKm)}, ${bearingToCompass(item.bearingDeg)}`}
-                    >
-                      <span
-                        className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-1/2 rounded-md border border-white/30 bg-slate-900/80 px-2 py-1 text-center text-[10px] leading-tight text-emerald-50 shadow-[0_8px_22px_-14px_rgba(0,0,0,0.9)] backdrop-blur-sm transition-all duration-200 group-hover:-translate-y-[53%] group-hover:bg-slate-900/95"
-                        style={labelStyle}
-                      >
-                        <span className="block max-w-[160px] truncate font-semibold text-white">
-                          {item.name}
-                        </span>
-                        <span className="mt-0.5 block text-[9px] uppercase tracking-wide text-emerald-100/95">
-                          {label} • {formatDistance(item.distanceKm)} •{" "}
-                          {bearingToCompass(item.bearingDeg)}
-                        </span>
-                        {item.subtitle ? (
-                          <span className="mt-0.5 block max-w-[160px] truncate text-[9px] text-emerald-200/90">
-                            {item.subtitle}
-                          </span>
-                        ) : null}
-                      </span>
-                      <span
-                        className="block h-3.5 w-3.5 rounded-full border border-white/70 shadow-[0_0_12px_rgba(255,255,255,0.35)] transition-transform duration-200 group-hover:scale-125"
-                        style={{ backgroundColor: pointColor }}
-                      />
-                    </Link>
-                  </Fragment>
+        <div
+          className={
+            isFullscreenActive
+              ? "fixed inset-0 z-[90] bg-slate-950/95 p-3 sm:p-5"
+              : "p-4 sm:p-6"
+          }
+        >
+          <div
+            className={
+              isFullscreenActive
+                ? "flex h-full w-full items-center justify-center"
+                : ""
+            }
+          >
+            <div
+              ref={radarFrameRef}
+              className={`relative aspect-square w-full overflow-hidden border border-emerald-300/40 bg-[radial-gradient(circle_at_center,_#0f172a_0%,_#052e2b_58%,_#031716_100%)] ${
+                isFullscreenActive
+                  ? "max-h-[calc(100dvh-1.5rem)] max-w-[calc(100vw-1.5rem)] rounded-[1.25rem]"
+                  : "mx-auto max-w-none rounded-[2rem] lg:max-w-[640px]"
+              }`}
+              onWheel={(event) => {
+                event.preventDefault();
+                setDistanceScaleKm((prev) =>
+                  clampDistanceScale(prev * (event.deltaY > 0 ? 1.1 : 0.9)),
                 );
-              },
-            )}
+              }}
+              onTouchStart={(event) => {
+                if (event.touches.length !== 2) {
+                  return;
+                }
+                pinchStartRef.current = {
+                  distance: getTouchDistance(event.touches),
+                  scale: maxDistanceKm,
+                };
+              }}
+              onTouchMove={(event) => {
+                if (event.touches.length !== 2 || !pinchStartRef.current) {
+                  return;
+                }
 
-            <div className="absolute left-1/2 top-2 -translate-x-1/2 text-xs font-semibold tracking-widest text-emerald-100/90">
-              N
-            </div>
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs font-semibold tracking-widest text-emerald-100/90">
-              S
-            </div>
-            <div className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-semibold tracking-widest text-emerald-100/90">
-              W
-            </div>
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold tracking-widest text-emerald-100/90">
-              E
-            </div>
+                event.preventDefault();
+                const currentDistance = getTouchDistance(event.touches);
+                if (currentDistance <= 0) {
+                  return;
+                }
 
-            <div className="absolute bottom-3 right-3 rounded-lg border border-emerald-200/25 bg-slate-900/70 px-2.5 py-1 text-xs text-emerald-50">
-              Scale: {formatDistance(maxDistanceKm)}
+                const ratio = pinchStartRef.current.distance / currentDistance;
+                setDistanceScaleKm(
+                  clampDistanceScale(pinchStartRef.current.scale * ratio),
+                );
+              }}
+              onTouchEnd={() => {
+                pinchStartRef.current = null;
+              }}
+              onTouchCancel={() => {
+                pinchStartRef.current = null;
+              }}
+            >
+              <div className="absolute right-3 top-3 z-[65] flex flex-wrap justify-end gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setHeadingLocked((prev) => !prev)}
+                  className={`inline-flex h-8 items-center justify-center rounded-lg border px-2.5 text-[11px] font-semibold transition-colors ${
+                    headingLocked
+                      ? "border-amber-300/70 bg-amber-500/20 text-amber-100"
+                      : "border-emerald-200/35 bg-slate-900/75 text-emerald-50 hover:bg-slate-900/90"
+                  }`}
+                >
+                  {headingLocked ? "Heading locked" : "Live heading"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void toggleFullscreen()}
+                  className="inline-flex h-8 items-center justify-center rounded-lg border border-emerald-200/35 bg-slate-900/75 px-2.5 text-[11px] font-semibold text-emerald-50 transition-colors hover:bg-slate-900/90"
+                >
+                  {isFullscreenActive ? "Exit full screen" : "Full screen"}
+                </button>
+              </div>
+
+              <div
+                className="absolute inset-0 transition-transform duration-300 ease-out"
+                style={{ transform: `rotate(${-headingDeg}deg)` }}
+              >
+                <div className="absolute inset-[9%] rounded-full border border-emerald-200/25" />
+                <div className="absolute inset-[22%] rounded-full border border-emerald-200/25" />
+                <div className="absolute inset-[35%] rounded-full border border-emerald-200/25" />
+                <div className="absolute inset-[48%] rounded-full border border-emerald-200/25" />
+                <div className="absolute left-1/2 top-[8%] h-[84%] w-px -translate-x-1/2 bg-emerald-200/20" />
+                <div className="absolute left-[8%] top-1/2 h-px w-[84%] -translate-y-1/2 bg-emerald-200/20" />
+
+                <div className="pointer-events-none absolute inset-0 animate-[spin_9s_linear_infinite] bg-[conic-gradient(from_0deg_at_50%_50%,rgba(16,185,129,0)_0deg,rgba(16,185,129,0.38)_44deg,rgba(16,185,129,0)_88deg)]" />
+
+                <div className="absolute left-1/2 top-1/2 z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.9)]" />
+
+                {pointLayouts.map(
+                  ({
+                    item,
+                    label,
+                    pointColor,
+                    pos,
+                    pointPercent,
+                    labelAnchorPercent,
+                    labelStyle,
+                    connectorStyle,
+                  }) => {
+                    return (
+                      <Fragment key={item.id}>
+                        {connectorStyle ? (
+                          <span
+                            className="pointer-events-none absolute z-[31] h-px origin-left rounded-full bg-white/45 shadow-[0_0_10px_rgba(255,255,255,0.25)]"
+                            style={connectorStyle}
+                          />
+                        ) : null}
+                        {connectorStyle ? (
+                          <span
+                            className="pointer-events-none absolute z-[32] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/70 bg-slate-900 shadow-[0_0_10px_rgba(255,255,255,0.35)]"
+                            style={labelAnchorPercent}
+                          />
+                        ) : null}
+                        {connectorStyle ? (
+                          <span
+                            className="pointer-events-none absolute z-[32] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/60 bg-white/80 shadow-[0_0_8px_rgba(255,255,255,0.45)]"
+                            style={pointPercent}
+                          />
+                        ) : null}
+                        <Link
+                          href={item.href}
+                          className="group absolute z-30"
+                          style={{
+                            left: `${pos.x}%`,
+                            top: `${pos.y}%`,
+                            transform: "translate(-50%, -50%)",
+                          }}
+                          aria-label={`${item.name}, ${label}, ${formatDistance(item.distanceKm)}, ${bearingToCompass(item.bearingDeg)}`}
+                        >
+                          <span
+                            className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-1/2 rounded-md border border-white/30 bg-slate-900/80 px-2 py-1 text-center text-[10px] leading-tight text-emerald-50 shadow-[0_8px_22px_-14px_rgba(0,0,0,0.9)] backdrop-blur-sm transition-all duration-200 group-hover:-translate-y-[53%] group-hover:bg-slate-900/95"
+                            style={labelStyle}
+                          >
+                            <span className="block max-w-[160px] truncate font-semibold text-white">
+                              {item.name}
+                            </span>
+                            <span className="mt-0.5 block text-[9px] uppercase tracking-wide text-emerald-100/95">
+                              {label} • {formatDistance(item.distanceKm)} •{" "}
+                              {bearingToCompass(item.bearingDeg)}
+                            </span>
+                            {item.subtitle ? (
+                              <span className="mt-0.5 block max-w-[160px] truncate text-[9px] text-emerald-200/90">
+                                {item.subtitle}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span
+                            className="block h-3.5 w-3.5 rounded-full border border-white/70 shadow-[0_0_12px_rgba(255,255,255,0.35)] transition-transform duration-200 group-hover:scale-125"
+                            style={{ backgroundColor: pointColor }}
+                          />
+                        </Link>
+                      </Fragment>
+                    );
+                  },
+                )}
+
+                <div className="absolute left-1/2 top-2 -translate-x-1/2 text-xs font-semibold tracking-widest text-emerald-100/90">
+                  N
+                </div>
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs font-semibold tracking-widest text-emerald-100/90">
+                  S
+                </div>
+                <div className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-semibold tracking-widest text-emerald-100/90">
+                  W
+                </div>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold tracking-widest text-emerald-100/90">
+                  E
+                </div>
+              </div>
+
+              <div className="absolute bottom-3 left-3 right-3 z-50 rounded-xl border border-emerald-200/25 bg-slate-900/80 px-3 py-2 text-emerald-50 backdrop-blur-sm">
+                <div className="mb-1.5 flex items-center justify-between text-[11px]">
+                  <span className="font-semibold uppercase tracking-[0.16em] text-emerald-100/90">
+                    Radar range
+                  </span>
+                  <span>Scale: {formatDistance(maxDistanceKm)}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={zoomRadarIn}
+                    className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-emerald-200/30 bg-slate-900/70 px-2 text-xs font-bold text-emerald-50 transition-colors hover:bg-slate-900"
+                    aria-label="Zoom in radar"
+                  >
+                    +
+                  </button>
+                  <input
+                    type="range"
+                    min={MIN_DISTANCE_KM}
+                    max={sliderMaxDistanceKm}
+                    step={0.5}
+                    value={maxDistanceKm}
+                    onChange={(event) =>
+                      setDistanceScaleKm(Number(event.target.value))
+                    }
+                    className="h-1.5 w-full cursor-pointer accent-emerald-400"
+                    aria-label="Radar distance scale"
+                  />
+                  <button
+                    type="button"
+                    onClick={zoomRadarOut}
+                    className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-emerald-200/30 bg-slate-900/70 px-2 text-xs font-bold text-emerald-50 transition-colors hover:bg-slate-900"
+                    aria-label="Zoom out radar"
+                  >
+                    -
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetRadarZoom}
+                    className="inline-flex h-8 items-center justify-center rounded-lg border border-emerald-200/30 bg-slate-900/70 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-50 transition-colors hover:bg-slate-900"
+                  >
+                    Auto
+                  </button>
+                </div>
+                <p className="mt-1 text-[10px] text-emerald-100/85">
+                  Pinch or scroll on the radar to zoom. Smaller km = closer
+                  zoom.
+                </p>
+              </div>
+
+              {needsCompassPermission ? (
+                <div className="absolute inset-x-4 top-4 z-[60] rounded-xl border border-emerald-200/35 bg-slate-950/80 p-3 text-emerald-50 backdrop-blur-sm">
+                  <p className="text-xs leading-relaxed text-emerald-100/95">
+                    Enable compass sensors to align this radar with your device
+                    orientation.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void requestCompassPermission()}
+                    className="mt-2 inline-flex h-9 items-center justify-center rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white transition-colors hover:bg-emerald-400"
+                  >
+                    Enable compass
+                  </button>
+                </div>
+              ) : null}
+
+              {compassError ? (
+                <div className="absolute left-4 top-4 z-[55] rounded-lg border border-amber-200/40 bg-amber-500/15 px-2.5 py-1.5 text-[11px] text-amber-100 backdrop-blur-sm">
+                  {compassError}
+                </div>
+              ) : null}
+
+              <div className="pointer-events-none absolute left-1/2 top-1/2 z-[45] -translate-x-1/2 translate-y-8 rounded-full border border-emerald-200/30 bg-slate-900/75 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-100 shadow-[0_8px_18px_-12px_rgba(0,0,0,0.9)] backdrop-blur-sm">
+                {formatDistance(maxDistanceKm)} range
+              </div>
+
+              <div className="absolute bottom-3 right-3 rounded-lg border border-emerald-200/25 bg-slate-900/70 px-2.5 py-1 text-xs text-emerald-50">
+                {headingLocked ? "Locked" : "Heading"}: {Math.round(headingDeg)}
+                °
+              </div>
             </div>
           </div>
         </div>
 
-        <aside className="max-h-[680px] overflow-y-auto border-t border-slate-100 bg-slate-50/75 p-4 lg:border-l lg:border-t-0 lg:p-5">
+        <aside className="max-h-[420px] overflow-y-auto border-t border-slate-100 bg-slate-50/75 p-4 lg:max-h-[680px] lg:border-l lg:border-t-0 lg:p-5">
           {legend.length > 0 ? (
             <div className="mb-3 flex flex-wrap gap-1.5">
               {legend.map(([label, color]) => (
