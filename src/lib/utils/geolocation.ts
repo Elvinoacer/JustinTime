@@ -73,15 +73,94 @@ function toRadians(degrees: number): number {
   return degrees * (Math.PI / 180);
 }
 
+type LocationCoordinates = {
+  latitude: number;
+  longitude: number;
+  address?: string;
+};
+
+async function fetchJsonWithTimeout(url: string, timeoutMs = 6000) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "Accept-Language": "en",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status}`);
+    }
+
+    return response.json();
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+function toNumber(value: unknown): number | null {
+  const num =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : NaN;
+
+  return Number.isFinite(num) ? num : null;
+}
+
+export async function getApproximateLocationFromIP(): Promise<LocationCoordinates> {
+  // Provider 1: ipapi
+  try {
+    const data = await fetchJsonWithTimeout("https://ipapi.co/json/");
+    const latitude = toNumber(data?.latitude);
+    const longitude = toNumber(data?.longitude);
+
+    if (latitude !== null && longitude !== null) {
+      const parts = [data?.city, data?.region, data?.country_name].filter(
+        Boolean,
+      );
+
+      return {
+        latitude,
+        longitude,
+        address: parts.length > 0 ? parts.join(", ") : undefined,
+      };
+    }
+  } catch {
+    // Fall through to secondary provider.
+  }
+
+  // Provider 2: ipwho
+  try {
+    const data = await fetchJsonWithTimeout("https://ipwho.is/");
+    const latitude = toNumber(data?.latitude);
+    const longitude = toNumber(data?.longitude);
+
+    if (latitude !== null && longitude !== null) {
+      const parts = [data?.city, data?.region, data?.country].filter(Boolean);
+
+      return {
+        latitude,
+        longitude,
+        address: parts.length > 0 ? parts.join(", ") : undefined,
+      };
+    }
+  } catch {
+    // Fall through to final failure.
+  }
+
+  throw new Error("Unable to determine location automatically");
+}
+
 /**
  * Get current location using browser's Geolocation API
  * @returns Promise with coordinates and address
  */
-export function getCurrentLocation(): Promise<{
-  latitude: number;
-  longitude: number;
-  address?: string;
-}> {
+export function getCurrentLocation(): Promise<LocationCoordinates> {
   const resolvePosition = (
     options: PositionOptions,
   ): Promise<{ latitude: number; longitude: number }> => {
@@ -123,9 +202,30 @@ export function getCurrentLocation(): Promise<{
 
   return new Promise(async (resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error("Geolocation is not supported by your browser"));
+      try {
+        const approximate = await getApproximateLocationFromIP();
+        resolve(approximate);
+      } catch {
+        reject(new Error("Geolocation is not supported by your browser"));
+      }
       return;
     }
+
+    const resolveWithIPFallback = async (
+      geolocationError?: GeolocationPositionError,
+    ) => {
+      try {
+        const approximate = await getApproximateLocationFromIP();
+        resolve(approximate);
+      } catch {
+        if (geolocationError) {
+          reject(toError(geolocationError));
+          return;
+        }
+
+        reject(new Error("Unable to retrieve location"));
+      }
+    };
 
     try {
       // Attempt 1: Fast and accurate for devices with a good sensor/GPS fix.
@@ -140,7 +240,7 @@ export function getCurrentLocation(): Promise<{
       const geoError = firstError as GeolocationPositionError;
 
       if (geoError.code === geoError.PERMISSION_DENIED) {
-        reject(toError(geoError));
+        await resolveWithIPFallback(geoError);
         return;
       }
 
@@ -153,7 +253,7 @@ export function getCurrentLocation(): Promise<{
         });
         resolve(fallback);
       } catch (secondError) {
-        reject(toError(secondError as GeolocationPositionError));
+        await resolveWithIPFallback(secondError as GeolocationPositionError);
       }
     }
   });

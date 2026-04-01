@@ -369,14 +369,17 @@ function PostJobPageContent() {
   };
 
   const reverseGeocode = async (latitude: number, longitude: number) => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 5000);
+
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
         {
           headers: {
-            "User-Agent": "JustInTime/1.0 (support@gtss.software)",
             "Accept-Language": "en",
           },
+          signal: controller.signal,
         },
       );
 
@@ -390,6 +393,8 @@ function PostJobPageContent() {
       );
     } catch {
       return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+    } finally {
+      window.clearTimeout(timeoutId);
     }
   };
 
@@ -399,10 +404,10 @@ function PostJobPageContent() {
 
     try {
       const position = await getCurrentLocation();
-      const address = await reverseGeocode(
-        position.latitude,
-        position.longitude,
-      );
+      const address =
+        position.address && position.address.trim().length > 0
+          ? position.address
+          : await reverseGeocode(position.latitude, position.longitude);
 
       setFormData((prev) => ({ ...prev, location: address }));
       setErrors((prev) => ({ ...prev, location: "" }));

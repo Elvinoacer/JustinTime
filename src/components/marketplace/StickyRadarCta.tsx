@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "jit_hide_unified_radar_cta_v1";
+export const RADAR_CTA_STORAGE_KEY = "jit_hide_unified_radar_cta_v1";
 
 export default function StickyRadarCta() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     try {
-      const dismissed = window.localStorage.getItem(STORAGE_KEY) === "1";
+      const dismissed =
+        window.localStorage.getItem(RADAR_CTA_STORAGE_KEY) === "1";
       setVisible(!dismissed);
     } catch {
       setVisible(true);
@@ -19,7 +20,7 @@ export default function StickyRadarCta() {
 
   const dismiss = () => {
     try {
-      window.localStorage.setItem(STORAGE_KEY, "1");
+      window.localStorage.setItem(RADAR_CTA_STORAGE_KEY, "1");
     } catch {
       // Ignore storage errors and still hide for this session.
     }
