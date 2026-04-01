@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { submitProposal } from "@/lib/proposals/submitProposal";
+import { toSubmitProposalErrorResponse } from "@/lib/proposals/errorResponses";
 import { z } from "zod";
 import { hasRole } from "@/lib/auth/roles";
 
@@ -50,36 +51,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.issues }, { status: 400 });
     }
 
-    if (error instanceof Error) {
-      if (error.message === "JOB_NOT_FOUND") {
-        return new NextResponse("Job not found", { status: 404 });
-      }
-      if (error.message === "JOB_NOT_OPEN") {
-        return new NextResponse("Job is not open for proposals", {
-          status: 400,
-        });
-      }
-      if (error.message === "MAX_APPLICANTS_REACHED") {
-        return new NextResponse("This job has reached its applicant limit", {
-          status: 409,
-        });
-      }
-      if (error.message === "PROPOSAL_ALREADY_EXISTS") {
-        return new NextResponse(
-          "You have already submitted a proposal for this job",
-          { status: 400 },
-        );
-      }
-      if (error.message === "INSUFFICIENT_CREDITS") {
-        return NextResponse.json(
-          {
-            error: "Weekly limit reached & Insufficient Credits",
-            message:
-              "You reached your weekly proposal limit. Purchase Lead Credits to continue.",
-          },
-          { status: 429 },
-        );
-      }
+    const proposalErrorResponse = toSubmitProposalErrorResponse(error);
+    if (proposalErrorResponse) {
+      return proposalErrorResponse;
     }
 
     console.error("[PROPOSALS_POST]", error);

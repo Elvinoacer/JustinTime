@@ -213,6 +213,9 @@ export async function GET(request: Request) {
     // Sorting
     const sortBy = searchParams.get("sortBy") || "createdAt";
     const sortOrder = searchParams.get("sortOrder") || "desc";
+    const isDistanceSort =
+      sortBy === "distance" && userLat !== null && userLon !== null;
+    const distanceCandidateTake = Math.min(Math.max(pageSize * 20, 200), 1000);
 
     let orderBy: Prisma.JobOrderByWithRelationInput = {
       [sortBy]: sortOrder,
@@ -226,10 +229,9 @@ export async function GET(request: Request) {
     const [jobs, total] = await Promise.all([
       prisma.job.findMany({
         where,
-        // For distance sorting, fetch more items initially
-        skip: sortBy === "distance" && userLat && userLon ? 0 : skip,
-        take:
-          sortBy === "distance" && userLat && userLon ? undefined : pageSize,
+        // For distance sorting, fetch a bounded candidate set then sort in-memory.
+        skip: isDistanceSort ? 0 : skip,
+        take: isDistanceSort ? distanceCandidateTake : pageSize,
         include: {
           client: {
             select: {
@@ -363,6 +365,7 @@ export async function POST(request: Request) {
       description: string;
       budget: number;
       location: string;
+      deadline?: Date;
       images: string[];
       maxApplicants?: number;
     };
@@ -400,6 +403,13 @@ export async function POST(request: Request) {
       };
     } else {
       const validatedData = createJobSchema.parse(body);
+      const deadlineDate = validatedData.deadline
+        ? new Date(validatedData.deadline)
+        : undefined;
+
+      if (deadlineDate && Number.isNaN(deadlineDate.getTime())) {
+        return new NextResponse("Invalid deadline", { status: 400 });
+      }
 
       category = await prisma.category.findUnique({
         where: { id: validatedData.category },
@@ -415,6 +425,7 @@ export async function POST(request: Request) {
         description: validatedData.description,
         budget: validatedData.budget,
         location: validatedData.location,
+        deadline: deadlineDate,
         images: validatedData.images || [],
         maxApplicants: validatedData.maxApplicants,
       };
@@ -447,6 +458,7 @@ export async function POST(request: Request) {
         categoryId: category.id,
         clientId: session.user.id,
         images: normalizedData.images,
+        deadline: normalizedData.deadline,
         maxApplicants: normalizedData.maxApplicants,
       },
     });
@@ -458,7 +470,7 @@ export async function POST(request: Request) {
         // Find providers interested in this category
         const matchingProviders = await prisma.user.findMany({
           where: {
-            role: "PROVIDER",
+            OR: [{ role: "PROVIDER" }, { roles: { has: "PROVIDER" } }],
             profile: {
               skills: {
                 has: category.id,

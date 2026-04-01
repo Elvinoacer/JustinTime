@@ -360,6 +360,8 @@ model Proposal {
   provider      User     @relation(fields: [providerId], references: [id], onDelete: Cascade)
   estimatedDays Int?
   attachments   String[]
+
+  @@unique([jobId, providerId])
 }
 
 model ProposalTemplate {

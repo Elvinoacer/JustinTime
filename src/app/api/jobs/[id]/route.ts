@@ -17,9 +17,7 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            email: true,
             image: true,
-            phone: true,
           },
         },
         category: true,
@@ -63,16 +61,26 @@ export async function PUT(
 
     const body = updateJobSchema.parse(await request.json());
 
-    // If category is provided as a slug, look it up and get the ID
+    // Accept category ID (preferred) and keep a slug fallback for compatibility.
     let categoryId = existingJob.categoryId; // Keep existing if not updating
     if (body.category) {
-      const category = await prisma.category.findUnique({
-        where: { slug: body.category },
+      let category = await prisma.category.findUnique({
+        where: { id: body.category },
       });
+      if (!category) {
+        category = await prisma.category.findUnique({
+          where: { slug: body.category },
+        });
+      }
       if (!category) {
         return new NextResponse("Invalid category", { status: 400 });
       }
       categoryId = category.id;
+    }
+
+    const deadline = body.deadline ? new Date(body.deadline) : undefined;
+    if (deadline && Number.isNaN(deadline.getTime())) {
+      return new NextResponse("Invalid deadline", { status: 400 });
     }
 
     const updatedJob = await prisma.job.update({
@@ -85,6 +93,7 @@ export async function PUT(
         categoryId,
         ...(body.images && { images: body.images }),
         ...(body.status && { status: body.status }),
+        ...(body.deadline !== undefined && { deadline }),
         ...(body.maxApplicants !== undefined && {
           maxApplicants: body.maxApplicants,
         }),

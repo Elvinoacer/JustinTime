@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { hasRole } from "@/lib/auth/roles";
 
 interface AvailabilitySlot {
   id?: string;
@@ -77,13 +78,13 @@ export default function AvailabilityPage() {
     }
 
     // Only redirect if session is loaded and user is not a provider
-    if (status === "authenticated" && session?.user?.role !== "PROVIDER") {
+    if (status === "authenticated" && !hasRole(session?.user, "PROVIDER")) {
       router.push("/dashboard");
       return;
     }
 
     // Fetch availability if user is a provider
-    if (status === "authenticated" && session?.user?.role === "PROVIDER") {
+    if (status === "authenticated" && hasRole(session?.user, "PROVIDER")) {
       fetchAvailability();
     }
   }, [session, status, router]);
@@ -207,7 +208,7 @@ export default function AvailabilityPage() {
         `/api/provider/availability/exceptions?id=${id}`,
         {
           method: "DELETE",
-        }
+        },
       );
 
       if (!response.ok) throw new Error("Failed to delete");
@@ -221,7 +222,7 @@ export default function AvailabilityPage() {
 
   const getDaySlots = (day: number) => {
     return availability.filter(
-      (slot) => slot.dayOfWeek === day && slot.isActive
+      (slot) => slot.dayOfWeek === day && slot.isActive,
     );
   };
 
@@ -578,7 +579,7 @@ export default function AvailabilityPage() {
                                   month: "short",
                                   day: "numeric",
                                   year: "numeric",
-                                }
+                                },
                               )}
                             </span>
                             {exception.reason && (

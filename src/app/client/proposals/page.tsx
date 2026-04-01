@@ -463,6 +463,58 @@ export default function ClientProposalsPage() {
       ? proposals
       : proposals.filter((p) => p.status === filterStatus);
 
+  const sortedProposals = [...filteredProposals].sort((a, b) => {
+    const byNewest =
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    const byLowestPrice = Number(a.price) - Number(b.price);
+    const byHighestMatch =
+      evaluateProposal(b).overall - evaluateProposal(a).overall;
+
+    const getEtaRank = (proposal: Proposal) =>
+      proposal.estimatedDays === null
+        ? Number.POSITIVE_INFINITY
+        : proposal.estimatedDays;
+    const byFastestEta = getEtaRank(a) - getEtaRank(b);
+
+    const byStableId = a.id.localeCompare(b.id);
+
+    switch (sortBy) {
+      case "LOWEST_PRICE":
+        return (
+          byLowestPrice ||
+          byHighestMatch ||
+          byFastestEta ||
+          byNewest ||
+          byStableId
+        );
+      case "FASTEST_ETA":
+        return (
+          byFastestEta ||
+          byHighestMatch ||
+          byLowestPrice ||
+          byNewest ||
+          byStableId
+        );
+      case "NEWEST":
+        return (
+          byNewest ||
+          byHighestMatch ||
+          byLowestPrice ||
+          byFastestEta ||
+          byStableId
+        );
+      case "HIGHEST_MATCH":
+      default:
+        return (
+          byHighestMatch ||
+          byLowestPrice ||
+          byFastestEta ||
+          byNewest ||
+          byStableId
+        );
+    }
+  });
+
   const recommendationMetaByProposalId = useMemo(() => {
     if (!recommendationsEnabled) {
       return {};
@@ -578,58 +630,6 @@ export default function ClientProposalsPage() {
       isRecommended,
     });
   };
-
-  const sortedProposals = [...filteredProposals].sort((a, b) => {
-    const byNewest =
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    const byLowestPrice = Number(a.price) - Number(b.price);
-    const byHighestMatch =
-      evaluateProposal(b).overall - evaluateProposal(a).overall;
-
-    const getEtaRank = (proposal: Proposal) =>
-      proposal.estimatedDays === null
-        ? Number.POSITIVE_INFINITY
-        : proposal.estimatedDays;
-    const byFastestEta = getEtaRank(a) - getEtaRank(b);
-
-    const byStableId = a.id.localeCompare(b.id);
-
-    switch (sortBy) {
-      case "LOWEST_PRICE":
-        return (
-          byLowestPrice ||
-          byHighestMatch ||
-          byFastestEta ||
-          byNewest ||
-          byStableId
-        );
-      case "FASTEST_ETA":
-        return (
-          byFastestEta ||
-          byHighestMatch ||
-          byLowestPrice ||
-          byNewest ||
-          byStableId
-        );
-      case "NEWEST":
-        return (
-          byNewest ||
-          byHighestMatch ||
-          byLowestPrice ||
-          byFastestEta ||
-          byStableId
-        );
-      case "HIGHEST_MATCH":
-      default:
-        return (
-          byHighestMatch ||
-          byLowestPrice ||
-          byFastestEta ||
-          byNewest ||
-          byStableId
-        );
-    }
-  });
 
   const getStatusColor = (status: ProposalStatus) => {
     switch (status) {

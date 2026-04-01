@@ -53,6 +53,7 @@ import {
   withFulfillmentPreference,
   type ProposalFulfillmentMode,
 } from "@/lib/proposals/fulfillmentMode";
+import { hasRole } from "@/lib/auth/roles";
 
 interface BookingTimelineResponse {
   bookingStatus?: string;
@@ -152,7 +153,7 @@ export default function JobDetailPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverLetterRef = useRef<HTMLTextAreaElement>(null);
-  const isProvider = session?.user?.role === "PROVIDER";
+  const isProvider = hasRole(session?.user, "PROVIDER");
 
   const { data: job, isLoading, error } = useJob(jobId);
   const { data: profile } = useProviderProfile(

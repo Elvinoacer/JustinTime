@@ -83,6 +83,7 @@ function PostJobPageContent() {
     Array<{ url: string; publicId: string }>
   >([]);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const stepRef = useRef<HTMLDivElement>(null);
 
@@ -143,7 +144,7 @@ function PostJobPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["job", editJobId] });
       setShowSuccessToast(true);
-      setTimeout(() => router.push("/client/dashboard"), 2000);
+      setTimeout(() => router.push(`/client/jobs/${editJobId}`), 2000);
     },
   });
 
@@ -152,11 +153,13 @@ function PostJobPageContent() {
     if (existingJob) {
       setFormData({
         title: existingJob.title || "",
-        category: existingJob.category?.slug || existingJob.categoryId || "",
+        category: existingJob.categoryId || existingJob.category?.id || "",
         description: existingJob.description || "",
         budget: existingJob.budget?.toString() || "",
         location: existingJob.location || "",
-        date: "",
+        date: existingJob.deadline
+          ? new Date(existingJob.deadline).toISOString().split("T")[0]
+          : "",
         maxApplicants: existingJob.maxApplicants?.toString() || "",
       });
       // Prefill images if they exist
@@ -345,6 +348,7 @@ function PostJobPageContent() {
   };
 
   const handleSubmit = async () => {
+    setSubmitError("");
     if (isQuickMode) {
       const quickErrors: Record<string, string> = {};
       if (!formData.title || formData.title.trim().length < 5) {
@@ -394,6 +398,7 @@ function PostJobPageContent() {
         }, 2000);
       } catch (error) {
         console.error("Failed to submit quick job:", error);
+        setSubmitError("Failed to submit quick job. Please try again.");
       }
       return;
     }
@@ -407,6 +412,7 @@ function PostJobPageContent() {
         category: formData.category,
         budget: Number(formData.budget),
         location: formData.location,
+        deadline: formData.date || undefined,
         images: uploadedImages.map((img) => img.url),
         maxApplicants: formData.maxApplicants
           ? Number(formData.maxApplicants)
@@ -432,6 +438,7 @@ function PostJobPageContent() {
       }
     } catch (error) {
       console.error("Failed to submit job:", error);
+      setSubmitError("Failed to submit job. Please try again.");
     }
   };
 
@@ -447,6 +454,21 @@ function PostJobPageContent() {
     preferencesComplete,
   ].filter(Boolean).length;
   const completionPercent = Math.round((completionCount / 3) * 100);
+
+  if (isEditMode && isLoadingJob) {
+    return (
+      <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-8">
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm flex items-center gap-3 text-gray-600">
+          <span className="material-symbols-outlined animate-spin text-emerald-600">
+            progress_activity
+          </span>
+          <p className="text-sm sm:text-base font-medium">
+            Loading job details...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-8 lg:py-10">
@@ -518,6 +540,11 @@ function PostJobPageContent() {
 
       {isQuickMode && (
         <div className="max-w-3xl rounded-2xl border border-emerald-100 bg-white p-5 sm:p-6 shadow-sm mb-6">
+          {submitError && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {submitError}
+            </div>
+          )}
           <h2 className="text-lg font-bold text-gray-900 mb-1">Quick Post</h2>
           <p className="text-sm text-gray-600 mb-4">
             Publish now, then enrich details to attract better proposals.
@@ -586,6 +613,11 @@ function PostJobPageContent() {
 
       {!isQuickMode && (
         <>
+          {submitError && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {submitError}
+            </div>
+          )}
           {/* Mobile Progress Steps (Simplified) */}
           {isMobile && (
             <div className="mb-6">

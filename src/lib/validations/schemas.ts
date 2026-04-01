@@ -58,6 +58,7 @@ export const createJobSchema = z.object({
   category: z.string().min(1, "Category is required"),
   budget: z.number().positive("Budget must be positive"),
   location: z.string().min(1, "Location is required"),
+  deadline: z.string().optional(),
   maxApplicants: z
     .number()
     .int()
@@ -78,6 +79,7 @@ export const updateJobSchema = z.object({
   category: z.string().optional(),
   budget: z.number().positive().optional(),
   location: z.string().optional(),
+  deadline: z.string().optional(),
   maxApplicants: z.number().int().positive().optional(),
   status: z.enum(["OPEN", "IN_PROGRESS", "COMPLETED", "CANCELLED"]).optional(),
   images: z.array(z.string()).optional(),

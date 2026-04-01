@@ -14,6 +14,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import NotificationPermissionOverlay from "@/components/NotificationPermissionOverlay";
 import { useSearchParams, useRouter } from "next/navigation";
+import { hasRole } from "@/lib/auth/roles";
 
 type DashboardFilters = {
   search: string;
@@ -213,7 +214,7 @@ const DashboardPage = () => {
       ? providerServicesData.services
       : [];
   const shouldShowServiceSetupPrompt =
-    session?.user?.role === "PROVIDER" && providerServices.length === 0;
+    hasRole(session?.user, "PROVIDER") && providerServices.length === 0;
 
   const handleSortChange = (
     newSortBy: string,
@@ -317,7 +318,7 @@ const DashboardPage = () => {
             </div>
           </div>
           {/* Only show Post Job button for CLIENT role */}
-          {session?.user?.role === "CLIENT" && (
+          {hasRole(session?.user, "CLIENT") && (
             <Link
               href="/client/post-job"
               className="flex items-center justify-center gap-2 bg-gray-900 text-white px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl active:transform active:scale-95 group w-full sm:w-auto"

@@ -446,7 +446,10 @@ export default auth((req) => {
     }
 
     // Role-based dashboard access
-    if (isOnProviderDashboard && userRole === "CLIENT") {
+    const userRoles = req.auth?.user?.roles as string[] | undefined;
+    const effectivelyClientOnly =
+      userRole === "CLIENT" && !userRoles?.includes("PROVIDER");
+    if (isOnProviderDashboard && effectivelyClientOnly) {
       return NextResponse.redirect(new URL("/onboarding", nextUrl));
     }
 

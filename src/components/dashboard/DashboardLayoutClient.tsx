@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useProviderProfile } from "@/lib/api/hooks/useProvider";
 import { OnboardingAccessNotice } from "@/components/revenue/OnboardingAccessNotice";
+import { hasRole } from "@/lib/auth/roles";
 
 export default function DashboardLayoutClient({
   children,
@@ -16,7 +17,7 @@ export default function DashboardLayoutClient({
 
   const { data: session } = useSession();
 
-  const isProvider = session?.user?.role === "PROVIDER";
+  const isProvider = hasRole(session?.user, "PROVIDER");
   const { data: profileData, isLoading: profileLoading } =
     useProviderProfile(isProvider);
   const needsVerificationActivation =

@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
+import { hasRole } from "@/lib/auth/roles";
 
 const navItems = [
   { name: "Dashboard", href: "/client/dashboard", icon: "dashboard" },
@@ -298,7 +299,7 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
 
           {/* Dashboard Switch - Role-based */}
           <div className="pt-2 mt-2 border-t border-gray-100">
-            {session?.user?.role === "PROVIDER" ? (
+            {hasRole(session?.user, "PROVIDER") ? (
               <Link
                 href="/dashboard"
                 onClick={onClose}
