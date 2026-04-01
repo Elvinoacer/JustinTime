@@ -1,5 +1,12 @@
 import React, { Dispatch, SetStateAction } from "react";
-import { addYears, format, isBefore, startOfDay, startOfMonth } from "date-fns";
+import {
+  addYears,
+  format,
+  isAfter,
+  isBefore,
+  startOfDay,
+  startOfMonth,
+} from "date-fns";
 import {
   AlertCircle,
   Calendar as CalendarIcon,
@@ -41,9 +48,38 @@ export default function BookingDateTimeSelection({
       day: { date: Date };
     };
 
-  const today = startOfDay(new Date());
-  const minMonth = startOfMonth(today);
-  const maxMonth = addYears(minMonth, 3);
+  const today = React.useMemo(() => startOfDay(new Date()), []);
+  const minMonth = React.useMemo(() => startOfMonth(today), [today]);
+  const maxMonth = React.useMemo(() => addYears(minMonth, 3), [minMonth]);
+  const [visibleMonth, setVisibleMonth] = React.useState<Date>(() =>
+    selectedDates[0] ? startOfMonth(selectedDates[0]) : minMonth,
+  );
+
+  const clampMonth = (month: Date) => {
+    const normalized = startOfMonth(month);
+
+    if (isBefore(normalized, minMonth)) return minMonth;
+    if (isAfter(normalized, maxMonth)) return maxMonth;
+
+    return normalized;
+  };
+
+  React.useEffect(() => {
+    if (selectedDates.length === 0) return;
+    const normalized = startOfMonth(selectedDates[0]);
+
+    if (isBefore(normalized, minMonth)) {
+      setVisibleMonth(minMonth);
+      return;
+    }
+
+    if (isAfter(normalized, maxMonth)) {
+      setVisibleMonth(maxMonth);
+      return;
+    }
+
+    setVisibleMonth(normalized);
+  }, [selectedDates, minMonth, maxMonth]);
 
   return (
     <>
@@ -77,12 +113,11 @@ export default function BookingDateTimeSelection({
           <Calendar
             mode="multiple"
             captionLayout="dropdown"
+            hideNavigation
             showOutsideDays={false}
+            month={visibleMonth}
             startMonth={minMonth}
             endMonth={maxMonth}
-            defaultMonth={
-              selectedDates[0] ? startOfMonth(selectedDates[0]) : minMonth
-            }
             selected={selectedDates}
             onSelect={(dates) => {
               if (dates) {
@@ -114,9 +149,11 @@ export default function BookingDateTimeSelection({
               (date) => disabledDates.includes(format(date, "yyyy-MM-dd")),
             ]}
             onMonthChange={(month) => {
-              fetchMonthlyAvailability(format(month, "yyyy-MM"));
+              const clampedMonth = clampMonth(month);
+              setVisibleMonth(clampedMonth);
+              fetchMonthlyAvailability(format(clampedMonth, "yyyy-MM"));
             }}
-            className="!w-full max-w-none p-0"
+            className="!w-full max-w-none p-0 [&_.rdp-month]:!w-full [&_.rdp-month_grid]:!w-full [&_.rdp-month_grid]:table-fixed [&_.rdp-weeks]:!w-full"
             classNames={{
               root: "!w-full max-w-none",
               months: "!w-full",
@@ -134,11 +171,13 @@ export default function BookingDateTimeSelection({
                 "absolute left-0 h-8 w-8 rounded-full border border-slate-200 bg-white sm:h-9 sm:w-9",
               button_next:
                 "absolute right-0 h-8 w-8 rounded-full border border-slate-200 bg-white sm:h-9 sm:w-9",
-              table: "w-full table-fixed border-separate border-spacing-y-1",
-              weekdays: "grid w-full grid-cols-7 gap-1 text-center sm:gap-2",
+              month_grid:
+                "w-full table-fixed border-separate border-spacing-y-1",
+              weekdays: "w-full",
               weekday:
                 "text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs",
-              week: "mt-1.5 grid w-full grid-cols-7 gap-1 sm:gap-2",
+              weeks: "w-full",
+              week: "mt-1.5",
               day: "w-full p-0",
             }}
             components={{
