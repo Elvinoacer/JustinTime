@@ -120,8 +120,10 @@ export default function ProfessionalDetailPage({
 
   const heroImage = galleryImages[0] || prof?.image || null;
   const headline =
-    prof?.bio?.split(".").find((part) => part.trim().length > 12)?.trim() ||
-    "Trusted professional available for booking on JustInTime.";
+    prof?.bio
+      ?.split(".")
+      .find((part) => part.trim().length > 12)
+      ?.trim() || "Trusted professional available for booking on JustInTime.";
   const memberSinceYear = prof
     ? new Date(prof.memberSince).getFullYear()
     : new Date().getFullYear();
@@ -249,17 +251,17 @@ export default function ProfessionalDetailPage({
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-slate-50 pb-24 lg:pb-0">
+      <div className="min-h-screen bg-slate-50 pb-32 lg:pb-0">
         <section className="relative overflow-hidden border-b border-emerald-100/70 bg-gradient-to-b from-white via-emerald-50/55 to-slate-50 pt-[var(--public-header-h)]">
           <div className="pointer-events-none absolute inset-0 opacity-80">
             <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-emerald-300/35 blur-3xl" />
             <div className="absolute right-0 top-16 h-72 w-72 rounded-full bg-sky-300/25 blur-3xl" />
             <div className="absolute bottom-0 left-1/3 h-48 w-96 rounded-full bg-teal-200/30 blur-3xl" />
           </div>
-          <div className="relative mx-auto max-w-7xl px-4 pb-10 pt-8 sm:px-6 sm:pb-12 sm:pt-10 lg:px-8">
+          <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 sm:pb-12 sm:pt-10 lg:px-8">
             <Link
               href="/professionals"
-              className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/85 px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm backdrop-blur-sm transition-colors hover:border-emerald-200 hover:text-emerald-700"
+              className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/85 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm backdrop-blur-sm transition-colors hover:border-emerald-200 hover:text-emerald-700 sm:text-sm"
             >
               <span className="material-symbols-outlined text-[18px]">
                 arrow_back
@@ -267,9 +269,9 @@ export default function ProfessionalDetailPage({
               Back to professionals
             </Link>
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] lg:items-start">
-              <div className="overflow-hidden rounded-[2rem] border border-white/80 bg-white/88 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.32)] backdrop-blur-sm">
-                <div className="relative min-h-[260px] overflow-hidden sm:min-h-[320px]">
+            <div className="mt-5 grid gap-4 lg:mt-6 lg:gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] lg:items-start">
+              <div className="overflow-hidden rounded-[1.75rem] border border-white/80 bg-white/88 shadow-[0_28px_80px_-40px_rgba(15,23,42,0.32)] backdrop-blur-sm sm:rounded-[2rem]">
+                <div className="relative min-h-[220px] overflow-hidden sm:min-h-[320px]">
                   {heroImage ? (
                     <Image
                       src={heroImage}
@@ -282,11 +284,11 @@ export default function ProfessionalDetailPage({
                   ) : (
                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/55 to-slate-950/15" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/92 via-slate-950/62 to-slate-950/18" />
                   <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-950/35 to-transparent" />
 
-                  <div className="relative flex h-full min-h-[260px] flex-col justify-between p-5 text-white sm:min-h-[320px] sm:p-7">
-                    <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative flex h-full min-h-[220px] flex-col justify-between p-4 text-white sm:min-h-[320px] sm:p-7">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                       {prof.isVerified ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-white/92 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-900 shadow-sm">
                           <span className="material-symbols-outlined text-[16px]">
@@ -301,15 +303,15 @@ export default function ProfessionalDetailPage({
                         </span>
                       ) : null}
                       {prof.location ? (
-                        <span className="rounded-full border border-white/15 bg-black/25 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm">
+                        <span className="max-w-[13rem] truncate rounded-full border border-white/15 bg-black/25 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm">
                           {prof.location}
                         </span>
                       ) : null}
                     </div>
 
-                    <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                       <div className="flex items-start gap-4">
-                        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-3xl border-4 border-white/90 bg-white shadow-xl sm:h-28 sm:w-28">
+                        <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-3xl border-4 border-white/90 bg-white shadow-xl sm:h-28 sm:w-28">
                           {prof.image ? (
                             <Image
                               src={prof.image}
@@ -327,13 +329,13 @@ export default function ProfessionalDetailPage({
                         </div>
 
                         <div className="min-w-0 self-end">
-                          <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
+                          <h1 className="text-balance text-2xl font-bold tracking-tight sm:text-4xl">
                             {prof.name}
                           </h1>
-                          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/82 sm:text-base">
+                          <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-relaxed text-white/82 sm:line-clamp-none sm:text-base">
                             {headline}
                           </p>
-                          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-white/84">
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/84 sm:mt-4 sm:gap-3 sm:text-sm">
                             <span className="inline-flex items-center gap-1">
                               <span
                                 className="material-symbols-outlined text-[18px] text-amber-300"
@@ -344,14 +346,28 @@ export default function ProfessionalDetailPage({
                               {prof.averageRating.toFixed(1)} rating
                             </span>
                             <span className="text-white/30">•</span>
-                            <span>{prof.totalReviews.toLocaleString()} reviews</span>
+                            <span>
+                              {prof.totalReviews.toLocaleString()} reviews
+                            </span>
                             <span className="text-white/30">•</span>
-                            <span>{prof.completedJobs.toLocaleString()} jobs completed</span>
+                            <span>
+                              {prof.completedJobs.toLocaleString()} jobs
+                              completed
+                            </span>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2 sm:hidden">
+                            <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                              From {formatCurrency(prof.hourlyRate)}/hr
+                            </span>
+                            <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                              {prof.services.length} services
+                            </span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 sm:min-w-[240px]">
+                      <div className="hidden grid-cols-2 gap-2 sm:grid sm:min-w-[240px]">
                         {statCards.slice(0, 2).map((card) => (
                           <div
                             key={card.label}
@@ -371,7 +387,7 @@ export default function ProfessionalDetailPage({
                 </div>
               </div>
 
-              <aside className="rounded-[2rem] border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.35)] sm:p-6">
+              <aside className="hidden rounded-[2rem] border border-slate-200/80 bg-white p-5 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.35)] sm:p-6 lg:block">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                   Book this professional
                 </p>
@@ -454,19 +470,124 @@ export default function ProfessionalDetailPage({
                 </div>
               </aside>
             </div>
+
+            <div className="mt-4 grid gap-3 lg:hidden">
+              <div className="rounded-[1.5rem] border border-slate-200/80 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Ready to book
+                    </p>
+                    <p className="mt-1 text-2xl font-bold tracking-tight text-emerald-800">
+                      {formatCurrency(prof.hourlyRate)}
+                      <span className="ml-1 text-sm font-semibold text-slate-500">
+                        /hr
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {prof.services.length > 0
+                        ? `${prof.services.length} service options available`
+                        : "Direct consultation available"}
+                    </p>
+                  </div>
+                  {prof.isVerified ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+                      <span className="material-symbols-outlined text-[14px]">
+                        verified
+                      </span>
+                      Verified
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleBookNow()}
+                    className="col-span-2 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      event_available
+                    </span>
+                    Book now
+                  </button>
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!hasPhone}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      chat
+                    </span>
+                    Message
+                  </button>
+                  <button
+                    onClick={handleShareProfile}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      share
+                    </span>
+                    Share
+                  </button>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/90 p-3">
+                  <InteractionBar
+                    id={prof.id}
+                    type="professional"
+                    initialViews={prof.views || 0}
+                    initialFavorites={prof.favorites || 0}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {statCards.slice(2).map((card) => (
+                  <div
+                    key={card.label}
+                    className="rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      {card.label}
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-slate-950">
+                      {card.value}
+                    </p>
+                  </div>
+                ))}
+                {prof.totalEarnings > 0 ? (
+                  <div className="col-span-2 rounded-2xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      Earned on JustInTime
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-slate-950">
+                      {formatCurrency(prof.totalEarnings)}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </div>
         </section>
 
-        <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+          <div className="grid gap-6 lg:gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="min-w-0">
-              <div className="mb-6 overflow-x-auto">
-                <div className="inline-flex min-w-full gap-2 rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm sm:min-w-0">
+              <div className="sticky top-[calc(var(--public-header-h)+0.5rem)] z-30 mb-5 -mx-1 overflow-x-auto px-1 py-1 sm:mx-0 sm:px-0 lg:static lg:top-auto lg:z-auto lg:mb-6 lg:py-0">
+                <div
+                  className="inline-flex min-w-full gap-2 rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-sm backdrop-blur sm:min-w-0"
+                  role="tablist"
+                  aria-label="Professional details sections"
+                >
                   {TABS.map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`relative inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                      role="tab"
+                      id={`${tab.id}-tab`}
+                      aria-controls={`${tab.id}-panel`}
+                      aria-selected={activeTab === tab.id}
+                      className={`relative inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold transition-colors sm:px-4 sm:py-3 sm:text-sm ${
                         activeTab === tab.id
                           ? "bg-emerald-600 text-white shadow-sm"
                           : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -488,19 +609,23 @@ export default function ProfessionalDetailPage({
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -12 }}
+                    id="about-panel"
+                    role="tabpanel"
+                    aria-labelledby="about-tab"
                     className="space-y-6"
                   >
-                    <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
+                    <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-4 shadow-sm sm:p-7">
                       <h2 className="text-xl font-bold tracking-tight text-slate-950">
                         About
                       </h2>
                       <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
-                        {prof.bio || "This professional has not added a full bio yet."}
+                        {prof.bio ||
+                          "This professional has not added a full bio yet."}
                       </p>
                     </section>
 
                     {prof.skills.length > 0 ? (
-                      <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
+                      <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-4 shadow-sm sm:p-7">
                         <h2 className="text-xl font-bold tracking-tight text-slate-950">
                           Skills & Expertise
                         </h2>
@@ -508,7 +633,7 @@ export default function ProfessionalDetailPage({
                           {prof.skills.map((skill, idx) => (
                             <span
                               key={`${skill}-${idx}`}
-                              className="rounded-full border border-emerald-100 bg-emerald-50 px-3.5 py-2 text-sm font-medium text-emerald-800"
+                              className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 sm:px-3.5 sm:py-2 sm:text-sm"
                             >
                               {skill}
                             </span>
@@ -517,10 +642,11 @@ export default function ProfessionalDetailPage({
                       </section>
                     ) : null}
 
-                    {educationItems.length > 0 || certificationItems.length > 0 ? (
+                    {educationItems.length > 0 ||
+                    certificationItems.length > 0 ? (
                       <div className="grid gap-6 md:grid-cols-2">
                         {educationItems.length > 0 ? (
-                          <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
+                          <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-4 shadow-sm sm:p-7">
                             <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-950">
                               <span className="material-symbols-outlined text-emerald-600">
                                 school
@@ -547,9 +673,10 @@ export default function ProfessionalDetailPage({
                                       {edu.institution}
                                     </p>
                                   ) : null}
-                                  {(edu.startYear || edu.endYear) ? (
+                                  {edu.startYear || edu.endYear ? (
                                     <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-400">
-                                      {edu.startYear || "Start"} - {edu.endYear || "Present"}
+                                      {edu.startYear || "Start"} -{" "}
+                                      {edu.endYear || "Present"}
                                     </p>
                                   ) : null}
                                 </div>
@@ -559,7 +686,7 @@ export default function ProfessionalDetailPage({
                         ) : null}
 
                         {certificationItems.length > 0 ? (
-                          <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7">
+                          <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-4 shadow-sm sm:p-7">
                             <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-950">
                               <span className="material-symbols-outlined text-emerald-600">
                                 workspace_premium
@@ -618,6 +745,9 @@ export default function ProfessionalDetailPage({
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -12 }}
+                    id="services-panel"
+                    role="tabpanel"
+                    aria-labelledby="services-tab"
                   >
                     {prof.services.length === 0 ? (
                       <div className="rounded-[1.75rem] border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
@@ -654,7 +784,9 @@ export default function ProfessionalDetailPage({
                               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent" />
                               <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-2">
                                 <span className="rounded-full bg-white/92 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-900 shadow-sm">
-                                  {service.pricingUnit === "hourly" ? "Hourly" : service.pricingUnit}
+                                  {service.pricingUnit === "hourly"
+                                    ? "Hourly"
+                                    : service.pricingUnit}
                                 </span>
                               </div>
                               <div className="absolute bottom-4 left-4 right-4">
@@ -677,12 +809,13 @@ export default function ProfessionalDetailPage({
                                 {service.title}
                               </h3>
                               <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">
-                                {service.description || "No service description provided yet."}
+                                {service.description ||
+                                  "No service description provided yet."}
                               </p>
                               <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
                                 <button
                                   onClick={() => handleBookNow(service.id)}
-                                  className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 sm:w-auto"
                                 >
                                   Book service
                                   <span className="material-symbols-outlined text-[18px]">
@@ -704,6 +837,9 @@ export default function ProfessionalDetailPage({
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -12 }}
+                    id="reviews-panel"
+                    role="tabpanel"
+                    aria-labelledby="reviews-tab"
                     className="space-y-4"
                   >
                     {prof.reviews.length === 0 ? (
@@ -722,7 +858,7 @@ export default function ProfessionalDetailPage({
                       prof.reviews.map((review) => (
                         <article
                           key={review.id}
-                          className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
+                          className="rounded-[1.75rem] border border-slate-200/80 bg-white p-4 shadow-sm sm:p-6"
                         >
                           <div className="flex items-start gap-4">
                             <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
@@ -755,7 +891,9 @@ export default function ProfessionalDetailPage({
                                 <div className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
                                   <span
                                     className="material-symbols-outlined text-[18px]"
-                                    style={{ fontVariationSettings: '"FILL" 1' }}
+                                    style={{
+                                      fontVariationSettings: '"FILL" 1',
+                                    }}
                                   >
                                     star
                                   </span>
@@ -775,12 +913,123 @@ export default function ProfessionalDetailPage({
                   </motion.div>
                 ) : null}
               </AnimatePresence>
+
+              <div className="mt-6 space-y-4 lg:hidden">
+                <section className="rounded-[1.5rem] border border-slate-200/80 bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-bold text-slate-950">
+                      Review summary
+                    </h2>
+                    <div className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                      <span
+                        className="material-symbols-outlined text-[16px]"
+                        style={{ fontVariationSettings: '"FILL" 1' }}
+                      >
+                        star
+                      </span>
+                      {prof.averageRating.toFixed(1)}
+                    </div>
+                  </div>
+                  <div className="mt-4 space-y-2.5">
+                    {prof.ratingDistribution.map((dist) => (
+                      <div
+                        key={`mobile-${dist.stars}`}
+                        className="flex items-center gap-2.5"
+                      >
+                        <div className="w-9 text-xs font-medium text-slate-600">
+                          {dist.stars}★
+                        </div>
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${
+                                totalRatingBars > 0
+                                  ? (dist.count / totalRatingBars) * 100
+                                  : 0
+                              }%`,
+                            }}
+                            transition={{ duration: 0.6 }}
+                            className="h-full rounded-full bg-amber-400"
+                          />
+                        </div>
+                        <div className="w-6 text-right text-xs text-slate-500">
+                          {dist.count}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                {socialLinks.length > 0 ? (
+                  <section className="rounded-[1.5rem] border border-slate-200/80 bg-white p-4 shadow-sm">
+                    <h2 className="text-base font-bold text-slate-950">
+                      Portfolio & Links
+                    </h2>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {socialLinks.map((link, idx) => {
+                        const platform = link.platform || "Website";
+                        const icon =
+                          SOCIAL_ICONS[platform.toLowerCase()] || "link";
+
+                        return (
+                          <a
+                            key={`mobile-link-${platform}-${idx}`}
+                            href={link.url || "#"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">
+                              {icon}
+                            </span>
+                            {platform}
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ) : null}
+
+                <details className="group rounded-[1.5rem] border border-slate-200/80 bg-white p-4 shadow-sm">
+                  <summary className="flex cursor-pointer list-none items-center justify-between text-base font-bold text-slate-950">
+                    Trust details
+                    <span className="material-symbols-outlined text-slate-500 transition-transform group-open:rotate-180">
+                      expand_more
+                    </span>
+                  </summary>
+                  <div className="mt-3 space-y-2.5">
+                    <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
+                      <span className="text-xs text-slate-600">
+                        Verification
+                      </span>
+                      <span className="text-xs font-semibold text-slate-950">
+                        {prof.isVerified ? "Verified" : "Standard"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
+                      <span className="text-xs text-slate-600">Plan</span>
+                      <span className="text-xs font-semibold text-slate-950">
+                        {isPremium ? prof.subscription?.plan : "FREE"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
+                      <span className="text-xs text-slate-600">Location</span>
+                      <span className="max-w-[9rem] truncate text-xs font-semibold text-slate-950">
+                        {prof.location || "Mobile service"}
+                      </span>
+                    </div>
+                  </div>
+                </details>
+              </div>
             </div>
 
-            <aside className="space-y-5">
+            <aside className="hidden space-y-5 lg:block">
               <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold text-slate-950">Review summary</h2>
+                  <h2 className="text-lg font-bold text-slate-950">
+                    Review summary
+                  </h2>
                   <div className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
                     <span
                       className="material-symbols-outlined text-[18px]"
@@ -850,7 +1099,9 @@ export default function ProfessionalDetailPage({
               ) : null}
 
               <section className="rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
-                <h2 className="text-lg font-bold text-slate-950">Trust details</h2>
+                <h2 className="text-lg font-bold text-slate-950">
+                  Trust details
+                </h2>
                 <div className="mt-4 space-y-3">
                   <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
                     <span className="text-sm text-slate-600">Verification</span>
@@ -876,20 +1127,23 @@ export default function ProfessionalDetailPage({
           </div>
         </main>
 
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/96 px-4 py-3 backdrop-blur lg:hidden">
-          <div className="mx-auto flex max-w-7xl items-center gap-3">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/96 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-10px_30px_-20px_rgba(15,23,42,0.45)] backdrop-blur lg:hidden">
+          <div className="mx-auto flex max-w-7xl items-center gap-2">
             <button
               onClick={handleSendMessage}
               disabled={!hasPhone}
-              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-800 disabled:opacity-50"
+              aria-label="Message professional"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-800 disabled:opacity-50"
             >
-              <span className="material-symbols-outlined text-[20px]">chat</span>
+              <span className="material-symbols-outlined text-[19px]">
+                chat
+              </span>
             </button>
             <button
               onClick={() => handleBookNow()}
-              className="flex-1 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white"
+              className="flex-1 rounded-2xl bg-gradient-to-r from-slate-950 to-emerald-700 px-4 py-3 text-sm font-semibold text-white"
             >
-              Book {formatCurrency(prof.hourlyRate)}/hr
+              Book from {formatCurrency(prof.hourlyRate)}/hr
             </button>
           </div>
         </div>
