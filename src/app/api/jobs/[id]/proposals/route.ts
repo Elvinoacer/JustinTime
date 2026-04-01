@@ -161,6 +161,26 @@ export async function GET(
     );
 
     const providerIds = Array.from(new Set(proposals.map((p) => p.providerId)));
+
+    const providerSkillIds = Array.from(
+      new Set(
+        proposals.flatMap(
+          (proposal) => proposal.provider.profile?.skills ?? [],
+        ),
+      ),
+    );
+
+    const skillCategoryMap =
+      providerSkillIds.length > 0
+        ? new Map(
+            (
+              await prisma.category.findMany({
+                where: { id: { in: providerSkillIds } },
+                select: { id: true, name: true },
+              })
+            ).map((category) => [category.id, category.name]),
+          )
+        : new Map<string, string>();
     const providerBookings =
       providerIds.length > 0
         ? await prisma.booking.findMany({
@@ -361,7 +381,9 @@ export async function GET(
           isVerified:
             Boolean(providerProfile?.isVerified) ||
             providerProfile?.verificationStatus === "VERIFIED",
-          skills: providerProfile?.skills ?? [],
+          skills: (providerProfile?.skills ?? []).map(
+            (skillId) => skillCategoryMap.get(skillId) || skillId,
+          ),
           certifications: providerProfile?.certifications ?? [],
           metrics: {
             responseTimeHours,

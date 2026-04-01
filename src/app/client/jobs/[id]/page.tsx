@@ -158,6 +158,11 @@ function getTrustMetricText(
   return formatter(value);
 }
 
+function isLikelyRecordId(value: string) {
+  // CUID-like IDs (e.g., cmn...): hide these from human-facing skill chips.
+  return /^c[a-z0-9]{20,}$/i.test(value.trim());
+}
+
 interface Job {
   id: string;
   title: string;
@@ -1086,7 +1091,10 @@ export default function JobDetailsPage() {
                         {(proposal.provider.skills?.length || 0) > 0 ? (
                           <div className="mb-3 flex flex-wrap gap-1.5">
                             {proposal.provider
-                              .skills!.slice(0, 4)
+                              .skills!.filter(
+                                (skill) => skill && !isLikelyRecordId(skill),
+                              )
+                              .slice(0, 4)
                               .map((skill) => (
                                 <span
                                   key={`${proposal.id}-${skill}`}

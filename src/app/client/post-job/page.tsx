@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api/client";
 import CategorySelector from "@/components/CategorySelector";
 import { useJobsEvents } from "@/hooks/useJobsEvents";
+import { getCurrentLocation } from "@/lib/utils/geolocation";
 
 // Steps configuration
 const steps = [
@@ -84,6 +85,8 @@ function PostJobPageContent() {
   >([]);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [locationFetchError, setLocationFetchError] = useState("");
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const stepRef = useRef<HTMLDivElement>(null);
 
@@ -332,6 +335,55 @@ function PostJobPageContent() {
     setFormData({ ...formData, category: categoryId });
     if (errors.category) {
       setErrors({ ...errors, category: "" });
+    }
+  };
+
+  const reverseGeocode = async (latitude: number, longitude: number) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+        {
+          headers: {
+            "User-Agent": "JustInTime/1.0 (support@gtss.software)",
+            "Accept-Language": "en",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Reverse geocoding failed");
+      }
+
+      const data = await response.json();
+      return (
+        data?.display_name || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
+      );
+    } catch {
+      return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+    }
+  };
+
+  const handleUseCurrentLocation = async () => {
+    setLocationFetchError("");
+    setIsFetchingLocation(true);
+
+    try {
+      const position = await getCurrentLocation();
+      const address = await reverseGeocode(
+        position.latitude,
+        position.longitude,
+      );
+
+      setFormData((prev) => ({ ...prev, location: address }));
+      setErrors((prev) => ({ ...prev, location: "" }));
+    } catch (error) {
+      setLocationFetchError(
+        error instanceof Error
+          ? error.message
+          : "Unable to detect your current location",
+      );
+    } finally {
+      setIsFetchingLocation(false);
     }
   };
 
@@ -584,9 +636,22 @@ function PostJobPageContent() {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Location
-                </label>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Location
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleUseCurrentLocation}
+                    disabled={isFetchingLocation}
+                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      my_location
+                    </span>
+                    {isFetchingLocation ? "Locating..." : "Use Current"}
+                  </button>
+                </div>
                 <input
                   type="text"
                   name="location"
@@ -597,6 +662,11 @@ function PostJobPageContent() {
                 />
                 {errors.location && (
                   <p className="mt-1 text-xs text-red-600">{errors.location}</p>
+                )}
+                {locationFetchError && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {locationFetchError}
+                  </p>
                 )}
               </div>
             </div>
@@ -1149,12 +1219,27 @@ function PostJobPageContent() {
                         </div>
 
                         <div>
-                          <label
-                            htmlFor="location"
-                            className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2"
-                          >
-                            Location <span className="text-red-500">*</span>
-                          </label>
+                          <div className="mb-1.5 sm:mb-2 flex items-center justify-between gap-2">
+                            <label
+                              htmlFor="location"
+                              className="block text-sm font-bold text-gray-700"
+                            >
+                              Location <span className="text-red-500">*</span>
+                            </label>
+                            <button
+                              type="button"
+                              onClick={handleUseCurrentLocation}
+                              disabled={isFetchingLocation}
+                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <span className="material-symbols-outlined text-sm">
+                                my_location
+                              </span>
+                              {isFetchingLocation
+                                ? "Detecting..."
+                                : "Use Current Location"}
+                            </button>
+                          </div>
                           <div className="relative">
                             <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                               <span className="material-symbols-outlined text-gray-400 text-sm">
@@ -1188,6 +1273,14 @@ function PostJobPageContent() {
                                 error
                               </span>
                               {errors.location}
+                            </p>
+                          )}
+                          {locationFetchError && (
+                            <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center gap-1">
+                              <span className="material-symbols-outlined text-xs">
+                                location_off
+                              </span>
+                              {locationFetchError}
                             </p>
                           )}
                         </div>
