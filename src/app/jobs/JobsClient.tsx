@@ -390,7 +390,10 @@ const JobsPage = () => {
 
               <div className="flex items-center justify-between border-t border-slate-100 pt-3">
                 <span className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
-                  <CheckCircle className="h-4 w-4 text-emerald-600" aria-hidden />
+                  <CheckCircle
+                    className="h-4 w-4 text-emerald-600"
+                    aria-hidden
+                  />
                   Verified clients only
                 </span>
                 <button

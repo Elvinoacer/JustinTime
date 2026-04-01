@@ -319,13 +319,17 @@ function RadarBrowse({
     }
   }, []);
 
-  const applyHeading = useCallback((heading: number) => {
-    pendingHeadingRef.current = normalizeHeading(heading);
+  const applyHeading = useCallback(
+    (heading: number) => {
+      pendingHeadingRef.current = normalizeHeading(heading);
 
-    if (headingFrameRef.current == null && typeof window !== "undefined") {
-      headingFrameRef.current = window.requestAnimationFrame(flushHeadingFrame);
-    }
-  }, [flushHeadingFrame]);
+      if (headingFrameRef.current == null && typeof window !== "undefined") {
+        headingFrameRef.current =
+          window.requestAnimationFrame(flushHeadingFrame);
+      }
+    },
+    [flushHeadingFrame],
+  );
 
   const listenToOrientation = useCallback(() => {
     const orientationEventName =
