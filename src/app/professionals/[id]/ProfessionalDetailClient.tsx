@@ -77,6 +77,14 @@ function getSafeUrl(url?: string) {
   }
 }
 
+function formatLabel(value?: string | null) {
+  if (!value) return null;
+  return value
+    .replace(/[_-]+/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export default function ProfessionalDetailPage({
   params,
 }: {
@@ -85,6 +93,7 @@ export default function ProfessionalDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabId>("about");
+  const [isBioExpanded, setIsBioExpanded] = useState(false);
   const { data, isLoading, error } = useProfessional(id);
   const professional = data?.data;
 
@@ -124,6 +133,9 @@ export default function ProfessionalDetailPage({
       ?.split(".")
       .find((part) => part.trim().length > 12)
       ?.trim() || "Trusted professional available for booking on JustInTime.";
+  const fullBio =
+    prof?.bio || "This professional has not added a full bio yet.";
+  const shouldClampBio = fullBio.length > 220;
   const memberSinceYear = prof
     ? new Date(prof.memberSince).getFullYear()
     : new Date().getFullYear();
@@ -363,6 +375,14 @@ export default function ProfessionalDetailPage({
                             <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
                               {prof.services.length} services
                             </span>
+                            <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                              {prof.averageRating.toFixed(1)} rating
+                            </span>
+                            {prof.location ? (
+                              <span className="max-w-[12rem] truncate rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                                {prof.location}
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -587,7 +607,7 @@ export default function ProfessionalDetailPage({
                       id={`${tab.id}-tab`}
                       aria-controls={`${tab.id}-panel`}
                       aria-selected={activeTab === tab.id}
-                      className={`relative inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold transition-colors sm:px-4 sm:py-3 sm:text-sm ${
+                      className={`relative inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2.5 text-xs font-semibold transition-colors sm:flex-none sm:gap-2 sm:px-4 sm:py-3 sm:text-sm ${
                         activeTab === tab.id
                           ? "bg-emerald-600 text-white shadow-sm"
                           : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -618,10 +638,27 @@ export default function ProfessionalDetailPage({
                       <h2 className="text-xl font-bold tracking-tight text-slate-950">
                         About
                       </h2>
-                      <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
-                        {prof.bio ||
-                          "This professional has not added a full bio yet."}
+                      <p
+                        className={`mt-4 text-sm leading-7 text-slate-600 transition-all sm:text-base ${
+                          shouldClampBio && !isBioExpanded
+                            ? "line-clamp-4 sm:line-clamp-none"
+                            : ""
+                        }`}
+                      >
+                        {fullBio}
                       </p>
+                      {shouldClampBio ? (
+                        <button
+                          type="button"
+                          onClick={() => setIsBioExpanded((prev) => !prev)}
+                          className="mt-3 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-emerald-200 hover:text-emerald-700 sm:hidden"
+                        >
+                          {isBioExpanded ? "Show less" : "Read more"}
+                          <span className="material-symbols-outlined text-[16px]">
+                            {isBioExpanded ? "expand_less" : "expand_more"}
+                          </span>
+                        </button>
+                      ) : null}
                     </section>
 
                     {prof.skills.length > 0 ? (
@@ -812,6 +849,34 @@ export default function ProfessionalDetailPage({
                                 {service.description ||
                                   "No service description provided yet."}
                               </p>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {service.defaultDuration ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                                    <span className="material-symbols-outlined text-[14px]">
+                                      schedule
+                                    </span>
+                                    {service.defaultDuration} min
+                                  </span>
+                                ) : null}
+                                {service.locationType ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                                    <span className="material-symbols-outlined text-[14px]">
+                                      place
+                                    </span>
+                                    {formatLabel(service.locationType)}
+                                  </span>
+                                ) : null}
+                                {service.location ? (
+                                  <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                                    <span className="material-symbols-outlined text-[14px]">
+                                      location_on
+                                    </span>
+                                    <span className="max-w-[9rem] truncate">
+                                      {service.location}
+                                    </span>
+                                  </span>
+                                ) : null}
+                              </div>
                               <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
                                 <button
                                   onClick={() => handleBookNow(service.id)}
@@ -1141,9 +1206,14 @@ export default function ProfessionalDetailPage({
             </button>
             <button
               onClick={() => handleBookNow()}
-              className="flex-1 rounded-2xl bg-gradient-to-r from-slate-950 to-emerald-700 px-4 py-3 text-sm font-semibold text-white"
+              className="flex-1 rounded-2xl bg-gradient-to-r from-slate-950 to-emerald-700 px-4 py-2.5 text-left text-white"
             >
-              Book from {formatCurrency(prof.hourlyRate)}/hr
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">
+                Quick booking
+              </span>
+              <span className="mt-0.5 block text-sm font-semibold">
+                Book from {formatCurrency(prof.hourlyRate)}/hr
+              </span>
             </button>
           </div>
         </div>
