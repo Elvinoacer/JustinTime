@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useCategories } from "@/lib/api/hooks/useServices";
 import { usePublicJobsInfinite } from "@/lib/api/hooks/usePublicJobs";
 import { useHeroToolbarCompact } from "@/lib/hooks/useHeroToolbarCompact";
+import { useScrollActionBarVisibility } from "@/lib/hooks/useScrollActionBarVisibility";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import InfiniteScrollSentinel from "@/components/shared/InfiniteScrollSentinel";
@@ -37,7 +38,6 @@ const STATUS_TABS = [
 
 const JobsPage = () => {
   const heroRef = useRef<HTMLElement>(null);
-  const lastScrollYRef = useRef(0);
   const toolbarCompact = useHeroToolbarCompact(heroRef);
 
   const [searchInput, setSearchInput] = useState("");
@@ -48,7 +48,7 @@ const JobsPage = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "radar">("cards");
   const [mobileToolbarExpanded, setMobileToolbarExpanded] = useState(true);
-  const [showMobileActionBar, setShowMobileActionBar] = useState(true);
+  const showMobileActionBar = useScrollActionBarVisibility();
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -148,36 +148,6 @@ const JobsPage = () => {
   useEffect(() => {
     setMobileToolbarExpanded(!toolbarCompact);
   }, [toolbarCompact]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const handleScrollDirection = () => {
-      const currentY = window.scrollY;
-      const delta = currentY - lastScrollYRef.current;
-
-      if (currentY < 96) {
-        setShowMobileActionBar(true);
-      } else if (delta > 10) {
-        setShowMobileActionBar(false);
-      } else if (delta < -8) {
-        setShowMobileActionBar(true);
-      }
-
-      lastScrollYRef.current = currentY;
-    };
-
-    lastScrollYRef.current = window.scrollY;
-    window.addEventListener("scroll", handleScrollDirection, {
-      passive: true,
-    });
-
-    return () => {
-      window.removeEventListener("scroll", handleScrollDirection);
-    };
-  }, []);
 
   return (
     <div className="relative flex min-h-screen flex-col bg-slate-50">
@@ -488,7 +458,6 @@ const JobsPage = () => {
                   description="Scan opportunities by true distance and direction from where you are now."
                   hasUserLocation={Boolean(userLocation)}
                   items={radarItems}
-                  allowedTypes={["job"]}
                   autoFullscreenOnMount
                 />
               ) : null}

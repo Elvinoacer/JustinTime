@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   Fragment,
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -230,7 +231,7 @@ function getTouchDistance(touches: TouchList) {
   return Math.hypot(dx, dy);
 }
 
-export default function RadarBrowse({
+function RadarBrowse({
   title,
   description,
   items,
@@ -239,7 +240,11 @@ export default function RadarBrowse({
   autoFullscreenOnMount = false,
 }: RadarBrowseProps) {
   const radarFrameRef = useRef<HTMLDivElement | null>(null);
+  const radarRotationRef = useRef<HTMLDivElement | null>(null);
   const headingLockedRef = useRef(false);
+  const headingValueRef = useRef(0);
+  const headingLabelRef = useRef(0);
+  const headingLabelUpdateAtRef = useRef(0);
   const attemptedAutoFullscreenRef = useRef(false);
   const pinchStartRef = useRef<{ distance: number; scale: number } | null>(
     null,
@@ -256,6 +261,25 @@ export default function RadarBrowse({
     headingLockedRef.current = headingLocked;
   }, [headingLocked]);
 
+  const applyHeading = useCallback((heading: number) => {
+    headingValueRef.current = heading;
+
+    if (radarRotationRef.current) {
+      radarRotationRef.current.style.transform = `rotate(${-heading}deg)`;
+    }
+
+    const now =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (
+      Math.abs(heading - headingLabelRef.current) >= 1.5 &&
+      now - headingLabelUpdateAtRef.current >= 120
+    ) {
+      headingLabelRef.current = heading;
+      headingLabelUpdateAtRef.current = now;
+      setHeadingDeg(heading);
+    }
+  }, []);
+
   const listenToOrientation = useCallback(() => {
     const handleOrientation = (event: Event) => {
       if (headingLockedRef.current) {
@@ -267,7 +291,7 @@ export default function RadarBrowse({
       if (heading == null) {
         return;
       }
-      setHeadingDeg(heading);
+      applyHeading(heading);
       setCompassError(null);
     };
 
@@ -290,6 +314,12 @@ export default function RadarBrowse({
         capture: true,
       });
     };
+  }, [applyHeading]);
+
+  useEffect(() => {
+    if (radarRotationRef.current) {
+      radarRotationRef.current.style.transform = `rotate(${-headingValueRef.current}deg)`;
+    }
   }, []);
 
   useEffect(() => {
@@ -492,6 +522,86 @@ export default function RadarBrowse({
     setDistanceScaleKm(clampDistanceScale(autoMaxDistanceKm));
   }, [autoMaxDistanceKm, clampDistanceScale]);
 
+  const pointLayouts = useMemo(() => {
+    const plottedItems = sorted.slice(0, 60);
+    const occupiedLabelRects: Rect[] = [];
+
+    return plottedItems.map((item) => {
+      const label = itemTypeLabel(item);
+      const pointColor = colorFromKey((item.colorKey ?? label).toLowerCase());
+      const pos = pointPosition(
+        item.distanceKm,
+        item.bearingDeg,
+        maxDistanceKm,
+      );
+      const pointX = (pos.x / 100) * RADAR_LAYOUT_SIZE;
+      const pointY = (pos.y / 100) * RADAR_LAYOUT_SIZE;
+      const labelRect = getLabelPlacement(pointX, pointY, occupiedLabelRects);
+
+      const labelCenterX = labelRect.left + labelRect.width / 2;
+      const labelCenterY = labelRect.top + labelRect.height / 2;
+      const toPointX = pointX - labelCenterX;
+      const toPointY = pointY - labelCenterY;
+      const absX = Math.abs(toPointX) || 0.0001;
+      const absY = Math.abs(toPointY) || 0.0001;
+      const halfW = labelRect.width / 2;
+      const halfH = labelRect.height / 2;
+      const edgeScale = Math.min(halfW / absX, halfH / absY);
+      const anchorX = labelCenterX + toPointX * edgeScale;
+      const anchorY = labelCenterY + toPointY * edgeScale;
+      const connectorDx = anchorX - pointX;
+      const connectorDy = anchorY - pointY;
+      const connectorLengthPx = Math.hypot(connectorDx, connectorDy);
+      const connectorAngleDeg =
+        (Math.atan2(connectorDy, connectorDx) * 180) / Math.PI;
+      const pointPercent = {
+        left: `${pos.x}%`,
+        top: `${pos.y}%`,
+      };
+      const labelAnchorPercent = {
+        left: `${(anchorX / RADAR_LAYOUT_SIZE) * 100}%`,
+        top: `${(anchorY / RADAR_LAYOUT_SIZE) * 100}%`,
+      };
+
+      return {
+        item,
+        label,
+        pointColor,
+        pos,
+        pointPercent,
+        labelAnchorPercent,
+        connectorStyle:
+          connectorLengthPx > 4
+            ? {
+                left: `${pos.x}%`,
+                top: `${pos.y}%`,
+                width: `${(connectorLengthPx / RADAR_LAYOUT_SIZE) * 100}%`,
+                transform: `translateY(-50%) rotate(${connectorAngleDeg}deg)`,
+              }
+            : null,
+        labelStyle: {
+          left: `${((labelRect.left + labelRect.width / 2) / RADAR_LAYOUT_SIZE) * 100}%`,
+          top: `${((labelRect.top + labelRect.height / 2) / RADAR_LAYOUT_SIZE) * 100}%`,
+          width: `${labelRect.width}px`,
+        },
+      };
+    });
+  }, [maxDistanceKm, sorted]);
+
+  const legend = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          sorted.map((item) => {
+            const label = itemTypeLabel(item);
+            const key = (item.colorKey ?? label).toLowerCase();
+            return [label, colorFromKey(key)] as const;
+          }),
+        ).entries(),
+      ).slice(0, 10),
+    [sorted],
+  );
+
   if (!hasUserLocation) {
     return (
       <section className="overflow-hidden rounded-3xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 p-6 shadow-sm">
@@ -518,74 +628,6 @@ export default function RadarBrowse({
       </section>
     );
   }
-
-  const plottedItems = sorted.slice(0, 60);
-  const occupiedLabelRects: Rect[] = [];
-  const pointLayouts = plottedItems.map((item) => {
-    const label = itemTypeLabel(item);
-    const pointColor = colorFromKey((item.colorKey ?? label).toLowerCase());
-    const pos = pointPosition(item.distanceKm, item.bearingDeg, maxDistanceKm);
-    const pointX = (pos.x / 100) * RADAR_LAYOUT_SIZE;
-    const pointY = (pos.y / 100) * RADAR_LAYOUT_SIZE;
-    const labelRect = getLabelPlacement(pointX, pointY, occupiedLabelRects);
-
-    const labelCenterX = labelRect.left + labelRect.width / 2;
-    const labelCenterY = labelRect.top + labelRect.height / 2;
-    const toPointX = pointX - labelCenterX;
-    const toPointY = pointY - labelCenterY;
-    const absX = Math.abs(toPointX) || 0.0001;
-    const absY = Math.abs(toPointY) || 0.0001;
-    const halfW = labelRect.width / 2;
-    const halfH = labelRect.height / 2;
-    const edgeScale = Math.min(halfW / absX, halfH / absY);
-    const anchorX = labelCenterX + toPointX * edgeScale;
-    const anchorY = labelCenterY + toPointY * edgeScale;
-    const connectorDx = anchorX - pointX;
-    const connectorDy = anchorY - pointY;
-    const connectorLengthPx = Math.hypot(connectorDx, connectorDy);
-    const connectorAngleDeg =
-      (Math.atan2(connectorDy, connectorDx) * 180) / Math.PI;
-    const pointPercent = {
-      left: `${pos.x}%`,
-      top: `${pos.y}%`,
-    };
-    const labelAnchorPercent = {
-      left: `${(anchorX / RADAR_LAYOUT_SIZE) * 100}%`,
-      top: `${(anchorY / RADAR_LAYOUT_SIZE) * 100}%`,
-    };
-
-    return {
-      item,
-      label,
-      pointColor,
-      pos,
-      pointPercent,
-      labelAnchorPercent,
-      connectorStyle:
-        connectorLengthPx > 4
-          ? {
-              left: `${pos.x}%`,
-              top: `${pos.y}%`,
-              width: `${(connectorLengthPx / RADAR_LAYOUT_SIZE) * 100}%`,
-              transform: `translateY(-50%) rotate(${connectorAngleDeg}deg)`,
-            }
-          : null,
-      labelStyle: {
-        left: `${((labelRect.left + labelRect.width / 2) / RADAR_LAYOUT_SIZE) * 100}%`,
-        top: `${((labelRect.top + labelRect.height / 2) / RADAR_LAYOUT_SIZE) * 100}%`,
-        width: `${labelRect.width}px`,
-      },
-    };
-  });
-  const legend = Array.from(
-    new Map(
-      sorted.map((item) => {
-        const label = itemTypeLabel(item);
-        const key = (item.colorKey ?? label).toLowerCase();
-        return [label, colorFromKey(key)] as const;
-      }),
-    ).entries(),
-  ).slice(0, 10);
 
   return (
     <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_48px_-28px_rgba(15,23,42,0.35)]">
@@ -619,6 +661,9 @@ export default function RadarBrowse({
                   : "mx-auto max-w-none rounded-[2rem] lg:max-w-[640px]"
               }`}
               onWheel={(event) => {
+                if (!(event.ctrlKey || event.metaKey)) {
+                  return;
+                }
                 event.preventDefault();
                 setDistanceScaleKm((prev) =>
                   clampDistanceScale(prev * (event.deltaY > 0 ? 1.1 : 0.9)),
@@ -678,8 +723,8 @@ export default function RadarBrowse({
               </div>
 
               <div
+                ref={radarRotationRef}
                 className="absolute inset-0 transition-transform duration-300 ease-out"
-                style={{ transform: `rotate(${-headingDeg}deg)` }}
               >
                 <div className="absolute inset-[9%] rounded-full border border-emerald-200/25" />
                 <div className="absolute inset-[22%] rounded-full border border-emerald-200/25" />
@@ -819,7 +864,7 @@ export default function RadarBrowse({
                   </button>
                 </div>
                 <p className="mt-1 text-[10px] text-emerald-100/85">
-                  Pinch or scroll on the radar to zoom. Smaller km = closer
+                  Pinch or use Ctrl/Cmd + scroll to zoom. Smaller km = closer
                   zoom.
                 </p>
               </div>
@@ -929,3 +974,7 @@ export default function RadarBrowse({
     </section>
   );
 }
+
+RadarBrowse.displayName = "RadarBrowse";
+
+export default memo(RadarBrowse);

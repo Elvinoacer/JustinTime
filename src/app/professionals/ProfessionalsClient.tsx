@@ -18,6 +18,7 @@ import RadarBrowse, {
 } from "@/components/marketplace/RadarBrowse";
 import { useProfessionalsInfinite } from "@/lib/api/hooks/useProfessionals";
 import { useHeroToolbarCompact } from "@/lib/hooks/useHeroToolbarCompact";
+import { useScrollActionBarVisibility } from "@/lib/hooks/useScrollActionBarVisibility";
 import { calculateBearing, calculateDistance } from "@/lib/utils/geolocation";
 import {
   Search,
@@ -53,7 +54,6 @@ const SORT_OPTIONS = (
 
 export default function ProfessionalsPage() {
   const heroRef = useRef<HTMLElement>(null);
-  const lastScrollYRef = useRef(0);
   const toolbarCompact = useHeroToolbarCompact(heroRef);
 
   const [searchInput, setSearchInput] = useState("");
@@ -66,7 +66,7 @@ export default function ProfessionalsPage() {
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "radar">("cards");
   const [mobileToolbarExpanded, setMobileToolbarExpanded] = useState(true);
-  const [showMobileActionBar, setShowMobileActionBar] = useState(true);
+  const showMobileActionBar = useScrollActionBarVisibility();
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -179,36 +179,6 @@ export default function ProfessionalsPage() {
   useEffect(() => {
     setMobileToolbarExpanded(!toolbarCompact);
   }, [toolbarCompact]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const handleScrollDirection = () => {
-      const currentY = window.scrollY;
-      const delta = currentY - lastScrollYRef.current;
-
-      if (currentY < 96) {
-        setShowMobileActionBar(true);
-      } else if (delta > 10) {
-        setShowMobileActionBar(false);
-      } else if (delta < -8) {
-        setShowMobileActionBar(true);
-      }
-
-      lastScrollYRef.current = currentY;
-    };
-
-    lastScrollYRef.current = window.scrollY;
-    window.addEventListener("scroll", handleScrollDirection, {
-      passive: true,
-    });
-
-    return () => {
-      window.removeEventListener("scroll", handleScrollDirection);
-    };
-  }, []);
 
   return (
     <div className="relative flex min-h-screen flex-col bg-slate-50">
@@ -555,7 +525,6 @@ export default function ProfessionalsPage() {
                   description="Browse experts around you by direction and true travel distance."
                   hasUserLocation={Boolean(userLocation)}
                   items={radarItems}
-                  allowedTypes={["professional"]}
                   autoFullscreenOnMount
                 />
               )}

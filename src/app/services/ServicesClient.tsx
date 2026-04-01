@@ -21,6 +21,8 @@ import SortBottomSheet from "@/components/shared/SortBottomSheet";
 import GuestCTAStrip from "@/components/shared/GuestCTAStrip";
 
 import { useCategories, ServicesFilters } from "@/lib/api/hooks/useServices";
+import { useHeroToolbarCompact } from "@/lib/hooks/useHeroToolbarCompact";
+import { useScrollActionBarVisibility } from "@/lib/hooks/useScrollActionBarVisibility";
 import { useSearchParams } from "next/navigation";
 import { clearLocationFromStorage } from "@/lib/utils/geolocation";
 
@@ -152,62 +154,13 @@ function ServicesPageContent() {
   }, [userLocation]);
 
   const heroRef = useRef<HTMLElement | null>(null);
-  const lastScrollYRef = useRef(0);
-  const [toolbarCompact, setToolbarCompact] = useState(false);
+  const toolbarCompact = useHeroToolbarCompact(heroRef);
   const [mobileToolbarExpanded, setMobileToolbarExpanded] = useState(true);
-  const [showMobileActionBar, setShowMobileActionBar] = useState(true);
-
-  useEffect(() => {
-    const hero = heroRef.current;
-    if (!hero) return;
-
-    const update = () => {
-      const r = hero.getBoundingClientRect();
-      setToolbarCompact(r.bottom <= 1);
-    };
-
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-    };
-  }, []);
+  const showMobileActionBar = useScrollActionBarVisibility();
 
   useEffect(() => {
     setMobileToolbarExpanded(!toolbarCompact);
   }, [toolbarCompact]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const handleScrollDirection = () => {
-      const currentY = window.scrollY;
-      const delta = currentY - lastScrollYRef.current;
-
-      if (currentY < 96) {
-        setShowMobileActionBar(true);
-      } else if (delta > 10) {
-        setShowMobileActionBar(false);
-      } else if (delta < -8) {
-        setShowMobileActionBar(true);
-      }
-
-      lastScrollYRef.current = currentY;
-    };
-
-    lastScrollYRef.current = window.scrollY;
-    window.addEventListener("scroll", handleScrollDirection, {
-      passive: true,
-    });
-
-    return () => {
-      window.removeEventListener("scroll", handleScrollDirection);
-    };
-  }, []);
 
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-slate-50">
