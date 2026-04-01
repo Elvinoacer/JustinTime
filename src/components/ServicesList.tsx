@@ -12,7 +12,6 @@ import InfiniteScrollSentinel from "@/components/shared/InfiniteScrollSentinel";
 import RadarBrowse, {
   type RadarBrowseItem,
 } from "@/components/marketplace/RadarBrowse";
-import StickyRadarCta from "@/components/marketplace/StickyRadarCta";
 import { calculateBearing, calculateDistance } from "@/lib/utils/geolocation";
 
 /** API may return `subscription` as `{ plan, isActive }` or legacy string */
@@ -258,12 +257,6 @@ const ServicesList = ({
           </div>
 
           <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm">
-            <Link
-              href="/radar"
-              className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
-            >
-              Unified Radar
-            </Link>
             <button
               type="button"
               onClick={() => setViewMode("cards")}
@@ -395,8 +388,6 @@ const ServicesList = ({
           </Link>
         </div>
       </div>
-
-      <StickyRadarCta />
     </div>
   );
 };

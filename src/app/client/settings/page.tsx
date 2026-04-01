@@ -38,7 +38,6 @@ import {
 } from "lucide-react";
 
 import { useFcmToken } from "@/lib/hooks/useFcmToken";
-import { RADAR_CTA_STORAGE_KEY } from "@/components/marketplace/StickyRadarCta";
 
 // PushNotificationToggle Component
 function PushNotificationToggle() {
@@ -366,24 +365,6 @@ export default function ClientSettingsPage() {
       );
     } finally {
       setIsChangingPassword(false);
-    }
-  };
-
-  const handleRestoreRadarShortcut = () => {
-    try {
-      window.localStorage.removeItem(RADAR_CTA_STORAGE_KEY);
-      toast.success("Radar shortcut restored on mobile browsing pages");
-    } catch {
-      toast.error("Could not update shortcut preference right now");
-    }
-  };
-
-  const handleHideRadarShortcut = () => {
-    try {
-      window.localStorage.setItem(RADAR_CTA_STORAGE_KEY, "1");
-      toast.success("Radar shortcut hidden on mobile browsing pages");
-    } catch {
-      toast.error("Could not update shortcut preference right now");
     }
   };
 
@@ -1143,36 +1124,6 @@ export default function ClientSettingsPage() {
                           </div>
                         );
                       })}
-                    </div>
-
-                    <div className="rounded-lg sm:rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 sm:p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm sm:text-base font-medium text-emerald-900">
-                            Radar Shortcut
-                          </p>
-                          <p className="text-xs sm:text-sm text-emerald-800/80 mt-0.5">
-                            Re-enable the mobile sticky shortcut to Unified
-                            Radar if you dismissed it earlier.
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={handleRestoreRadarShortcut}
-                            className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs sm:text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
-                          >
-                            Show Shortcut Again
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleHideRadarShortcut}
-                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100"
-                          >
-                            Hide Shortcut Now
-                          </button>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 )}

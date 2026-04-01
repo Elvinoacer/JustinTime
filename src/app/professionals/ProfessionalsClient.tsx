@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import ProfessionalCard from "@/components/ProfessionalCard";
@@ -17,7 +16,6 @@ import EmptyState from "@/components/shared/EmptyState";
 import RadarBrowse, {
   type RadarBrowseItem,
 } from "@/components/marketplace/RadarBrowse";
-import StickyRadarCta from "@/components/marketplace/StickyRadarCta";
 import { useProfessionalsInfinite } from "@/lib/api/hooks/useProfessionals";
 import { useHeroToolbarCompact } from "@/lib/hooks/useHeroToolbarCompact";
 import { calculateBearing, calculateDistance } from "@/lib/utils/geolocation";
@@ -407,13 +405,6 @@ export default function ProfessionalsPage() {
 
               <div className="mb-4 flex items-center justify-end">
                 <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm">
-                  <Link
-                    href="/radar"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
-                  >
-                    <Radar className="h-3.5 w-3.5" />
-                    Unified Radar
-                  </Link>
                   <button
                     type="button"
                     onClick={() => setViewMode("cards")}
@@ -532,8 +523,6 @@ export default function ProfessionalsPage() {
           </div>
         </div>
       </div>
-
-      <StickyRadarCta />
 
       <Footer />
 

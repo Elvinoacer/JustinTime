@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useCategories } from "@/lib/api/hooks/useServices";
 import { usePublicJobsInfinite } from "@/lib/api/hooks/usePublicJobs";
 import { useHeroToolbarCompact } from "@/lib/hooks/useHeroToolbarCompact";
@@ -16,7 +15,6 @@ import EmptyState from "@/components/shared/EmptyState";
 import RadarBrowse, {
   type RadarBrowseItem,
 } from "@/components/marketplace/RadarBrowse";
-import StickyRadarCta from "@/components/marketplace/StickyRadarCta";
 import JobCard from "./JobCard";
 import { calculateBearing, calculateDistance } from "@/lib/utils/geolocation";
 import {
@@ -200,13 +198,6 @@ const JobsPage = () => {
                 Verified clients
               </button>
               <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm">
-                <Link
-                  href="/radar"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition-colors hover:border-emerald-300 hover:bg-emerald-100"
-                >
-                  <Radar className="h-3.5 w-3.5" />
-                  Unified Radar
-                </Link>
                 <button
                   type="button"
                   onClick={() => setViewMode("cards")}
@@ -464,8 +455,6 @@ const JobsPage = () => {
           />
         </main>
       </div>
-
-      <StickyRadarCta />
 
       <Footer />
     </div>
