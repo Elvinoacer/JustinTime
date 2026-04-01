@@ -11,6 +11,8 @@ export interface RadarBrowseItem {
   name: string;
   subtitle?: string | null;
   type: RadarEntityType;
+  typeLabel?: string | null;
+  colorKey?: string | null;
   distanceKm: number;
   bearingDeg: number;
 }
@@ -20,19 +22,36 @@ interface RadarBrowseProps {
   description: string;
   items: RadarBrowseItem[];
   hasUserLocation: boolean;
+  allowedTypes?: RadarEntityType[];
 }
 
-const TYPE_COLORS: Record<RadarEntityType, string> = {
-  job: "bg-sky-500",
-  service: "bg-emerald-500",
-  professional: "bg-amber-500",
-};
+const RADAR_COLORS = [
+  "#38bdf8",
+  "#22c55e",
+  "#f59e0b",
+  "#a78bfa",
+  "#f43f5e",
+  "#14b8a6",
+  "#fb7185",
+  "#84cc16",
+  "#60a5fa",
+  "#f97316",
+];
 
-const TYPE_LABELS: Record<RadarEntityType, string> = {
-  job: "Job",
-  service: "Service",
-  professional: "Professional",
-};
+function colorFromKey(key: string) {
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash << 5) - hash + key.charCodeAt(i);
+    hash |= 0;
+  }
+  const index = Math.abs(hash) % RADAR_COLORS.length;
+  return RADAR_COLORS[index];
+}
+
+function itemTypeLabel(item: RadarBrowseItem) {
+  const label = item.typeLabel?.trim();
+  return label && label.length > 0 ? label : "General";
+}
 
 function pointPosition(
   distanceKm: number,
@@ -52,7 +71,13 @@ export default function RadarBrowse({
   description,
   items,
   hasUserLocation,
+  allowedTypes,
 }: RadarBrowseProps) {
+  const scopedItems =
+    allowedTypes && allowedTypes.length > 0
+      ? items.filter((item) => allowedTypes.includes(item.type))
+      : items;
+
   if (!hasUserLocation) {
     return (
       <section className="overflow-hidden rounded-3xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 p-6 shadow-sm">
@@ -67,7 +92,7 @@ export default function RadarBrowse({
     );
   }
 
-  if (items.length === 0) {
+  if (scopedItems.length === 0) {
     return (
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="text-xl font-bold tracking-tight text-slate-900">
@@ -80,11 +105,20 @@ export default function RadarBrowse({
     );
   }
 
-  const sorted = [...items].sort((a, b) => a.distanceKm - b.distanceKm);
+  const sorted = [...scopedItems].sort((a, b) => a.distanceKm - b.distanceKm);
   const maxDistanceKm = Math.max(
     5,
     Math.min(100, sorted[Math.min(sorted.length - 1, 24)].distanceKm),
   );
+  const legend = Array.from(
+    new Map(
+      sorted.map((item) => {
+        const label = itemTypeLabel(item);
+        const key = (item.colorKey ?? label).toLowerCase();
+        return [label, colorFromKey(key)] as const;
+      }),
+    ).entries(),
+  ).slice(0, 10);
 
   return (
     <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_48px_-28px_rgba(15,23,42,0.35)]">
@@ -110,6 +144,10 @@ export default function RadarBrowse({
             <div className="absolute left-1/2 top-1/2 z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.9)]" />
 
             {sorted.slice(0, 60).map((item) => {
+              const label = itemTypeLabel(item);
+              const pointColor = colorFromKey(
+                (item.colorKey ?? label).toLowerCase(),
+              );
               const pos = pointPosition(
                 item.distanceKm,
                 item.bearingDeg,
@@ -125,20 +163,25 @@ export default function RadarBrowse({
                     top: `${pos.y}%`,
                     transform: "translate(-50%, -50%)",
                   }}
-                  aria-label={`${TYPE_LABELS[item.type]} ${item.name}, ${formatDistance(item.distanceKm)}, ${bearingToCompass(item.bearingDeg)}`}
+                  aria-label={`${item.name}, ${label}, ${formatDistance(item.distanceKm)}, ${bearingToCompass(item.bearingDeg)}`}
                 >
                   <span className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-1.5 w-max max-w-[180px] -translate-x-1/2 rounded-md border border-white/30 bg-slate-900/80 px-2 py-1 text-center text-[10px] leading-tight text-emerald-50 shadow-[0_8px_22px_-14px_rgba(0,0,0,0.9)] backdrop-blur-sm transition-all duration-200 group-hover:-translate-y-0.5 group-hover:bg-slate-900/95">
                     <span className="block max-w-[160px] truncate font-semibold text-white">
                       {item.name}
                     </span>
                     <span className="mt-0.5 block text-[9px] uppercase tracking-wide text-emerald-100/95">
-                      {TYPE_LABELS[item.type]} •{" "}
-                      {formatDistance(item.distanceKm)} •{" "}
+                      {label} • {formatDistance(item.distanceKm)} •{" "}
                       {bearingToCompass(item.bearingDeg)}
                     </span>
+                    {item.subtitle ? (
+                      <span className="mt-0.5 block max-w-[160px] truncate text-[9px] text-emerald-200/90">
+                        {item.subtitle}
+                      </span>
+                    ) : null}
                   </span>
                   <span
-                    className={`block h-3.5 w-3.5 rounded-full border border-white/70 ${TYPE_COLORS[item.type]} shadow-[0_0_12px_rgba(255,255,255,0.35)] transition-transform duration-200 group-hover:scale-125`}
+                    className="block h-3.5 w-3.5 rounded-full border border-white/70 shadow-[0_0_12px_rgba(255,255,255,0.35)] transition-transform duration-200 group-hover:scale-125"
+                    style={{ backgroundColor: pointColor }}
                   />
                 </Link>
               );
@@ -164,43 +207,70 @@ export default function RadarBrowse({
         </div>
 
         <aside className="max-h-[680px] overflow-y-auto border-t border-slate-100 bg-slate-50/75 p-4 lg:border-l lg:border-t-0 lg:p-5">
+          {legend.length > 0 ? (
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {legend.map(([label, color]) => (
+                <span
+                  key={label}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700"
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: color }}
+                  />
+                  {label}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
             <span>Nearest</span>
           </div>
           <div className="space-y-2.5">
-            {sorted.slice(0, 30).map((item) => (
-              <Link
-                key={item.id}
-                href={item.href}
-                className="block rounded-2xl border border-slate-200 bg-white px-3.5 py-3 shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/45"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900">
-                      {item.name}
-                    </p>
-                    {item.subtitle ? (
-                      <p className="mt-0.5 truncate text-xs text-slate-500">
-                        {item.subtitle}
+            {sorted.slice(0, 30).map((item) => {
+              const label = itemTypeLabel(item);
+              const pointColor = colorFromKey(
+                (item.colorKey ?? label).toLowerCase(),
+              );
+
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className="block rounded-2xl border border-slate-200 bg-white px-3.5 py-3 shadow-sm transition-colors hover:border-emerald-200 hover:bg-emerald-50/45"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        {item.name}
                       </p>
-                    ) : null}
+                      {item.subtitle ? (
+                        <p className="mt-0.5 truncate text-xs text-slate-500">
+                          {item.subtitle}
+                        </p>
+                      ) : null}
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                      <span
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ backgroundColor: pointColor }}
+                      />
+                      {label}
+                    </span>
                   </div>
-                  <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                    {TYPE_LABELS[item.type]}
-                  </span>
-                </div>
-                <div className="mt-2 flex items-center gap-2 text-xs text-slate-600">
-                  <span className="font-semibold text-emerald-700">
-                    {formatDistance(item.distanceKm)}
-                  </span>
-                  <span>•</span>
-                  <span>
-                    {Math.round(item.bearingDeg)}°{" "}
-                    {bearingToCompass(item.bearingDeg)}
-                  </span>
-                </div>
-              </Link>
-            ))}
+                  <div className="mt-2 flex items-center gap-2 text-xs text-slate-600">
+                    <span className="font-semibold text-emerald-700">
+                      {formatDistance(item.distanceKm)}
+                    </span>
+                    <span>•</span>
+                    <span>
+                      {Math.round(item.bearingDeg)}°{" "}
+                      {bearingToCompass(item.bearingDeg)}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </aside>
       </div>

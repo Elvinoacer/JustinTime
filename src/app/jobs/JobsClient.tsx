@@ -123,8 +123,10 @@ const JobsPage = () => {
           id: job.id,
           href: `/jobs/${job.id}`,
           name: job.title,
-          subtitle: job.location ?? job.category?.name ?? "Nearby job",
+          subtitle: job.location ?? job.client?.name ?? "Location unknown",
           type: "job",
+          typeLabel: job.category?.name ?? "General",
+          colorKey: job.category?.slug ?? job.category?.name ?? "general",
           distanceKm,
           bearingDeg,
         };
@@ -432,6 +434,7 @@ const JobsPage = () => {
                   description="Scan opportunities by true distance and direction from where you are now."
                   hasUserLocation={Boolean(userLocation)}
                   items={radarItems}
+                  allowedTypes={["job"]}
                 />
               ) : null}
             </>

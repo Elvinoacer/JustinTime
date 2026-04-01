@@ -107,8 +107,10 @@ export default function RadarClient() {
           id: `job-${job.id}`,
           href: `/jobs/${job.id}`,
           name: job.title,
-          subtitle: job.location ?? job.category?.name ?? "Nearby job",
+          subtitle: job.location ?? job.client?.name ?? "Location unknown",
           type: "job",
+          typeLabel: job.category?.name ?? "General",
+          colorKey: job.category?.slug ?? job.category?.name ?? "general",
           distanceKm,
           bearingDeg: calculateBearing(
             userLocation.latitude,
@@ -135,8 +137,10 @@ export default function RadarClient() {
           id: `professional-${pro.id}`,
           href: `/professionals/${pro.id}`,
           name: pro.name,
-          subtitle: pro.title || pro.location || "Professional",
+          subtitle: pro.location || "Location unknown",
           type: "professional",
+          typeLabel: pro.title || pro.skills?.[0] || "General",
+          colorKey: pro.title || pro.skills?.[0] || "general",
           distanceKm,
           bearingDeg: calculateBearing(
             userLocation.latitude,
@@ -170,8 +174,13 @@ export default function RadarClient() {
           href: `/services/${service.id}`,
           name: service.title,
           subtitle:
-            service.provider?.name ?? service.provider?.location ?? "Service",
+            service.provider?.name ??
+            service.provider?.location ??
+            "Location unknown",
           type: "service",
+          typeLabel: service.category?.name ?? "General",
+          colorKey:
+            service.category?.slug ?? service.category?.name ?? "general",
           distanceKm,
           bearingDeg: calculateBearing(
             userLocation.latitude,
@@ -339,6 +348,17 @@ export default function RadarClient() {
               description="Jobs, services, and professionals in one directional canvas. Tap any marker to open details."
               items={filteredItems}
               hasUserLocation
+              allowedTypes={
+                filter === "all"
+                  ? undefined
+                  : [
+                      filter === "jobs"
+                        ? "job"
+                        : filter === "services"
+                          ? "service"
+                          : "professional",
+                    ]
+              }
             />
           )}
         </main>

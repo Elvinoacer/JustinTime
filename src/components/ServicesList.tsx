@@ -98,8 +98,11 @@ const ServicesList = ({
           subtitle:
             service.provider?.name ||
             service.provider?.location ||
-            "Nearby service",
+            "Location unknown",
           type: "service",
+          typeLabel: service.category?.name || "General",
+          colorKey:
+            service.category?.slug || service.category?.name || "general",
           distanceKm,
           bearingDeg,
         };
@@ -350,6 +353,7 @@ const ServicesList = ({
             filters.latitude != null && filters.longitude != null
           }
           items={radarItems}
+          allowedTypes={["service"]}
         />
       )}
 

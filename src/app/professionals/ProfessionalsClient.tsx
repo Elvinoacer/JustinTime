@@ -142,8 +142,10 @@ export default function ProfessionalsPage() {
           id: pro.id,
           href: `/professionals/${pro.id}`,
           name: pro.name,
-          subtitle: pro.location || pro.title || "Professional",
+          subtitle: pro.location || "Location unknown",
           type: "professional",
+          typeLabel: pro.title || pro.skills?.[0] || "General",
+          colorKey: pro.title || pro.skills?.[0] || "general",
           distanceKm,
           bearingDeg,
         };
@@ -500,6 +502,7 @@ export default function ProfessionalsPage() {
                   description="Browse experts around you by direction and true travel distance."
                   hasUserLocation={Boolean(userLocation)}
                   items={radarItems}
+                  allowedTypes={["professional"]}
                 />
               )}
 
