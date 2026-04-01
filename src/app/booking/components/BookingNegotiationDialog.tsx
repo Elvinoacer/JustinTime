@@ -36,20 +36,22 @@ export default function BookingNegotiationDialog({
     <AnimatePresence>
       {showNegotiationDialog && (
         <motion.div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={() => setShowNegotiationDialog(false)}
         >
           <motion.div
-            className="w-full max-w-md rounded-[1.75rem] bg-white p-5 shadow-2xl sm:p-6"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
+            className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-[1.75rem] bg-white p-5 shadow-2xl sm:rounded-[1.75rem] sm:p-6"
+            initial={{ y: 28, opacity: 0, scale: 0.98 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 20, opacity: 0, scale: 0.98 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-200 sm:hidden" />
+
+            <div className="mb-3 flex items-center justify-between sm:mb-4">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900">
                 Negotiate Terms
               </h2>
@@ -68,8 +70,8 @@ export default function BookingNegotiationDialog({
 
             <div className="mb-4 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-800">
               Current service price: Kes{" "}
-              {selectedServiceData?.price?.toLocaleString() || "0"}.
-              Use negotiation only if you need to suggest a different budget or
+              {selectedServiceData?.price?.toLocaleString() || "0"}. Use
+              negotiation only if you need to suggest a different budget or
               meeting setup.
             </div>
 
@@ -135,26 +137,28 @@ export default function BookingNegotiationDialog({
                 />
               </div>
 
-              <div className="flex gap-2 sm:gap-3 pt-2">
-                <button
-                  onClick={() => setShowNegotiationDialog(false)}
-                  className="flex-1 py-2.5 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm sm:text-base"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    setShowNegotiationDialog(false);
-                    handleSubmit(true);
-                  }}
-                  disabled={
-                    !negotiationData.proposedPrice &&
-                    !negotiationData.proposedLocation
-                  }
-                  className="flex-1 py-2.5 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Send Proposal
-                </button>
+              <div className="sticky bottom-0 -mx-5 mt-4 border-t border-slate-100 bg-white px-5 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] pt-3 sm:static sm:mx-0 sm:mt-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-2">
+                <div className="flex gap-2 sm:gap-3">
+                  <button
+                    onClick={() => setShowNegotiationDialog(false)}
+                    className="flex-1 py-2.5 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm sm:text-base"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowNegotiationDialog(false);
+                      handleSubmit(true);
+                    }}
+                    disabled={
+                      !negotiationData.proposedPrice &&
+                      !negotiationData.proposedLocation
+                    }
+                    className="flex-1 py-2.5 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Send Proposal
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>

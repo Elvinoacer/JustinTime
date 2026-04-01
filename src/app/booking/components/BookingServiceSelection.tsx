@@ -56,6 +56,7 @@ export default function BookingServiceSelection({
                 key={service.id}
                 type="button"
                 onClick={() => setSelectedService(service.id)}
+                aria-pressed={isSelected}
                 className={`w-full overflow-hidden rounded-[1.5rem] border text-left transition-all ${
                   isSelected
                     ? "border-emerald-400 bg-emerald-50/70 shadow-[0_0_0_4px_rgba(16,185,129,0.12)]"
@@ -63,7 +64,7 @@ export default function BookingServiceSelection({
                 }`}
               >
                 <div className="flex flex-col sm:flex-row">
-                  <div className="relative h-40 shrink-0 overflow-hidden sm:h-auto sm:w-44">
+                  <div className="relative h-32 shrink-0 overflow-hidden sm:h-auto sm:w-44">
                     {service.images?.[0] ? (
                       <Image
                         src={service.images[0]}
@@ -77,18 +78,18 @@ export default function BookingServiceSelection({
                       <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 to-transparent" />
-                    <div className="absolute bottom-3 left-3 rounded-full bg-white/92 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-900">
+                    <div className="absolute bottom-3 left-3 rounded-full bg-white/92 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-900 sm:text-xs">
                       {service.pricingUnit}
                     </div>
                   </div>
 
-                  <div className="flex min-w-0 flex-1 flex-col justify-between p-4 sm:p-5">
+                  <div className="flex min-w-0 flex-1 flex-col justify-between p-3.5 sm:p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <h3 className="text-base font-bold text-slate-950 sm:text-lg">
+                        <h3 className="text-[15px] font-bold text-slate-950 sm:text-lg">
                           {service.title}
                         </h3>
-                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
+                        <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-slate-600">
                           {service.description}
                         </p>
                       </div>

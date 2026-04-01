@@ -4,7 +4,10 @@ import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { useCallback } from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
-import { useProfessional, type ProfessionalDetail } from "@/lib/api/hooks/useProfessional";
+import {
+  useProfessional,
+  type ProfessionalDetail,
+} from "@/lib/api/hooks/useProfessional";
 import { calculateBookingBreakdown, formatCurrency } from "@/lib/financials";
 import { useSearchParams, useRouter } from "next/navigation";
 import Header from "@/components/Header";
@@ -14,12 +17,15 @@ import { useSession } from "next-auth/react";
 import {
   CalendarClock,
   CheckCircle,
+  Clock3,
   ChevronLeft,
   ChevronRight,
   Handshake,
+  LayoutList,
   Loader2,
   ShieldCheck,
   User,
+  Wallet,
 } from "lucide-react";
 import { useBookingFormState } from "./hooks/useBookingFormState";
 
@@ -104,9 +110,9 @@ function BookingPageContent() {
     Record<string, string[]>
   >({});
   const [disabledDates, setDisabledDates] = useState<string[]>([]);
-  const [disabledReasons, setDisabledReasons] = useState<Record<string, string>>(
-    {},
-  );
+  const [disabledReasons, setDisabledReasons] = useState<
+    Record<string, string>
+  >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showNegotiationDialog, setShowNegotiationDialog] = useState(false);
   const [negotiationData, setNegotiationData] = useState({
@@ -118,6 +124,8 @@ function BookingPageContent() {
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
   const [promoError, setPromoError] = useState("");
+  const [showMobileSummaryDetails, setShowMobileSummaryDetails] =
+    useState(false);
 
   useEffect(() => {
     if (serviceIdParam && isInitialized && !selectedService) {
@@ -126,7 +134,8 @@ function BookingPageContent() {
   }, [serviceIdParam, isInitialized, selectedService, setSelectedService]);
 
   const selectedServiceData = useMemo<BookingService | undefined>(
-    () => professional?.services.find((service) => service.id === selectedService),
+    () =>
+      professional?.services.find((service) => service.id === selectedService),
     [professional?.services, selectedService],
   );
 
@@ -139,7 +148,8 @@ function BookingPageContent() {
     [selectedTimeSlots],
   );
 
-  const totalMinutes = totalSlots * (selectedServiceData?.defaultDuration || 60);
+  const totalMinutes =
+    totalSlots * (selectedServiceData?.defaultDuration || 60);
   const baseAmount = totalSlots * Number(selectedServiceData?.price || 0);
   const breakdown = calculateBookingBreakdown(baseAmount, promoDiscount);
   const yearsActive = professional
@@ -158,11 +168,41 @@ function BookingPageContent() {
     (selectedServiceData?.locationType !== "CLIENT_LOCATION" ||
       location.trim().length > 0);
 
+  const mobileProgress = (currentStep / STEPS.length) * 100;
+  const isMobileContinueDisabled =
+    currentStep === 1 ? !canProceedToStep2 : !canProceedToStep3;
+  const mobileContinueLabel =
+    currentStep === 1 ? "Continue to details" : "Review booking";
+
+  const mobileDisabledHint = useMemo(() => {
+    if (!isMobileContinueDisabled) return "";
+
+    if (currentStep === 1) {
+      return "Select a service, at least one date, and one time slot to continue.";
+    }
+
+    if (
+      selectedServiceData?.locationType === "CLIENT_LOCATION" &&
+      location.trim().length === 0
+    ) {
+      return "Add the service location to continue.";
+    }
+
+    return "Add your phone number and address to continue.";
+  }, [
+    currentStep,
+    isMobileContinueDisabled,
+    selectedServiceData?.locationType,
+    location,
+  ]);
+
   const heroStats = [
     {
       label: "Rating",
       value: professional ? professional.averageRating.toFixed(1) : "0.0",
-      hint: professional ? `${professional.totalReviews} reviews` : "No reviews yet",
+      hint: professional
+        ? `${professional.totalReviews} reviews`
+        : "No reviews yet",
     },
     {
       label: "Completed jobs",
@@ -204,41 +244,53 @@ function BookingPageContent() {
     }
 
     return items;
-  }, [selectedServiceData, totalSlots, totalMinutes, baseAmount, breakdown.totalAmount]);
+  }, [
+    selectedServiceData,
+    totalSlots,
+    totalMinutes,
+    baseAmount,
+    breakdown.totalAmount,
+  ]);
 
-  const fetchMonthlyAvailability = useCallback(async (month: string) => {
-    try {
-      const url = `/api/provider/availability/month?providerId=${professionalId}&month=${month}&serviceId=${selectedService || ""}`;
-      const response = await fetch(url);
+  const fetchMonthlyAvailability = useCallback(
+    async (month: string) => {
+      try {
+        const url = `/api/provider/availability/month?providerId=${professionalId}&month=${month}&serviceId=${selectedService || ""}`;
+        const response = await fetch(url);
 
-      if (response.ok) {
-        const availability = await response.json();
-        setDisabledDates(availability.disabledDates || []);
-        setDisabledReasons(availability.reasons || {});
+        if (response.ok) {
+          const availability = await response.json();
+          setDisabledDates(availability.disabledDates || []);
+          setDisabledReasons(availability.reasons || {});
+        }
+      } catch (error) {
+        console.error("Error fetching monthly availability:", error);
       }
-    } catch (error) {
-      console.error("Error fetching monthly availability:", error);
-    }
-  }, [professionalId, selectedService]);
+    },
+    [professionalId, selectedService],
+  );
 
-  const fetchAvailableSlotsForDate = useCallback(async (dateStr: string) => {
-    try {
-      const duration = selectedServiceData?.defaultDuration || 60;
-      const response = await fetch(
-        `/api/provider/availability/check?providerId=${professionalId}&date=${dateStr}&duration=${duration}&serviceId=${selectedService}`,
-      );
+  const fetchAvailableSlotsForDate = useCallback(
+    async (dateStr: string) => {
+      try {
+        const duration = selectedServiceData?.defaultDuration || 60;
+        const response = await fetch(
+          `/api/provider/availability/check?providerId=${professionalId}&date=${dateStr}&duration=${duration}&serviceId=${selectedService}`,
+        );
 
-      if (response.ok) {
-        const result = await response.json();
-        setAvailableSlotsPerDate((prev) => ({
-          ...prev,
-          [dateStr]: result.slots || [],
-        }));
+        if (response.ok) {
+          const result = await response.json();
+          setAvailableSlotsPerDate((prev) => ({
+            ...prev,
+            [dateStr]: result.slots || [],
+          }));
+        }
+      } catch (error) {
+        console.error(`Error fetching slots for ${dateStr}:`, error);
       }
-    } catch (error) {
-      console.error(`Error fetching slots for ${dateStr}:`, error);
-    }
-  }, [professionalId, selectedService, selectedServiceData?.defaultDuration]);
+    },
+    [professionalId, selectedService, selectedServiceData?.defaultDuration],
+  );
 
   useEffect(() => {
     if (selectedDates.length > 0 && selectedService && professionalId) {
@@ -264,6 +316,10 @@ function BookingPageContent() {
     }
   }, [professionalId, fetchMonthlyAvailability]);
 
+  useEffect(() => {
+    setShowMobileSummaryDetails(false);
+  }, [currentStep]);
+
   const handleNextStep = () => {
     if (currentStep === 1 && !canProceedToStep2) {
       toast.error("Choose a service, date, and time slot first.");
@@ -281,6 +337,12 @@ function BookingPageContent() {
 
   const handlePrevStep = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleStepChipClick = (step: number) => {
+    if (step >= currentStep) return;
+    setCurrentStep(step);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -314,7 +376,10 @@ function BookingPageContent() {
           const endMinutes = hours * 60 + mins + duration;
           const endTime = `${Math.floor(endMinutes / 60)
             .toString()
-            .padStart(2, "0")}:${(endMinutes % 60).toString().padStart(2, "0")}`;
+            .padStart(
+              2,
+              "0",
+            )}:${(endMinutes % 60).toString().padStart(2, "0")}`;
 
           slots.push({
             date: new Date(`${dateStr}T${startTime}`).toISOString(),
@@ -355,11 +420,15 @@ function BookingPageContent() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || result.reason || "Failed to create booking");
+        throw new Error(
+          result.error || result.reason || "Failed to create booking",
+        );
       }
 
       toast.success(
-        withNegotiation ? "Negotiation proposal sent" : "Booking created successfully",
+        withNegotiation
+          ? "Negotiation proposal sent"
+          : "Booking created successfully",
         {
           description: "Redirecting to your bookings...",
         },
@@ -419,7 +488,7 @@ function BookingPageContent() {
     <>
       <Header />
 
-      <div className="min-h-screen bg-slate-50 pb-24 pt-[var(--public-header-h)] lg:pb-12">
+      <div className="min-h-screen bg-slate-50 pb-40 pt-[var(--public-header-h)] sm:pb-28 lg:pb-12">
         <section className="relative overflow-hidden border-b border-emerald-100/70 bg-gradient-to-b from-white via-emerald-50/55 to-slate-50">
           <div className="pointer-events-none absolute inset-0 opacity-80">
             <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-emerald-300/35 blur-3xl" />
@@ -427,18 +496,18 @@ function BookingPageContent() {
             <div className="absolute bottom-0 left-1/3 h-48 w-96 rounded-full bg-teal-200/30 blur-3xl" />
           </div>
 
-          <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-8 sm:px-6 sm:pb-10 lg:px-8">
+          <div className="relative mx-auto max-w-7xl px-4 pb-6 pt-6 sm:px-6 sm:pb-10 sm:pt-8 lg:px-8">
             <motion.div
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
-              className="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)] lg:items-start"
+              className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)] lg:items-start"
             >
-              <div className="rounded-[2rem] border border-white/80 bg-white/90 p-6 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.35)] backdrop-blur-sm sm:p-7">
+              <div className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_24px_70px_-42px_rgba(15,23,42,0.35)] backdrop-blur-sm sm:p-7">
                 <p className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-800">
                   <CalendarClock className="h-4 w-4" />
                   Guided booking
                 </p>
-                <h1 className="mt-4 text-balance text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                <h1 className="mt-4 text-balance text-[1.65rem] font-bold tracking-tight text-slate-950 sm:text-4xl">
                   Book with {professional.name}
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
@@ -447,19 +516,21 @@ function BookingPageContent() {
                   notified as soon as you confirm.
                 </p>
 
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <div className="mt-5 grid grid-cols-3 gap-2.5 sm:mt-6 sm:gap-3">
                   {heroStats.map((stat) => (
                     <div
                       key={stat.label}
-                      className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4"
+                      className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3 sm:p-4"
                     >
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 sm:text-[11px]">
                         {stat.label}
                       </p>
-                      <p className="mt-1 text-xl font-bold text-slate-950">
+                      <p className="mt-1 text-base font-bold text-slate-950 sm:text-xl">
                         {stat.value}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">{stat.hint}</p>
+                      <p className="mt-1 hidden text-xs text-slate-500 sm:block">
+                        {stat.hint}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -484,7 +555,7 @@ function BookingPageContent() {
                 ) : null}
               </div>
 
-              <div className="rounded-[2rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+              <div className="hidden rounded-[2rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6 lg:block">
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
                     <ShieldCheck className="h-6 w-6" />
@@ -544,8 +615,140 @@ function BookingPageContent() {
         </section>
 
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          <div className="sticky top-[calc(var(--public-header-h)+0.6rem)] z-30 mb-4 rounded-[1.35rem] border border-emerald-200/80 bg-white/95 p-4 shadow-sm backdrop-blur lg:hidden">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                  Step {currentStep} of {STEPS.length}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {STEPS[currentStep - 1]?.title}
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                Saved draft
+              </span>
+            </div>
+
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-300"
+                style={{ width: `${mobileProgress}%` }}
+              />
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {STEPS.map((step) => {
+                const isActive = currentStep === step.step;
+                const isComplete = currentStep > step.step;
+                const canNavigate = step.step < currentStep;
+
+                return (
+                  <button
+                    type="button"
+                    key={step.step}
+                    onClick={() => handleStepChipClick(step.step)}
+                    disabled={!canNavigate}
+                    aria-current={isActive ? "step" : undefined}
+                    className={`rounded-xl px-2 py-2 text-center text-[11px] font-semibold transition-colors ${
+                      isComplete
+                        ? "bg-emerald-100 text-emerald-800"
+                        : isActive
+                          ? "bg-slate-900 text-white"
+                          : "bg-slate-100 text-slate-500"
+                    } ${canNavigate ? "hover:bg-emerald-200" : "cursor-default"}`}
+                  >
+                    {step.step}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="grid gap-6 lg:grid-cols-3 lg:gap-8">
             <div className="lg:col-span-2">
+              <div className="mb-4 space-y-3 lg:hidden">
+                <div className="rounded-[1.35rem] border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        Booking snapshot
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-950">
+                        {selectedServiceData?.title ||
+                          "Choose a service to begin"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowMobileSummaryDetails((previous) => !previous)
+                      }
+                      className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700"
+                    >
+                      <LayoutList className="h-3.5 w-3.5" />
+                      {showMobileSummaryDetails
+                        ? "Hide details"
+                        : "View details"}
+                    </button>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="rounded-xl bg-slate-50 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        Service
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-slate-900">
+                        {selectedServiceData ? "Selected" : "Pending"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        Time
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-slate-900">
+                        {totalSlots > 0
+                          ? `${totalSlots} slot${totalSlots > 1 ? "s" : ""}`
+                          : "Pending"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                        Estimate
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-slate-900">
+                        {baseAmount > 0
+                          ? formatCurrency(breakdown.totalAmount)
+                          : "--"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {showMobileSummaryDetails ? (
+                  <div className="rounded-[1.35rem] border border-slate-200 bg-white p-3 shadow-sm">
+                    <BookingSummarySidebar
+                      professional={professional}
+                      selectedServiceData={selectedServiceData}
+                      selectedDates={selectedDates}
+                      selectedTimeSlots={selectedTimeSlots}
+                      totalSlots={totalSlots}
+                      promoCode={promoCode}
+                      setPromoCode={setPromoCode}
+                      appliedPromo={appliedPromo}
+                      setAppliedPromo={setAppliedPromo}
+                      promoDiscount={promoDiscount}
+                      setPromoDiscount={setPromoDiscount}
+                      isApplyingPromo={isApplyingPromo}
+                      setIsApplyingPromo={setIsApplyingPromo}
+                      promoError={promoError}
+                      setPromoError={setPromoError}
+                    />
+                  </div>
+                ) : null}
+              </div>
+
               <motion.div
                 className="space-y-6 rounded-[2rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7"
                 initial={{ opacity: 0, x: -16 }}
@@ -558,8 +761,8 @@ function BookingPageContent() {
                         Service & availability
                       </h2>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
-                        Start by selecting the service, then choose the dates and
-                        time slots that work best for you.
+                        Start by selecting the service, then choose the dates
+                        and time slots that work best for you.
                       </p>
                     </div>
 
@@ -591,8 +794,8 @@ function BookingPageContent() {
                         Location & booking details
                       </h2>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
-                        Add the information the professional needs to confirm the
-                        request and arrive prepared.
+                        Add the information the professional needs to confirm
+                        the request and arrive prepared.
                       </p>
                     </div>
 
@@ -617,8 +820,9 @@ function BookingPageContent() {
                         Review & confirm
                       </h2>
                       <p className="mt-2 text-sm leading-6 text-slate-600">
-                        Your summary is on the right. If everything looks good,
-                        confirm the request or send a negotiation proposal.
+                        Review your summary (right side on desktop, snapshot on
+                        mobile). If everything looks good, confirm the request
+                        or send a negotiation proposal.
                       </p>
                     </div>
 
@@ -631,8 +835,8 @@ function BookingPageContent() {
                           Sign in to finish your booking
                         </h3>
                         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
-                          Your booking draft is already saved. Sign in and return
-                          to submit it without losing progress.
+                          Your booking draft is already saved. Sign in and
+                          return to submit it without losing progress.
                         </p>
                         <button
                           onClick={handleLoginRedirect}
@@ -650,7 +854,7 @@ function BookingPageContent() {
                           option below.
                         </div>
 
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="hidden gap-3 sm:grid sm:grid-cols-2">
                           <button
                             type="button"
                             onClick={() => setShowNegotiationDialog(true)}
@@ -684,7 +888,7 @@ function BookingPageContent() {
                   </div>
                 ) : null}
 
-                <div className="flex items-center justify-between border-t border-slate-100 pt-6">
+                <div className="hidden items-center justify-between border-t border-slate-100 pt-6 lg:flex">
                   {currentStep > 1 ? (
                     <button
                       onClick={handlePrevStep}
@@ -701,7 +905,9 @@ function BookingPageContent() {
                     <button
                       onClick={handleNextStep}
                       disabled={
-                        currentStep === 1 ? !canProceedToStep2 : !canProceedToStep3
+                        currentStep === 1
+                          ? !canProceedToStep2
+                          : !canProceedToStep3
                       }
                       className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
@@ -713,7 +919,7 @@ function BookingPageContent() {
               </motion.div>
             </div>
 
-            <div className="space-y-6">
+            <div className="hidden space-y-6 lg:block">
               <BookingSummarySidebar
                 professional={professional}
                 selectedServiceData={selectedServiceData}
@@ -739,13 +945,17 @@ function BookingPageContent() {
                   </p>
                   <div className="mt-4 space-y-3">
                     <div className="flex items-start justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3">
-                      <span className="text-sm text-slate-600">Location mode</span>
+                      <span className="text-sm text-slate-600">
+                        Location mode
+                      </span>
                       <span className="text-right text-sm font-semibold text-slate-950">
                         {getLocationLabel(selectedServiceData.locationType)}
                       </span>
                     </div>
                     <div className="flex items-start justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3">
-                      <span className="text-sm text-slate-600">Time selected</span>
+                      <span className="text-sm text-slate-600">
+                        Time selected
+                      </span>
                       <span className="text-right text-sm font-semibold text-slate-950">
                         {totalSlots > 0
                           ? totalMinutes >= 60
@@ -757,7 +967,9 @@ function BookingPageContent() {
                       </span>
                     </div>
                     <div className="flex items-start justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3">
-                      <span className="text-sm text-slate-600">Estimated total</span>
+                      <span className="text-sm text-slate-600">
+                        Estimated total
+                      </span>
                       <span className="text-right text-sm font-semibold text-slate-950">
                         {baseAmount > 0
                           ? formatCurrency(breakdown.totalAmount)
@@ -771,6 +983,108 @@ function BookingPageContent() {
           </div>
         </div>
       </div>
+
+      {currentStep < 3 ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
+          <div className="mx-auto max-w-7xl px-4 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] pt-3">
+            <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
+              <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                <Clock3 className="h-4 w-4 text-emerald-600" />
+                {totalSlots > 0
+                  ? `${totalSlots} slot${totalSlots > 1 ? "s" : ""} selected`
+                  : "No slots selected yet"}
+              </div>
+              <div className="inline-flex items-center gap-1 text-sm font-bold text-slate-950">
+                <Wallet className="h-4 w-4 text-emerald-600" />
+                {baseAmount > 0
+                  ? formatCurrency(breakdown.totalAmount)
+                  : "Select to estimate"}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {currentStep > 1 ? (
+                <button
+                  type="button"
+                  onClick={handlePrevStep}
+                  className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-slate-700"
+                >
+                  <ChevronLeft className="mr-1 h-4 w-4" />
+                  Back
+                </button>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={handleNextStep}
+                disabled={isMobileContinueDisabled}
+                className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {mobileContinueLabel}
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            {isMobileContinueDisabled ? (
+              <p className="mt-2 text-xs text-amber-700">
+                {mobileDisabledHint}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {currentStep === 3 && status !== "unauthenticated" ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
+          <div className="mx-auto max-w-7xl px-4 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] pt-3">
+            <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
+              <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                <Clock3 className="h-4 w-4 text-emerald-600" />
+                {totalSlots > 0
+                  ? `${totalSlots} slot${totalSlots > 1 ? "s" : ""} selected`
+                  : "No slots selected yet"}
+              </div>
+              <div className="inline-flex items-center gap-1 text-sm font-bold text-slate-950">
+                <Wallet className="h-4 w-4 text-emerald-600" />
+                {baseAmount > 0
+                  ? formatCurrency(breakdown.totalAmount)
+                  : "Select to estimate"}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setShowNegotiationDialog(true)}
+                disabled={isSubmitting}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-sky-700 disabled:opacity-50"
+              >
+                <Handshake className="h-4 w-4" />
+                Negotiate
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void handleSubmit(false)}
+                disabled={isSubmitting}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4" />
+                    Confirm
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <BookingNegotiationDialog
         showNegotiationDialog={showNegotiationDialog}
