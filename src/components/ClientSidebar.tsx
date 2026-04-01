@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { hasRole } from "@/lib/auth/roles";
+import { useNotificationCounts } from "@/lib/hooks/useNotificationCounts";
 
 const navItems = [
   { name: "Dashboard", href: "/client/dashboard", icon: "dashboard" },
@@ -37,6 +38,7 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [isMobile, setIsMobile] = useState(false);
+  const { unreadApplicationUpdatesCount } = useNotificationCounts(pathname);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -246,6 +248,7 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                 const isActive =
                   pathname === item.href ||
                   pathname?.startsWith(`${item.href}/`);
+                const isNotificationsItem = item.href === "/client/notifications";
 
                 return (
                   <li key={item.name}>
@@ -266,21 +269,30 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                         }
                       `}
                     >
-                      <span
-                        className={`
-                          material-symbols-outlined 
-                          ${isMobile ? "text-[18px]" : "text-[20px]"}
-                          transition-colors flex-shrink-0
-                          ${
-                            isActive
-                              ? "text-emerald-600"
-                              : "text-gray-400 group-hover:text-gray-600"
-                          }
-                        `}
-                        aria-hidden="true"
-                      >
-                        {item.icon}
-                      </span>
+                      <div className="relative flex items-center justify-center flex-shrink-0">
+                        <span
+                          className={`
+                            material-symbols-outlined 
+                            ${isMobile ? "text-[18px]" : "text-[20px]"}
+                            transition-colors
+                            ${
+                              isActive
+                                ? "text-emerald-600"
+                                : "text-gray-400 group-hover:text-gray-600"
+                            }
+                          `}
+                          aria-hidden="true"
+                        >
+                          {item.icon}
+                        </span>
+                        {isNotificationsItem && unreadApplicationUpdatesCount > 0 && (
+                          <span className="absolute -top-1 -right-2 inline-flex items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] font-bold min-w-4 h-4 px-1">
+                            {unreadApplicationUpdatesCount > 9
+                              ? "9+"
+                              : unreadApplicationUpdatesCount}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-xs lg:text-sm truncate">
                         {item.name}
                       </span>

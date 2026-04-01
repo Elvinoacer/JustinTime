@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import { APPLICATION_UPDATE_NOTIFICATION_TYPES } from "@/lib/notifications/applicationUpdates";
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,6 +12,35 @@ export async function GET(req: NextRequest) {
         { error: "Unauthorized" },
         { status: 401 }
       );
+    }
+
+    const wantsCounts = req.nextUrl.searchParams.get("counts") === "true";
+
+    if (wantsCounts) {
+      const [unreadCount, unreadApplicationUpdatesCount] = await Promise.all([
+        prisma.notification.count({
+          where: {
+            userId: session.user.id,
+            isRead: false,
+          },
+        }),
+        prisma.notification.count({
+          where: {
+            userId: session.user.id,
+            isRead: false,
+            type: {
+              in: [...APPLICATION_UPDATE_NOTIFICATION_TYPES],
+            },
+          },
+        }),
+      ]);
+
+      return NextResponse.json({
+        counts: {
+          unreadCount,
+          unreadApplicationUpdatesCount,
+        },
+      });
     }
 
     const notifications = await prisma.notification.findMany({
@@ -28,7 +58,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: NextRequest) {
+export async function DELETE() {
   try {
     const session = await auth();
 

@@ -469,7 +469,10 @@ export async function rejectProposal(proposalId: string, reason?: string) {
   }
 }
 
-export async function markProposalInReview(proposalId: string, reason?: string) {
+export async function markProposalInReview(
+  proposalId: string,
+  reason?: string,
+) {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -494,7 +497,10 @@ export async function markProposalInReview(proposalId: string, reason?: string) 
     console.error("Error marking proposal in review:", error);
     if (error instanceof Error) {
       throw new Error(
-        toClientDecisionErrorMessage(error, "Failed to mark proposal as in review"),
+        toClientDecisionErrorMessage(
+          error,
+          "Failed to mark proposal as in review",
+        ),
       );
     }
     throw new Error("Failed to mark proposal as in review");

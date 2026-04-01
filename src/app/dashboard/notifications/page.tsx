@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { isApplicationUpdateNotification } from "@/lib/notifications/applicationUpdates";
 
 interface Notification {
   id: string;
@@ -11,16 +12,6 @@ interface Notification {
   type: string;
   isRead: boolean;
   createdAt: string;
-}
-
-const APPLICATION_NOTIFICATION_TYPES = [
-  "PROPOSAL_STATUS_UPDATE",
-  "NEW_PROPOSAL",
-  "PROPOSAL",
-];
-
-function isApplicationNotification(type: string) {
-  return APPLICATION_NOTIFICATION_TYPES.includes(type);
 }
 
 const NotificationsPage = () => {
@@ -69,7 +60,7 @@ const NotificationsPage = () => {
       });
       if (response.ok) {
         setNotifications(
-          notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+          notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
         );
         toast.success("Marked as read");
       }
@@ -141,7 +132,7 @@ const NotificationsPage = () => {
     }
 
     if (filter === "applications") {
-      return isApplicationNotification(notification.type);
+      return isApplicationUpdateNotification(notification.type);
     }
 
     return true;
@@ -149,7 +140,7 @@ const NotificationsPage = () => {
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
   const applicationCount = notifications.filter((n) =>
-    isApplicationNotification(n.type),
+    isApplicationUpdateNotification(n.type),
   ).length;
 
   const getNotificationIcon = (type: string) => {
@@ -370,7 +361,7 @@ const NotificationsPage = () => {
                 ? "You're all caught up!"
                 : filter === "applications"
                   ? "No application updates yet"
-                : "Check back later for updates"}
+                  : "Check back later for updates"}
             </p>
           </div>
         ) : (
@@ -390,7 +381,7 @@ const NotificationsPage = () => {
                 {/* Icon */}
                 <div
                   className={`rounded-full flex items-center justify-center shrink-0 ${getNotificationColor(
-                    notification.type
+                    notification.type,
                   )} ${isMobile ? "w-8 h-8" : "w-9 h-9 sm:w-10 sm:h-10"}`}
                 >
                   <span

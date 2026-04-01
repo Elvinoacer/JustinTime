@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import { motion } from "framer-motion";
 import LanguageSwitcher from "./common/LanguageSwitcher";
 import { hasRole } from "@/lib/auth/roles";
+import { useNotificationCounts } from "@/lib/hooks/useNotificationCounts";
 
 const navItems = [
   {
@@ -101,6 +102,7 @@ const Sidebar = ({
 }: SidebarProps) => {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { unreadApplicationUpdatesCount } = useNotificationCounts(pathname);
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: "/auth/login" });
@@ -268,12 +270,21 @@ const Sidebar = ({
               aria-label="Notifications"
               title={isCollapsed ? "Notifications" : undefined}
             >
-              <span
-                className="material-symbols-outlined text-xl text-gray-400 group-hover:text-emerald-400 flex-shrink-0"
-                aria-hidden="true"
-              >
-                notifications
-              </span>
+              <div className="relative flex items-center justify-center flex-shrink-0">
+                <span
+                  className="material-symbols-outlined text-xl text-gray-400 group-hover:text-emerald-400"
+                  aria-hidden="true"
+                >
+                  notifications
+                </span>
+                {unreadApplicationUpdatesCount > 0 && (
+                  <span className="absolute -top-1 -right-2 inline-flex items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] font-bold min-w-4 h-4 px-1">
+                    {unreadApplicationUpdatesCount > 9
+                      ? "9+"
+                      : unreadApplicationUpdatesCount}
+                  </span>
+                )}
+              </div>
               {!isCollapsed && (
                 <span className="text-sm font-semibold truncate">
                   Notifications
