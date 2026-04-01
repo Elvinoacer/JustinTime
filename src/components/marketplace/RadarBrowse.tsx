@@ -103,6 +103,9 @@ const RADAR_LABEL_WIDTH = 176;
 const RADAR_LABEL_HEIGHT = 48;
 const RADAR_LABEL_PADDING = 6;
 const MIN_DISTANCE_KM = 1;
+const HEADING_MIN_STEP_DEG = 0.4;
+const HEADING_LABEL_STEP_DEG = 2;
+const HEADING_LABEL_UPDATE_INTERVAL_MS = 150;
 
 function rectsIntersect(a: Rect, b: Rect) {
   return !(
@@ -221,6 +224,14 @@ function getHeadingDegrees(event: DeviceOrientationEventWithCompass) {
   return null;
 }
 
+function normalizeHeading(heading: number) {
+  return ((heading % 360) + 360) % 360;
+}
+
+function shortestHeadingDelta(fromDeg: number, toDeg: number) {
+  return ((toDeg - fromDeg + 540) % 360) - 180;
+}
+
 function getTouchDistance(touches: TouchList) {
   if (touches.length < 2) {
     return 0;
@@ -241,10 +252,14 @@ function RadarBrowse({
 }: RadarBrowseProps) {
   const radarFrameRef = useRef<HTMLDivElement | null>(null);
   const radarRotationRef = useRef<HTMLDivElement | null>(null);
+  const headingFrameRef = useRef<number | null>(null);
   const headingLockedRef = useRef(false);
+  const pendingHeadingRef = useRef<number | null>(null);
+  const renderedHeadingRef = useRef(0);
   const headingValueRef = useRef(0);
   const headingLabelRef = useRef(0);
   const headingLabelUpdateAtRef = useRef(0);
+  const compassErrorRef = useRef<string | null>(null);
   const attemptedAutoFullscreenRef = useRef(false);
   const pinchStartRef = useRef<{ distance: number; scale: number } | null>(
     null,
@@ -261,26 +276,63 @@ function RadarBrowse({
     headingLockedRef.current = headingLocked;
   }, [headingLocked]);
 
-  const applyHeading = useCallback((heading: number) => {
-    headingValueRef.current = heading;
+  useEffect(() => {
+    compassErrorRef.current = compassError;
+  }, [compassError]);
+
+  const flushHeadingFrame = useCallback(() => {
+    headingFrameRef.current = null;
+
+    const nextHeading = pendingHeadingRef.current;
+    if (nextHeading == null) {
+      return;
+    }
+
+    const normalizedHeading = normalizeHeading(nextHeading);
+    const delta = shortestHeadingDelta(
+      renderedHeadingRef.current,
+      normalizedHeading,
+    );
+
+    if (Math.abs(delta) < HEADING_MIN_STEP_DEG) {
+      return;
+    }
+
+    renderedHeadingRef.current = normalizedHeading;
+    headingValueRef.current = normalizedHeading;
 
     if (radarRotationRef.current) {
-      radarRotationRef.current.style.transform = `rotate(${-heading}deg)`;
+      radarRotationRef.current.style.transform = `rotate(${-normalizedHeading}deg)`;
     }
 
     const now =
       typeof performance !== "undefined" ? performance.now() : Date.now();
     if (
-      Math.abs(heading - headingLabelRef.current) >= 1.5 &&
-      now - headingLabelUpdateAtRef.current >= 120
+      Math.abs(
+        shortestHeadingDelta(headingLabelRef.current, normalizedHeading),
+      ) >= HEADING_LABEL_STEP_DEG &&
+      now - headingLabelUpdateAtRef.current >= HEADING_LABEL_UPDATE_INTERVAL_MS
     ) {
-      headingLabelRef.current = heading;
+      headingLabelRef.current = normalizedHeading;
       headingLabelUpdateAtRef.current = now;
-      setHeadingDeg(heading);
+      setHeadingDeg(Math.round(normalizedHeading));
     }
   }, []);
 
+  const applyHeading = useCallback((heading: number) => {
+    pendingHeadingRef.current = normalizeHeading(heading);
+
+    if (headingFrameRef.current == null && typeof window !== "undefined") {
+      headingFrameRef.current = window.requestAnimationFrame(flushHeadingFrame);
+    }
+  }, [flushHeadingFrame]);
+
   const listenToOrientation = useCallback(() => {
+    const orientationEventName =
+      "ondeviceorientationabsolute" in window
+        ? "deviceorientationabsolute"
+        : "deviceorientation";
+
     const handleOrientation = (event: Event) => {
       if (headingLockedRef.current) {
         return;
@@ -291,35 +343,36 @@ function RadarBrowse({
       if (heading == null) {
         return;
       }
+
       applyHeading(heading);
-      setCompassError(null);
+
+      if (compassErrorRef.current !== null) {
+        compassErrorRef.current = null;
+        setCompassError(null);
+      }
     };
 
-    window.addEventListener("deviceorientationabsolute", handleOrientation, {
-      capture: true,
-    });
-    window.addEventListener("deviceorientation", handleOrientation, {
-      capture: true,
+    window.addEventListener(orientationEventName, handleOrientation, {
+      passive: true,
     });
 
     return () => {
-      window.removeEventListener(
-        "deviceorientationabsolute",
-        handleOrientation,
-        {
-          capture: true,
-        },
-      );
-      window.removeEventListener("deviceorientation", handleOrientation, {
-        capture: true,
-      });
+      window.removeEventListener(orientationEventName, handleOrientation);
     };
   }, [applyHeading]);
 
   useEffect(() => {
     if (radarRotationRef.current) {
-      radarRotationRef.current.style.transform = `rotate(${-headingValueRef.current}deg)`;
+      radarRotationRef.current.style.transform = `rotate(${-renderedHeadingRef.current}deg)`;
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (headingFrameRef.current != null && typeof window !== "undefined") {
+        window.cancelAnimationFrame(headingFrameRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -381,10 +434,16 @@ function RadarBrowse({
     }
   }, []);
 
-  const scopedItems =
-    allowedTypes && allowedTypes.length > 0
-      ? items.filter((item) => allowedTypes.includes(item.type))
-      : items;
+  const allowedTypesKey = allowedTypes?.join("|") ?? "";
+
+  const scopedItems = useMemo(() => {
+    if (!allowedTypesKey) {
+      return items;
+    }
+
+    const allowed = new Set(allowedTypesKey.split("|"));
+    return items.filter((item) => allowed.has(item.type));
+  }, [allowedTypesKey, items]);
 
   const sorted = useMemo(
     () => [...scopedItems].sort((a, b) => a.distanceKm - b.distanceKm),
@@ -724,7 +783,7 @@ function RadarBrowse({
 
               <div
                 ref={radarRotationRef}
-                className="absolute inset-0 transition-transform duration-300 ease-out"
+                className="absolute inset-0 will-change-transform"
               >
                 <div className="absolute inset-[9%] rounded-full border border-emerald-200/25" />
                 <div className="absolute inset-[22%] rounded-full border border-emerald-200/25" />
@@ -733,7 +792,7 @@ function RadarBrowse({
                 <div className="absolute left-1/2 top-[8%] h-[84%] w-px -translate-x-1/2 bg-emerald-200/20" />
                 <div className="absolute left-[8%] top-1/2 h-px w-[84%] -translate-y-1/2 bg-emerald-200/20" />
 
-                <div className="pointer-events-none absolute inset-0 animate-[spin_9s_linear_infinite] bg-[conic-gradient(from_0deg_at_50%_50%,rgba(16,185,129,0)_0deg,rgba(16,185,129,0.38)_44deg,rgba(16,185,129,0)_88deg)]" />
+                <div className="pointer-events-none absolute inset-0 bg-[conic-gradient(from_0deg_at_50%_50%,rgba(16,185,129,0)_0deg,rgba(16,185,129,0.3)_44deg,rgba(16,185,129,0)_88deg)]" />
 
                 <div className="absolute left-1/2 top-1/2 z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.9)]" />
 

@@ -155,12 +155,26 @@ function ServicesPageContent() {
 
   const heroRef = useRef<HTMLElement | null>(null);
   const toolbarCompact = useHeroToolbarCompact(heroRef);
-  const [mobileToolbarExpanded, setMobileToolbarExpanded] = useState(true);
+  const [mobileToolbarExpanded, setMobileToolbarExpanded] = useState(false);
   const showMobileActionBar = useScrollActionBarVisibility();
 
   useEffect(() => {
-    setMobileToolbarExpanded(!toolbarCompact);
-  }, [toolbarCompact]);
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const syncToolbarExpansion = () => {
+      setMobileToolbarExpanded(mediaQuery.matches);
+    };
+
+    syncToolbarExpansion();
+    mediaQuery.addEventListener("change", syncToolbarExpansion);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncToolbarExpansion);
+    };
+  }, []);
 
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-slate-50">
@@ -439,10 +453,24 @@ function ServicesPageContent() {
               <aside
                 id="services-mobile-filters"
                 className={`${
-                  showMobileFilters ? "block" : "hidden"
-                } lg:block lg:w-80 lg:shrink-0`}
+                  showMobileFilters
+                    ? "fixed inset-0 z-70 flex items-end bg-slate-950/35 p-3"
+                    : "hidden"
+                } lg:static lg:block lg:w-80 lg:shrink-0 lg:bg-transparent lg:p-0`}
+                onClick={
+                  showMobileFilters
+                    ? () => setShowMobileFilters(false)
+                    : undefined
+                }
               >
-                <div className="lg:sticky lg:max-h-[calc(100vh-var(--public-header-h)-var(--services-toolbar-h)-1.5rem)] lg:overflow-y-auto lg:pb-2 lg:[scrollbar-width:thin]">
+                <div
+                  className={`w-full ${
+                    showMobileFilters
+                      ? "max-h-[75dvh] max-w-lg overflow-y-auto"
+                      : ""
+                  } lg:sticky lg:max-h-[calc(100vh-var(--public-header-h)-var(--services-toolbar-h)-1.5rem)] lg:overflow-y-auto lg:pb-2 lg:[scrollbar-width:thin]`}
+                  onClick={(event) => event.stopPropagation()}
+                >
                   <Filters
                     filters={filters}
                     onFilterChange={handleFilterChange}

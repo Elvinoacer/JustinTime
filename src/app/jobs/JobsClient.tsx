@@ -47,7 +47,7 @@ const JobsPage = () => {
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "radar">("cards");
-  const [mobileToolbarExpanded, setMobileToolbarExpanded] = useState(true);
+  const [mobileToolbarExpanded, setMobileToolbarExpanded] = useState(false);
   const showMobileActionBar = useScrollActionBarVisibility();
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
@@ -146,8 +146,22 @@ const JobsPage = () => {
     (userLocation ? 1 : 0);
 
   useEffect(() => {
-    setMobileToolbarExpanded(!toolbarCompact);
-  }, [toolbarCompact]);
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const syncToolbarExpansion = () => {
+      setMobileToolbarExpanded(mediaQuery.matches);
+    };
+
+    syncToolbarExpansion();
+    mediaQuery.addEventListener("change", syncToolbarExpansion);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncToolbarExpansion);
+    };
+  }, []);
 
   return (
     <div className="relative flex min-h-screen flex-col bg-slate-50">
@@ -335,47 +349,65 @@ const JobsPage = () => {
 
         {showMobileFilters ? (
           <div
-            id="jobs-mobile-filters"
-            className="border-b border-slate-200 bg-white px-4 py-3 lg:hidden"
+            className="fixed inset-0 z-70 bg-slate-950/35 lg:hidden"
+            onClick={() => setShowMobileFilters(false)}
           >
-            <div className="relative mb-3">
-              <Building className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                aria-label="Category"
-                className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-8 text-sm focus:border-emerald-500 focus:outline-none"
-              >
-                <option value="">All categories</option>
-                {categories
-                  .filter((c) => c.id && c.id !== "all")
-                  .map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            </div>
-            <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-              <span className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
-                <CheckCircle className="h-4 w-4 text-emerald-600" aria-hidden />
-                Verified clients only
-              </span>
-              <button
-                type="button"
-                onClick={() => setVerifiedOnly((v) => !v)}
-                className={`relative inline-flex h-6 w-10 items-center rounded-full p-1 transition-colors ${
-                  verifiedOnly ? "bg-emerald-500" : "bg-slate-300"
-                }`}
-                aria-pressed={verifiedOnly}
-              >
-                <span
-                  className={`h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                    verifiedOnly ? "translate-x-4" : "translate-x-0"
+            <div
+              id="jobs-mobile-filters"
+              className="absolute inset-x-0 bottom-0 max-h-[75dvh] overflow-y-auto rounded-t-3xl border border-slate-200 bg-white px-4 pb-5 pt-4 shadow-[0_-18px_45px_-24px_rgba(15,23,42,0.45)]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-900">Filters</p>
+                <button
+                  type="button"
+                  onClick={() => setShowMobileFilters(false)}
+                  className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="relative mb-3">
+                <Building className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  aria-label="Category"
+                  className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-8 text-sm focus:border-emerald-500 focus:outline-none"
+                >
+                  <option value="">All categories</option>
+                  {categories
+                    .filter((c) => c.id && c.id !== "all")
+                    .map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              </div>
+
+              <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                <span className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
+                  <CheckCircle className="h-4 w-4 text-emerald-600" aria-hidden />
+                  Verified clients only
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setVerifiedOnly((v) => !v)}
+                  className={`relative inline-flex h-6 w-10 items-center rounded-full p-1 transition-colors ${
+                    verifiedOnly ? "bg-emerald-500" : "bg-slate-300"
                   }`}
-                />
-              </button>
+                  aria-pressed={verifiedOnly}
+                >
+                  <span
+                    className={`h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                      verifiedOnly ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
         ) : null}

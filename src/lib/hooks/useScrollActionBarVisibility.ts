@@ -11,10 +11,12 @@ interface ScrollActionBarVisibilityOptions {
 export function useScrollActionBarVisibility(
   options: ScrollActionBarVisibilityOptions = {},
 ) {
-  const { topThreshold = 96, hideDelta = 10, showDelta = 8 } = options;
+  const { topThreshold = 120, hideDelta = 14, showDelta = 12 } = options;
   const [isVisible, setIsVisible] = useState(true);
   const isVisibleRef = useRef(true);
   const lastScrollYRef = useRef(0);
+  const directionRef = useRef<-1 | 0 | 1>(0);
+  const directionAnchorYRef = useRef(0);
   const frameIdRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -27,14 +29,34 @@ export function useScrollActionBarVisibility(
 
       const currentY = window.scrollY;
       const delta = currentY - lastScrollYRef.current;
+      const absDelta = Math.abs(delta);
       let nextVisible = isVisibleRef.current;
 
       if (currentY < topThreshold) {
         nextVisible = true;
-      } else if (delta > hideDelta) {
-        nextVisible = false;
-      } else if (delta < -showDelta) {
-        nextVisible = true;
+        directionRef.current = 0;
+        directionAnchorYRef.current = currentY;
+      } else if (absDelta >= 1) {
+        const nextDirection: -1 | 1 = delta > 0 ? 1 : -1;
+
+        if (nextDirection !== directionRef.current) {
+          directionRef.current = nextDirection;
+          directionAnchorYRef.current = lastScrollYRef.current;
+        }
+
+        if (
+          nextDirection > 0 &&
+          currentY - directionAnchorYRef.current >= hideDelta
+        ) {
+          nextVisible = false;
+          directionAnchorYRef.current = currentY;
+        } else if (
+          nextDirection < 0 &&
+          directionAnchorYRef.current - currentY >= showDelta
+        ) {
+          nextVisible = true;
+          directionAnchorYRef.current = currentY;
+        }
       }
 
       if (nextVisible !== isVisibleRef.current) {
@@ -53,6 +75,7 @@ export function useScrollActionBarVisibility(
     };
 
     lastScrollYRef.current = window.scrollY;
+    directionAnchorYRef.current = window.scrollY;
     window.addEventListener("scroll", onScroll, { passive: true });
 
     return () => {

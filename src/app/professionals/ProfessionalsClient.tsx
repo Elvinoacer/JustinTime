@@ -65,7 +65,7 @@ export default function ProfessionalsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "radar">("cards");
-  const [mobileToolbarExpanded, setMobileToolbarExpanded] = useState(true);
+  const [mobileToolbarExpanded, setMobileToolbarExpanded] = useState(false);
   const showMobileActionBar = useScrollActionBarVisibility();
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
@@ -177,8 +177,22 @@ export default function ProfessionalsPage() {
     (userLocation ? 1 : 0);
 
   useEffect(() => {
-    setMobileToolbarExpanded(!toolbarCompact);
-  }, [toolbarCompact]);
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const syncToolbarExpansion = () => {
+      setMobileToolbarExpanded(mediaQuery.matches);
+    };
+
+    syncToolbarExpansion();
+    mediaQuery.addEventListener("change", syncToolbarExpansion);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncToolbarExpansion);
+    };
+  }, []);
 
   return (
     <div className="relative flex min-h-screen flex-col bg-slate-50">
@@ -275,9 +289,25 @@ export default function ProfessionalsPage() {
           <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
             <aside
               id="professionals-sidebar-filters"
-              className={`${showMobileFilters ? "block" : "hidden"} shrink-0 lg:block lg:w-72`}
+              className={`${
+                showMobileFilters
+                  ? "fixed inset-0 z-70 flex items-end bg-slate-950/35 p-3"
+                  : "hidden"
+              } shrink-0 lg:static lg:block lg:w-72 lg:bg-transparent lg:p-0`}
+              onClick={
+                showMobileFilters
+                  ? () => setShowMobileFilters(false)
+                  : undefined
+              }
             >
-              <div className="sticky top-[calc(var(--public-header-h)+5.25rem)] overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
+              <div
+                className={`overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm ${
+                  showMobileFilters
+                    ? "w-full max-h-[75dvh] max-w-lg overflow-y-auto"
+                    : "sticky top-[calc(var(--public-header-h)+5.25rem)]"
+                }`}
+                onClick={(event) => event.stopPropagation()}
+              >
                 <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-5 py-3.5">
                   <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-800">
                     <span className="material-symbols-outlined text-lg text-emerald-600">
