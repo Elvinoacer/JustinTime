@@ -1,5 +1,9 @@
 import type { ProposalStatus } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
+import {
+  JOB_LIFECYCLE_EVENT_TYPES,
+  recordJobLifecycleEvent,
+} from "@/lib/jobs/lifecycleTimeline";
 import { sendProviderApplicationStatusFeedback } from "@/lib/proposals/statusNotifications";
 
 export type ProposalDecisionStatus = "PENDING" | "ACCEPTED" | "REJECTED";
@@ -116,6 +120,7 @@ export async function applyProposalDecision({
       trackedProposalId: string,
       status: ProposalStatus,
       statusReason: string,
+      fromStatus?: ProposalStatus,
     ) => {
       await tx.proposalStatusHistory.create({
         data: {
@@ -127,6 +132,21 @@ export async function applyProposalDecision({
           changedByRole: normalizedActorRole,
         },
       });
+
+      await recordJobLifecycleEvent(
+        {
+          jobId: proposal.jobId,
+          proposalId: trackedProposalId,
+          eventType: JOB_LIFECYCLE_EVENT_TYPES.PROPOSAL_STATUS_CHANGED,
+          fromState: fromStatus ?? status,
+          toState: status,
+          reason: statusReason,
+          actorUserId,
+          actorName: normalizedActorName,
+          actorRole: normalizedActorRole,
+        },
+        tx,
+      );
     };
 
     if (targetStatus === "PENDING") {
@@ -135,7 +155,12 @@ export async function applyProposalDecision({
       }
 
       const statusReason = normalizeReason(reason, "PENDING");
-      await createHistory(proposal.id, "PENDING", statusReason);
+      await createHistory(
+        proposal.id,
+        "PENDING",
+        statusReason,
+        proposal.status,
+      );
 
       return {
         proposal,
@@ -185,7 +210,12 @@ export async function applyProposalDecision({
         },
       });
 
-      await createHistory(updatedProposal.id, "REJECTED", statusReason);
+      await createHistory(
+        updatedProposal.id,
+        "REJECTED",
+        statusReason,
+        proposal.status,
+      );
 
       return {
         proposal: updatedProposal,
@@ -256,7 +286,12 @@ export async function applyProposalDecision({
       },
     });
 
-    await createHistory(updatedProposal.id, "ACCEPTED", acceptedReason);
+    await createHistory(
+      updatedProposal.id,
+      "ACCEPTED",
+      acceptedReason,
+      proposal.status,
+    );
 
     const updatedAcceptedProvidersCount = acceptedProvidersCount + 1;
     const hasReachedAcceptedProvidersLimit =
@@ -304,6 +339,26 @@ export async function applyProposalDecision({
           })),
         });
 
+        await Promise.all(
+          pendingProposals.map((entry) =>
+            recordJobLifecycleEvent(
+              {
+                jobId: proposal.jobId,
+                proposalId: entry.id,
+                eventType: JOB_LIFECYCLE_EVENT_TYPES.PROPOSAL_STATUS_CHANGED,
+                fromState: "PENDING",
+                toState: "REJECTED",
+                reason: AUTO_REJECTION_REASON,
+                actorUserId,
+                actorName: normalizedActorName,
+                actorRole: normalizedActorRole,
+                idempotencyKey: `proposal:${entry.id}:auto-rejected:${updatedProposal.id}`,
+              },
+              tx,
+            ),
+          ),
+        );
+
         autoRejected = pendingProposals.map((entry) => ({
           id: entry.id,
           providerId: entry.providerId,
@@ -315,6 +370,22 @@ export async function applyProposalDecision({
         where: { id: proposal.jobId },
         data: { status: "IN_PROGRESS" },
       });
+
+      await recordJobLifecycleEvent(
+        {
+          jobId: proposal.jobId,
+          eventType: JOB_LIFECYCLE_EVENT_TYPES.JOB_STATUS_CHANGED,
+          fromState: proposal.job.status,
+          toState: "IN_PROGRESS",
+          reason:
+            "Accepted providers limit reached. Job moved to in-progress execution.",
+          actorUserId,
+          actorName: normalizedActorName,
+          actorRole: normalizedActorRole,
+          idempotencyKey: `job:${proposal.jobId}:status:in-progress:${updatedProposal.id}`,
+        },
+        tx,
+      );
     }
 
     const existingBooking = await tx.booking.findFirst({
@@ -340,7 +411,24 @@ export async function applyProposalDecision({
         },
       });
 
-      await tx.payment.create({
+      await recordJobLifecycleEvent(
+        {
+          jobId: proposal.jobId,
+          proposalId: updatedProposal.id,
+          bookingId: newBooking.id,
+          eventType: JOB_LIFECYCLE_EVENT_TYPES.BOOKING_CREATED,
+          fromState: null,
+          toState: "CONFIRMED",
+          reason: "Booking created from accepted proposal.",
+          actorUserId,
+          actorName: normalizedActorName,
+          actorRole: normalizedActorRole,
+          idempotencyKey: `booking:${newBooking.id}:created`,
+        },
+        tx,
+      );
+
+      const createdPayment = await tx.payment.create({
         data: {
           bookingId: newBooking.id,
           amount: proposal.price,
@@ -349,6 +437,28 @@ export async function applyProposalDecision({
           transactionId: `escrow_hold_${newBooking.id}`,
         },
       });
+
+      await recordJobLifecycleEvent(
+        {
+          jobId: proposal.jobId,
+          proposalId: updatedProposal.id,
+          bookingId: newBooking.id,
+          paymentId: createdPayment.id,
+          eventType: JOB_LIFECYCLE_EVENT_TYPES.PAYMENT_CREATED,
+          fromState: null,
+          toState: "PENDING",
+          reason: "Escrow payment hold created for accepted proposal.",
+          actorUserId,
+          actorName: normalizedActorName,
+          actorRole: normalizedActorRole,
+          metadata: {
+            method: createdPayment.method,
+            transactionId: createdPayment.transactionId,
+          },
+          idempotencyKey: `payment:${createdPayment.id}:created`,
+        },
+        tx,
+      );
     }
 
     return {

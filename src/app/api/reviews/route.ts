@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { sendComprehensiveNotification } from "@/lib/notifications/adminNotifications";
+import {
+  JOB_LIFECYCLE_EVENT_TYPES,
+  recordJobLifecycleEvent,
+} from "@/lib/jobs/lifecycleTimeline";
 
 export async function POST(req: Request) {
   try {
@@ -31,17 +35,24 @@ export async function POST(req: Request) {
 
     // Verify user is the client
     if (booking.clientId !== session.user.id) {
-      return new NextResponse("Unauthorized - Only the client can review this booking", { status: 403 });
+      return new NextResponse(
+        "Unauthorized - Only the client can review this booking",
+        { status: 403 },
+      );
     }
 
     // Verify booking is completed
     if (booking.status !== "COMPLETED") {
-      return new NextResponse("Booking must be completed to leave a review", { status: 400 });
+      return new NextResponse("Booking must be completed to leave a review", {
+        status: 400,
+      });
     }
 
     // Check if review already exists
     if (booking.review) {
-      return new NextResponse("Review already exists for this booking", { status: 409 });
+      return new NextResponse("Review already exists for this booking", {
+        status: 409,
+      });
     }
 
     // Create review
@@ -54,6 +65,26 @@ export async function POST(req: Request) {
         comment,
       },
     });
+
+    if (booking.jobId) {
+      await recordJobLifecycleEvent({
+        jobId: booking.jobId,
+        bookingId: booking.id,
+        eventType: JOB_LIFECYCLE_EVENT_TYPES.REVIEW_SUBMITTED,
+        fromState: "COMPLETED",
+        toState: "COMPLETED",
+        reason: "Client submitted feedback after completion.",
+        actorUserId: session.user.id,
+        actorName: session.user.name,
+        actorRole: "CLIENT",
+        metadata: {
+          reviewId: review.id,
+          rating: review.rating,
+          hasComment: Boolean(comment && String(comment).trim()),
+        },
+        idempotencyKey: `review:${review.id}:submitted`,
+      });
+    }
 
     // Send notification to provider
     try {
@@ -75,7 +106,7 @@ export async function POST(req: Request) {
             </div>
             <a href="${process.env.NEXTAUTH_URL}/dashboard/reviews" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">View All Reviews</a>
           </div>
-        `
+        `,
       });
     } catch (notifError) {
       console.error("Failed to send review notification:", notifError);

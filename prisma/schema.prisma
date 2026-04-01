@@ -327,11 +327,12 @@ model Job {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  client    User       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  category  Category   @relation(fields: [categoryId], references: [id])
-  proposals Proposal[]
-  bookings  Booking[]
-  expenses  Expense[]
+  client          User               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  category        Category           @relation(fields: [categoryId], references: [id])
+  proposals       Proposal[]
+  bookings        Booking[]
+  expenses        Expense[]
+  lifecycleEvents JobTimelineEvent[]
 }
 
 // Proposals/Bids on Jobs
@@ -357,11 +358,12 @@ model Proposal {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  job           Job                     @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  provider      User                    @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  estimatedDays Int?
-  attachments   String[]
-  statusHistory ProposalStatusHistory[]
+  job             Job                     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  provider        User                    @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  estimatedDays   Int?
+  attachments     String[]
+  statusHistory   ProposalStatusHistory[]
+  lifecycleEvents JobTimelineEvent[]
 
   @@unique([jobId, providerId])
 }
@@ -379,6 +381,35 @@ model ProposalStatusHistory {
   proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
 
   @@index([proposalId, createdAt])
+}
+
+model JobTimelineEvent {
+  id             String   @id @default(cuid())
+  jobId          String
+  proposalId     String?
+  bookingId      String?
+  paymentId      String?
+  eventType      String
+  fromState      String?
+  toState        String?
+  reason         String?  @db.Text
+  actorUserId    String?
+  actorName      String?
+  actorRole      String?
+  metadata       Json?
+  idempotencyKey String?  @unique
+  createdAt      DateTime @default(now())
+
+  job      Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  proposal Proposal? @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  booking  Booking?  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  payment  Payment?  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, createdAt])
+  @@index([proposalId, createdAt])
+  @@index([bookingId, createdAt])
+  @@index([paymentId, createdAt])
+  @@index([eventType, createdAt])
 }
 
 model ProposalTemplate {
@@ -471,6 +502,7 @@ model Booking {
   teamJobs        TeamJob[]
   verticalProject VerticalProject?
   proxySession    ProxySession?
+  lifecycleEvents JobTimelineEvent[]
 
   @@index([clientId])
   @@index([providerId])
@@ -558,7 +590,8 @@ model Payment {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  booking Booking @relation(fields: [bookingId], references: [id])
+  booking         Booking            @relation(fields: [bookingId], references: [id])
+  lifecycleEvents JobTimelineEvent[]
 }
 
 // Tax Filings (Nil Returns)

@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import PaymentTimelineCard from "@/components/jobs/PaymentTimelineCard";
+import JobLifecycleTimeline from "@/components/jobs/JobLifecycleTimeline";
 import { parseFulfillmentPreference } from "@/lib/proposals/fulfillmentMode";
 
 interface Proposal {
@@ -817,6 +818,8 @@ export default function JobDetailsPage() {
               </div>
             </div>
           )}
+
+          <JobLifecycleTimeline jobId={jobId} />
 
           {/* Proposals */}
           <div className="bg-white rounded-xl md:rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 md:p-6">

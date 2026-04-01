@@ -23,6 +23,7 @@ import {
   withFulfillmentPreference,
   type ProposalFulfillmentMode,
 } from "@/lib/proposals/fulfillmentMode";
+import JobLifecycleTimeline from "@/components/jobs/JobLifecycleTimeline";
 
 type ProviderJob = {
   id: string;
@@ -1164,6 +1165,14 @@ export default function JobApplicationsPage() {
                       ))}
                     </div>
                   </div>
+                ) : null}
+
+                {selectedJob.proposal ? (
+                  <JobLifecycleTimeline
+                    jobId={selectedJob.id}
+                    compact
+                    title="Lifecycle Timeline"
+                  />
                 ) : null}
 
                 {(activeTab === "available" || activeTab === "recommended") &&

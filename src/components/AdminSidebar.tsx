@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import {
   LayoutDashboard,
@@ -13,9 +13,9 @@ import {
   Gavel,
   Headphones,
   CreditCard,
+  Scale,
   Settings,
   LogOut,
-  Menu,
   History,
   X,
   User,
@@ -30,6 +30,7 @@ const navItems = [
   { name: "Disputes", href: "/admin/disputes", icon: Gavel },
   { name: "Support", href: "/admin/support", icon: Headphones },
   { name: "Finance", href: "/admin/finance", icon: CreditCard },
+  { name: "Reconciliation", href: "/admin/reconciliation", icon: Scale },
   { name: "Audit Logs", href: "/admin/logs", icon: History },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
@@ -39,7 +40,7 @@ interface AdminSidebarProps {
   onClose?: () => void;
 }
 
-const AdminSidebar = ({ isOpen, onClose }: AdminSidebarProps) => {
+const AdminSidebar = ({ onClose }: AdminSidebarProps) => {
   const pathname = usePathname();
   const { data: session } = useSession();
 
@@ -60,9 +61,11 @@ const AdminSidebar = ({ isOpen, onClose }: AdminSidebarProps) => {
               onClick={onClose}
             >
               <div className="w-10 h-10 flex items-center justify-center bg-white rounded-xl p-1.5">
-                <img
+                <Image
                   src="/images/JustinTimeLogo.png"
                   alt="JustInTime Logo"
+                  width={40}
+                  height={40}
                   className="w-full h-full object-contain"
                 />
               </div>
@@ -152,9 +155,11 @@ const AdminSidebar = ({ isOpen, onClose }: AdminSidebarProps) => {
               <div className="relative">
                 <div className="w-12 h-12 bg-slate-700 rounded-xl flex items-center justify-center overflow-hidden border-2 border-slate-600">
                   {session?.user?.image ? (
-                    <img
+                    <Image
                       src={session.user.image}
                       alt={session.user.name || "Admin"}
+                      width={48}
+                      height={48}
                       className="w-full h-full object-cover"
                     />
                   ) : (

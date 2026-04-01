@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
+import {
+  JOB_LIFECYCLE_EVENT_TYPES,
+  recordJobLifecycleEvent,
+} from "@/lib/jobs/lifecycleTimeline";
 
 type NotificationSender = (payload: {
   userId: string;
@@ -258,6 +262,29 @@ export async function submitProposal({
                 changedByRole: "PROVIDER",
               },
             });
+
+            await recordJobLifecycleEvent(
+              {
+                jobId,
+                proposalId: createdProposal.id,
+                eventType: JOB_LIFECYCLE_EVENT_TYPES.PROPOSAL_SUBMITTED,
+                fromState: null,
+                toState: "PENDING",
+                reason: "Application submitted and awaiting client review.",
+                actorUserId: providerId,
+                actorName: createdProposal.provider?.name || "Provider",
+                actorRole: "PROVIDER",
+                metadata: {
+                  price:
+                    typeof createdProposal.price === "number"
+                      ? createdProposal.price
+                      : Number(createdProposal.price),
+                  estimatedDays: createdProposal.estimatedDays ?? null,
+                },
+                idempotencyKey: `proposal:${createdProposal.id}:submitted`,
+              },
+              tx,
+            );
 
             return createdProposal;
           } catch (error) {

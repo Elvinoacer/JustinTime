@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { updateJobSchema } from "@/lib/validations/schemas";
 import { hasRole } from "@/lib/auth/roles";
+import {
+  JOB_LIFECYCLE_EVENT_TYPES,
+  recordJobLifecycleEvent,
+} from "@/lib/jobs/lifecycleTimeline";
 
 export async function GET(
   request: Request,
@@ -128,28 +132,95 @@ export async function PUT(
       );
     }
 
-    const updatedJob = await prisma.job.update({
-      where: { id },
-      data: {
-        title: body.title,
-        description: body.description,
-        budget: body.budget,
-        location: body.location,
-        categoryId,
-        ...(body.images && { images: body.images }),
-        ...(body.status && { status: body.status }),
-        ...(body.deadline !== undefined && { deadline }),
-        ...(body.maxApplicants !== undefined && {
-          maxApplicants: body.maxApplicants,
-        }),
-        ...(body.maxAcceptedProviders !== undefined && {
-          maxAcceptedProviders: body.maxAcceptedProviders,
-        }),
-      },
-      include: {
-        client: { select: { id: true, name: true, image: true } },
-        category: true,
-      },
+    const actorRole =
+      existingJob.clientId !== session.user.id && hasRole(session.user, "ADMIN")
+        ? "ADMIN"
+        : "CLIENT";
+    const existingBudgetValue =
+      existingJob.budget === null ? null : Number(existingJob.budget);
+
+    const updatedJob = await prisma.$transaction(async (tx) => {
+      const updated = await tx.job.update({
+        where: { id },
+        data: {
+          title: body.title,
+          description: body.description,
+          budget: body.budget,
+          location: body.location,
+          categoryId,
+          ...(body.images && { images: body.images }),
+          ...(body.status && { status: body.status }),
+          ...(body.deadline !== undefined && { deadline }),
+          ...(body.maxApplicants !== undefined && {
+            maxApplicants: body.maxApplicants,
+          }),
+          ...(body.maxAcceptedProviders !== undefined && {
+            maxAcceptedProviders: body.maxAcceptedProviders,
+          }),
+        },
+        include: {
+          client: { select: { id: true, name: true, image: true } },
+          category: true,
+        },
+      });
+
+      const changedFields = [
+        body.title !== undefined && body.title !== existingJob.title
+          ? "title"
+          : null,
+        body.description !== undefined &&
+        body.description !== existingJob.description
+          ? "description"
+          : null,
+        body.budget !== undefined && body.budget !== existingBudgetValue
+          ? "budget"
+          : null,
+        body.location !== undefined && body.location !== existingJob.location
+          ? "location"
+          : null,
+        body.images !== undefined ? "images" : null,
+        body.deadline !== undefined ? "deadline" : null,
+        body.maxApplicants !== undefined ? "maxApplicants" : null,
+        body.maxAcceptedProviders !== undefined ? "maxAcceptedProviders" : null,
+        categoryId !== existingJob.categoryId ? "category" : null,
+      ].filter((value): value is string => Boolean(value));
+
+      await recordJobLifecycleEvent(
+        {
+          jobId: updated.id,
+          eventType: JOB_LIFECYCLE_EVENT_TYPES.JOB_UPDATED,
+          fromState: existingJob.status,
+          toState: updated.status,
+          reason: "Job details updated by owner or administrator.",
+          actorUserId: session.user.id,
+          actorName: session.user.name,
+          actorRole,
+          metadata: {
+            changedFields,
+          },
+          idempotencyKey: `job:${updated.id}:updated:${updated.updatedAt.toISOString()}`,
+        },
+        tx,
+      );
+
+      if (body.status && body.status !== existingJob.status) {
+        await recordJobLifecycleEvent(
+          {
+            jobId: updated.id,
+            eventType: JOB_LIFECYCLE_EVENT_TYPES.JOB_STATUS_CHANGED,
+            fromState: existingJob.status,
+            toState: body.status,
+            reason: "Job status updated by owner or administrator.",
+            actorUserId: session.user.id,
+            actorName: session.user.name,
+            actorRole,
+            idempotencyKey: `job:${updated.id}:status:${existingJob.status}:${body.status}:${updated.updatedAt.toISOString()}`,
+          },
+          tx,
+        );
+      }
+
+      return updated;
     });
 
     return NextResponse.json(updatedJob);

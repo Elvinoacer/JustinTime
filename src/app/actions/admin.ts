@@ -1524,6 +1524,188 @@ export async function getWallets(page = 1, limit = 10, search = "") {
   }
 }
 
+export async function getPaymentLifecycleReconciliation(limit = 100) {
+  try {
+    await checkAdmin();
+
+    const safeLimit = Math.min(Math.max(limit, 10), 250);
+    const staleThresholdHours = 48;
+    const staleBefore = new Date(
+      Date.now() - staleThresholdHours * 60 * 60 * 1000,
+    );
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        payment: {
+          isNot: null,
+        },
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+      take: safeLimit * 3,
+      include: {
+        payment: true,
+        job: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+          },
+        },
+        client: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+        provider: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    const mismatches = bookings
+      .map((booking) => {
+        const payment = booking.payment;
+        if (!payment) {
+          return null;
+        }
+
+        let issue: string | null = null;
+        let severity: "high" | "medium" = "medium";
+
+        if (booking.status === "COMPLETED" && payment.status !== "COMPLETED") {
+          issue = "Booking is completed but payment is not marked completed.";
+          severity = "high";
+        } else if (
+          booking.status === "CANCELLED" &&
+          payment.status !== "REFUNDED"
+        ) {
+          issue = "Booking is cancelled but payment is not refunded.";
+          severity = "high";
+        } else if (
+          payment.status === "REFUNDED" &&
+          booking.status !== "CANCELLED"
+        ) {
+          issue = "Payment is refunded while booking is not cancelled.";
+          severity = "high";
+        } else if (
+          booking.status === "DISPUTED" &&
+          payment.status === "COMPLETED"
+        ) {
+          issue = "Disputed booking already has completed payment settlement.";
+        }
+
+        if (!issue) {
+          return null;
+        }
+
+        return {
+          bookingId: booking.id,
+          jobId: booking.jobId,
+          jobTitle: booking.job?.title || null,
+          bookingStatus: booking.status,
+          paymentId: payment.id,
+          paymentStatus: payment.status,
+          amount: Number(payment.amount),
+          updatedAt: booking.updatedAt,
+          issue,
+          severity,
+          clientName: booking.client?.name || booking.client?.email || null,
+          providerName:
+            booking.provider?.name || booking.provider?.email || null,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => Boolean(item))
+      .slice(0, safeLimit);
+
+    const stalePendingPayments = await prisma.payment.findMany({
+      where: {
+        status: "PENDING",
+        createdAt: {
+          lte: staleBefore,
+        },
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+      take: safeLimit,
+      include: {
+        booking: {
+          select: {
+            id: true,
+            status: true,
+            date: true,
+            jobId: true,
+            job: {
+              select: {
+                title: true,
+              },
+            },
+            client: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+            provider: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const unresolvedFinancialEvents = stalePendingPayments.map((payment) => {
+      const hoursOpen = Math.floor(
+        (Date.now() - new Date(payment.createdAt).getTime()) / (60 * 60 * 1000),
+      );
+
+      return {
+        paymentId: payment.id,
+        bookingId: payment.bookingId,
+        jobId: payment.booking?.jobId || null,
+        jobTitle: payment.booking?.job?.title || null,
+        bookingStatus: payment.booking?.status || null,
+        paymentStatus: payment.status,
+        amount: Number(payment.amount),
+        method: payment.method,
+        transactionId: payment.transactionId,
+        createdAt: payment.createdAt,
+        hoursOpen,
+        issue: `Pending payment has been open for ${hoursOpen}h without settlement.`,
+        clientName:
+          payment.booking?.client?.name ||
+          payment.booking?.client?.email ||
+          null,
+        providerName:
+          payment.booking?.provider?.name ||
+          payment.booking?.provider?.email ||
+          null,
+      };
+    });
+
+    return {
+      generatedAt: new Date().toISOString(),
+      staleThresholdHours,
+      mismatchCount: mismatches.length,
+      unresolvedCount: unresolvedFinancialEvents.length,
+      mismatches,
+      unresolvedFinancialEvents,
+    };
+  } catch (error) {
+    console.error("Error fetching payment lifecycle reconciliation:", error);
+    throw new Error("Failed to fetch reconciliation data");
+  }
+}
+
 // Category Management
 export async function getCategories() {
   try {

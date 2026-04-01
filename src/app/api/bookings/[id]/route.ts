@@ -6,6 +6,10 @@ import {
   extractEscrowMilestones,
   upsertEscrowMilestones,
 } from "@/lib/escrow/milestones";
+import {
+  JOB_LIFECYCLE_EVENT_TYPES,
+  recordJobLifecycleEvent,
+} from "@/lib/jobs/lifecycleTimeline";
 
 export async function PATCH(
   request: Request,
@@ -105,7 +109,29 @@ export async function PATCH(
       },
     });
 
+    const actorRole = isProvider ? "PROVIDER" : "CLIENT";
+    const actorName =
+      session.user.name?.trim() || (isProvider ? "Provider" : "Client");
+
     if (status && status !== booking.status) {
+      if (booking.jobId) {
+        await recordJobLifecycleEvent({
+          jobId: booking.jobId,
+          bookingId: booking.id,
+          eventType: JOB_LIFECYCLE_EVENT_TYPES.BOOKING_STATUS_CHANGED,
+          fromState: booking.status,
+          toState: status,
+          reason:
+            status === "CANCELLED"
+              ? cancellationReason || "Booking was cancelled."
+              : "Booking status updated.",
+          actorUserId: session.user.id,
+          actorName,
+          actorRole,
+          idempotencyKey: `booking:${booking.id}:status:${booking.status}:${status}:${updatedBooking.updatedAt.toISOString()}`,
+        });
+      }
+
       if (status === "COMPLETED") {
         if (escrow) {
           escrow.milestones = escrow.milestones.map((milestone) =>
@@ -128,6 +154,19 @@ export async function PATCH(
           });
         }
 
+        const pendingPayments = await prisma.payment.findMany({
+          where: {
+            bookingId: id,
+            status: "PENDING",
+          },
+          select: {
+            id: true,
+            status: true,
+            method: true,
+            transactionId: true,
+          },
+        });
+
         await prisma.payment.updateMany({
           where: {
             bookingId: id,
@@ -138,9 +177,49 @@ export async function PATCH(
             transactionId: `escrow_release_${id}`,
           },
         });
+
+        if (booking.jobId && pendingPayments.length > 0) {
+          await Promise.all(
+            pendingPayments.map((payment) =>
+              recordJobLifecycleEvent({
+                jobId: booking.jobId as string,
+                bookingId: booking.id,
+                paymentId: payment.id,
+                eventType: JOB_LIFECYCLE_EVENT_TYPES.PAYMENT_STATUS_CHANGED,
+                fromState: payment.status,
+                toState: "COMPLETED",
+                reason: "Escrow released after booking completion.",
+                actorUserId: session.user.id,
+                actorName,
+                actorRole,
+                metadata: {
+                  method: payment.method,
+                  previousTransactionId: payment.transactionId,
+                  nextTransactionId: `escrow_release_${id}`,
+                },
+                idempotencyKey: `payment:${payment.id}:status:PENDING:COMPLETED:${updatedBooking.updatedAt.toISOString()}`,
+              }),
+            ),
+          );
+        }
       }
 
       if (status === "CANCELLED") {
+        const refundablePayments = await prisma.payment.findMany({
+          where: {
+            bookingId: id,
+            status: {
+              in: ["PENDING", "COMPLETED"],
+            },
+          },
+          select: {
+            id: true,
+            status: true,
+            method: true,
+            transactionId: true,
+          },
+        });
+
         await prisma.payment.updateMany({
           where: {
             bookingId: id,
@@ -153,6 +232,34 @@ export async function PATCH(
             transactionId: `escrow_refund_${id}`,
           },
         });
+
+        if (booking.jobId && refundablePayments.length > 0) {
+          await Promise.all(
+            refundablePayments.map((payment) =>
+              recordJobLifecycleEvent({
+                jobId: booking.jobId as string,
+                bookingId: booking.id,
+                paymentId: payment.id,
+                eventType: JOB_LIFECYCLE_EVENT_TYPES.PAYMENT_STATUS_CHANGED,
+                fromState: payment.status,
+                toState: "REFUNDED",
+                reason:
+                  (typeof cancellationReason === "string" &&
+                    cancellationReason.trim()) ||
+                  "Booking cancelled and payment refunded.",
+                actorUserId: session.user.id,
+                actorName,
+                actorRole,
+                metadata: {
+                  method: payment.method,
+                  previousTransactionId: payment.transactionId,
+                  nextTransactionId: `escrow_refund_${id}`,
+                },
+                idempotencyKey: `payment:${payment.id}:status:${payment.status}:REFUNDED:${updatedBooking.updatedAt.toISOString()}`,
+              }),
+            ),
+          );
+        }
       }
     }
 

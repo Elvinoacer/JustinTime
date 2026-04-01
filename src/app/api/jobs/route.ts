@@ -6,6 +6,10 @@ import {
   createJobSchema,
   quickCreateJobSchema,
 } from "@/lib/validations/schemas";
+import {
+  JOB_LIFECYCLE_EVENT_TYPES,
+  recordJobLifecycleEvent,
+} from "@/lib/jobs/lifecycleTimeline";
 import { sendComprehensiveNotification } from "@/lib/notifications/adminNotifications";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import { growthFeatureFlags } from "@/lib/growth/featureFlags";
@@ -461,21 +465,48 @@ export async function POST(request: Request) {
       }
     }
 
-    const job = await prisma.job.create({
-      data: {
-        title: normalizedData.title,
-        description: normalizedData.description,
-        budget: normalizedData.budget,
-        location: normalizedData.location,
-        latitude,
-        longitude,
-        categoryId: category.id,
-        clientId: session.user.id,
-        images: normalizedData.images,
-        deadline: normalizedData.deadline,
-        maxApplicants: normalizedData.maxApplicants,
-        maxAcceptedProviders: normalizedData.maxAcceptedProviders,
-      },
+    const job = await prisma.$transaction(async (tx) => {
+      const createdJob = await tx.job.create({
+        data: {
+          title: normalizedData.title,
+          description: normalizedData.description,
+          budget: normalizedData.budget,
+          location: normalizedData.location,
+          latitude,
+          longitude,
+          categoryId: category.id,
+          clientId: session.user.id,
+          images: normalizedData.images,
+          deadline: normalizedData.deadline,
+          maxApplicants: normalizedData.maxApplicants,
+          maxAcceptedProviders: normalizedData.maxAcceptedProviders,
+        },
+      });
+
+      await recordJobLifecycleEvent(
+        {
+          jobId: createdJob.id,
+          eventType: JOB_LIFECYCLE_EVENT_TYPES.JOB_CREATED,
+          fromState: null,
+          toState: createdJob.status,
+          reason:
+            mode === "quick"
+              ? "Client created a quick post job."
+              : "Client created a job posting.",
+          actorUserId: session.user.id,
+          actorName: session.user.name,
+          actorRole: "CLIENT",
+          metadata: {
+            mode,
+            categoryId: category.id,
+            budget: normalizedData.budget,
+          },
+          idempotencyKey: `job:${createdJob.id}:created`,
+        },
+        tx,
+      );
+
+      return createdJob;
     });
 
     // Send job alerts to matching providers
