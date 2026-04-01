@@ -668,7 +668,7 @@ function BookingPageContent() {
 
           <div className="grid gap-6 lg:grid-cols-3 lg:gap-8">
             <div className="lg:col-span-2">
-              <div className="mb-4 space-y-3 lg:hidden">
+              <div className="mb-4 space-y-3 overflow-x-hidden lg:hidden">
                 <div className="rounded-[1.35rem] border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -727,7 +727,7 @@ function BookingPageContent() {
                 </div>
 
                 {showMobileSummaryDetails ? (
-                  <div className="rounded-[1.35rem] border border-slate-200 bg-white p-3 shadow-sm">
+                  <div className="max-w-full overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white p-3 shadow-sm">
                     <BookingSummarySidebar
                       professional={professional}
                       selectedServiceData={selectedServiceData}

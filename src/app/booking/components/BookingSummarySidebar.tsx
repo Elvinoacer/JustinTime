@@ -72,8 +72,7 @@ export default function BookingSummarySidebar({
   const serviceDuration = selectedServiceData?.defaultDuration || 60;
   const totalMinutes = totalSlots * serviceDuration;
   const totalHours = totalMinutes / 60;
-  const averageVisitCost =
-    totalSlots > 0 ? (selectedServiceData?.price || 0) : 0;
+  const averageVisitCost = totalSlots > 0 ? selectedServiceData?.price || 0 : 0;
   const basePrice = totalSlots * (selectedServiceData?.price || 0);
   const { exciseDuty, totalAmount, trustFee, discountAmount } =
     calculateBookingBreakdown(basePrice, promoDiscount);
@@ -121,21 +120,23 @@ export default function BookingSummarySidebar({
   };
 
   return (
-    <div className="space-y-5">
+    <div className="w-full max-w-full space-y-5 overflow-x-hidden">
       <motion.div
-        className="overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white shadow-sm"
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
+        className="w-full min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white shadow-sm"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
       >
-        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-950 to-slate-800 px-5 py-4 text-white">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-950 to-slate-800 px-4 py-4 text-white sm:px-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">
             Booking with
           </p>
-          <h3 className="mt-1 text-lg font-bold">{professional.name}</h3>
+          <h3 className="mt-1 wrap-break-word text-lg font-bold">
+            {professional.name}
+          </h3>
         </div>
 
-        <div className="p-5">
+        <div className="min-w-0 p-4 sm:p-5">
           <div className="flex items-center gap-4">
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
               {professional.image ? (
@@ -175,7 +176,9 @@ export default function BookingSummarySidebar({
           {professional.location ? (
             <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">
               <MapPin className="h-4 w-4 text-emerald-600" />
-              <span className="truncate">{professional.location}</span>
+              <span className="min-w-0 wrap-break-word">
+                {professional.location}
+              </span>
             </div>
           ) : null}
         </div>
@@ -183,29 +186,30 @@ export default function BookingSummarySidebar({
 
       {selectedServiceData ? (
         <motion.div
-          className="rounded-[1.75rem] border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-5 shadow-sm"
+          className="w-full min-w-0 rounded-[1.75rem] border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-4 shadow-sm sm:p-5"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
           <h3 className="text-lg font-bold text-slate-950">Booking summary</h3>
 
-          <div className="mt-4 rounded-2xl bg-white/85 p-4">
+          <div className="mt-4 min-w-0 rounded-2xl bg-white/85 p-3 sm:p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
               Selected service
             </p>
-            <p className="mt-1 text-base font-bold text-slate-950">
+            <p className="mt-1 wrap-break-word text-base font-bold text-slate-950">
               {selectedServiceData.title}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-                {formatCurrency(selectedServiceData.price)} {selectedServiceData.pricingUnit}
+              <span className="max-w-full wrap-break-word rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+                {formatCurrency(selectedServiceData.price)}{" "}
+                {selectedServiceData.pricingUnit}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
                 <Clock3 className="h-3.5 w-3.5" />
                 {serviceDuration} min per slot
               </span>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+              <span className="max-w-full wrap-break-word rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
                 {getLocationLabel(selectedServiceData.locationType)}
               </span>
             </div>
@@ -214,7 +218,7 @@ export default function BookingSummarySidebar({
           {totalSlots > 0 ? (
             <>
               <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-white/85 p-4">
+                <div className="rounded-2xl bg-white/85 p-3 sm:p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                     Total time
                   </p>
@@ -224,7 +228,7 @@ export default function BookingSummarySidebar({
                       : `${totalMinutes} mins`}
                   </p>
                 </div>
-                <div className="rounded-2xl bg-white/85 p-4">
+                <div className="rounded-2xl bg-white/85 p-3 sm:p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                     Avg per visit
                   </p>
@@ -234,7 +238,7 @@ export default function BookingSummarySidebar({
                 </div>
               </div>
 
-              <div className="mt-4 rounded-2xl bg-white/85 p-4">
+              <div className="mt-4 min-w-0 rounded-2xl bg-white/85 p-3 sm:p-4">
                 <h4 className="text-sm font-bold text-slate-950">
                   Appointment timeline
                 </h4>
@@ -247,11 +251,14 @@ export default function BookingSummarySidebar({
                     );
 
                     return (
-                      <div key={dateStr} className="border-l-2 border-emerald-300 pl-3">
+                      <div
+                        key={dateStr}
+                        className="border-l-2 border-emerald-300 pl-3"
+                      >
                         <p className="text-sm font-semibold text-slate-900">
                           {date ? format(date, "EEE, MMM d") : dateStr}
                         </p>
-                        <p className="mt-1 text-xs text-slate-600">
+                        <p className="mt-1 wrap-break-word text-xs text-slate-600">
                           {slots.join(", ")}
                         </p>
                       </div>
@@ -260,16 +267,25 @@ export default function BookingSummarySidebar({
                 </div>
 
                 {firstAppointment ? (
-                  <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
+                  <div className="mt-4 wrap-break-word rounded-2xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
                     Earliest slot:{" "}
                     <span className="font-semibold text-slate-900">
-                      {format(new Date(`${firstAppointment.dateStr}T00:00:00`), "EEE, MMM d")} at {firstAppointment.time}
+                      {format(
+                        new Date(`${firstAppointment.dateStr}T00:00:00`),
+                        "EEE, MMM d",
+                      )}{" "}
+                      at {firstAppointment.time}
                     </span>
                     {lastAppointment ? (
                       <>
-                        {" "}· Last slot:{" "}
+                        {" "}
+                        · Last slot:{" "}
                         <span className="font-semibold text-slate-900">
-                          {format(new Date(`${lastAppointment.dateStr}T00:00:00`), "EEE, MMM d")} at {lastAppointment.time}
+                          {format(
+                            new Date(`${lastAppointment.dateStr}T00:00:00`),
+                            "EEE, MMM d",
+                          )}{" "}
+                          at {lastAppointment.time}
                         </span>
                       </>
                     ) : null}
@@ -284,7 +300,7 @@ export default function BookingSummarySidebar({
           )}
 
           {totalSlots > 0 ? (
-            <div className="mt-4 rounded-2xl bg-white/92 p-4">
+            <div className="mt-4 min-w-0 rounded-2xl bg-white/92 p-3 sm:p-4">
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between text-slate-600">
                   <span>
@@ -295,7 +311,7 @@ export default function BookingSummarySidebar({
 
                 <div className="py-2">
                   <div className="flex gap-2">
-                    <div className="relative flex-1">
+                    <div className="relative min-w-0 flex-1">
                       <Tag className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                       <input
                         type="text"
@@ -323,7 +339,9 @@ export default function BookingSummarySidebar({
                     ) : (
                       <button
                         onClick={handleApplyPromo}
-                        disabled={!promoCode || isApplyingPromo || basePrice <= 0}
+                        disabled={
+                          !promoCode || isApplyingPromo || basePrice <= 0
+                        }
                         className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                       >
                         {isApplyingPromo ? "..." : "Apply"}
@@ -363,7 +381,9 @@ export default function BookingSummarySidebar({
               </div>
 
               <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                <span className="text-sm font-bold text-slate-950">Estimated total</span>
+                <span className="text-sm font-bold text-slate-950">
+                  Estimated total
+                </span>
                 <span className="text-2xl font-bold text-emerald-700">
                   {formatCurrency(totalAmount)}
                 </span>
@@ -374,7 +394,7 @@ export default function BookingSummarySidebar({
       ) : null}
 
       <motion.div
-        className="rounded-[1.75rem] border border-sky-200 bg-sky-50 p-5"
+        className="w-full min-w-0 rounded-[1.75rem] border border-sky-200 bg-sky-50 p-4 sm:p-5"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.2 }}
