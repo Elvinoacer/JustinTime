@@ -31,20 +31,20 @@ export default function BookingServiceSelection({
   setSelectedService,
 }: BookingServiceSelectionProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5 sm:space-y-4">
       <div>
-        <label className="block text-lg font-bold text-slate-950">
+        <label className="block text-base font-bold text-slate-950 sm:text-lg">
           Choose a service
         </label>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-[13px] leading-5 text-slate-600 sm:text-sm sm:leading-6">
           Pick the exact service you want to schedule so pricing and timing stay
           accurate.
         </p>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2.5 sm:space-y-3">
         {professional.services.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-[13px] text-slate-600 sm:text-sm">
             No services available right now.
           </div>
         ) : (
@@ -64,7 +64,7 @@ export default function BookingServiceSelection({
                 }`}
               >
                 <div className="flex flex-col sm:flex-row">
-                  <div className="relative h-32 shrink-0 overflow-hidden sm:h-auto sm:w-44">
+                  <div className="relative h-28 shrink-0 overflow-hidden sm:h-auto sm:w-44">
                     {service.images?.[0] ? (
                       <Image
                         src={service.images[0]}
@@ -78,38 +78,38 @@ export default function BookingServiceSelection({
                       <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 to-transparent" />
-                    <div className="absolute bottom-3 left-3 rounded-full bg-white/92 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-900 sm:text-xs">
+                    <div className="absolute bottom-2.5 left-2.5 rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-900 sm:bottom-3 sm:left-3 sm:px-3 sm:text-xs">
                       {service.pricingUnit}
                     </div>
                   </div>
 
-                  <div className="flex min-w-0 flex-1 flex-col justify-between p-3.5 sm:p-5">
+                  <div className="flex min-w-0 flex-1 flex-col justify-between p-3 sm:p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <h3 className="text-[15px] font-bold text-slate-950 sm:text-lg">
+                        <h3 className="text-sm font-bold text-slate-950 sm:text-lg">
                           {service.title}
                         </h3>
-                        <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-slate-600">
+                        <p className="mt-1 line-clamp-2 text-[13px] leading-5 text-slate-600 sm:mt-1.5 sm:text-sm sm:leading-6">
                           {service.description}
                         </p>
                       </div>
                       {isSelected ? (
-                        <CheckCircle className="h-6 w-6 shrink-0 text-emerald-600" />
+                        <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600 sm:h-6 sm:w-6" />
                       ) : null}
                     </div>
 
-                    <div className="mt-4 flex flex-wrap items-center gap-2.5 text-xs sm:text-sm">
-                      <span className="rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800">
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] sm:mt-4 sm:gap-2.5 sm:text-sm">
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-semibold text-emerald-800 sm:px-3">
                         {formatCurrency(service.price)}
                       </span>
                       {service.defaultDuration ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700">
-                          <Clock3 className="h-3.5 w-3.5" />
+                        <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-medium text-slate-700 sm:px-3">
+                          <Clock3 className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
                           {service.defaultDuration} min
                         </span>
                       ) : null}
-                      <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-700">
-                        <MapPin className="h-3.5 w-3.5" />
+                      <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-medium text-slate-700 sm:px-3">
+                        <MapPin className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
                         {getLocationLabel(service.locationType)}
                       </span>
                     </div>

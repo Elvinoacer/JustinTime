@@ -120,25 +120,25 @@ export default function BookingSummarySidebar({
   };
 
   return (
-    <div className="w-full max-w-full space-y-5 overflow-x-hidden">
+    <div className="w-full max-w-full space-y-4 overflow-x-hidden sm:space-y-5">
       <motion.div
         className="w-full min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white shadow-sm"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
       >
-        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-950 to-slate-800 px-4 py-4 text-white sm:px-5">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-950 to-slate-800 px-3.5 py-3.5 text-white sm:px-5 sm:py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">
             Booking with
           </p>
-          <h3 className="mt-1 wrap-break-word text-lg font-bold">
+          <h3 className="mt-1 wrap-break-word text-base font-bold sm:text-lg">
             {professional.name}
           </h3>
         </div>
 
-        <div className="min-w-0 p-4 sm:p-5">
-          <div className="flex items-center gap-4">
-            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
+        <div className="min-w-0 p-3.5 sm:p-5">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-slate-100 sm:h-14 sm:w-14">
               {professional.image ? (
                 <Image
                   src={professional.image}
@@ -156,7 +156,7 @@ export default function BookingSummarySidebar({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-semibold text-slate-950">
+                <p className="truncate text-[13px] font-semibold text-slate-950 sm:text-sm">
                   {professional.name}
                 </p>
                 {professional.isVerified ? (
@@ -174,7 +174,7 @@ export default function BookingSummarySidebar({
           </div>
 
           {professional.location ? (
-            <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">
+            <div className="mt-3 flex items-center gap-2 text-[13px] text-slate-600 sm:mt-4 sm:text-sm">
               <MapPin className="h-4 w-4 text-emerald-600" />
               <span className="min-w-0 wrap-break-word">
                 {professional.location}
@@ -186,30 +186,32 @@ export default function BookingSummarySidebar({
 
       {selectedServiceData ? (
         <motion.div
-          className="w-full min-w-0 rounded-[1.75rem] border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-4 shadow-sm sm:p-5"
+          className="w-full min-w-0 rounded-[1.75rem] border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-3.5 shadow-sm sm:p-5"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <h3 className="text-lg font-bold text-slate-950">Booking summary</h3>
+          <h3 className="text-base font-bold text-slate-950 sm:text-lg">
+            Booking summary
+          </h3>
 
-          <div className="mt-4 min-w-0 rounded-2xl bg-white/85 p-3 sm:p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+          <div className="mt-3.5 min-w-0 rounded-2xl bg-white/85 p-2.5 sm:mt-4 sm:p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 sm:text-xs">
               Selected service
             </p>
-            <p className="mt-1 wrap-break-word text-base font-bold text-slate-950">
+            <p className="mt-1 wrap-break-word text-sm font-bold text-slate-950 sm:text-base">
               {selectedServiceData.title}
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="max-w-full wrap-break-word rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+            <div className="mt-2.5 flex flex-wrap gap-2 sm:mt-3">
+              <span className="max-w-full wrap-break-word rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 sm:px-3 sm:text-xs">
                 {formatCurrency(selectedServiceData.price)}{" "}
                 {selectedServiceData.pricingUnit}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
-                <Clock3 className="h-3.5 w-3.5" />
+              <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700 sm:px-3 sm:text-xs">
+                <Clock3 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 {serviceDuration} min per slot
               </span>
-              <span className="max-w-full wrap-break-word rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+              <span className="max-w-full wrap-break-word rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700 sm:px-3 sm:text-xs">
                 {getLocationLabel(selectedServiceData.locationType)}
               </span>
             </div>
@@ -217,32 +219,32 @@ export default function BookingSummarySidebar({
 
           {totalSlots > 0 ? (
             <>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-white/85 p-3 sm:p-4">
+              <div className="mt-3.5 grid grid-cols-2 gap-2.5 sm:mt-4 sm:gap-3">
+                <div className="rounded-2xl bg-white/85 p-2.5 sm:p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                     Total time
                   </p>
-                  <p className="mt-1 text-sm font-bold text-slate-950">
+                  <p className="mt-1 text-[13px] font-bold text-slate-950 sm:text-sm">
                     {totalHours >= 1
                       ? `${totalHours.toFixed(totalHours % 1 === 0 ? 0 : 1)} hrs`
                       : `${totalMinutes} mins`}
                   </p>
                 </div>
-                <div className="rounded-2xl bg-white/85 p-3 sm:p-4">
+                <div className="rounded-2xl bg-white/85 p-2.5 sm:p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                     Avg per visit
                   </p>
-                  <p className="mt-1 text-sm font-bold text-slate-950">
+                  <p className="mt-1 text-[13px] font-bold text-slate-950 sm:text-sm">
                     {formatCurrency(averageVisitCost)}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-4 min-w-0 rounded-2xl bg-white/85 p-3 sm:p-4">
-                <h4 className="text-sm font-bold text-slate-950">
+              <div className="mt-3.5 min-w-0 rounded-2xl bg-white/85 p-2.5 sm:mt-4 sm:p-4">
+                <h4 className="text-[13px] font-bold text-slate-950 sm:text-sm">
                   Appointment timeline
                 </h4>
-                <div className="mt-3 space-y-2">
+                <div className="mt-2.5 space-y-2 sm:mt-3">
                   {Object.entries(selectedTimeSlots).map(([dateStr, slots]) => {
                     if (slots.length === 0) return null;
                     const date = selectedDates.find(
@@ -255,10 +257,10 @@ export default function BookingSummarySidebar({
                         key={dateStr}
                         className="border-l-2 border-emerald-300 pl-3"
                       >
-                        <p className="text-sm font-semibold text-slate-900">
+                        <p className="text-[13px] font-semibold text-slate-900 sm:text-sm">
                           {date ? format(date, "EEE, MMM d") : dateStr}
                         </p>
-                        <p className="mt-1 wrap-break-word text-xs text-slate-600">
+                        <p className="mt-1 wrap-break-word text-[11px] text-slate-600 sm:text-xs">
                           {slots.join(", ")}
                         </p>
                       </div>
@@ -267,7 +269,7 @@ export default function BookingSummarySidebar({
                 </div>
 
                 {firstAppointment ? (
-                  <div className="mt-4 wrap-break-word rounded-2xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
+                  <div className="mt-3.5 wrap-break-word rounded-2xl border border-slate-100 bg-slate-50 p-2.5 text-[11px] text-slate-600 sm:mt-4 sm:p-3 sm:text-xs">
                     Earliest slot:{" "}
                     <span className="font-semibold text-slate-900">
                       {format(
@@ -294,14 +296,14 @@ export default function BookingSummarySidebar({
               </div>
             </>
           ) : (
-            <div className="mt-4 rounded-2xl border border-dashed border-emerald-200 bg-white/70 p-4 text-sm text-slate-600">
+            <div className="mt-3.5 rounded-2xl border border-dashed border-emerald-200 bg-white/70 p-3.5 text-[13px] text-slate-600 sm:mt-4 sm:p-4 sm:text-sm">
               Pick dates and time slots to see total time and cost details here.
             </div>
           )}
 
           {totalSlots > 0 ? (
-            <div className="mt-4 min-w-0 rounded-2xl bg-white/92 p-3 sm:p-4">
-              <div className="space-y-2 text-sm">
+            <div className="mt-3.5 min-w-0 rounded-2xl bg-white/92 p-2.5 sm:mt-4 sm:p-4">
+              <div className="space-y-2 text-[13px] sm:text-sm">
                 <div className="flex justify-between text-slate-600">
                   <span>
                     Subtotal ({totalSlots} slot{totalSlots !== 1 ? "s" : ""})
@@ -321,7 +323,7 @@ export default function BookingSummarySidebar({
                         }
                         placeholder="Promo code"
                         disabled={!!appliedPromo}
-                        className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs uppercase text-slate-900 outline-none placeholder:text-slate-400 focus:border-emerald-500"
+                        className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-[11px] uppercase text-slate-900 outline-none placeholder:text-slate-400 focus:border-emerald-500 sm:text-xs"
                       />
                     </div>
                     {appliedPromo ? (
@@ -380,11 +382,11 @@ export default function BookingSummarySidebar({
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                <span className="text-sm font-bold text-slate-950">
+              <div className="mt-3.5 flex items-center justify-between border-t border-slate-100 pt-3.5 sm:mt-4 sm:pt-4">
+                <span className="text-[13px] font-bold text-slate-950 sm:text-sm">
                   Estimated total
                 </span>
-                <span className="text-2xl font-bold text-emerald-700">
+                <span className="text-xl font-bold text-emerald-700 sm:text-2xl">
                   {formatCurrency(totalAmount)}
                 </span>
               </div>
@@ -394,7 +396,7 @@ export default function BookingSummarySidebar({
       ) : null}
 
       <motion.div
-        className="w-full min-w-0 rounded-[1.75rem] border border-sky-200 bg-sky-50 p-4 sm:p-5"
+        className="w-full min-w-0 rounded-[1.75rem] border border-sky-200 bg-sky-50 p-3.5 sm:p-5"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.2 }}
@@ -402,10 +404,10 @@ export default function BookingSummarySidebar({
         <div className="flex items-start gap-3">
           <Info className="mt-0.5 h-5 w-5 shrink-0 text-sky-600" />
           <div>
-            <h4 className="text-sm font-bold text-slate-950">
+            <h4 className="text-[13px] font-bold text-slate-950 sm:text-sm">
               What happens next?
             </h4>
-            <p className="mt-1 text-sm leading-6 text-slate-600">
+            <p className="mt-1 text-[13px] leading-5 text-slate-600 sm:text-sm sm:leading-6">
               Your booking is created as pending, the provider is notified, and
               you will see the request in your bookings after confirmation.
             </p>

@@ -614,20 +614,20 @@ function BookingPageContent() {
           </div>
         </section>
 
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-          <div className="sticky top-[calc(var(--public-header-h)+0.6rem)] z-30 mb-4 rounded-[1.35rem] border border-emerald-200/80 bg-white/95 p-4 shadow-sm backdrop-blur lg:hidden">
-            <div className="flex items-center justify-between gap-3">
+        <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
+          <div className="sticky top-[calc(var(--public-header-h)+0.6rem)] z-30 mb-4 rounded-[1.35rem] border border-emerald-200/80 bg-white/95 p-3 shadow-sm backdrop-blur sm:p-4 lg:hidden">
+            <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
                   Step {currentStep} of {STEPS.length}
                 </p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
+                <p className="mt-1 text-[13px] font-semibold text-slate-900 sm:text-sm">
                   {STEPS[currentStep - 1]?.title}
                 </p>
               </div>
               <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700">
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-                Saved draft
+                <span className="hidden min-[380px]:inline">Saved draft</span>
               </span>
             </div>
 
@@ -638,7 +638,7 @@ function BookingPageContent() {
               />
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2">
               {STEPS.map((step) => {
                 const isActive = currentStep === step.step;
                 const isComplete = currentStep > step.step;
@@ -651,7 +651,7 @@ function BookingPageContent() {
                     onClick={() => handleStepChipClick(step.step)}
                     disabled={!canNavigate}
                     aria-current={isActive ? "step" : undefined}
-                    className={`rounded-xl px-2 py-2 text-center text-[11px] font-semibold transition-colors ${
+                    className={`rounded-lg px-1.5 py-1.5 text-center text-[10px] font-semibold transition-colors min-[400px]:rounded-xl min-[400px]:px-2 min-[400px]:py-2 min-[400px]:text-[11px] ${
                       isComplete
                         ? "bg-emerald-100 text-emerald-800"
                         : isActive
@@ -669,13 +669,13 @@ function BookingPageContent() {
           <div className="grid gap-6 lg:grid-cols-3 lg:gap-8">
             <div className="lg:col-span-2">
               <div className="mb-4 space-y-3 overflow-x-hidden lg:hidden">
-                <div className="rounded-[1.35rem] border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="rounded-[1.35rem] border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                         Booking snapshot
                       </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-950">
+                      <p className="mt-1 text-[13px] font-semibold text-slate-950 sm:text-sm">
                         {selectedServiceData?.title ||
                           "Choose a service to begin"}
                       </p>
@@ -685,7 +685,7 @@ function BookingPageContent() {
                       onClick={() =>
                         setShowMobileSummaryDetails((previous) => !previous)
                       }
-                      className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700"
+                      className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-700 sm:px-3 sm:py-1.5 sm:text-xs"
                     >
                       <LayoutList className="h-3.5 w-3.5" />
                       {showMobileSummaryDetails
@@ -694,30 +694,30 @@ function BookingPageContent() {
                     </button>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <div className="rounded-xl bg-slate-50 px-3 py-2">
+                  <div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2">
+                    <div className="rounded-xl bg-slate-50 px-2.5 py-1.5 sm:px-3 sm:py-2">
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                         Service
                       </p>
-                      <p className="mt-1 text-xs font-semibold text-slate-900">
+                      <p className="mt-1 text-[11px] font-semibold text-slate-900 sm:text-xs">
                         {selectedServiceData ? "Selected" : "Pending"}
                       </p>
                     </div>
-                    <div className="rounded-xl bg-slate-50 px-3 py-2">
+                    <div className="rounded-xl bg-slate-50 px-2.5 py-1.5 sm:px-3 sm:py-2">
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                         Time
                       </p>
-                      <p className="mt-1 text-xs font-semibold text-slate-900">
+                      <p className="mt-1 text-[11px] font-semibold text-slate-900 sm:text-xs">
                         {totalSlots > 0
                           ? `${totalSlots} slot${totalSlots > 1 ? "s" : ""}`
                           : "Pending"}
                       </p>
                     </div>
-                    <div className="rounded-xl bg-slate-50 px-3 py-2">
+                    <div className="rounded-xl bg-slate-50 px-2.5 py-1.5 sm:px-3 sm:py-2">
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                         Estimate
                       </p>
-                      <p className="mt-1 text-xs font-semibold text-slate-900">
+                      <p className="mt-1 text-[11px] font-semibold text-slate-900 sm:text-xs">
                         {baseAmount > 0
                           ? formatCurrency(breakdown.totalAmount)
                           : "--"}
@@ -727,7 +727,7 @@ function BookingPageContent() {
                 </div>
 
                 {showMobileSummaryDetails ? (
-                  <div className="max-w-full overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white p-3 shadow-sm">
+                  <div className="max-w-full overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white p-2.5 shadow-sm sm:p-3">
                     <BookingSummarySidebar
                       professional={professional}
                       selectedServiceData={selectedServiceData}
@@ -750,17 +750,17 @@ function BookingPageContent() {
               </div>
 
               <motion.div
-                className="space-y-6 rounded-[2rem] border border-slate-200/80 bg-white p-5 shadow-sm sm:p-7"
+                className="space-y-6 rounded-[1.5rem] border border-slate-200/80 bg-white p-3.5 shadow-sm sm:rounded-[2rem] sm:p-7"
                 initial={{ opacity: 0, x: -16 }}
                 animate={{ opacity: 1, x: 0 }}
               >
                 {currentStep === 1 ? (
                   <div className="space-y-6">
                     <div>
-                      <h2 className="text-2xl font-bold tracking-tight text-slate-950">
+                      <h2 className="text-lg font-bold tracking-tight text-slate-950 sm:text-2xl">
                         Service & availability
                       </h2>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                      <p className="mt-2 text-[13px] leading-5 text-slate-600 sm:text-sm sm:leading-6">
                         Start by selecting the service, then choose the dates
                         and time slots that work best for you.
                       </p>
@@ -790,10 +790,10 @@ function BookingPageContent() {
                 {currentStep === 2 ? (
                   <div className="space-y-6">
                     <div>
-                      <h2 className="text-2xl font-bold tracking-tight text-slate-950">
+                      <h2 className="text-lg font-bold tracking-tight text-slate-950 sm:text-2xl">
                         Location & booking details
                       </h2>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                      <p className="mt-2 text-[13px] leading-5 text-slate-600 sm:text-sm sm:leading-6">
                         Add the information the professional needs to confirm
                         the request and arrive prepared.
                       </p>
@@ -816,10 +816,10 @@ function BookingPageContent() {
                 {currentStep === 3 ? (
                   <div className="space-y-6">
                     <div>
-                      <h2 className="text-2xl font-bold tracking-tight text-slate-950">
+                      <h2 className="text-lg font-bold tracking-tight text-slate-950 sm:text-2xl">
                         Review & confirm
                       </h2>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                      <p className="mt-2 text-[13px] leading-5 text-slate-600 sm:text-sm sm:leading-6">
                         Review your summary (right side on desktop, snapshot on
                         mobile). If everything looks good, confirm the request
                         or send a negotiation proposal.
@@ -827,27 +827,27 @@ function BookingPageContent() {
                     </div>
 
                     {status === "unauthenticated" ? (
-                      <div className="rounded-[1.5rem] border border-sky-200 bg-sky-50 p-6 text-center">
+                      <div className="rounded-[1.5rem] border border-sky-200 bg-sky-50 p-4 text-center sm:p-6">
                         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-sky-100 text-sky-600">
                           <User className="h-8 w-8" />
                         </div>
-                        <h3 className="mt-4 text-lg font-bold text-slate-950">
+                        <h3 className="mt-3 text-base font-bold text-slate-950 sm:mt-4 sm:text-lg">
                           Sign in to finish your booking
                         </h3>
-                        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
+                        <p className="mx-auto mt-2 max-w-md text-[13px] leading-5 text-slate-600 sm:text-sm sm:leading-6">
                           Your booking draft is already saved. Sign in and
                           return to submit it without losing progress.
                         </p>
                         <button
                           onClick={handleLoginRedirect}
-                          className="mt-5 rounded-2xl bg-sky-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-sky-700"
+                          className="mt-4 rounded-2xl bg-sky-600 px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-sky-700 sm:mt-5 sm:px-6 sm:py-3 sm:text-sm"
                         >
                           Continue to sign in
                         </button>
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-4 text-sm leading-6 text-slate-600">
+                        <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-3.5 text-[13px] leading-5 text-slate-600 sm:p-4 sm:text-sm sm:leading-6">
                           Confirming creates a pending booking request and
                           notifies the professional immediately. If you need to
                           adjust price or location first, use the negotiation
@@ -986,15 +986,15 @@ function BookingPageContent() {
 
       {currentStep < 3 ? (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
-          <div className="mx-auto max-w-7xl px-4 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] pt-3">
-            <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
+          <div className="mx-auto max-w-7xl px-3 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] pt-2.5 sm:px-4 sm:pt-3">
+            <div className="mb-2.5 flex flex-col gap-2 rounded-xl bg-slate-50 px-2.5 py-1.5 min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between sm:mb-3 sm:px-3 sm:py-2">
               <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
                 <Clock3 className="h-4 w-4 text-emerald-600" />
                 {totalSlots > 0
                   ? `${totalSlots} slot${totalSlots > 1 ? "s" : ""} selected`
                   : "No slots selected yet"}
               </div>
-              <div className="inline-flex items-center gap-1 text-sm font-bold text-slate-950">
+              <div className="inline-flex items-center gap-1 text-[13px] font-bold text-slate-950 sm:text-sm">
                 <Wallet className="h-4 w-4 text-emerald-600" />
                 {baseAmount > 0
                   ? formatCurrency(breakdown.totalAmount)
@@ -1007,7 +1007,7 @@ function BookingPageContent() {
                 <button
                   type="button"
                   onClick={handlePrevStep}
-                  className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-slate-700"
+                  className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 px-3.5 text-[13px] font-semibold text-slate-700 sm:h-12 sm:px-4 sm:text-sm"
                 >
                   <ChevronLeft className="mr-1 h-4 w-4" />
                   Back
@@ -1018,7 +1018,7 @@ function BookingPageContent() {
                 type="button"
                 onClick={handleNextStep}
                 disabled={isMobileContinueDisabled}
-                className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 sm:h-12 sm:px-5 sm:text-sm"
               >
                 {mobileContinueLabel}
                 <ChevronRight className="h-4 w-4" />
@@ -1026,7 +1026,7 @@ function BookingPageContent() {
             </div>
 
             {isMobileContinueDisabled ? (
-              <p className="mt-2 text-xs text-amber-700">
+              <p className="mt-1.5 text-[11px] text-amber-700 sm:mt-2 sm:text-xs">
                 {mobileDisabledHint}
               </p>
             ) : null}
@@ -1036,15 +1036,15 @@ function BookingPageContent() {
 
       {currentStep === 3 && status !== "unauthenticated" ? (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
-          <div className="mx-auto max-w-7xl px-4 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] pt-3">
-            <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
+          <div className="mx-auto max-w-7xl px-3 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] pt-2.5 sm:px-4 sm:pt-3">
+            <div className="mb-2.5 flex flex-col gap-2 rounded-xl bg-slate-50 px-2.5 py-1.5 min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between sm:mb-3 sm:px-3 sm:py-2">
               <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
                 <Clock3 className="h-4 w-4 text-emerald-600" />
                 {totalSlots > 0
                   ? `${totalSlots} slot${totalSlots > 1 ? "s" : ""} selected`
                   : "No slots selected yet"}
               </div>
-              <div className="inline-flex items-center gap-1 text-sm font-bold text-slate-950">
+              <div className="inline-flex items-center gap-1 text-[13px] font-bold text-slate-950 sm:text-sm">
                 <Wallet className="h-4 w-4 text-emerald-600" />
                 {baseAmount > 0
                   ? formatCurrency(breakdown.totalAmount)
@@ -1052,12 +1052,12 @@ function BookingPageContent() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
               <button
                 type="button"
                 onClick={() => setShowNegotiationDialog(true)}
                 disabled={isSubmitting}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-sky-700 disabled:opacity-50"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-3 text-[13px] font-semibold text-white transition-colors hover:bg-sky-700 disabled:opacity-50 sm:h-12 sm:text-sm"
               >
                 <Handshake className="h-4 w-4" />
                 Negotiate
@@ -1067,7 +1067,7 @@ function BookingPageContent() {
                 type="button"
                 onClick={() => void handleSubmit(false)}
                 disabled={isSubmitting}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-3 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50 sm:h-12 sm:text-sm"
               >
                 {isSubmitting ? (
                   <>

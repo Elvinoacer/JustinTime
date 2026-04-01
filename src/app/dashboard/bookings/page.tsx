@@ -281,7 +281,7 @@ const BookingsPage = () => {
                   selected={dateRange}
                   onSelect={setDateRange}
                   numberOfMonths={1}
-                  className="p-0 scale-90 sm:scale-100"
+                  className="w-full p-0"
                 />
               </Popover.Panel>
             </Transition>
@@ -345,7 +345,7 @@ const BookingsPage = () => {
                   <div className="flex items-start justify-between mb-3 sm:mb-4">
                     <div
                       className={`px-2.5 py-1 rounded-full text-[10px] xs:text-xs font-bold border flex items-center gap-1 ${getStatusColor(
-                        booking.status
+                        booking.status,
                       )}`}
                     >
                       <span className="material-symbols-outlined text-xs">
@@ -451,7 +451,7 @@ const BookingsPage = () => {
                                 >
                                   {new Date(slot.date).toLocaleDateString(
                                     "en-US",
-                                    { month: "short", day: "numeric" }
+                                    { month: "short", day: "numeric" },
                                   )}{" "}
                                   • {slot.startTime} - {slot.endTime}
                                 </p>
@@ -606,7 +606,7 @@ const BookingsPage = () => {
                           {booking.slots && booking.slots.length > 0 ? (
                             <div>
                               {new Date(
-                                booking.slots[0].date
+                                booking.slots[0].date,
                               ).toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
@@ -630,7 +630,7 @@ const BookingsPage = () => {
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                         <span
                           className={`px-2.5 py-1 inline-flex items-center gap-1 text-[10px] xs:text-xs font-bold rounded-full border ${getStatusColor(
-                            booking.status
+                            booking.status,
                           )}`}
                         >
                           <span className="material-symbols-outlined text-xs">
@@ -796,7 +796,7 @@ const BookingsPage = () => {
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(
-                              selectedBooking.clientPhone
+                              selectedBooking.clientPhone,
                             );
                             toast.success("Phone number copied!");
                           }}
@@ -832,7 +832,7 @@ const BookingsPage = () => {
                         <button
                           onClick={() => {
                             const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                              selectedBooking.clientAddress
+                              selectedBooking.clientAddress,
                             )}`;
                             window.open(mapsUrl, "_blank");
                             toast.success("Opening in Google Maps...");
@@ -847,7 +847,7 @@ const BookingsPage = () => {
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(
-                              selectedBooking.clientAddress
+                              selectedBooking.clientAddress,
                             );
                             toast.success("Address copied!");
                           }}
@@ -942,7 +942,7 @@ const BookingsPage = () => {
                 </div>
                 <span
                   className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold border ${getStatusColor(
-                    selectedBooking.status
+                    selectedBooking.status,
                   )}`}
                 >
                   <span className="material-symbols-outlined text-sm">
@@ -1032,7 +1032,7 @@ const BookingsPage = () => {
                     onError: () => {
                       toast.error("Failed to update booking");
                     },
-                  }
+                  },
                 );
               }}
               disabled={updateBooking.isPending}
@@ -1072,7 +1072,7 @@ const BookingsPage = () => {
               onError: () => {
                 toast.error("Failed to cancel booking");
               },
-            }
+            },
           );
         }}
         title="Cancel Booking"
@@ -1095,7 +1095,7 @@ const BookingsPage = () => {
             },
             onError: (error: any) => {
               toast.error(
-                error.response?.data?.message || "Failed to delete booking"
+                error.response?.data?.message || "Failed to delete booking",
               );
             },
           });
