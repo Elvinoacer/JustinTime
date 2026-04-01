@@ -1,5 +1,5 @@
 import React, { Dispatch, SetStateAction } from "react";
-import { format, isBefore, startOfDay } from "date-fns";
+import { addYears, format, isBefore, startOfDay, startOfMonth } from "date-fns";
 import {
   AlertCircle,
   Calendar as CalendarIcon,
@@ -41,6 +41,10 @@ export default function BookingDateTimeSelection({
       day: { date: Date };
     };
 
+  const today = startOfDay(new Date());
+  const minMonth = startOfMonth(today);
+  const maxMonth = addYears(minMonth, 3);
+
   return (
     <>
       <div className="space-y-3.5 sm:space-y-4">
@@ -72,12 +76,17 @@ export default function BookingDateTimeSelection({
         <div className="rounded-[1.5rem] border border-slate-200 bg-white p-2.5 shadow-sm sm:p-5">
           <Calendar
             mode="multiple"
+            captionLayout="dropdown"
+            showOutsideDays={false}
+            startMonth={minMonth}
+            endMonth={maxMonth}
+            defaultMonth={selectedDates[0] ? startOfMonth(selectedDates[0]) : minMonth}
             selected={selectedDates}
             onSelect={(dates) => {
               if (dates) {
                 const validDates = dates.filter((date) => {
                   const dateStr = format(date, "yyyy-MM-dd");
-                  const isPast = isBefore(date, startOfDay(new Date()));
+                  const isPast = isBefore(date, today);
                   const isDisabled = disabledDates.includes(dateStr);
 
                   if (isPast || isDisabled) {
@@ -99,35 +108,41 @@ export default function BookingDateTimeSelection({
               }
             }}
             disabled={[
-              { before: new Date() },
+              { before: today },
               (date) => disabledDates.includes(format(date, "yyyy-MM-dd")),
             ]}
             onMonthChange={(month) => {
               fetchMonthlyAvailability(format(month, "yyyy-MM"));
             }}
-            className="w-full max-w-none p-0"
+            className="!w-full max-w-none p-0"
             classNames={{
-              root: "w-full",
-              months: "w-full",
-              month: "w-full space-y-2.5 sm:space-y-3",
+              root: "!w-full max-w-none",
+              months: "!w-full",
+              month: "!w-full space-y-2.5 sm:space-y-3",
               month_caption:
-                "relative mb-2.5 flex h-9 items-center justify-center sm:mb-3 sm:h-10",
+                "relative mb-2.5 flex h-9 w-full items-center justify-center sm:mb-3 sm:h-10",
               caption_label: "text-[15px] font-bold text-slate-950 sm:text-lg",
+              dropdowns:
+                "flex h-9 w-full items-center justify-center gap-2 sm:h-10",
+              dropdown_root:
+                "relative h-8 rounded-md border border-slate-200 bg-white px-1 text-[12px] font-semibold text-slate-700 sm:h-9 sm:text-sm",
+              dropdown:
+                "absolute inset-0 cursor-pointer rounded-md border-0 bg-transparent px-2 pr-6 text-[12px] font-semibold text-slate-800 outline-none sm:text-sm",
               button_previous:
                 "absolute left-0 h-8 w-8 rounded-full border border-slate-200 bg-white sm:h-9 sm:w-9",
               button_next:
                 "absolute right-0 h-8 w-8 rounded-full border border-slate-200 bg-white sm:h-9 sm:w-9",
-              table: "w-full border-separate border-spacing-y-1",
-              weekdays: "grid grid-cols-7 gap-1 text-center sm:gap-2",
+              table: "w-full table-fixed border-separate border-spacing-y-1",
+              weekdays: "grid w-full grid-cols-7 gap-1 text-center sm:gap-2",
               weekday:
                 "text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs",
-              week: "mt-1.5 grid grid-cols-7 gap-1 sm:gap-2",
-              day: "w-full",
+              week: "mt-1.5 grid w-full grid-cols-7 gap-1 sm:gap-2",
+              day: "w-full p-0",
             }}
             components={{
               DayButton: ({ day, ...props }: CalendarDayButtonProps) => {
                 const dateStr = format(day.date, "yyyy-MM-dd");
-                const isPast = isBefore(day.date, startOfDay(new Date()));
+                const isPast = isBefore(day.date, today);
                 const isInDisabledList = disabledDates.includes(dateStr);
                 const isDisabled = isPast || isInDisabledList;
                 const isSelected =
