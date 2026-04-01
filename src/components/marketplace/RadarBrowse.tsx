@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Fragment } from "react";
 import { bearingToCompass, formatDistance } from "@/lib/utils/geolocation";
 
 type RadarEntityType = "job" | "service" | "professional";
@@ -66,6 +67,127 @@ function pointPosition(
   };
 }
 
+interface Rect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+interface LabelPlacement {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+const RADAR_LAYOUT_SIZE = 560;
+const RADAR_LABEL_WIDTH = 176;
+const RADAR_LABEL_HEIGHT = 48;
+const RADAR_LABEL_PADDING = 6;
+
+function rectsIntersect(a: Rect, b: Rect) {
+  return !(
+    a.left + a.width <= b.left ||
+    b.left + b.width <= a.left ||
+    a.top + a.height <= b.top ||
+    b.top + b.height <= a.top
+  );
+}
+
+function overlapCount(candidate: Rect, occupied: Rect[]) {
+  let count = 0;
+  for (const existing of occupied) {
+    if (rectsIntersect(candidate, existing)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function isWithinRadar(rect: Rect, size: number) {
+  return (
+    rect.left >= RADAR_LABEL_PADDING &&
+    rect.top >= RADAR_LABEL_PADDING &&
+    rect.left + rect.width <= size - RADAR_LABEL_PADDING &&
+    rect.top + rect.height <= size - RADAR_LABEL_PADDING
+  );
+}
+
+function getLabelPlacement(
+  pointX: number,
+  pointY: number,
+  occupied: Rect[],
+): LabelPlacement {
+  const candidates = [
+    {
+      left: pointX - RADAR_LABEL_WIDTH / 2,
+      top: pointY - RADAR_LABEL_HEIGHT - 14,
+      width: RADAR_LABEL_WIDTH,
+      height: RADAR_LABEL_HEIGHT,
+    },
+    {
+      left: pointX + 14,
+      top: pointY - RADAR_LABEL_HEIGHT / 2,
+      width: RADAR_LABEL_WIDTH,
+      height: RADAR_LABEL_HEIGHT,
+    },
+    {
+      left: pointX - RADAR_LABEL_WIDTH - 14,
+      top: pointY - RADAR_LABEL_HEIGHT / 2,
+      width: RADAR_LABEL_WIDTH,
+      height: RADAR_LABEL_HEIGHT,
+    },
+    {
+      left: pointX - RADAR_LABEL_WIDTH / 2,
+      top: pointY + 14,
+      width: RADAR_LABEL_WIDTH,
+      height: RADAR_LABEL_HEIGHT,
+    },
+    {
+      left: pointX + 12,
+      top: pointY - RADAR_LABEL_HEIGHT - 12,
+      width: RADAR_LABEL_WIDTH,
+      height: RADAR_LABEL_HEIGHT,
+    },
+    {
+      left: pointX - RADAR_LABEL_WIDTH - 12,
+      top: pointY - RADAR_LABEL_HEIGHT - 12,
+      width: RADAR_LABEL_WIDTH,
+      height: RADAR_LABEL_HEIGHT,
+    },
+  ];
+
+  let best = candidates[0];
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  for (const candidate of candidates) {
+    if (!isWithinRadar(candidate, RADAR_LAYOUT_SIZE)) {
+      continue;
+    }
+    const score = overlapCount(candidate, occupied);
+    if (score === 0) {
+      occupied.push(candidate);
+      return candidate;
+    }
+    if (score < bestScore) {
+      best = candidate;
+      bestScore = score;
+    }
+  }
+
+  const maxLeft = RADAR_LAYOUT_SIZE - RADAR_LABEL_WIDTH - RADAR_LABEL_PADDING;
+  const maxTop = RADAR_LAYOUT_SIZE - RADAR_LABEL_HEIGHT - RADAR_LABEL_PADDING;
+  const clamped: Rect = {
+    left: Math.min(Math.max(best.left, RADAR_LABEL_PADDING), maxLeft),
+    top: Math.min(Math.max(best.top, RADAR_LABEL_PADDING), maxTop),
+    width: RADAR_LABEL_WIDTH,
+    height: RADAR_LABEL_HEIGHT,
+  };
+  occupied.push(clamped);
+  return clamped;
+}
+
 export default function RadarBrowse({
   title,
   description,
@@ -110,6 +232,64 @@ export default function RadarBrowse({
     5,
     Math.min(100, sorted[Math.min(sorted.length - 1, 24)].distanceKm),
   );
+  const plottedItems = sorted.slice(0, 60);
+  const occupiedLabelRects: Rect[] = [];
+  const pointLayouts = plottedItems.map((item) => {
+    const label = itemTypeLabel(item);
+    const pointColor = colorFromKey((item.colorKey ?? label).toLowerCase());
+    const pos = pointPosition(item.distanceKm, item.bearingDeg, maxDistanceKm);
+    const pointX = (pos.x / 100) * RADAR_LAYOUT_SIZE;
+    const pointY = (pos.y / 100) * RADAR_LAYOUT_SIZE;
+    const labelRect = getLabelPlacement(pointX, pointY, occupiedLabelRects);
+
+    const labelCenterX = labelRect.left + labelRect.width / 2;
+    const labelCenterY = labelRect.top + labelRect.height / 2;
+    const toPointX = pointX - labelCenterX;
+    const toPointY = pointY - labelCenterY;
+    const absX = Math.abs(toPointX) || 0.0001;
+    const absY = Math.abs(toPointY) || 0.0001;
+    const halfW = labelRect.width / 2;
+    const halfH = labelRect.height / 2;
+    const edgeScale = Math.min(halfW / absX, halfH / absY);
+    const anchorX = labelCenterX + toPointX * edgeScale;
+    const anchorY = labelCenterY + toPointY * edgeScale;
+    const connectorDx = anchorX - pointX;
+    const connectorDy = anchorY - pointY;
+    const connectorLengthPx = Math.hypot(connectorDx, connectorDy);
+    const connectorAngleDeg =
+      (Math.atan2(connectorDy, connectorDx) * 180) / Math.PI;
+    const pointPercent = {
+      left: `${pos.x}%`,
+      top: `${pos.y}%`,
+    };
+    const labelAnchorPercent = {
+      left: `${(anchorX / RADAR_LAYOUT_SIZE) * 100}%`,
+      top: `${(anchorY / RADAR_LAYOUT_SIZE) * 100}%`,
+    };
+
+    return {
+      item,
+      label,
+      pointColor,
+      pos,
+      pointPercent,
+      labelAnchorPercent,
+      connectorStyle:
+        connectorLengthPx > 4
+          ? {
+              left: `${pos.x}%`,
+              top: `${pos.y}%`,
+              width: `${(connectorLengthPx / RADAR_LAYOUT_SIZE) * 100}%`,
+              transform: `translateY(-50%) rotate(${connectorAngleDeg}deg)`,
+            }
+          : null,
+      labelStyle: {
+        left: `${((labelRect.left + labelRect.width / 2) / RADAR_LAYOUT_SIZE) * 100}%`,
+        top: `${((labelRect.top + labelRect.height / 2) / RADAR_LAYOUT_SIZE) * 100}%`,
+        width: `${labelRect.width}px`,
+      },
+    };
+  });
   const legend = Array.from(
     new Map(
       sorted.map((item) => {
@@ -143,49 +323,73 @@ export default function RadarBrowse({
 
             <div className="absolute left-1/2 top-1/2 z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.9)]" />
 
-            {sorted.slice(0, 60).map((item) => {
-              const label = itemTypeLabel(item);
-              const pointColor = colorFromKey(
-                (item.colorKey ?? label).toLowerCase(),
-              );
-              const pos = pointPosition(
-                item.distanceKm,
-                item.bearingDeg,
-                maxDistanceKm,
-              );
-              return (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  className="group absolute z-30"
-                  style={{
-                    left: `${pos.x}%`,
-                    top: `${pos.y}%`,
-                    transform: "translate(-50%, -50%)",
-                  }}
-                  aria-label={`${item.name}, ${label}, ${formatDistance(item.distanceKm)}, ${bearingToCompass(item.bearingDeg)}`}
-                >
-                  <span className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-1.5 w-max max-w-[180px] -translate-x-1/2 rounded-md border border-white/30 bg-slate-900/80 px-2 py-1 text-center text-[10px] leading-tight text-emerald-50 shadow-[0_8px_22px_-14px_rgba(0,0,0,0.9)] backdrop-blur-sm transition-all duration-200 group-hover:-translate-y-0.5 group-hover:bg-slate-900/95">
-                    <span className="block max-w-[160px] truncate font-semibold text-white">
-                      {item.name}
-                    </span>
-                    <span className="mt-0.5 block text-[9px] uppercase tracking-wide text-emerald-100/95">
-                      {label} • {formatDistance(item.distanceKm)} •{" "}
-                      {bearingToCompass(item.bearingDeg)}
-                    </span>
-                    {item.subtitle ? (
-                      <span className="mt-0.5 block max-w-[160px] truncate text-[9px] text-emerald-200/90">
-                        {item.subtitle}
-                      </span>
+            {pointLayouts.map(
+              ({
+                item,
+                label,
+                pointColor,
+                pos,
+                pointPercent,
+                labelAnchorPercent,
+                labelStyle,
+                connectorStyle,
+              }) => {
+                return (
+                  <Fragment key={item.id}>
+                    {connectorStyle ? (
+                      <span
+                        className="pointer-events-none absolute z-[31] h-px origin-left rounded-full bg-white/45 shadow-[0_0_10px_rgba(255,255,255,0.25)]"
+                        style={connectorStyle}
+                      />
                     ) : null}
-                  </span>
-                  <span
-                    className="block h-3.5 w-3.5 rounded-full border border-white/70 shadow-[0_0_12px_rgba(255,255,255,0.35)] transition-transform duration-200 group-hover:scale-125"
-                    style={{ backgroundColor: pointColor }}
-                  />
-                </Link>
-              );
-            })}
+                    {connectorStyle ? (
+                      <span
+                        className="pointer-events-none absolute z-[32] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/70 bg-slate-900 shadow-[0_0_10px_rgba(255,255,255,0.35)]"
+                        style={labelAnchorPercent}
+                      />
+                    ) : null}
+                    {connectorStyle ? (
+                      <span
+                        className="pointer-events-none absolute z-[32] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/60 bg-white/80 shadow-[0_0_8px_rgba(255,255,255,0.45)]"
+                        style={pointPercent}
+                      />
+                    ) : null}
+                    <Link
+                      href={item.href}
+                      className="group absolute z-30"
+                      style={{
+                        left: `${pos.x}%`,
+                        top: `${pos.y}%`,
+                        transform: "translate(-50%, -50%)",
+                      }}
+                      aria-label={`${item.name}, ${label}, ${formatDistance(item.distanceKm)}, ${bearingToCompass(item.bearingDeg)}`}
+                    >
+                      <span
+                        className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-1/2 rounded-md border border-white/30 bg-slate-900/80 px-2 py-1 text-center text-[10px] leading-tight text-emerald-50 shadow-[0_8px_22px_-14px_rgba(0,0,0,0.9)] backdrop-blur-sm transition-all duration-200 group-hover:-translate-y-[53%] group-hover:bg-slate-900/95"
+                        style={labelStyle}
+                      >
+                        <span className="block max-w-[160px] truncate font-semibold text-white">
+                          {item.name}
+                        </span>
+                        <span className="mt-0.5 block text-[9px] uppercase tracking-wide text-emerald-100/95">
+                          {label} • {formatDistance(item.distanceKm)} •{" "}
+                          {bearingToCompass(item.bearingDeg)}
+                        </span>
+                        {item.subtitle ? (
+                          <span className="mt-0.5 block max-w-[160px] truncate text-[9px] text-emerald-200/90">
+                            {item.subtitle}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span
+                        className="block h-3.5 w-3.5 rounded-full border border-white/70 shadow-[0_0_12px_rgba(255,255,255,0.35)] transition-transform duration-200 group-hover:scale-125"
+                        style={{ backgroundColor: pointColor }}
+                      />
+                    </Link>
+                  </Fragment>
+                );
+              },
+            )}
 
             <div className="absolute left-1/2 top-2 -translate-x-1/2 text-xs font-semibold tracking-widest text-emerald-100/90">
               N
