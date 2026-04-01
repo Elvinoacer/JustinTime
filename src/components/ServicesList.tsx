@@ -60,52 +60,6 @@ const ServicesList = ({
     onSortChange(sortMap[sort] || "relevance");
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex-1">
-        <div className="flex flex-col items-center justify-center py-16 sm:py-20">
-          <motion.div
-            className="h-12 w-12 rounded-full border-4 border-emerald-200/80 border-t-emerald-600 sm:h-14 sm:w-14"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            role="status"
-            aria-label="Loading services"
-          />
-          <p className="mt-4 text-sm font-medium text-slate-600 sm:text-base">
-            Loading services…
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="flex-1">
-        <div className="flex flex-col items-center justify-center px-4 py-16 sm:py-20">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50">
-            <span className="material-symbols-outlined text-2xl text-red-600">
-              error
-            </span>
-          </div>
-          <h3 className="mb-2 text-center text-lg font-bold text-slate-900 sm:text-xl">
-            Couldn&apos;t load services
-          </h3>
-          <p className="mb-6 max-w-md text-center text-sm text-slate-600 sm:text-base">
-            {error?.message || "Check your connection and try again."}
-          </p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="min-h-[48px] rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const services =
     data?.pages.flatMap((page: ServicesResponse) => page.services) || [];
   const pagination = data?.pages[0]?.pagination;
@@ -151,6 +105,52 @@ const ServicesList = ({
         };
       });
   }, [filters.latitude, filters.longitude, services]);
+
+  if (isLoading) {
+    return (
+      <div className="flex-1">
+        <div className="flex flex-col items-center justify-center py-16 sm:py-20">
+          <motion.div
+            className="h-12 w-12 rounded-full border-4 border-emerald-200/80 border-t-emerald-600 sm:h-14 sm:w-14"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            role="status"
+            aria-label="Loading services"
+          />
+          <p className="mt-4 text-sm font-medium text-slate-600 sm:text-base">
+            Loading services…
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex-1">
+        <div className="flex flex-col items-center justify-center px-4 py-16 sm:py-20">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50">
+            <span className="material-symbols-outlined text-2xl text-red-600">
+              error
+            </span>
+          </div>
+          <h3 className="mb-2 text-center text-lg font-bold text-slate-900 sm:text-xl">
+            Couldn&apos;t load services
+          </h3>
+          <p className="mb-6 max-w-md text-center text-sm text-slate-600 sm:text-base">
+            {error?.message || "Check your connection and try again."}
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="min-h-[48px] rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (services.length === 0) {
     return (
