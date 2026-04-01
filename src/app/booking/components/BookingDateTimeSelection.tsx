@@ -80,7 +80,9 @@ export default function BookingDateTimeSelection({
             showOutsideDays={false}
             startMonth={minMonth}
             endMonth={maxMonth}
-            defaultMonth={selectedDates[0] ? startOfMonth(selectedDates[0]) : minMonth}
+            defaultMonth={
+              selectedDates[0] ? startOfMonth(selectedDates[0]) : minMonth
+            }
             selected={selectedDates}
             onSelect={(dates) => {
               if (dates) {
