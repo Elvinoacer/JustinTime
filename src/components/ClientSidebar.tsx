@@ -248,7 +248,8 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                 const isActive =
                   pathname === item.href ||
                   pathname?.startsWith(`${item.href}/`);
-                const isNotificationsItem = item.href === "/client/notifications";
+                const isNotificationsItem =
+                  item.href === "/client/notifications";
 
                 return (
                   <li key={item.name}>
@@ -285,13 +286,14 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                         >
                           {item.icon}
                         </span>
-                        {isNotificationsItem && unreadApplicationUpdatesCount > 0 && (
-                          <span className="absolute -top-1 -right-2 inline-flex items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] font-bold min-w-4 h-4 px-1">
-                            {unreadApplicationUpdatesCount > 9
-                              ? "9+"
-                              : unreadApplicationUpdatesCount}
-                          </span>
-                        )}
+                        {isNotificationsItem &&
+                          unreadApplicationUpdatesCount > 0 && (
+                            <span className="absolute -top-1 -right-2 inline-flex items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] font-bold min-w-4 h-4 px-1">
+                              {unreadApplicationUpdatesCount > 9
+                                ? "9+"
+                                : unreadApplicationUpdatesCount}
+                            </span>
+                          )}
                       </div>
                       <span className="text-xs lg:text-sm truncate">
                         {item.name}

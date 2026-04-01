@@ -8,10 +8,7 @@ export async function GET(req: NextRequest) {
     const session = await auth();
 
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const wantsCounts = req.nextUrl.searchParams.get("counts") === "true";
@@ -53,7 +50,7 @@ export async function GET(req: NextRequest) {
     console.error("Error fetching notifications:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -63,10 +60,7 @@ export async function DELETE() {
     const session = await auth();
 
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     await prisma.notification.deleteMany({
@@ -78,7 +72,7 @@ export async function DELETE() {
     console.error("Error clearing notifications:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

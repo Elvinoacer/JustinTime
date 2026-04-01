@@ -12,7 +12,9 @@ const DEFAULT_COUNTS: NotificationCounts = {
   unreadApplicationUpdatesCount: 0,
 };
 
-export function useNotificationCounts(refreshSignal?: string): NotificationCounts {
+export function useNotificationCounts(
+  refreshSignal?: string,
+): NotificationCounts {
   const [counts, setCounts] = useState<NotificationCounts>(DEFAULT_COUNTS);
 
   const fetchCounts = useCallback(async () => {
