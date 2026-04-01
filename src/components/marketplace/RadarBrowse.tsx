@@ -127,6 +127,16 @@ export default function RadarBrowse({
                   }}
                   aria-label={`${TYPE_LABELS[item.type]} ${item.name}, ${formatDistance(item.distanceKm)}, ${bearingToCompass(item.bearingDeg)}`}
                 >
+                  <span className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-1.5 w-max max-w-[180px] -translate-x-1/2 rounded-md border border-white/30 bg-slate-900/80 px-2 py-1 text-center text-[10px] leading-tight text-emerald-50 shadow-[0_8px_22px_-14px_rgba(0,0,0,0.9)] backdrop-blur-sm transition-all duration-200 group-hover:-translate-y-0.5 group-hover:bg-slate-900/95">
+                    <span className="block max-w-[160px] truncate font-semibold text-white">
+                      {item.name}
+                    </span>
+                    <span className="mt-0.5 block text-[9px] uppercase tracking-wide text-emerald-100/95">
+                      {TYPE_LABELS[item.type]} •{" "}
+                      {formatDistance(item.distanceKm)} •{" "}
+                      {bearingToCompass(item.bearingDeg)}
+                    </span>
+                  </span>
                   <span
                     className={`block h-3.5 w-3.5 rounded-full border border-white/70 ${TYPE_COLORS[item.type]} shadow-[0_0_12px_rgba(255,255,255,0.35)] transition-transform duration-200 group-hover:scale-125`}
                   />
