@@ -5,10 +5,13 @@ import Header from "@/components/Header";
 import apiClient from "@/lib/api/client";
 import {
   useCreateProposalTemplate,
+  useDeleteProposalTemplate,
   useJob,
   useJobProposals,
+  useProviderTeams,
   useProposalTemplates,
   useSubmitProposal,
+  useUpdateProposalTemplate,
 } from "@/lib/api/hooks/useJobs";
 import { useJobsEvents } from "@/hooks/useJobsEvents";
 import {
@@ -44,6 +47,23 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
+import PaymentTimelineCard from "@/components/jobs/PaymentTimelineCard";
+import {
+  parseFulfillmentPreference,
+  withFulfillmentPreference,
+  type ProposalFulfillmentMode,
+} from "@/lib/proposals/fulfillmentMode";
+
+interface BookingTimelineResponse {
+  bookingStatus?: string;
+  totalAmount?: number;
+  payment?: {
+    status?: string;
+  } | null;
+  escrow?: {
+    milestones?: Array<{ id: string; status: string; amount?: number }>;
+  } | null;
+}
 
 function formatCurrency(value: number | null | undefined) {
   const amount = Number(value ?? 0);
@@ -115,6 +135,11 @@ export default function JobDetailPage() {
     string | null
   >(null);
   const [templateName, setTemplateName] = useState("");
+  const [fulfillmentMode, setFulfillmentMode] =
+    useState<ProposalFulfillmentMode>("INDIVIDUAL");
+  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [bookingTimeline, setBookingTimeline] =
+    useState<BookingTimelineResponse | null>(null);
   const [useProfile, setUseProfile] = useState(false);
   const [showImageGallery, setShowImageGallery] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -140,12 +165,21 @@ export default function JobDetailPage() {
   const { data: savedTemplatesData } = useProposalTemplates(
     Boolean(session?.user?.id && isProvider),
   );
+  const { data: providerTeamsData } = useProviderTeams(
+    Boolean(session?.user?.id && isProvider),
+  );
   const createProposalTemplate = useCreateProposalTemplate();
+  const updateProposalTemplate = useUpdateProposalTemplate();
+  const deleteProposalTemplate = useDeleteProposalTemplate();
   const submitProposal = useSubmitProposal();
   const providerProfile = profile?.data;
   const savedTemplates = savedTemplatesData?.items || [];
+  const providerTeams = providerTeamsData?.items || [];
 
   const existingProposal = myProposals?.[0];
+  const existingFulfillmentPreference = parseFulfillmentPreference(
+    existingProposal?.attachments,
+  );
   const isJobOwner = Boolean(
     session?.user?.id && session.user.id === job?.client?.id,
   );
@@ -170,6 +204,36 @@ export default function JobDetailPage() {
       setProposedPrice(String(providerProfile.hourlyRate));
     }
   }, [providerProfile, useProfile]);
+
+  useEffect(() => {
+    const acceptedBookingId =
+      existingProposal?.status === "ACCEPTED"
+        ? existingProposal.bookingId
+        : null;
+
+    if (!acceptedBookingId) {
+      setBookingTimeline(null);
+      return;
+    }
+
+    let cancelled = false;
+    apiClient
+      .get(`/bookings/${acceptedBookingId}/escrow/milestones`)
+      .then((response) => {
+        if (!cancelled) {
+          setBookingTimeline(response.data as BookingTimelineResponse);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBookingTimeline(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [existingProposal?.bookingId, existingProposal?.status]);
 
   const heroImage = job?.images?.[0] || null;
   const proposalsCount = Number(job?._count?.proposals || 0);
@@ -342,6 +406,71 @@ export default function JobDetailPage() {
     }
   };
 
+  const handleUpdateTemplate = async () => {
+    if (!selectedSavedTemplateId) {
+      toast.error("Select a saved template to update");
+      return;
+    }
+
+    const normalizedName = templateName.trim();
+    if (!normalizedName) {
+      toast.error("Enter a template name before updating");
+      return;
+    }
+
+    if (coverLetter.trim().length < 50) {
+      toast.error("Cover letter must be at least 50 characters to update");
+      return;
+    }
+
+    const price = Number(proposedPrice);
+    if (!Number.isFinite(price) || price <= 0) {
+      toast.error("Enter a valid price before updating");
+      return;
+    }
+
+    const daysValue = estimatedDays ? Number.parseInt(estimatedDays, 10) : null;
+    if (estimatedDays && (!Number.isFinite(daysValue) || daysValue <= 0)) {
+      toast.error("Estimated days must be a positive number");
+      return;
+    }
+
+    try {
+      await updateProposalTemplate.mutateAsync({
+        templateId: selectedSavedTemplateId,
+        data: {
+          name: normalizedName,
+          coverLetter: coverLetter.trim(),
+          price,
+          estimatedDays: daysValue,
+        },
+      });
+      toast.success("Template updated");
+    } catch {
+      toast.error("Failed to update template");
+    }
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!selectedSavedTemplateId) {
+      toast.error("Select a saved template to delete");
+      return;
+    }
+
+    if (!window.confirm("Delete this saved template?")) {
+      return;
+    }
+
+    try {
+      await deleteProposalTemplate.mutateAsync(selectedSavedTemplateId);
+      setSelectedSavedTemplateId(null);
+      setTemplateName("");
+      toast.success("Template deleted");
+    } catch {
+      toast.error("Failed to delete template");
+    }
+  };
+
   const handleShare = async () => {
     const url = window.location.href;
 
@@ -427,6 +556,66 @@ export default function JobDetailPage() {
     setShowForm(true);
   };
 
+  const handleQuickApply = () => {
+    if (!session) {
+      router.push(`/auth/login?callbackUrl=/jobs/${jobId}`);
+      return;
+    }
+
+    if (!isProvider || isJobOwner || existingProposal || isJobClosed) {
+      return;
+    }
+
+    const draft = buildProposalTemplate(
+      "budget",
+      job?.title || "this job",
+      job?.budget,
+    );
+    const quickPrice = Number(draft.price);
+    const quickDays = Number.parseInt(draft.estimatedDays, 10);
+
+    if (!Number.isFinite(quickPrice) || quickPrice <= 0) {
+      toast.error("Quick Apply could not derive a valid price");
+      return;
+    }
+
+    if (!draft.coverLetter || draft.coverLetter.trim().length < 50) {
+      toast.error("Quick Apply draft did not meet minimum cover-letter length");
+      return;
+    }
+
+    const metadataAttachments = withFulfillmentPreference([], {
+      mode: "INDIVIDUAL",
+    });
+
+    submitProposal.mutate(
+      {
+        jobId,
+        coverLetter: draft.coverLetter.trim(),
+        price: quickPrice,
+        estimatedDays:
+          Number.isFinite(quickDays) && quickDays > 0 ? quickDays : undefined,
+        attachments: metadataAttachments,
+      },
+      {
+        onSuccess: () => {
+          trackEvent("provider_apply_submitted", {
+            userRole: "PROVIDER",
+            sourcePage: "/jobs/[id]",
+            experimentVariant: "quick-apply",
+            jobId,
+            jobCategory: job?.category?.slug,
+          });
+          toast.success("Quick Apply submitted successfully");
+          setShowForm(false);
+        },
+        onError: (mutationError: unknown) => {
+          toast.error(getErrorMessage(mutationError));
+        },
+      },
+    );
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -452,13 +641,29 @@ export default function JobDetailPage() {
       return;
     }
 
+    if (fulfillmentMode === "TEAM" && !selectedTeamId) {
+      toast.error("Select a team for team-based fulfillment");
+      return;
+    }
+
+    const selectedTeam =
+      fulfillmentMode === "TEAM"
+        ? providerTeams.find((team) => team.id === selectedTeamId)
+        : null;
+
+    const metadataAttachments = withFulfillmentPreference(attachments, {
+      mode: fulfillmentMode,
+      teamId: selectedTeam?.id,
+      teamName: selectedTeam?.name,
+    });
+
     submitProposal.mutate(
       {
         jobId,
         coverLetter: coverLetter.trim(),
         price,
         estimatedDays: days,
-        attachments,
+        attachments: metadataAttachments,
       },
       {
         onSuccess: () => {
@@ -468,6 +673,8 @@ export default function JobDetailPage() {
           setAttachments([]);
           setShowForm(false);
           setUseProfile(false);
+          setFulfillmentMode("INDIVIDUAL");
+          setSelectedTeamId("");
           trackEvent("provider_apply_submitted", {
             userRole: "PROVIDER",
             sourcePage: "/jobs/[id]",
@@ -895,7 +1102,29 @@ export default function JobDetailPage() {
                           {formatDate(existingProposal.createdAt)}
                         </strong>
                       </p>
+                      <p>
+                        Fulfillment:{" "}
+                        <strong>
+                          {existingFulfillmentPreference?.mode === "TEAM"
+                            ? `Team${existingFulfillmentPreference.teamName ? ` (${existingFulfillmentPreference.teamName})` : ""}`
+                            : "Individual"}
+                        </strong>
+                      </p>
                     </div>
+                    {bookingTimeline ? (
+                      <div className="mt-3">
+                        <PaymentTimelineCard
+                          bookingStatus={bookingTimeline.bookingStatus}
+                          paymentStatus={
+                            bookingTimeline.payment?.status || null
+                          }
+                          totalAmount={bookingTimeline.totalAmount}
+                          milestones={
+                            bookingTimeline.escrow?.milestones || null
+                          }
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -919,13 +1148,24 @@ export default function JobDetailPage() {
                   !existingProposal &&
                   !isJobClosed &&
                   !isMaxApplicantsReached ? (
-                  <button
-                    onClick={openApplyFlow}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
-                  >
-                    <Send className="h-4 w-4" />
-                    Apply for this job
-                  </button>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <button
+                      onClick={handleQuickApply}
+                      disabled={submitProposal.isPending}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-300 bg-emerald-50 px-5 py-3.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-60"
+                      title="Quick Apply uses an auto-filled proposal template"
+                    >
+                      <Send className="h-4 w-4" />
+                      Quick Apply
+                    </button>
+                    <button
+                      onClick={openApplyFlow}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                    >
+                      <Send className="h-4 w-4" />
+                      Apply for this job
+                    </button>
+                  </div>
                 ) : null}
 
                 <AnimatePresence initial={false}>
@@ -1009,6 +1249,55 @@ export default function JobDetailPage() {
                           </label>
                         </div>
                       ) : null}
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-800">
+                          Fulfillment mode
+                        </label>
+                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFulfillmentMode("INDIVIDUAL");
+                              setSelectedTeamId("");
+                            }}
+                            className={`rounded-2xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
+                              fulfillmentMode === "INDIVIDUAL"
+                                ? "border-emerald-600 bg-emerald-600 text-white"
+                                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                            }`}
+                          >
+                            Individual
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFulfillmentMode("TEAM")}
+                            disabled={providerTeams.length === 0}
+                            className={`rounded-2xl border px-3 py-2.5 text-sm font-semibold transition-colors disabled:opacity-50 ${
+                              fulfillmentMode === "TEAM"
+                                ? "border-indigo-600 bg-indigo-600 text-white"
+                                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                            }`}
+                          >
+                            Team
+                          </button>
+                        </div>
+
+                        {fulfillmentMode === "TEAM" ? (
+                          <select
+                            value={selectedTeamId}
+                            onChange={(e) => setSelectedTeamId(e.target.value)}
+                            className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+                          >
+                            <option value="">Select team</option>
+                            {providerTeams.map((team) => (
+                              <option key={team.id} value={team.id}>
+                                {team.name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : null}
+                      </div>
 
                       <div>
                         <label
@@ -1216,6 +1505,32 @@ export default function JobDetailPage() {
                             {createProposalTemplate.isPending
                               ? "Saving..."
                               : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleUpdateTemplate}
+                            disabled={
+                              !selectedSavedTemplateId ||
+                              updateProposalTemplate.isPending
+                            }
+                            className="rounded-2xl border border-sky-300 bg-sky-50 px-4 py-2.5 text-sm font-semibold text-sky-700 transition-colors hover:bg-sky-100 disabled:opacity-50"
+                          >
+                            {updateProposalTemplate.isPending
+                              ? "Updating..."
+                              : "Update"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDeleteTemplate}
+                            disabled={
+                              !selectedSavedTemplateId ||
+                              deleteProposalTemplate.isPending
+                            }
+                            className="rounded-2xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+                          >
+                            {deleteProposalTemplate.isPending
+                              ? "Deleting..."
+                              : "Delete"}
                           </button>
                         </div>
                       </div>

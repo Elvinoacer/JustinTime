@@ -1,6 +1,6 @@
 # Jobs Feature: End-to-End Documentation
 
-Last updated: 2026-03-30
+Last updated: 2026-03-31 (execution plan added)
 
 This document covers the Jobs feature only, end to end, including:
 
@@ -52,6 +52,69 @@ Both systems are documented here because they are implemented as job features in
 - `POST /api/jobs` is restricted to `CLIENT`.
 - `POST /api/proposals` and `GET /api/provider/jobs` are restricted to `PROVIDER`.
 - Client proposal accept endpoint (`PATCH /api/jobs/[id]/proposals/[proposalId]`) only allows job owner.
+
+## 2.3 Role flows: what each role does end to end
+
+### Client flow (demand side)
+
+1. Create job from `/client/post-job` (wizard).
+2. Read own job in `/client/jobs/[id]` and monitor proposal count and activity.
+3. Update job details while still managing demand (title, budget, location, images, status).
+4. Read proposals (single-job and cross-job inbox) and compare candidates.
+5. Accept one proposal, which auto-rejects remaining pending proposals and moves job to `IN_PROGRESS`.
+6. Continue fulfillment through booking-level actions (cancellation/dispute/milestones when used).
+7. Close/cancel job when needed.
+
+### Provider flow (supply side)
+
+1. Read opportunities in public jobs and provider dashboard tabs (`recommended`, `available`).
+2. Create proposal for an open job (with checks for duplicate, cap, and weekly limits where applicable).
+3. Read own proposal pipeline (`applied`, `active`, `completed`).
+4. Update pending proposal (price, cover letter, ETA, attachments) if still in `PENDING`.
+5. Delete/withdraw pending proposal if provider chooses not to continue.
+6. Participate in accepted work via booking lifecycle actions (status/cancellation/dispute visibility and participation).
+
+### Admin flow (moderation and control)
+
+1. Read job proposals for oversight and quality/risk review.
+2. Update jobs when operational intervention is required (moderation or correction).
+3. Delete jobs when policy or operational constraints require hard removal.
+4. Resolve disputes through admin resolution paths (`RESOLVED`/`CLOSED`) affecting booking/job continuity.
+
+## 2.4 CRUD matrix (marketplace jobs)
+
+### Jobs CRUD (`Job`)
+
+| Role     | Create                        | Read                                           | Update              | Delete              |
+| -------- | ----------------------------- | ---------------------------------------------- | ------------------- | ------------------- |
+| Guest    | No                            | Yes (public jobs and job detail)               | No                  | No                  |
+| Client   | Yes (own jobs only)           | Yes (public + own management views)            | Yes (own jobs only) | Yes (own jobs only) |
+| Provider | No                            | Yes (public + provider dashboard aggregations) | No (job record)     | No                  |
+| Admin    | No direct product create flow | Yes                                            | Yes                 | Yes                 |
+
+### Proposals CRUD (`Proposal`)
+
+| Role     | Create                  | Read                                                   | Update                                             | Delete                          |
+| -------- | ----------------------- | ------------------------------------------------------ | -------------------------------------------------- | ------------------------------- |
+| Guest    | No                      | No                                                     | No                                                 | No                              |
+| Client   | No                      | Yes (all proposals on own jobs)                        | Decision update via accept/reject flow on own jobs | No direct delete                |
+| Provider | Yes (own proposal only) | Yes (own proposals; own proposal on a job-scoped read) | Yes (own pending proposal only)                    | Yes (own pending proposal only) |
+| Admin    | No                      | Yes (full proposal visibility)                         | No direct proposal edit path                       | No direct proposal delete path  |
+
+### Booking/dispute/escrow CRUD (jobs-adjacent fulfillment)
+
+| Role     | Create                                               | Read                     | Update                                                                      | Delete              |
+| -------- | ---------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------- | ------------------- |
+| Client   | Create dispute and escrow milestones where permitted | Yes (participant-scoped) | Yes (participant-scoped status changes and milestone release where allowed) | No hard delete path |
+| Provider | Create dispute where permitted                       | Yes (participant-scoped) | Yes (participant-scoped status/cancellation updates where allowed)          | No hard delete path |
+| Admin    | No default create requirement                        | Yes                      | Yes (dispute resolution and ops actions)                                    | No hard delete path |
+
+### Team jobs CRUD (`TeamJob`, internal dispatch)
+
+| Role        | Create | Read                        | Update                                          | Delete                     |
+| ----------- | ------ | --------------------------- | ----------------------------------------------- | -------------------------- |
+| Team Owner  | Yes    | Yes                         | Yes (assign/start/complete/collection updates)  | Cancel flow (status-based) |
+| Team Member | No     | Yes (assigned work context) | Limited status responses via assignment actions | No                         |
 
 ## 3. UI: End-to-End Flows
 
@@ -194,6 +257,16 @@ Team jobs display:
 - Job financials and collection status.
 - Assigned members and assignment roles.
 - Status pills for PENDING/ASSIGNED/IN_PROGRESS/COMPLETED/CANCELLED.
+
+## 3.8 Admin moderation and intervention flow
+
+Admin operations are primarily operational/moderation actions rather than marketplace participation:
+
+1. Review job and proposal state for policy/risk checks.
+2. Read all proposals on target jobs for investigation.
+3. Update problematic jobs (status/details) when intervention is required.
+4. Delete jobs when required by policy, fraud, or duplicate-cleanup workflows.
+5. Resolve disputes (`RESOLVED` or `CLOSED`) to restore work or enforce cancellation/refund outcomes.
 
 ## 4. API Surface (Jobs only)
 
@@ -674,3 +747,236 @@ For each role:
 - Providers compete through proposals and track pipeline states.
 - Admins retain moderation/control via update/delete and proposal visibility.
 - Team owners and members execute real-world fulfillment through dispatch tooling.
+
+## 11. Product Optimization Plan (Execution to Completion)
+
+This section converts current product feedback into implementation-ready work.
+
+Goal: improve decision speed, trust confidence, and marketplace liquidity without breaking existing Jobs flows.
+
+## 11.1 Phase roadmap
+
+### Phase 1: Decision UX (highest priority)
+
+Deliverables:
+
+1. Proposal recommendation labels on client proposal cards:
+
+- `Best Value`
+- `Fastest Delivery`
+- `Most Reliable`
+- `Lowest Cost`
+
+2. Single highlighted `Recommended Provider` per job.
+3. Risk framing signals:
+
+- `New provider`/limited history
+- response-time warning
+- completion-rate confidence
+
+Acceptance criteria:
+
+- Every proposal in client review has 0..N badges.
+- Exactly one proposal is marked `Recommended Provider` for jobs with at least one eligible proposal.
+- Recommendation explanation text is visible (why selected).
+
+### Phase 2: Provider speed and conversion
+
+Deliverables:
+
+1. Quick Apply from provider surfaces with profile-based autofill.
+2. Proposal templates (save, reuse, edit before submit).
+3. Win-probability indicator on provider job cards:
+
+- `High chance`
+- `Medium chance`
+- `Highly competitive`
+
+Acceptance criteria:
+
+- Provider can submit via Quick Apply in fewer steps than full form.
+- Provider can create/update/delete templates and use one in proposal compose.
+- Win-probability chip visible in `recommended` and `available` tabs.
+
+### Phase 3: Trust and intelligence
+
+Deliverables:
+
+1. Behavioral metrics on proposal/provider trust panel:
+
+- response rate
+- average response time
+- jobs completed
+
+2. Outcome metrics:
+
+- successful jobs count
+- repeat clients count
+
+3. Client-side intelligence hints:
+
+- alignment with client historical hiring behavior.
+
+Acceptance criteria:
+
+- Metrics appear consistently in proposal detail cards where data exists.
+- Missing data falls back to neutral labels (no empty/broken states).
+- Client insight hints are generated only for authenticated clients with history.
+
+### Phase 4: Differentiation and fulfillment visibility
+
+Deliverables:
+
+1. Team-marketplace integration model:
+
+- provider entity can fulfill as individual or team.
+
+2. Payment timeline UI:
+
+- Accepted -> Funds Held -> Work Ongoing -> Release Payment
+
+3. Milestone escrow visualization:
+
+- progress bar + released/pending split.
+
+4. Urgency/activity signals:
+
+- applicant count
+- client recent activity
+- deadline countdown.
+
+Acceptance criteria:
+
+- Team fulfillment path is selectable for eligible providers.
+- Booking payment state is understandable at a glance from timeline component.
+- Urgency/activity chips update from current API values and never block page load.
+
+## 11.2 Required API and data additions
+
+These are additive changes; existing endpoints remain backward compatible.
+
+### A) Proposal recommendation payload (client-facing)
+
+Add derived fields to proposal list payloads used by client proposal screens:
+
+- `recommendationLabel?: 'BEST_VALUE' | 'FASTEST' | 'MOST_RELIABLE' | 'LOWEST_COST'`
+- `isRecommended?: boolean`
+- `recommendationReason?: string`
+- `riskFlags?: string[]`
+
+### B) Trust metrics payload (provider profile summary)
+
+Add fields:
+
+- `responseRatePct?: number`
+- `avgResponseTimeMinutes?: number`
+- `jobsCompletedCount?: number`
+- `repeatClientsCount?: number`
+- `successfulJobsCount?: number`
+
+### C) Provider efficiency payload
+
+For provider jobs endpoint (`GET /api/provider/jobs`), add:
+
+- `winProbabilityBand?: 'HIGH' | 'MEDIUM' | 'LOW'`
+- `winProbabilityReason?: string`
+- `suggestedPrice?: number`
+- `quickApplyTemplateId?: string`
+
+### D) Proposal templates
+
+New endpoint family (provider-only):
+
+- `GET /api/proposal-templates`
+- `POST /api/proposal-templates`
+- `PATCH /api/proposal-templates/[id]`
+- `DELETE /api/proposal-templates/[id]`
+
+Suggested model:
+
+- `ProposalTemplate { id, providerId, name, coverLetter, priceHint?, estimatedDaysHint?, createdAt, updatedAt }`
+
+### E) Runtime feature flags and tuning knobs (implemented)
+
+Client recommendation UI is controlled by runtime flags in proposal review surfaces:
+
+- `NEXT_PUBLIC_FF_CLIENT_PROPOSAL_RECOMMENDATIONS`
+  - `true`: show recommendation labels, recommended provider highlight, risk signals, confidence bar, and recommendation rationale panel.
+  - `false`: hide recommendation-specific UI and keep baseline proposal review experience.
+
+Recommendation confidence band thresholds are tunable without code changes:
+
+- `NEXT_PUBLIC_RECOMMENDATION_CONFIDENCE_HIGH` (default `80`)
+- `NEXT_PUBLIC_RECOMMENDATION_CONFIDENCE_MEDIUM` (default `60`)
+
+Validation behavior:
+
+- Values are clamped to range `0..100`.
+- Invalid or missing values fallback to defaults.
+- Medium threshold is automatically bounded so it does not exceed high threshold.
+
+Recommended rollout presets:
+
+- Conservative: `HIGH=85`, `MEDIUM=65`
+- Balanced: `HIGH=80`, `MEDIUM=60`
+- Aggressive: `HIGH=75`, `MEDIUM=55`
+
+## 11.3 UI implementation map
+
+### Client-side pages
+
+- `src/app/client/proposals/page.tsx`
+  - add recommendation badges and risk cards
+  - highlight one recommended provider
+- `src/app/client/jobs/[id]/page.tsx`
+  - show recommendation summary in proposal list
+  - show trust metrics inline
+
+### Provider-side pages
+
+- `src/app/dashboard/jobs/page.tsx`
+  - add win-probability chip and quick-apply action
+- `src/app/jobs/[id]/page.tsx`
+  - add quick-apply autofill option and template selector
+
+### Fulfillment visibility surfaces
+
+- booking/payment UI components used in client/provider job contexts
+  - add payment timeline
+  - add milestone release progress visualization
+
+## 11.4 Rollout strategy
+
+1. Ship Phase 1 behind feature flags for proposal screens.
+2. A/B test recommendation highlight impact on acceptance latency.
+3. Ship Phase 2 to a small provider cohort first (templates + quick apply).
+4. Expand metrics and intelligence after data quality verification.
+5. Roll out Phase 4 after team-fulfillment policy rules are finalized.
+
+## 11.5 Success metrics (must be tracked)
+
+Primary:
+
+- median time from first proposal view to client acceptance
+- proposal-to-acceptance conversion rate
+- provider proposal submission completion rate
+
+Secondary:
+
+- dispute rate per completed booking
+- cancellation rate post-acceptance
+- repeat-client hire rate
+
+Guardrails:
+
+- no increase in erroneous accept/reject operations
+- no regression in proposal API latency beyond agreed SLO
+
+## 11.6 Definition of done
+
+This optimization work is complete when:
+
+1. All four phases are shipped with feature flags and observability.
+2. CRUD and role permissions remain unchanged unless explicitly approved.
+3. New recommendation and trust fields are additive and documented in API docs.
+4. At least one full cycle of post-release metrics review confirms positive movement in primary KPIs.

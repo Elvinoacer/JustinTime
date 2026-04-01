@@ -13,7 +13,9 @@ export type JobsEventName =
   | "provider_apply_submitted"
   | "pricing_hint_seen"
   | "pricing_hint_applied"
-  | "risk_badge_seen";
+  | "risk_badge_seen"
+  | "proposal_recommendation_impression"
+  | "proposal_recommendation_clicked";
 
 export interface JobsEventPayload {
   userRole?: "CLIENT" | "PROVIDER" | "ADMIN" | "GUEST";
@@ -25,6 +27,8 @@ export interface JobsEventPayload {
   timestamp?: number;
   jobId?: string;
   proposalId?: string;
+  recommendationLabel?: string;
+  isRecommended?: boolean;
 }
 
 export function useJobsEvents() {

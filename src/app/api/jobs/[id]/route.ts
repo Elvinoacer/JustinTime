@@ -61,7 +61,7 @@ export async function PUT(
       return new NextResponse("Forbidden", { status: 403 });
     }
 
-    const body = await request.json();
+    const body = updateJobSchema.parse(await request.json());
 
     // If category is provided as a slug, look it up and get the ID
     let categoryId = existingJob.categoryId; // Keep existing if not updating

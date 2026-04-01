@@ -1,19 +1,26 @@
 "use client";
 import apiClient from "@/lib/api/client";
+import { useJobsEvents } from "@/hooks/useJobsEvents";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import PaymentTimelineCard from "@/components/jobs/PaymentTimelineCard";
+import { parseFulfillmentPreference } from "@/lib/proposals/fulfillmentMode";
 
 interface Proposal {
   id: string;
   bookingId?: string | null;
+  attachments?: string[];
   providerId: string;
   price: number;
   coverLetter: string;
   status: string;
+  estimatedDays?: number | null;
   createdAt: string;
+  clientFitHints?: string[];
   provider: {
     id: string;
     name: string;
@@ -23,7 +30,132 @@ interface Proposal {
     isVerified?: boolean;
     skills?: string[];
     certifications?: unknown[];
+    metrics?: {
+      responseTimeHours?: number | null;
+      responseRatePct?: number | null;
+      completionRatePct?: number | null;
+      completedJobsCount?: number;
+      successfulJobsCount?: number;
+      repeatClientsCount?: number;
+      completionConfidenceBand?: "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+    };
   };
+}
+
+type RecommendationLabel =
+  | "BEST_VALUE"
+  | "FASTEST_DELIVERY"
+  | "MOST_RELIABLE"
+  | "LOWEST_COST";
+
+function evaluateProposal(proposal: Proposal, budget: number | null) {
+  const price = Number(proposal.price);
+
+  const fit = Math.min(
+    100,
+    (proposal.provider.reviewCount && proposal.provider.reviewCount > 0
+      ? 35
+      : 0) +
+      (proposal.provider.avgRating || 0) * 10 +
+      (proposal.provider.isVerified ? 15 : 0) +
+      Math.min((proposal.provider.skills?.length || 0) * 3, 20),
+  );
+
+  const budgetMatch =
+    budget && budget > 0
+      ? Math.max(0, 100 - (Math.abs(price - budget) / budget) * 120)
+      : 60;
+
+  const completeness = Math.min(
+    100,
+    Math.min((proposal.coverLetter.trim().length / 450) * 70, 70) +
+      (proposal.estimatedDays ? 15 : 0) +
+      (proposal.provider.skills?.length ? 15 : 0),
+  );
+
+  const overall = Math.round(
+    fit * 0.4 + budgetMatch * 0.35 + completeness * 0.25,
+  );
+
+  return {
+    fit: Math.round(fit),
+    budgetMatch: Math.round(budgetMatch),
+    completeness: Math.round(completeness),
+    overall,
+  };
+}
+
+function recommendationLabelText(label: RecommendationLabel) {
+  switch (label) {
+    case "BEST_VALUE":
+      return "Best Value";
+    case "FASTEST_DELIVERY":
+      return "Fastest Delivery";
+    case "MOST_RELIABLE":
+      return "Most Reliable";
+    case "LOWEST_COST":
+      return "Lowest Cost";
+    default:
+      return "Recommended";
+  }
+}
+
+function parseConfidenceThreshold(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.max(0, Math.min(100, parsed));
+}
+
+const confidenceHighThreshold = parseConfidenceThreshold(
+  process.env.NEXT_PUBLIC_RECOMMENDATION_CONFIDENCE_HIGH,
+  80,
+);
+const confidenceMediumThresholdBase = parseConfidenceThreshold(
+  process.env.NEXT_PUBLIC_RECOMMENDATION_CONFIDENCE_MEDIUM,
+  60,
+);
+const confidenceMediumThreshold = Math.min(
+  confidenceHighThreshold,
+  confidenceMediumThresholdBase,
+);
+
+function getConfidenceVisual(score: number) {
+  if (score >= confidenceHighThreshold) {
+    return {
+      track: "bg-emerald-100",
+      fill: "bg-emerald-500",
+      text: "text-emerald-700",
+      label: "High confidence",
+    };
+  }
+  if (score >= confidenceMediumThreshold) {
+    return {
+      track: "bg-amber-100",
+      fill: "bg-amber-500",
+      text: "text-amber-700",
+      label: "Medium confidence",
+    };
+  }
+
+  return {
+    track: "bg-red-100",
+    fill: "bg-red-500",
+    text: "text-red-700",
+    label: "Low confidence",
+  };
+}
+
+function getTrustMetricText(
+  value: number | null | undefined,
+  formatter: (input: number) => string,
+  noDataText: string,
+) {
+  if (typeof value !== "number") {
+    return noDataText;
+  }
+  return formatter(value);
 }
 
 interface Job {
@@ -41,6 +173,17 @@ interface Job {
   _count: {
     proposals: number;
   };
+}
+
+interface BookingTimelineResponse {
+  bookingStatus?: string;
+  totalAmount?: number;
+  payment?: {
+    status?: string;
+  } | null;
+  escrow?: {
+    milestones?: Array<{ id: string; status: string; amount?: number }>;
+  } | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -62,12 +205,27 @@ function buildMessagesHref(
 }
 
 export default function JobDetailsPage() {
+  const { trackEvent } = useJobsEvents();
+  const recommendationsEnabled =
+    (
+      process.env.NEXT_PUBLIC_FF_CLIENT_PROPOSAL_RECOMMENDATIONS || ""
+    ).toLowerCase() === "true";
+  const recommendationsVariant = recommendationsEnabled
+    ? "client-recommendations"
+    : "baseline";
+  const trackedRecommendationImpressionsRef = useRef<Set<string>>(new Set());
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
   const jobId = params.id as string;
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+  const [expandedRecommendation, setExpandedRecommendation] = useState<
+    string | null
+  >(null);
+  const [bookingTimelineById, setBookingTimelineById] = useState<
+    Record<string, BookingTimelineResponse>
+  >({});
 
   const {
     data: job,
@@ -173,7 +331,256 @@ export default function JobDetailsPage() {
     }
   };
 
-  const proposals = proposalsData || [];
+  const proposals = useMemo(() => proposalsData ?? [], [proposalsData]);
+
+  useEffect(() => {
+    const acceptedBookingIds = Array.from(
+      new Set(
+        proposals
+          .filter(
+            (proposal) =>
+              proposal.status === "ACCEPTED" && Boolean(proposal.bookingId),
+          )
+          .map((proposal) => proposal.bookingId as string),
+      ),
+    );
+
+    if (acceptedBookingIds.length === 0) {
+      return;
+    }
+
+    const missingBookingIds = acceptedBookingIds.filter(
+      (bookingId) => !bookingTimelineById[bookingId],
+    );
+
+    if (missingBookingIds.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    Promise.all(
+      missingBookingIds.map(async (bookingId) => {
+        try {
+          const response = await apiClient.get(
+            `/bookings/${bookingId}/escrow/milestones`,
+          );
+          return {
+            bookingId,
+            data: response.data as BookingTimelineResponse,
+          };
+        } catch {
+          return {
+            bookingId,
+            data: null,
+          };
+        }
+      }),
+    ).then((results) => {
+      if (cancelled) {
+        return;
+      }
+
+      setBookingTimelineById((previous) => {
+        const next = { ...previous };
+        for (const result of results) {
+          if (result.data) {
+            next[result.bookingId] = result.data;
+          }
+        }
+        return next;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingTimelineById, proposals]);
+
+  const recommendationMetaById = useMemo(() => {
+    if (!recommendationsEnabled) {
+      return {};
+    }
+
+    const pending = proposals.filter(
+      (proposal) => proposal.status === "PENDING",
+    );
+    const result: Record<
+      string,
+      {
+        isRecommended: boolean;
+        label: RecommendationLabel;
+        reason: string;
+        riskSignals: string[];
+        score: ReturnType<typeof evaluateProposal>;
+      }
+    > = {};
+
+    if (pending.length === 0) {
+      return result;
+    }
+
+    const scored = pending.map((proposal) => ({
+      proposal,
+      score: evaluateProposal(proposal, job?.budget ?? null),
+    }));
+
+    const winner = scored.reduce((best, current) => {
+      if (current.score.overall > best.score.overall) return current;
+      if (current.score.overall < best.score.overall) return best;
+      return Number(current.proposal.price) < Number(best.proposal.price)
+        ? current
+        : best;
+    });
+
+    const cheapestId = scored.reduce((min, item) =>
+      Number(item.proposal.price) < Number(min.proposal.price) ? item : min,
+    ).proposal.id;
+
+    const fastest = scored.reduce((min, item) => {
+      const currentEta =
+        item.proposal.estimatedDays ?? Number.POSITIVE_INFINITY;
+      const minEta = min.proposal.estimatedDays ?? Number.POSITIVE_INFINITY;
+      return currentEta < minEta ? item : min;
+    });
+
+    const mostReliableId = scored.reduce((max, item) => {
+      const current =
+        (item.proposal.provider.avgRating || 0) * 10 +
+        (item.proposal.provider.reviewCount || 0);
+      const best =
+        (max.proposal.provider.avgRating || 0) * 10 +
+        (max.proposal.provider.reviewCount || 0);
+      return current > best ? item : max;
+    }).proposal.id;
+
+    scored.forEach(({ proposal, score }) => {
+      let label: RecommendationLabel = "BEST_VALUE";
+      if (proposal.id === cheapestId) {
+        label = "LOWEST_COST";
+      } else if (
+        proposal.id === fastest.proposal.id &&
+        proposal.estimatedDays !== null &&
+        proposal.estimatedDays !== undefined
+      ) {
+        label = "FASTEST_DELIVERY";
+      } else if (
+        proposal.id === mostReliableId &&
+        (proposal.provider.reviewCount || 0) > 0
+      ) {
+        label = "MOST_RELIABLE";
+      }
+
+      const riskSignals: string[] = [];
+      if ((proposal.provider.reviewCount || 0) === 0) {
+        riskSignals.push("New provider - limited history");
+      }
+      if (!proposal.estimatedDays) {
+        riskSignals.push("No ETA provided yet");
+      }
+      if (job?.budget && Number(proposal.price) > Number(job.budget) * 1.25) {
+        riskSignals.push("Quote is significantly above budget");
+      }
+
+      const responseTimeHours = proposal.provider.metrics?.responseTimeHours;
+      if (typeof responseTimeHours === "number" && responseTimeHours > 48) {
+        riskSignals.push(
+          `Slow response time (~${responseTimeHours}h after posting)`,
+        );
+      }
+
+      const completionRatePct = proposal.provider.metrics?.completionRatePct;
+      const completedJobsCount =
+        proposal.provider.metrics?.completedJobsCount ?? 0;
+      if (
+        proposal.provider.metrics?.completionConfidenceBand === "HIGH" &&
+        typeof completionRatePct === "number" &&
+        completedJobsCount >= 5
+      ) {
+        riskSignals.push(
+          `High completion confidence (${completionRatePct}% across ${completedJobsCount} completed jobs)`,
+        );
+      }
+
+      const reason =
+        label === "LOWEST_COST"
+          ? `Lowest quote at KES ${Number(proposal.price).toLocaleString()}.`
+          : label === "FASTEST_DELIVERY"
+            ? `Fastest ETA at ${proposal.estimatedDays} days.`
+            : label === "MOST_RELIABLE"
+              ? `Strong reliability profile (${proposal.provider.avgRating || 0} stars, ${proposal.provider.reviewCount || 0} reviews).`
+              : `Best overall balance of fit (${score.fit}), budget (${score.budgetMatch}), and completeness (${score.completeness}).`;
+
+      result[proposal.id] = {
+        isRecommended: proposal.id === winner.proposal.id,
+        label,
+        reason,
+        riskSignals,
+        score,
+      };
+    });
+
+    return result;
+  }, [job?.budget, proposals, recommendationsEnabled]);
+
+  useEffect(() => {
+    if (!recommendationsEnabled) {
+      return;
+    }
+
+    proposals.forEach((proposal) => {
+      const recommendationMeta = recommendationMetaById[proposal.id];
+      if (!recommendationMeta) {
+        return;
+      }
+
+      const impressionKey = `${proposal.id}:${recommendationMeta.label}:${recommendationMeta.isRecommended ? "recommended" : "labeled"}`;
+      if (trackedRecommendationImpressionsRef.current.has(impressionKey)) {
+        return;
+      }
+
+      trackedRecommendationImpressionsRef.current.add(impressionKey);
+      trackEvent("proposal_recommendation_impression", {
+        userRole: "CLIENT",
+        sourcePage: "/client/jobs/[id]",
+        experimentVariant: recommendationsVariant,
+        proposalId: proposal.id,
+        jobId,
+        jobCategory: job?.category?.name,
+        recommendationLabel: recommendationMeta.label,
+        isRecommended: recommendationMeta.isRecommended,
+      });
+    });
+  }, [
+    job?.category?.name,
+    jobId,
+    proposals,
+    recommendationMetaById,
+    recommendationsEnabled,
+    recommendationsVariant,
+    trackEvent,
+  ]);
+
+  const trackRecommendationClick = (
+    proposal: Proposal,
+    label: RecommendationLabel,
+    isRecommended: boolean,
+  ) => {
+    if (!recommendationsEnabled) {
+      return;
+    }
+
+    trackEvent("proposal_recommendation_clicked", {
+      userRole: "CLIENT",
+      sourcePage: "/client/jobs/[id]",
+      experimentVariant: recommendationsVariant,
+      proposalId: proposal.id,
+      jobId,
+      jobCategory: job?.category?.name,
+      recommendationLabel: label,
+      isRecommended,
+    });
+  };
 
   if (error) {
     return (
@@ -208,7 +615,7 @@ export default function JobDetailsPage() {
             Job not found
           </h3>
           <p className="text-sm md:text-base text-gray-600 mb-4">
-            The job you're looking for doesn't exist.
+            The job you&apos;re looking for doesn&apos;t exist.
           </p>
           <Link
             href="/client/dashboard"
@@ -316,9 +723,11 @@ export default function JobDetailsPage() {
                     transition={{ delay: index * 0.1 }}
                     className="relative aspect-square rounded-lg sm:rounded-xl overflow-hidden group cursor-pointer"
                   >
-                    <img
+                    <Image
                       src={image}
                       alt={`Job photo ${index + 1}`}
+                      width={640}
+                      height={640}
                       className="w-full h-full object-cover transition-transform group-hover:scale-110"
                       loading="lazy"
                     />
@@ -357,152 +766,421 @@ export default function JobDetailsPage() {
               </div>
             ) : (
               <div className="space-y-3 sm:space-y-4">
-                {proposals.map((proposal, index) => (
-                  <motion.div
-                    key={proposal.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="border border-gray-200 rounded-xl p-3 sm:p-4 hover:border-emerald-300 transition-colors"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 mb-2 sm:mb-3">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                          {proposal.provider.image ? (
-                            <img
-                              src={proposal.provider.image}
-                              alt={proposal.provider.name}
-                              className="w-full h-full rounded-full object-cover"
-                            />
-                          ) : (
-                            <span className="material-symbols-outlined text-emerald-600 text-lg sm:text-xl">
-                              person
+                {proposals.map((proposal, index) =>
+                  (() => {
+                    const recommendationMeta =
+                      recommendationMetaById[proposal.id];
+                    const fulfillmentPreference = parseFulfillmentPreference(
+                      proposal.attachments,
+                    );
+                    const timelineData = proposal.bookingId
+                      ? bookingTimelineById[proposal.bookingId]
+                      : null;
+                    const confidenceVisual = recommendationMeta
+                      ? getConfidenceVisual(recommendationMeta.score.overall)
+                      : null;
+                    return (
+                      <motion.div
+                        key={proposal.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="border border-gray-200 rounded-xl p-3 sm:p-4 hover:border-emerald-300 transition-colors"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 mb-2 sm:mb-3">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                              {proposal.provider.image ? (
+                                <Image
+                                  src={proposal.provider.image}
+                                  alt={proposal.provider.name}
+                                  width={48}
+                                  height={48}
+                                  className="w-full h-full rounded-full object-cover"
+                                />
+                              ) : (
+                                <span className="material-symbols-outlined text-emerald-600 text-lg sm:text-xl">
+                                  person
+                                </span>
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
+                                {proposal.provider.name}
+                              </h4>
+                              <p className="text-xs sm:text-sm text-gray-500">
+                                Submitted{" "}
+                                {new Date(
+                                  proposal.createdAt,
+                                ).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </p>
+                              <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs">
+                                {recommendationsEnabled &&
+                                recommendationMeta ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      trackRecommendationClick(
+                                        proposal,
+                                        recommendationMeta.label,
+                                        recommendationMeta.isRecommended,
+                                      )
+                                    }
+                                    className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 font-medium text-sky-700"
+                                  >
+                                    {recommendationLabelText(
+                                      recommendationMeta.label,
+                                    )}
+                                  </button>
+                                ) : null}
+                                {recommendationsEnabled &&
+                                recommendationMeta?.isRecommended ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      trackRecommendationClick(
+                                        proposal,
+                                        recommendationMeta.label,
+                                        recommendationMeta.isRecommended,
+                                      )
+                                    }
+                                    className="inline-flex items-center rounded-full border border-emerald-600 bg-emerald-600 px-2 py-0.5 font-medium text-white"
+                                  >
+                                    Recommended Provider
+                                  </button>
+                                ) : null}
+                                {proposal.provider.isVerified ? (
+                                  <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">
+                                    Verified
+                                  </span>
+                                ) : null}
+                                {(proposal.provider.reviewCount || 0) > 0 ? (
+                                  <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
+                                    ⭐ {proposal.provider.avgRating} (
+                                    {proposal.provider.reviewCount} review
+                                    {proposal.provider.reviewCount === 1
+                                      ? ""
+                                      : "s"}
+                                    )
+                                  </span>
+                                ) : null}
+                                <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 font-medium text-indigo-700">
+                                  {fulfillmentPreference?.mode === "TEAM"
+                                    ? `Team Fulfillment${fulfillmentPreference.teamName ? `: ${fulfillmentPreference.teamName}` : ""}`
+                                    : "Individual Fulfillment"}
+                                </span>
+                              </div>
+                              {recommendationsEnabled && recommendationMeta ? (
+                                <p className="mt-2 text-xs text-gray-600">
+                                  {recommendationMeta.reason}
+                                </p>
+                              ) : null}
+                              {recommendationsEnabled &&
+                              recommendationMeta &&
+                              proposal.clientFitHints &&
+                              proposal.clientFitHints.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] sm:text-xs">
+                                  {proposal.clientFitHints
+                                    .slice(0, 2)
+                                    .map((hint, hintIndex) => (
+                                      <span
+                                        key={`${proposal.id}-fit-hint-${hintIndex}`}
+                                        className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-indigo-700"
+                                      >
+                                        {hint}
+                                      </span>
+                                    ))}
+                                </div>
+                              ) : null}
+                              <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] sm:text-xs">
+                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-700">
+                                  Avg response:{" "}
+                                  {getTrustMetricText(
+                                    proposal.provider.metrics
+                                      ?.responseTimeHours,
+                                    (hours) => `${hours}h`,
+                                    "No response-time history yet",
+                                  )}
+                                </span>
+                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-700">
+                                  Response rate:{" "}
+                                  {getTrustMetricText(
+                                    proposal.provider.metrics?.responseRatePct,
+                                    (percent) => `${percent}%`,
+                                    "No response-rate history yet",
+                                  )}
+                                </span>
+                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-700">
+                                  Completion:{" "}
+                                  {getTrustMetricText(
+                                    proposal.provider.metrics
+                                      ?.completionRatePct,
+                                    (percent) => `${percent}%`,
+                                    "No completion history yet",
+                                  )}
+                                </span>
+                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-700">
+                                  Successful jobs:{" "}
+                                  {getTrustMetricText(
+                                    proposal.provider.metrics
+                                      ?.successfulJobsCount ??
+                                      proposal.provider.metrics
+                                        ?.completedJobsCount,
+                                    (count) => String(count),
+                                    "No successful-job history yet",
+                                  )}
+                                </span>
+                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-700">
+                                  Repeat clients:{" "}
+                                  {getTrustMetricText(
+                                    proposal.provider.metrics
+                                      ?.repeatClientsCount,
+                                    (count) => String(count),
+                                    "No repeat-client history yet",
+                                  )}
+                                </span>
+                              </div>
+                              {recommendationsEnabled &&
+                              recommendationMeta &&
+                              confidenceVisual ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    trackRecommendationClick(
+                                      proposal,
+                                      recommendationMeta.label,
+                                      recommendationMeta.isRecommended,
+                                    )
+                                  }
+                                  className="mt-2 w-full max-w-xs rounded-md border border-gray-200 bg-white px-2 py-1.5 text-left"
+                                >
+                                  <div className="flex items-center justify-between text-[11px] sm:text-xs">
+                                    <span
+                                      className={`font-medium ${confidenceVisual.text}`}
+                                    >
+                                      {confidenceVisual.label}
+                                    </span>
+                                    <span className="font-semibold text-gray-700">
+                                      {recommendationMeta.score.overall}%
+                                    </span>
+                                  </div>
+                                  <div
+                                    className={`mt-1 h-1.5 w-full overflow-hidden rounded-full ${confidenceVisual.track}`}
+                                  >
+                                    <div
+                                      className={`h-full rounded-full ${confidenceVisual.fill}`}
+                                      style={{
+                                        width: `${Math.max(6, Math.min(100, recommendationMeta.score.overall))}%`,
+                                      }}
+                                    />
+                                  </div>
+                                </button>
+                              ) : null}
+                              {recommendationsEnabled && recommendationMeta ? (
+                                <div className="mt-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      trackRecommendationClick(
+                                        proposal,
+                                        recommendationMeta.label,
+                                        recommendationMeta.isRecommended,
+                                      );
+                                      setExpandedRecommendation((prev) =>
+                                        prev === proposal.id
+                                          ? null
+                                          : proposal.id,
+                                      );
+                                    }}
+                                    className="text-xs font-medium text-emerald-700 hover:text-emerald-800"
+                                  >
+                                    {expandedRecommendation === proposal.id
+                                      ? "Hide recommendation details"
+                                      : "Why this recommendation?"}
+                                  </button>
+                                  {expandedRecommendation === proposal.id ? (
+                                    <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50/40 p-2.5 space-y-2 text-[11px] sm:text-xs">
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div className="rounded-md bg-white border border-emerald-100 px-2 py-1.5 text-gray-700">
+                                          Fit score:{" "}
+                                          <strong>
+                                            {recommendationMeta.score.fit}
+                                          </strong>
+                                        </div>
+                                        <div className="rounded-md bg-white border border-emerald-100 px-2 py-1.5 text-gray-700">
+                                          Budget match:{" "}
+                                          <strong>
+                                            {
+                                              recommendationMeta.score
+                                                .budgetMatch
+                                            }
+                                          </strong>
+                                        </div>
+                                        <div className="rounded-md bg-white border border-emerald-100 px-2 py-1.5 text-gray-700">
+                                          Completeness:{" "}
+                                          <strong>
+                                            {
+                                              recommendationMeta.score
+                                                .completeness
+                                            }
+                                          </strong>
+                                        </div>
+                                        <div className="rounded-md bg-white border border-emerald-100 px-2 py-1.5 text-gray-700">
+                                          Overall:{" "}
+                                          <strong>
+                                            {recommendationMeta.score.overall}
+                                            /100
+                                          </strong>
+                                        </div>
+                                      </div>
+                                      <p className="text-gray-600">
+                                        Rankings use weighted fit, budget match,
+                                        and proposal completeness. The
+                                        recommended provider is the
+                                        highest-scoring pending option for this
+                                        job.
+                                      </p>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                              {recommendationsEnabled &&
+                              recommendationMeta &&
+                              recommendationMeta.riskSignals.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] sm:text-xs">
+                                  {recommendationMeta.riskSignals.map(
+                                    (signal, signalIndex) => (
+                                      <span
+                                        key={`${proposal.id}-risk-${signalIndex}`}
+                                        className={`inline-flex items-center rounded-full border px-2 py-0.5 font-medium ${
+                                          signal.startsWith(
+                                            "High completion confidence",
+                                          )
+                                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                            : "border-amber-200 bg-amber-50 text-amber-700"
+                                        }`}
+                                      >
+                                        {signal}
+                                      </span>
+                                    ),
+                                  )}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className="text-left sm:text-right">
+                            <p className="text-base sm:text-lg font-bold text-emerald-600">
+                              KES {proposal.price.toLocaleString()}
+                            </p>
+                            <span className="text-xs text-gray-500">
+                              Bid Amount
                             </span>
-                          )}
+                          </div>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
-                            {proposal.provider.name}
-                          </h4>
-                          <p className="text-xs sm:text-sm text-gray-500">
-                            Submitted{" "}
-                            {new Date(proposal.createdAt).toLocaleDateString(
-                              "en-US",
-                              {
-                                month: "short",
-                                day: "numeric",
-                              },
-                            )}
-                          </p>
-                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs">
-                            {proposal.provider.isVerified ? (
-                              <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">
-                                Verified
-                              </span>
-                            ) : null}
-                            {(proposal.provider.reviewCount || 0) > 0 ? (
-                              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
-                                ⭐ {proposal.provider.avgRating} (
-                                {proposal.provider.reviewCount} review
-                                {proposal.provider.reviewCount === 1 ? "" : "s"}
-                                )
+                        <p className="text-sm text-gray-700 leading-relaxed mb-2 sm:mb-3 line-clamp-3 sm:line-clamp-4">
+                          {proposal.coverLetter}
+                        </p>
+                        {(proposal.provider.skills?.length || 0) > 0 ? (
+                          <div className="mb-3 flex flex-wrap gap-1.5">
+                            {proposal.provider
+                              .skills!.slice(0, 4)
+                              .map((skill) => (
+                                <span
+                                  key={`${proposal.id}-${skill}`}
+                                  className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] sm:text-xs text-slate-700"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            {(proposal.provider.certifications?.length || 0) >
+                            0 ? (
+                              <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] sm:text-xs text-indigo-700">
+                                {proposal.provider.certifications!.length} cert
+                                {proposal.provider.certifications!.length === 1
+                                  ? ""
+                                  : "s"}
                               </span>
                             ) : null}
                           </div>
-                        </div>
-                      </div>
-                      <div className="text-left sm:text-right">
-                        <p className="text-base sm:text-lg font-bold text-emerald-600">
-                          KES {proposal.price.toLocaleString()}
-                        </p>
-                        <span className="text-xs text-gray-500">
-                          Bid Amount
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-700 leading-relaxed mb-2 sm:mb-3 line-clamp-3 sm:line-clamp-4">
-                      {proposal.coverLetter}
-                    </p>
-                    {(proposal.provider.skills?.length || 0) > 0 ? (
-                      <div className="mb-3 flex flex-wrap gap-1.5">
-                        {proposal.provider.skills!.slice(0, 4).map((skill) => (
-                          <span
-                            key={`${proposal.id}-${skill}`}
-                            className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] sm:text-xs text-slate-700"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                        {(proposal.provider.certifications?.length || 0) > 0 ? (
-                          <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] sm:text-xs text-indigo-700">
-                            {proposal.provider.certifications!.length} cert
-                            {proposal.provider.certifications!.length === 1
-                              ? ""
-                              : "s"}
-                          </span>
                         ) : null}
-                      </div>
-                    ) : null}
-                    {proposal.status === "PENDING" && job.status === "OPEN" && (
-                      <div className="flex flex-col xs:flex-row gap-2 mt-2">
-                        <button
-                          onClick={() =>
-                            acceptProposalMutation.mutate(proposal.id)
-                          }
-                          disabled={acceptProposalMutation.isPending}
-                          className="flex-1 px-3 py-2 sm:px-4 sm:py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 transition-colors font-medium disabled:opacity-50 text-sm sm:text-base touch-manipulation flex items-center justify-center gap-1.5"
-                        >
-                          {acceptProposalMutation.isPending ? (
-                            <>
-                              <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                              <span>Accepting...</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="material-symbols-outlined text-sm">
-                                check
-                              </span>
-                              <span>Accept Proposal</span>
-                            </>
+                        {proposal.status === "PENDING" &&
+                          job.status === "OPEN" && (
+                            <div className="flex flex-col xs:flex-row gap-2 mt-2">
+                              <button
+                                onClick={() =>
+                                  acceptProposalMutation.mutate(proposal.id)
+                                }
+                                disabled={acceptProposalMutation.isPending}
+                                className="flex-1 px-3 py-2 sm:px-4 sm:py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 transition-colors font-medium disabled:opacity-50 text-sm sm:text-base touch-manipulation flex items-center justify-center gap-1.5"
+                              >
+                                {acceptProposalMutation.isPending ? (
+                                  <>
+                                    <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                    <span>Accepting...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="material-symbols-outlined text-sm">
+                                      check
+                                    </span>
+                                    <span>Accept Proposal</span>
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleMessage(
+                                    proposal.providerId,
+                                    proposal.provider.name,
+                                    proposal.provider.image,
+                                  )
+                                }
+                                className="px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors font-medium text-sm sm:text-base touch-manipulation flex items-center justify-center gap-1.5"
+                              >
+                                <span className="material-symbols-outlined text-sm">
+                                  message
+                                </span>
+                                <span>Message</span>
+                              </button>
+                            </div>
                           )}
-                        </button>
-                        <button
-                          onClick={() =>
-                            handleMessage(
-                              proposal.providerId,
-                              proposal.provider.name,
-                              proposal.provider.image,
-                            )
-                          }
-                          className="px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors font-medium text-sm sm:text-base touch-manipulation flex items-center justify-center gap-1.5"
-                        >
-                          <span className="material-symbols-outlined text-sm">
-                            message
-                          </span>
-                          <span>Message</span>
-                        </button>
-                      </div>
-                    )}
-                    {proposal.status === "ACCEPTED" && (
-                      <div className="mt-2 space-y-2">
-                        <div className="px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs sm:text-sm font-medium text-center">
-                          ✓ Accepted
-                        </div>
-                        <button
-                          onClick={() => handleDispute(proposal.bookingId)}
-                          className="w-full px-3 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 active:bg-amber-100 transition-colors font-medium text-xs sm:text-sm"
-                        >
-                          Report Issue
-                        </button>
-                      </div>
-                    )}
-                    {proposal.status === "REJECTED" && (
-                      <div className="mt-2 px-3 py-2 bg-gray-50 border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm text-center">
-                        Rejected
-                      </div>
-                    )}
-                  </motion.div>
-                ))}
+                        {proposal.status === "ACCEPTED" && (
+                          <div className="mt-2 space-y-2">
+                            <div className="px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs sm:text-sm font-medium text-center">
+                              ✓ Accepted
+                            </div>
+                            {timelineData ? (
+                              <PaymentTimelineCard
+                                bookingStatus={timelineData.bookingStatus}
+                                paymentStatus={
+                                  timelineData.payment?.status || null
+                                }
+                                totalAmount={timelineData.totalAmount}
+                                milestones={
+                                  timelineData.escrow?.milestones || null
+                                }
+                              />
+                            ) : null}
+                            <button
+                              onClick={() => handleDispute(proposal.bookingId)}
+                              className="w-full px-3 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 active:bg-amber-100 transition-colors font-medium text-xs sm:text-sm"
+                            >
+                              Report Issue
+                            </button>
+                          </div>
+                        )}
+                        {proposal.status === "REJECTED" && (
+                          <div className="mt-2 px-3 py-2 bg-gray-50 border border-gray-200 text-gray-600 rounded-lg text-xs sm:text-sm text-center">
+                            Rejected
+                          </div>
+                        )}
+                      </motion.div>
+                    );
+                  })(),
+                )}
               </div>
             )}
           </div>

@@ -44,6 +44,7 @@ export interface JobDetail {
 
 export interface JobProposal {
   id: string;
+  bookingId?: string | null;
   jobId: string;
   providerId: string;
   coverLetter: string;
@@ -67,6 +68,11 @@ export interface SavedProposalTemplate {
   estimatedDays: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProviderTeamOption {
+  id: string;
+  name: string;
 }
 
 export const useCreateJob = () => {
@@ -100,6 +106,17 @@ export function useProviderJobs(tab: string = "available", page: number = 1) {
       );
       return response.data;
     },
+  });
+}
+
+export function useProviderTeams(enabled: boolean = true) {
+  return useQuery<{ items: ProviderTeamOption[] }>({
+    queryKey: ["provider-teams"],
+    queryFn: async () => {
+      const response = await apiClient.get("/provider/teams");
+      return response.data;
+    },
+    enabled,
   });
 }
 

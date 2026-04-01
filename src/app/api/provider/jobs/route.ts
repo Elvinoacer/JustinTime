@@ -2,6 +2,40 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { hasRole } from "@/lib/auth/roles";
+import type { Prisma } from "@/generated/prisma/client";
+
+type WinProbabilityBand = "HIGH" | "MEDIUM" | "LOW";
+
+function getWinProbability(
+  applicants: number,
+  proposalWinRate: number,
+  completionRate: number,
+): {
+  winProbabilityBand: WinProbabilityBand;
+  winProbabilityReason: string;
+} {
+  if (applicants <= 2 && proposalWinRate >= 0.35) {
+    return {
+      winProbabilityBand: "HIGH",
+      winProbabilityReason:
+        "Low competition and your recent proposal win rate are favorable.",
+    };
+  }
+
+  if (applicants <= 5 && (proposalWinRate >= 0.2 || completionRate >= 0.7)) {
+    return {
+      winProbabilityBand: "MEDIUM",
+      winProbabilityReason:
+        "Moderate competition with a reasonable chance based on your history.",
+    };
+  }
+
+  return {
+    winProbabilityBand: "LOW",
+    winProbabilityReason:
+      "Highly competitive job relative to your current historical win profile.",
+  };
+}
 
 export async function GET(request: Request) {
   try {
@@ -23,13 +57,49 @@ export async function GET(request: Request) {
     const categoryId = searchParams.get("category");
     const skip = (page - 1) * pageSize;
 
+    const [
+      acceptedProposals,
+      totalProposals,
+      completedBookings,
+      cancelledBookings,
+    ] = await Promise.all([
+      prisma.proposal.count({
+        where: {
+          providerId: session.user.id,
+          status: "ACCEPTED",
+        },
+      }),
+      prisma.proposal.count({
+        where: { providerId: session.user.id },
+      }),
+      prisma.booking.count({
+        where: {
+          providerId: session.user.id,
+          status: "COMPLETED",
+        },
+      }),
+      prisma.booking.count({
+        where: {
+          providerId: session.user.id,
+          status: "CANCELLED",
+        },
+      }),
+    ]);
+
+    const proposalWinRate =
+      totalProposals > 0 ? acceptedProposals / totalProposals : 0;
+    const completionRate =
+      completedBookings + cancelledBookings > 0
+        ? completedBookings / (completedBookings + cancelledBookings)
+        : 0;
+
     let jobs;
     let total;
 
     switch (tab) {
       case "available": {
         // Jobs provider can apply to (OPEN status, no existing proposal from this provider)
-        const where: any = {
+        const where: Prisma.JobWhereInput = {
           status: "OPEN",
           proposals: {
             none: { providerId: session.user.id },
@@ -52,7 +122,13 @@ export async function GET(request: Request) {
           prisma.job.count({ where }),
         ]);
 
-        jobs = allJobs;
+        jobs = allJobs.map((job) => {
+          const applicants = job._count?.proposals ?? 0;
+          return {
+            ...job,
+            ...getWinProbability(applicants, proposalWinRate, completionRate),
+          };
+        });
         total = count;
 
         break;
@@ -67,49 +143,13 @@ export async function GET(request: Request) {
           },
         });
 
-        const [
-          acceptedProposals,
-          totalProposals,
-          completedBookings,
-          cancelledBookings,
-        ] = await Promise.all([
-          prisma.proposal.count({
-            where: {
-              providerId: session.user.id,
-              status: "ACCEPTED",
-            },
-          }),
-          prisma.proposal.count({
-            where: { providerId: session.user.id },
-          }),
-          prisma.booking.count({
-            where: {
-              providerId: session.user.id,
-              status: "COMPLETED",
-            },
-          }),
-          prisma.booking.count({
-            where: {
-              providerId: session.user.id,
-              status: "CANCELLED",
-            },
-          }),
-        ]);
-
-        const proposalWinRate =
-          totalProposals > 0 ? acceptedProposals / totalProposals : 0;
-        const completionRate =
-          completedBookings + cancelledBookings > 0
-            ? completedBookings / (completedBookings + cancelledBookings)
-            : 0;
-
         const providerCategoryIds = Array.from(
           new Set(
             (provider?.services ?? []).map((service) => service.categoryId),
           ),
         );
 
-        const where: any = {
+        const where: Prisma.JobWhereInput = {
           status: "OPEN",
           proposals: {
             none: { providerId: session.user.id },
@@ -197,6 +237,7 @@ export async function GET(request: Request) {
 
             return {
               ...job,
+              ...getWinProbability(applicants, proposalWinRate, completionRate),
               recommendation: {
                 score,
                 reasons,

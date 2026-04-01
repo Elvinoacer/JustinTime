@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import {
   createJobSchema,
   quickCreateJobSchema,
@@ -159,7 +160,7 @@ export async function GET(request: Request) {
       parseCoord(searchParams.get("longitude"));
 
     // Build where clause
-    const where: any = {};
+    const where: Prisma.JobWhereInput = {};
 
     // Status filter
     if (searchParams.get("status")) {
@@ -213,7 +214,9 @@ export async function GET(request: Request) {
     const sortBy = searchParams.get("sortBy") || "createdAt";
     const sortOrder = searchParams.get("sortOrder") || "desc";
 
-    let orderBy: any = { [sortBy]: sortOrder };
+    let orderBy: Prisma.JobOrderByWithRelationInput = {
+      [sortBy]: sortOrder,
+    } as Prisma.JobOrderByWithRelationInput;
 
     // Special case for proposals count sorting
     if (sortBy === "proposals") {
@@ -267,7 +270,7 @@ export async function GET(request: Request) {
                 // Optional: We could update the job in DB here to persist it for next time
                 // await prisma.job.update({ where: { id: job.id }, data: { latitude: jobLat, longitude: jobLon } });
               }
-            } catch (e) {
+            } catch {
               // Ignore geocoding errors for legacy jobs to prevent API failure
             }
           }
