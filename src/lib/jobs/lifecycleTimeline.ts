@@ -1,5 +1,4 @@
 import { Prisma } from "@/generated/prisma/client";
-import prisma from "@/lib/prisma";
 
 export const JOB_LIFECYCLE_EVENT_TYPES = {
   JOB_CREATED: "JOB_CREATED",
@@ -44,7 +43,7 @@ export async function recordJobLifecycleEvent(
   input: RecordJobLifecycleEventInput,
   tx?: Prisma.TransactionClient,
 ) {
-  const client = tx ?? prisma;
+  const client = tx ?? (await import("@/lib/prisma")).default;
 
   try {
     return await client.jobTimelineEvent.create({

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useCreateProposalTemplate,
@@ -18,6 +18,7 @@ import {
 } from "@/lib/proposals/templates";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
   withFulfillmentPreference,
@@ -68,6 +69,7 @@ function getApiErrorMessage(error: unknown, fallback: string) {
 }
 
 const tabs = ["recommended", "available", "applied", "active", "completed"];
+const tabSet = new Set(tabs);
 
 const tabLabels: Record<string, string> = {
   recommended: "Recommended",
@@ -133,7 +135,11 @@ function getProposalTimeline(job: ProviderJob) {
 }
 
 export default function JobApplicationsPage() {
-  const [activeTab, setActiveTab] = useState("available");
+  const searchParams = useSearchParams();
+  const tabFromQuery = searchParams.get("tab");
+  const requestedTab =
+    tabFromQuery && tabSet.has(tabFromQuery) ? tabFromQuery : null;
+  const [activeTab, setActiveTab] = useState(requestedTab ?? "available");
   const [selectedJob, setSelectedJob] = useState<ProviderJob | null>(null);
   const [showProposalModal, setShowProposalModal] = useState(false);
   const [showJobDetailsModal, setShowJobDetailsModal] = useState(false);
@@ -170,6 +176,13 @@ export default function JobApplicationsPage() {
   const jobs = (data?.items || []) as ProviderJob[];
   const providerTeams = providerTeamsData?.items || [];
   const savedTemplates = savedTemplatesData?.items || [];
+  const hasTeamAccess = providerTeams.length > 0;
+
+  useEffect(() => {
+    if (requestedTab && requestedTab !== activeTab) {
+      setActiveTab(requestedTab);
+    }
+  }, [activeTab, requestedTab]);
 
   const getQuickApplyPayload = (job: ProviderJob) => {
     const draft = buildProposalTemplate(
@@ -467,13 +480,27 @@ export default function JobApplicationsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-xl md:text-2xl font-bold text-gray-900">My Jobs</h1>
         <Link
-          href="/services"
+          href="/jobs"
           className="flex items-center justify-center gap-1.5 bg-emerald-600 text-white px-3 sm:px-4 py-2 rounded-lg md:rounded-xl hover:bg-emerald-700 transition-colors shadow-md sm:shadow-lg shadow-emerald-200 font-medium text-sm sm:text-base w-full sm:w-auto"
         >
           <span className="material-symbols-outlined text-sm">search</span>
           <span>Browse Jobs</span>
         </Link>
       </div>
+
+      {hasTeamAccess ? (
+        <div className="bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <p className="text-sm font-medium">
+            You also have team-dispatched assignments.
+          </p>
+          <Link
+            href="/dashboard/team/jobs"
+            className="text-sm font-semibold text-indigo-700 hover:text-indigo-900"
+          >
+            View team-dispatched jobs →
+          </Link>
+        </div>
+      ) : null}
 
       {/* Tabs */}
       <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-1 -mx-1 px-1">

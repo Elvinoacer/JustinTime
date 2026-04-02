@@ -323,7 +323,7 @@ export default function JobDetailsPage() {
   };
 
   const handleShareJob = () => {
-    const jobUrl = `${window.location.origin}/client/jobs/${jobId}`;
+    const jobUrl = `${window.location.origin}/jobs/${jobId}`;
     navigator.clipboard.writeText(jobUrl);
     showToastMessage("Job link copied to clipboard!");
   };

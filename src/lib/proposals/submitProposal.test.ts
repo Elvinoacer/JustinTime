@@ -26,6 +26,12 @@ type TxMock = {
       provider: { id: string; name: string; image: string | null };
     }>;
   };
+  proposalStatusHistory: {
+    create: (args: unknown) => Promise<Record<string, never>>;
+  };
+  jobTimelineEvent: {
+    create: (args: unknown) => Promise<Record<string, never>>;
+  };
   user: {
     findUnique: (args: unknown) => Promise<{
       subscription: { plan: string; isActive: boolean };
@@ -59,6 +65,12 @@ function buildTxMock(overrides: Partial<TxMock> = {}): TxMock {
         provider: { id: "provider-2", name: "Pat", image: null },
       }),
     },
+    proposalStatusHistory: {
+      create: async () => ({}),
+    },
+    jobTimelineEvent: {
+      create: async () => ({}),
+    },
     user: {
       findUnique: async () => ({
         subscription: { plan: "PRO", isActive: true },
@@ -79,6 +91,14 @@ function buildTxMock(overrides: Partial<TxMock> = {}): TxMock {
     proposal: {
       ...base.proposal,
       ...(overrides.proposal ?? {}),
+    },
+    proposalStatusHistory: {
+      ...base.proposalStatusHistory,
+      ...(overrides.proposalStatusHistory ?? {}),
+    },
+    jobTimelineEvent: {
+      ...base.jobTimelineEvent,
+      ...(overrides.jobTimelineEvent ?? {}),
     },
     job: {
       ...base.job,

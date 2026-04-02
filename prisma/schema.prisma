@@ -412,6 +412,29 @@ model JobTimelineEvent {
   @@index([eventType, createdAt])
 }
 
+model BookingLifecycleEvent {
+  id             String   @id @default(cuid())
+  bookingId      String
+  paymentId      String?
+  eventType      String
+  fromState      String?
+  toState        String?
+  reason         String?  @db.Text
+  actorUserId    String?
+  actorName      String?
+  actorRole      String?
+  metadata       Json?
+  idempotencyKey String?  @unique
+  createdAt      DateTime @default(now())
+
+  booking Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
+  @@index([paymentId, createdAt])
+  @@index([eventType, createdAt])
+}
+
 model ProposalTemplate {
   id            String   @id @default(cuid())
   providerId    String
@@ -497,12 +520,13 @@ model Booking {
   promoCode      PromoCode?      @relation(fields: [promoCodeId], references: [id])
   discountAmount Decimal?        @db.Decimal(10, 2)
 
-  negotiations    BookingNegotiation[]
-  slots           BookingSlot[]
-  teamJobs        TeamJob[]
-  verticalProject VerticalProject?
-  proxySession    ProxySession?
-  lifecycleEvents JobTimelineEvent[]
+  negotiations           BookingNegotiation[]
+  slots                  BookingSlot[]
+  teamJobs               TeamJob[]
+  verticalProject        VerticalProject?
+  proxySession           ProxySession?
+  lifecycleEvents        JobTimelineEvent[]
+  bookingLifecycleEvents BookingLifecycleEvent[]
 
   @@index([clientId])
   @@index([providerId])
@@ -590,8 +614,9 @@ model Payment {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  booking         Booking            @relation(fields: [bookingId], references: [id])
-  lifecycleEvents JobTimelineEvent[]
+  booking                Booking                 @relation(fields: [bookingId], references: [id])
+  lifecycleEvents        JobTimelineEvent[]
+  bookingLifecycleEvents BookingLifecycleEvent[]
 }
 
 // Tax Filings (Nil Returns)

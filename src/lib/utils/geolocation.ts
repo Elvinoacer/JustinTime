@@ -243,6 +243,65 @@ function geolocationErrorMessage(error: GeolocationPositionError): string {
   }
 }
 
+function isOfflineBrowser(): boolean {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+export function getLocationFallbackToastMessage(
+  location: Pick<DetectedLocation, "source" | "fallbackReason">,
+): string | null {
+  if (location.source !== "IP") {
+    return null;
+  }
+
+  switch (location.fallbackReason) {
+    case "permission_denied":
+      return "Location permission was denied, so we used an approximate location from your network.";
+    case "timeout":
+      return "GPS took too long to respond, so we used an approximate location from your network.";
+    case "position_unavailable":
+      return "Your device could not get a precise GPS fix, so we used an approximate location from your network.";
+    case "unsupported":
+      return "Your browser does not support GPS location, so we used an approximate location from your network.";
+    case "unknown":
+    default:
+      return "We could not get a precise GPS location, so we used an approximate location from your network.";
+  }
+}
+
+export function getLocationFailureToastMessage(error: unknown): string {
+  if (isOfflineBrowser()) {
+    return "You appear to be offline. Connect to the internet to detect location, or enter it manually.";
+  }
+
+  const rawMessage = error instanceof Error ? error.message : "";
+  const normalizedMessage = rawMessage.toLowerCase();
+
+  if (normalizedMessage.includes("permission denied")) {
+    return "Location access is blocked and fallback could not be completed. Enable permission or enter location manually.";
+  }
+
+  if (normalizedMessage.includes("timed out")) {
+    return "Location request timed out. Check your signal or internet connection and try again.";
+  }
+
+  if (normalizedMessage.includes("not supported")) {
+    return "This browser does not support geolocation. Please enter your location manually.";
+  }
+
+  if (
+    normalizedMessage.includes("unable to determine your location automatically")
+  ) {
+    return "We could not detect your location automatically. Check your internet connection and try again, or enter it manually.";
+  }
+
+  if (rawMessage.trim()) {
+    return `${rawMessage} You can also enter location manually.`;
+  }
+
+  return "We could not detect your location. Check GPS and internet, then try again or enter it manually.";
+}
+
 function resolvePosition(
   options: PositionOptions,
 ): Promise<GeolocationPosition> {

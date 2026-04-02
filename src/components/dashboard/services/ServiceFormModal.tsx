@@ -4,8 +4,16 @@ import CategorySelector from "@/components/CategorySelector";
 import apiClient from "@/lib/api/client";
 import {
   useCreateService,
+  type ServicePayload,
   useUpdateService,
 } from "@/lib/api/hooks/useProvider";
+import {
+  SERVICE_CANCELLATION_POLICIES,
+  SERVICE_LOCATION_TYPES,
+  SERVICE_PRICING_UNITS,
+  type ServiceCancellationPolicy,
+  type ServiceLocationType,
+} from "@/lib/services/config";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -23,15 +31,74 @@ const serviceFormSchema = z.object({
   category: z.string().min(2, "Category is required"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   price: z.number().min(0, "Price must be positive"),
-  pricingUnit: z.enum(["fixed", "hourly"]),
+  pricingUnit: z.enum(SERVICE_PRICING_UNITS),
   images: z
     .array(z.string())
     .min(1, "Add at least one image before creating this service")
     .max(MAX_SERVICE_IMAGES, `Maximum ${MAX_SERVICE_IMAGES} images allowed`),
   video: z.string().optional(),
+  requiresAvailability: z.boolean(),
+  defaultDuration: z
+    .number()
+    .int()
+    .min(15, "Default duration must be at least 15 minutes")
+    .max(1440, "Default duration must be less than 24 hours")
+    .nullable(),
+  locationType: z.enum(SERVICE_LOCATION_TYPES),
+  location: z.string().max(160, "Location note is too long").optional(),
+  cancellationPolicy: z.enum(SERVICE_CANCELLATION_POLICIES),
 });
 
 type ServiceFormData = z.infer<typeof serviceFormSchema>;
+
+const LOCATION_TYPE_OPTIONS: Array<{
+  value: ServiceLocationType;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "PROVIDER_LOCATION",
+    label: "At my location",
+    description: "Clients come to your place.",
+  },
+  {
+    value: "CLIENT_LOCATION",
+    label: "At client location",
+    description: "You travel to the client.",
+  },
+  {
+    value: "NEGOTIABLE",
+    label: "Negotiable",
+    description: "Agree location per booking.",
+  },
+  {
+    value: "REMOTE",
+    label: "Remote",
+    description: "Delivered online or virtually.",
+  },
+];
+
+const CANCELLATION_POLICY_OPTIONS: Array<{
+  value: ServiceCancellationPolicy;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "FLEXIBLE",
+    label: "Flexible",
+    description: "Client-friendly cancellation terms.",
+  },
+  {
+    value: "MODERATE",
+    label: "Moderate",
+    description: "Balanced protection for both sides.",
+  },
+  {
+    value: "STRICT",
+    label: "Strict",
+    description: "Stronger commitment and fewer cancellations.",
+  },
+];
 
 type EditableService = {
   id: string;
@@ -39,7 +106,12 @@ type EditableService = {
   categoryId?: string;
   description?: string;
   price?: number;
-  pricingUnit?: "fixed" | "hourly";
+  pricingUnit?: ServicePayload["pricingUnit"];
+  requiresAvailability?: boolean;
+  defaultDuration?: number | null;
+  locationType?: ServiceLocationType;
+  location?: string | null;
+  cancellationPolicy?: ServiceCancellationPolicy;
   images?: string[];
   video?: string;
 };
@@ -78,9 +150,9 @@ const STEP_META = [
   },
   {
     label: "Details",
-    title: "Explain what the client gets",
+    title: "Define booking and delivery rules",
     description:
-      "A clear description reduces confusion and helps the right clients book faster.",
+      "Configure how this service is booked, delivered, and cancelled so operations stay smooth.",
     icon: "description",
   },
   {
@@ -129,6 +201,11 @@ const ServiceFormModal = ({
     description: service?.description || "",
     price: service?.price || 0,
     pricingUnit: service?.pricingUnit || "fixed",
+    requiresAvailability: service?.requiresAvailability ?? true,
+    defaultDuration: service?.defaultDuration ?? 60,
+    locationType: service?.locationType || "PROVIDER_LOCATION",
+    location: service?.location || "",
+    cancellationPolicy: service?.cancellationPolicy || "FLEXIBLE",
     images: service?.images || [],
     video: service?.video || undefined,
   });
@@ -148,6 +225,11 @@ const ServiceFormModal = ({
         description: service?.description || "",
         price: service?.price || 0,
         pricingUnit: service?.pricingUnit || "fixed",
+        requiresAvailability: service?.requiresAvailability ?? true,
+        defaultDuration: service?.defaultDuration ?? 60,
+        locationType: service?.locationType || "PROVIDER_LOCATION",
+        location: service?.location || "",
+        cancellationPolicy: service?.cancellationPolicy || "FLEXIBLE",
         images: service?.images || [],
         video: service?.video || undefined,
       });
@@ -303,6 +385,28 @@ const ServiceFormModal = ({
     } else if (currentStep === 2) {
       if (!formData.description || formData.description.length < 10) {
         newErrors.description = "Description must be at least 10 characters";
+        isValid = false;
+      }
+      if (formData.requiresAvailability && !formData.defaultDuration) {
+        newErrors.defaultDuration =
+          "Set a default duration when availability scheduling is enabled";
+        isValid = false;
+      }
+      if (
+        formData.defaultDuration !== null &&
+        formData.defaultDuration !== undefined &&
+        formData.defaultDuration < 15
+      ) {
+        newErrors.defaultDuration =
+          "Default duration must be at least 15 minutes";
+        isValid = false;
+      }
+      if (!formData.locationType) {
+        newErrors.locationType = "Choose how this service is delivered";
+        isValid = false;
+      }
+      if (!formData.cancellationPolicy) {
+        newErrors.cancellationPolicy = "Select a cancellation policy";
         isValid = false;
       }
     } else if (currentStep === 3) {
@@ -594,6 +698,160 @@ const ServiceFormModal = ({
                       {formData.description.length}/500 characters
                     </p>
                   </div>
+
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700 mb-1.5">
+                        Requires Availability Schedule
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              requiresAvailability: true,
+                            })
+                          }
+                          className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
+                            formData.requiresAvailability
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                              : "border-gray-200 bg-white text-gray-600"
+                          }`}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              requiresAvailability: false,
+                            })
+                          }
+                          className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
+                            !formData.requiresAvailability
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                              : "border-gray-200 bg-white text-gray-600"
+                          }`}
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                        Default Duration (minutes)
+                      </label>
+                      <input
+                        type="number"
+                        min={15}
+                        step={15}
+                        disabled={!formData.requiresAvailability}
+                        value={formData.defaultDuration ?? ""}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            defaultDuration:
+                              e.target.value === ""
+                                ? null
+                                : Number.parseInt(e.target.value, 10),
+                          })
+                        }
+                        className={`w-full px-3 py-2.5 rounded-lg border ${
+                          errors.defaultDuration
+                            ? "border-red-300 focus:ring-red-500"
+                            : "border-gray-200 focus:ring-emerald-500"
+                        } focus:ring-2 focus:border-transparent transition-all text-sm text-gray-900 placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-400`}
+                        placeholder="60"
+                      />
+                      {errors.defaultDuration && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors.defaultDuration}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                        Service Delivery Type
+                      </label>
+                      <select
+                        value={formData.locationType}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            locationType: e.target.value as ServiceLocationType,
+                          })
+                        }
+                        className={`w-full px-3 py-2.5 rounded-lg border ${
+                          errors.locationType
+                            ? "border-red-300 focus:ring-red-500"
+                            : "border-gray-200 focus:ring-emerald-500"
+                        } focus:ring-2 focus:border-transparent transition-all text-sm text-gray-900`}
+                      >
+                        {LOCATION_TYPE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.locationType && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors.locationType}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                        Default Location Note (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={160}
+                        value={formData.location || ""}
+                        onChange={(e) =>
+                          setFormData({ ...formData, location: e.target.value })
+                        }
+                        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm text-gray-900 placeholder:text-gray-500"
+                        placeholder="e.g., Westlands studio or Nairobi CBD"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                        Cancellation Policy
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {CANCELLATION_POLICY_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                cancellationPolicy: option.value,
+                              })
+                            }
+                            className={`px-2 py-2 rounded-lg border text-[11px] font-medium transition-all ${
+                              formData.cancellationPolicy === option.value
+                                ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                                : "border-gray-200 bg-white text-gray-600"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                      {errors.cancellationPolicy && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {errors.cancellationPolicy}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -603,7 +861,7 @@ const ServiceFormModal = ({
                   <div>
                     <div className="flex justify-between items-center mb-3">
                       <label className="block text-xs font-semibold text-gray-700 truncate">
-                        Gallery ({formData.images.length}/10)
+                        Gallery ({formData.images.length}/{MAX_SERVICE_IMAGES})
                       </label>
                       <span className="text-xs text-gray-500">Max 2MB</span>
                     </div>
@@ -632,7 +890,7 @@ const ServiceFormModal = ({
                         </div>
                       ))}
 
-                      {formData.images.length < 10 && (
+                      {formData.images.length < MAX_SERVICE_IMAGES && (
                         <label className="aspect-square rounded-lg border-2 border-dashed border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer flex flex-col items-center justify-center gap-1 group">
                           <input
                             type="file"
@@ -1160,6 +1418,181 @@ const ServiceFormModal = ({
                     <p className="shrink-0 text-sm text-gray-500">
                       {formData.description.length}/500
                     </p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                  <h3 className="text-sm font-semibold text-gray-800">
+                    Booking Configuration
+                  </h3>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Define how clients book this service and what happens when
+                    plans change.
+                  </p>
+
+                  <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-gray-700">
+                        Requires Availability Schedule
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              requiresAvailability: true,
+                            })
+                          }
+                          className={`rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                            formData.requiresAvailability
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                              : "border-gray-200 bg-white text-gray-700"
+                          }`}
+                        >
+                          Yes, schedule required
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              requiresAvailability: false,
+                            })
+                          }
+                          className={`rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+                            !formData.requiresAvailability
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                              : "border-gray-200 bg-white text-gray-700"
+                          }`}
+                        >
+                          No, instant booking
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-gray-700">
+                        Default Duration (minutes)
+                      </label>
+                      <input
+                        type="number"
+                        min={15}
+                        step={15}
+                        disabled={!formData.requiresAvailability}
+                        value={formData.defaultDuration ?? ""}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            defaultDuration:
+                              e.target.value === ""
+                                ? null
+                                : Number.parseInt(e.target.value, 10),
+                          })
+                        }
+                        className={`w-full rounded-xl border px-4 py-3 text-sm text-gray-900 transition-all placeholder:text-gray-500 ${
+                          errors.defaultDuration
+                            ? "border-red-300 focus:ring-red-500"
+                            : "border-gray-200 focus:ring-emerald-500"
+                        } focus:border-transparent focus:ring-2 disabled:bg-gray-100 disabled:text-gray-400`}
+                        placeholder="60"
+                      />
+                      {errors.defaultDuration && (
+                        <p className="mt-1 text-sm text-red-500">
+                          {errors.defaultDuration}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">
+                      Service Delivery Type
+                    </label>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {LOCATION_TYPE_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              locationType: option.value,
+                            })
+                          }
+                          className={`rounded-xl border px-3 py-3 text-left transition-all ${
+                            formData.locationType === option.value
+                              ? "border-emerald-500 bg-emerald-50"
+                              : "border-gray-200 bg-white hover:border-gray-300"
+                          }`}
+                        >
+                          <p className="text-sm font-semibold text-gray-900">
+                            {option.label}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {option.description}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                    {errors.locationType && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {errors.locationType}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">
+                      Default Location Note (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={160}
+                      value={formData.location || ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, location: e.target.value })
+                      }
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 transition-all placeholder:text-gray-500 focus:border-transparent focus:ring-2 focus:ring-emerald-500"
+                      placeholder="e.g., Along Waiyaki Way, 2nd Floor Studio"
+                    />
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">
+                      Cancellation Policy
+                    </label>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {CANCELLATION_POLICY_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              cancellationPolicy: option.value,
+                            })
+                          }
+                          className={`rounded-xl border px-3 py-3 text-left transition-all ${
+                            formData.cancellationPolicy === option.value
+                              ? "border-emerald-500 bg-emerald-50"
+                              : "border-gray-200 bg-white hover:border-gray-300"
+                          }`}
+                        >
+                          <p className="text-sm font-semibold text-gray-900">
+                            {option.label}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {option.description}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                    {errors.cancellationPolicy && (
+                      <p className="mt-1 text-sm text-red-500">
+                        {errors.cancellationPolicy}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

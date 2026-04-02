@@ -3,20 +3,54 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import { z } from "zod";
-import { uploadFile, deleteFile } from "@/lib/s3";
+import { deleteFile } from "@/lib/s3";
 import { hasRole } from "@/lib/auth/roles";
+import {
+  SERVICE_CANCELLATION_POLICIES,
+  SERVICE_LOCATION_TYPES,
+  SERVICE_PRICING_UNITS,
+  getServiceLimitForPlan,
+} from "@/lib/services/config";
 
 // Schema for service creation/update
 const serviceSchema = z.object({
   name: z.string().min(2),
   description: z.string().optional(),
   price: z.number().min(0),
-  pricingUnit: z.enum(["fixed", "hourly"]).optional(),
+  pricingUnit: z.enum(SERVICE_PRICING_UNITS).optional(),
   category: z.string().min(2),
   isActive: z.boolean().optional(),
   images: z.array(z.string()).optional(),
   video: z.string().optional(),
+  requiresAvailability: z.boolean().optional(),
+  defaultDuration: z.number().int().min(15).max(1440).nullable().optional(),
+  locationType: z.enum(SERVICE_LOCATION_TYPES).optional(),
+  location: z.string().max(160).optional(),
+  cancellationPolicy: z.enum(SERVICE_CANCELLATION_POLICIES).optional(),
 });
+
+const serviceUpdateSchema = serviceSchema.partial();
+
+async function resolveEffectiveServicePlan(userId: string) {
+  const subscription = await prisma.subscription.findUnique({
+    where: { userId },
+    select: {
+      plan: true,
+      isActive: true,
+      endDate: true,
+    },
+  });
+
+  const isExpired = Boolean(
+    subscription?.endDate && subscription.endDate < new Date(),
+  );
+
+  if (!subscription || !subscription.isActive || isExpired) {
+    return "FREE";
+  }
+
+  return subscription.plan;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,6 +72,7 @@ export async function GET(request: NextRequest) {
 
     const formattedServices = services.map((service) => ({
       id: service.id,
+      title: service.title,
       name: service.title,
       description: service.description,
       price: Number(service.price),
@@ -45,6 +80,11 @@ export async function GET(request: NextRequest) {
       category: service.category.name,
       categoryId: service.categoryId,
       isActive: service.isActive,
+      requiresAvailability: service.requiresAvailability,
+      defaultDuration: service.defaultDuration,
+      locationType: service.locationType,
+      location: service.location,
+      cancellationPolicy: service.cancellationPolicy,
       images: service.images,
       video: service.video,
       views: service.views || 0,
@@ -67,14 +107,19 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id;
 
-    // Check service limit (max 5)
+    const effectivePlan = await resolveEffectiveServicePlan(userId);
+    const serviceLimit = getServiceLimitForPlan(effectivePlan);
+
+    // Check service limit for the user's active plan.
     const serviceCount = await prisma.service.count({
       where: { providerId: userId },
     });
 
-    if (serviceCount >= 5) {
+    if (Number.isFinite(serviceLimit) && serviceCount >= serviceLimit) {
       return NextResponse.json(
-        { error: "You have reached the maximum limit of 5 services." },
+        {
+          error: `You have reached the maximum limit of ${serviceLimit} services for your ${effectivePlan} plan.`,
+        },
         { status: 403 },
       );
     }
@@ -104,6 +149,11 @@ export async function POST(request: NextRequest) {
         price: validatedData.price,
         pricingUnit: validatedData.pricingUnit || "fixed",
         isActive: validatedData.isActive ?? true,
+        requiresAvailability: validatedData.requiresAvailability ?? true,
+        defaultDuration: validatedData.defaultDuration ?? 60,
+        locationType: validatedData.locationType ?? "PROVIDER_LOCATION",
+        location: validatedData.location?.trim() || null,
+        cancellationPolicy: validatedData.cancellationPolicy ?? "FLEXIBLE",
         images: validatedData.images || [],
         video: validatedData.video,
       },
@@ -111,6 +161,7 @@ export async function POST(request: NextRequest) {
 
     return successResponse({
       id: service.id,
+      title: service.title,
       name: service.title,
       description: service.description,
       price: Number(service.price),
@@ -118,6 +169,11 @@ export async function POST(request: NextRequest) {
       category: category.name,
       categoryId: category.id,
       isActive: service.isActive,
+      requiresAvailability: service.requiresAvailability,
+      defaultDuration: service.defaultDuration,
+      locationType: service.locationType,
+      location: service.location,
+      cancellationPolicy: service.cancellationPolicy,
       images: service.images,
       video: service.video,
     });
@@ -146,6 +202,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
+    const validatedData = serviceUpdateSchema.parse(body);
 
     // Check ownership
     const existingService = await prisma.service.findUnique({
@@ -159,20 +216,39 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updateData: any = {};
-    if (body.name) updateData.title = body.name;
-    if (body.description !== undefined)
-      updateData.description = body.description;
-    if (body.price !== undefined) updateData.price = body.price;
-    if (body.pricingUnit !== undefined)
-      updateData.pricingUnit = body.pricingUnit;
-    if (body.isActive !== undefined) updateData.isActive = body.isActive;
-    if (body.images !== undefined) updateData.images = body.images;
-    if (body.video !== undefined) updateData.video = body.video;
+    const updateData: Record<string, unknown> = {};
+    if (validatedData.name !== undefined) updateData.title = validatedData.name;
+    if (validatedData.description !== undefined)
+      updateData.description = validatedData.description;
+    if (validatedData.price !== undefined)
+      updateData.price = validatedData.price;
+    if (validatedData.pricingUnit !== undefined)
+      updateData.pricingUnit = validatedData.pricingUnit;
+    if (validatedData.isActive !== undefined)
+      updateData.isActive = validatedData.isActive;
+    if (validatedData.images !== undefined)
+      updateData.images = validatedData.images;
+    if (validatedData.video !== undefined)
+      updateData.video = validatedData.video;
+    if (validatedData.requiresAvailability !== undefined) {
+      updateData.requiresAvailability = validatedData.requiresAvailability;
+    }
+    if (validatedData.defaultDuration !== undefined) {
+      updateData.defaultDuration = validatedData.defaultDuration;
+    }
+    if (validatedData.locationType !== undefined) {
+      updateData.locationType = validatedData.locationType;
+    }
+    if (validatedData.location !== undefined) {
+      updateData.location = validatedData.location?.trim() || null;
+    }
+    if (validatedData.cancellationPolicy !== undefined) {
+      updateData.cancellationPolicy = validatedData.cancellationPolicy;
+    }
 
-    if (body.category) {
+    if (validatedData.category) {
       const category = await prisma.category.findUnique({
-        where: { id: body.category },
+        where: { id: validatedData.category },
       });
 
       if (!category) {
@@ -185,9 +261,9 @@ export async function PUT(request: NextRequest) {
     }
 
     // Handle media deletion if images/video changed
-    if (body.images) {
+    if (validatedData.images) {
       const oldImages = existingService.images;
-      const newImages = body.images;
+      const newImages = validatedData.images;
       const imagesToDelete = oldImages.filter(
         (img) => !newImages.includes(img),
       );
@@ -198,9 +274,9 @@ export async function PUT(request: NextRequest) {
     }
 
     if (
-      body.video !== undefined &&
+      validatedData.video !== undefined &&
       existingService.video &&
-      existingService.video !== body.video
+      existingService.video !== validatedData.video
     ) {
       await deleteFile(existingService.video);
     }
@@ -213,6 +289,7 @@ export async function PUT(request: NextRequest) {
 
     return successResponse({
       id: updatedService.id,
+      title: updatedService.title,
       name: updatedService.title,
       description: updatedService.description,
       price: Number(updatedService.price),
@@ -220,6 +297,11 @@ export async function PUT(request: NextRequest) {
       category: updatedService.category.name,
       categoryId: updatedService.categoryId,
       isActive: updatedService.isActive,
+      requiresAvailability: updatedService.requiresAvailability,
+      defaultDuration: updatedService.defaultDuration,
+      locationType: updatedService.locationType,
+      location: updatedService.location,
+      cancellationPolicy: updatedService.cancellationPolicy,
       images: updatedService.images,
       video: updatedService.video,
     });

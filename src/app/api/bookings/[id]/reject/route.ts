@@ -1,10 +1,18 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import {
+  BOOKING_LIFECYCLE_EVENT_TYPES,
+  recordBookingLifecycleEvent,
+} from "@/lib/bookings/lifecycleTimeline";
+import {
+  JOB_LIFECYCLE_EVENT_TYPES,
+  recordJobLifecycleEvent,
+} from "@/lib/jobs/lifecycleTimeline";
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await auth();
@@ -47,6 +55,39 @@ export async function POST(
         service: { select: { id: true, title: true } },
       },
     });
+
+    const actorName = session.user.name?.trim() || "Provider";
+    const rejectionReason =
+      typeof reason === "string" && reason.trim().length > 0
+        ? reason.trim()
+        : "Booking rejected by provider.";
+
+    await recordBookingLifecycleEvent({
+      bookingId: booking.id,
+      eventType: BOOKING_LIFECYCLE_EVENT_TYPES.BOOKING_STATUS_CHANGED,
+      fromState: booking.status,
+      toState: "CANCELLED",
+      reason: rejectionReason,
+      actorUserId: session.user.id,
+      actorName,
+      actorRole: "PROVIDER",
+      idempotencyKey: `booking:${booking.id}:status:${booking.status}:CANCELLED:${updatedBooking.updatedAt.toISOString()}`,
+    });
+
+    if (booking.jobId) {
+      await recordJobLifecycleEvent({
+        jobId: booking.jobId,
+        bookingId: booking.id,
+        eventType: JOB_LIFECYCLE_EVENT_TYPES.BOOKING_STATUS_CHANGED,
+        fromState: booking.status,
+        toState: "CANCELLED",
+        reason: rejectionReason,
+        actorUserId: session.user.id,
+        actorName,
+        actorRole: "PROVIDER",
+        idempotencyKey: `booking:${booking.id}:job-status:${booking.status}:CANCELLED:${updatedBooking.updatedAt.toISOString()}`,
+      });
+    }
 
     // Create notification for client
     await prisma.notification.create({

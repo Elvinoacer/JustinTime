@@ -4,7 +4,11 @@ import { useState } from "react";
 import { triggerSOS } from "@/app/actions/safety";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
-import { detectCurrentLocation } from "@/lib/utils/geolocation";
+import {
+  detectCurrentLocation,
+  getLocationFailureToastMessage,
+  getLocationFallbackToastMessage,
+} from "@/lib/utils/geolocation";
 
 export default function PanicButton({
   className = "",
@@ -27,6 +31,14 @@ export default function PanicButton({
 
     try {
       const detected = await detectCurrentLocation();
+
+      if (detected.source === "IP") {
+        toast.info(
+          getLocationFallbackToastMessage(detected) ||
+            "Using approximate location from your network.",
+          { duration: 3500 },
+        );
+      }
 
       const detailsParts = [`Source: ${detected.source}`];
       if (detected.accuracy != null) {
@@ -52,7 +64,7 @@ export default function PanicButton({
       }
     } catch (error) {
       console.error(error);
-      toast.error("Could not get location. Ensure location services are on.");
+      toast.error(getLocationFailureToastMessage(error));
     } finally {
       setLoading(false);
     }

@@ -7,9 +7,12 @@ import { useSession } from "next-auth/react";
 import {
   detectCurrentLocation,
   getGeolocationPermissionState,
+  getLocationFallbackToastMessage,
+  getLocationFailureToastMessage,
   getLocationFromStorage,
   saveLocationToStorage,
   clearLocationFromStorage,
+  type LocationFallbackReason,
   type LocationSource,
 } from "@/lib/utils/geolocation";
 
@@ -33,6 +36,7 @@ type PickerLocation = {
   address?: string;
   source?: LocationSource;
   accuracy?: number | null;
+  fallbackReason?: LocationFallbackReason;
 };
 
 export default function LocationPicker({
@@ -83,8 +87,13 @@ export default function LocationPicker({
 
       if (!options?.silent) {
         if (location.source === "IP") {
+          const fallbackMessage = getLocationFallbackToastMessage({
+            source: "IP",
+            fallbackReason: location.fallbackReason,
+          });
           toast.info(
-            "Approximate location detected from your network. You can refine it manually.",
+            fallbackMessage ||
+              "Approximate location detected from your network. You can refine it manually.",
           );
         } else {
           toast.success("Location detected!");
@@ -185,6 +194,7 @@ export default function LocationPicker({
             address: detected.address,
             source: detected.source,
             accuracy: detected.accuracy,
+            fallbackReason: detected.fallbackReason,
           },
           { silent: true },
         );
@@ -207,13 +217,12 @@ export default function LocationPicker({
           address: detected.address,
           source: detected.source,
           accuracy: detected.accuracy,
+          fallbackReason: detected.fallbackReason,
         },
         { closeAfter: true },
       );
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to detect location",
-      );
+      toast.error(getLocationFailureToastMessage(error));
     } finally {
       setIsDetecting(false);
     }

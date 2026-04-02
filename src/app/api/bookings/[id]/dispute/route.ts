@@ -2,6 +2,14 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import {
+  BOOKING_LIFECYCLE_EVENT_TYPES,
+  recordBookingLifecycleEvent,
+} from "@/lib/bookings/lifecycleTimeline";
+import {
+  JOB_LIFECYCLE_EVENT_TYPES,
+  recordJobLifecycleEvent,
+} from "@/lib/jobs/lifecycleTimeline";
 
 const createDisputeSchema = z.object({
   reason: z.string().trim().min(20, "Reason must be at least 20 characters"),
@@ -25,6 +33,7 @@ export async function POST(
       where: { id },
       select: {
         id: true,
+        jobId: true,
         clientId: true,
         providerId: true,
         status: true,
@@ -77,6 +86,51 @@ export async function POST(
         where: { id: booking.id },
         data: { status: "DISPUTED" },
       });
+
+      const actorRole = isClient ? "CLIENT" : "PROVIDER";
+      const actorName =
+        session.user.name?.trim() || (isClient ? "Client" : "Provider");
+
+      await recordBookingLifecycleEvent(
+        {
+          bookingId: booking.id,
+          eventType: BOOKING_LIFECYCLE_EVENT_TYPES.DISPUTE_OPENED,
+          fromState: booking.status,
+          toState: "DISPUTED",
+          reason: validated.reason,
+          actorUserId: session.user.id,
+          actorName,
+          actorRole,
+          metadata: {
+            disputeId: createdDispute.id,
+            defendantId,
+          },
+          idempotencyKey: `booking:${booking.id}:dispute:${createdDispute.id}`,
+        },
+        tx,
+      );
+
+      if (booking.jobId) {
+        await recordJobLifecycleEvent(
+          {
+            jobId: booking.jobId,
+            bookingId: booking.id,
+            eventType: JOB_LIFECYCLE_EVENT_TYPES.BOOKING_STATUS_CHANGED,
+            fromState: booking.status,
+            toState: "DISPUTED",
+            reason: validated.reason,
+            actorUserId: session.user.id,
+            actorName,
+            actorRole,
+            metadata: {
+              disputeId: createdDispute.id,
+              defendantId,
+            },
+            idempotencyKey: `booking:${booking.id}:job-dispute:${createdDispute.id}`,
+          },
+          tx,
+        );
+      }
 
       return createdDispute;
     });

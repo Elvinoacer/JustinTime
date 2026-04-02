@@ -1,10 +1,18 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import {
+  BOOKING_LIFECYCLE_EVENT_TYPES,
+  recordBookingLifecycleEvent,
+} from "@/lib/bookings/lifecycleTimeline";
+import {
+  JOB_LIFECYCLE_EVENT_TYPES,
+  recordJobLifecycleEvent,
+} from "@/lib/jobs/lifecycleTimeline";
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await auth();
@@ -45,6 +53,35 @@ export async function POST(
         service: { select: { id: true, title: true } },
       },
     });
+
+    const actorName = session.user.name?.trim() || "Provider";
+
+    await recordBookingLifecycleEvent({
+      bookingId: booking.id,
+      eventType: BOOKING_LIFECYCLE_EVENT_TYPES.BOOKING_STATUS_CHANGED,
+      fromState: booking.status,
+      toState: "CONFIRMED",
+      reason: "Booking accepted by provider.",
+      actorUserId: session.user.id,
+      actorName,
+      actorRole: "PROVIDER",
+      idempotencyKey: `booking:${booking.id}:status:${booking.status}:CONFIRMED:${updatedBooking.updatedAt.toISOString()}`,
+    });
+
+    if (booking.jobId) {
+      await recordJobLifecycleEvent({
+        jobId: booking.jobId,
+        bookingId: booking.id,
+        eventType: JOB_LIFECYCLE_EVENT_TYPES.BOOKING_STATUS_CHANGED,
+        fromState: booking.status,
+        toState: "CONFIRMED",
+        reason: "Booking accepted by provider.",
+        actorUserId: session.user.id,
+        actorName,
+        actorRole: "PROVIDER",
+        idempotencyKey: `booking:${booking.id}:job-status:${booking.status}:CONFIRMED:${updatedBooking.updatedAt.toISOString()}`,
+      });
+    }
 
     // Create notification for client
     await prisma.notification.create({

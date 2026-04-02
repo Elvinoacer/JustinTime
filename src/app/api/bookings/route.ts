@@ -17,6 +17,10 @@ import { validatePromoCode } from "@/lib/promo";
 import { getDynamicPrice } from "@/lib/pricing-engine";
 import { VALIDATION } from "@/lib/constants/validation";
 import { Prisma } from "@/generated/prisma/client";
+import {
+  BOOKING_LIFECYCLE_EVENT_TYPES,
+  recordBookingLifecycleEvent,
+} from "@/lib/bookings/lifecycleTimeline";
 
 export async function GET(request: Request) {
   try {
@@ -381,6 +385,22 @@ export async function POST(request: Request) {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+
+    await recordBookingLifecycleEvent({
+      bookingId: booking.id,
+      eventType: BOOKING_LIFECYCLE_EVENT_TYPES.BOOKING_CREATED,
+      actorUserId: session.user.id,
+      actorName: booking.client.name || "Client",
+      actorRole: "CLIENT",
+      reason: "Booking request submitted.",
+      metadata: {
+        serviceId,
+        providerId: professionalId,
+        slotCount: bookingSlots.length,
+        hasPromoCode: Boolean(validPromoCodeId),
+      },
+      idempotencyKey: `booking:${booking.id}:created`,
+    });
 
     // Create notifications for both parties
     await createBookingNotifications(

@@ -10,6 +10,10 @@ import {
   JOB_LIFECYCLE_EVENT_TYPES,
   recordJobLifecycleEvent,
 } from "@/lib/jobs/lifecycleTimeline";
+import {
+  BOOKING_LIFECYCLE_EVENT_TYPES,
+  recordBookingLifecycleEvent,
+} from "@/lib/bookings/lifecycleTimeline";
 
 export async function PATCH(
   request: Request,
@@ -114,6 +118,21 @@ export async function PATCH(
       session.user.name?.trim() || (isProvider ? "Provider" : "Client");
 
     if (status && status !== booking.status) {
+      await recordBookingLifecycleEvent({
+        bookingId: booking.id,
+        eventType: BOOKING_LIFECYCLE_EVENT_TYPES.BOOKING_STATUS_CHANGED,
+        fromState: booking.status,
+        toState: status,
+        reason:
+          status === "CANCELLED"
+            ? cancellationReason || "Booking was cancelled."
+            : "Booking status updated.",
+        actorUserId: session.user.id,
+        actorName,
+        actorRole,
+        idempotencyKey: `booking:${booking.id}:status:${booking.status}:${status}:${updatedBooking.updatedAt.toISOString()}`,
+      });
+
       if (booking.jobId) {
         await recordJobLifecycleEvent({
           jobId: booking.jobId,
@@ -178,6 +197,30 @@ export async function PATCH(
           },
         });
 
+        if (pendingPayments.length > 0) {
+          await Promise.all(
+            pendingPayments.map((payment) =>
+              recordBookingLifecycleEvent({
+                bookingId: booking.id,
+                paymentId: payment.id,
+                eventType: BOOKING_LIFECYCLE_EVENT_TYPES.PAYMENT_STATUS_CHANGED,
+                fromState: payment.status,
+                toState: "COMPLETED",
+                reason: "Escrow released after booking completion.",
+                actorUserId: session.user.id,
+                actorName,
+                actorRole,
+                metadata: {
+                  method: payment.method,
+                  previousTransactionId: payment.transactionId,
+                  nextTransactionId: `escrow_release_${id}`,
+                },
+                idempotencyKey: `booking:${booking.id}:payment:${payment.id}:status:PENDING:COMPLETED:${updatedBooking.updatedAt.toISOString()}`,
+              }),
+            ),
+          );
+        }
+
         if (booking.jobId && pendingPayments.length > 0) {
           await Promise.all(
             pendingPayments.map((payment) =>
@@ -232,6 +275,33 @@ export async function PATCH(
             transactionId: `escrow_refund_${id}`,
           },
         });
+
+        if (refundablePayments.length > 0) {
+          await Promise.all(
+            refundablePayments.map((payment) =>
+              recordBookingLifecycleEvent({
+                bookingId: booking.id,
+                paymentId: payment.id,
+                eventType: BOOKING_LIFECYCLE_EVENT_TYPES.PAYMENT_STATUS_CHANGED,
+                fromState: payment.status,
+                toState: "REFUNDED",
+                reason:
+                  (typeof cancellationReason === "string" &&
+                    cancellationReason.trim()) ||
+                  "Booking cancelled and payment refunded.",
+                actorUserId: session.user.id,
+                actorName,
+                actorRole,
+                metadata: {
+                  method: payment.method,
+                  previousTransactionId: payment.transactionId,
+                  nextTransactionId: `escrow_refund_${id}`,
+                },
+                idempotencyKey: `booking:${booking.id}:payment:${payment.id}:status:${payment.status}:REFUNDED:${updatedBooking.updatedAt.toISOString()}`,
+              }),
+            ),
+          );
+        }
 
         if (booking.jobId && refundablePayments.length > 0) {
           await Promise.all(

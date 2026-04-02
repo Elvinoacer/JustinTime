@@ -12,6 +12,7 @@ const navItems = [
   { name: "Dashboard", href: "/client/dashboard", icon: "dashboard" },
   { name: "Analytics", href: "/client/analytics", icon: "analytics" },
   { name: "Post a Job", href: "/client/post-job", icon: "add_circle" },
+  { name: "My Jobs", href: "/client/jobs", icon: "work" },
   { name: "My Proposals", href: "/client/proposals", icon: "description" },
   { name: "Bookings", href: "/client/bookings", icon: "calendar_month" },
   { name: "Messages", href: "/client/messages", icon: "chat" },
@@ -118,7 +119,7 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                   Main Menu
                 </h3>
                 <ul className="flex flex-col gap-1" role="list">
-                  {navItems.slice(0, 4).map((item) => {
+                  {navItems.slice(0, 5).map((item) => {
                     const isActive =
                       pathname === item.href ||
                       pathname?.startsWith(`${item.href}/`);
@@ -181,7 +182,7 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                   More
                 </h3>
                 <ul className="flex flex-col gap-1" role="list">
-                  {navItems.slice(4).map((item) => {
+                  {navItems.slice(5).map((item) => {
                     const isActive =
                       pathname === item.href ||
                       pathname?.startsWith(`${item.href}/`);

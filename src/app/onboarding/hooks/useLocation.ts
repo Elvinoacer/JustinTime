@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import {
   detectCurrentLocation,
   getGeolocationPermissionState,
+  getLocationFailureToastMessage,
+  getLocationFallbackToastMessage,
   type DetectedLocation,
   type LocationSource as SharedLocationSource,
 } from "@/lib/utils/geolocation";
@@ -68,19 +71,29 @@ export function useLocation(): UseLocationReturn {
   const [permissionStatus, setPermissionStatus] =
     useState<PermissionState | null>(null);
 
-  const applyDetectedLocation = useCallback((detected: DetectedLocation) => {
-    setLocation({
-      latitude: detected.latitude,
-      longitude: detected.longitude,
-      address: normalizeAddress(detected),
-      source: detected.source,
-      accuracy: detected.accuracy,
-    });
-    setStatus(statusFromDetection(detected));
-    if (detected.fallbackReason === "permission_denied") {
-      setPermissionStatus("denied");
-    }
-  }, []);
+  const applyDetectedLocation = useCallback(
+    (detected: DetectedLocation, options?: { notify?: boolean }) => {
+      setLocation({
+        latitude: detected.latitude,
+        longitude: detected.longitude,
+        address: normalizeAddress(detected),
+        source: detected.source,
+        accuracy: detected.accuracy,
+      });
+      setStatus(statusFromDetection(detected));
+      if (detected.fallbackReason === "permission_denied") {
+        setPermissionStatus("denied");
+      }
+
+      if (options?.notify && detected.source === "IP") {
+        const fallbackMessage = getLocationFallbackToastMessage(detected);
+        if (fallbackMessage) {
+          toast.info(fallbackMessage);
+        }
+      }
+    },
+    [],
+  );
 
   const getLocation = useCallback(async () => {
     setStatus("LOADING");
@@ -92,10 +105,11 @@ export function useLocation(): UseLocationReturn {
 
     try {
       const detected = await detectCurrentLocation();
-      applyDetectedLocation(detected);
+      applyDetectedLocation(detected, { notify: true });
     } catch (error) {
       const denied = permission === "denied" || isPermissionDeniedError(error);
       setStatus(denied ? "DENIED" : "FAILED");
+      toast.error(getLocationFailureToastMessage(error));
     }
   }, [applyDetectedLocation]);
 

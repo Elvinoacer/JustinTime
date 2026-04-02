@@ -552,7 +552,7 @@ export async function POST(request: Request) {
                   <p style="color: #4b5563;">${normalizedData.description ? (normalizedData.description.length > 150 ? normalizedData.description.substring(0, 150) + "..." : normalizedData.description) : "No description"}</p>
                 </div>
                 
-                <a href="${process.env.NEXTAUTH_URL}/dashboard/jobs/${job.id}" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">View Job Details</a>
+                <a href="${process.env.NEXTAUTH_URL}/jobs/${job.id}" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">View Job Details</a>
               </div>
             `,
           });

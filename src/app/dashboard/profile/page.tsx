@@ -11,11 +11,16 @@ import { useSubscriptionStatus } from "@/lib/api/hooks/useSubscription";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import jsPDF from "jspdf";
+import { toast } from "sonner";
 import ImageCropper from "@/components/ImageCropper";
 import SocialLinksSection from "@/components/dashboard/SocialLinksSection";
 import CategorySelector from "@/components/CategorySelector";
 import { useCategories } from "@/lib/api/hooks/useServices";
-import { detectCurrentLocation } from "@/lib/utils/geolocation";
+import {
+  detectCurrentLocation,
+  getLocationFailureToastMessage,
+  getLocationFallbackToastMessage,
+} from "@/lib/utils/geolocation";
 
 const ProfilePage = () => {
   const router = useRouter();
@@ -300,11 +305,18 @@ const ProfilePage = () => {
         locationSource: detected.source,
         locationAccuracy: detected.accuracy,
       }));
+
+      if (detected.source === "IP") {
+        toast.info(
+          getLocationFallbackToastMessage(detected) ||
+            "Using approximate location from your network.",
+        );
+      } else {
+        toast.success("Location detected successfully.");
+      }
     } catch (error) {
       console.error("Geolocation error:", error);
-      alert(
-        "Failed to get location. Please ensure location permissions are enabled.",
-      );
+      toast.error(getLocationFailureToastMessage(error));
     } finally {
       setIsGettingLocation(false);
     }

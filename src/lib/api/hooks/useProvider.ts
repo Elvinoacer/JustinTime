@@ -1,12 +1,35 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../client';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import apiClient from "../client";
+import type {
+  ServiceCancellationPolicy,
+  ServiceLocationType,
+  ServicePricingUnit,
+} from "@/lib/services/config";
+
+export type ServicePayload = {
+  name: string;
+  category: string;
+  description: string;
+  price: number;
+  pricingUnit: ServicePricingUnit;
+  images: string[];
+  video?: string;
+  isActive?: boolean;
+  requiresAvailability: boolean;
+  defaultDuration: number | null;
+  locationType: ServiceLocationType;
+  location?: string;
+  cancellationPolicy: ServiceCancellationPolicy;
+};
+
+type ServiceUpdatePayload = Partial<ServicePayload>;
 
 // Provider Stats Hook
 export function useProviderStats() {
   return useQuery({
-    queryKey: ['provider', 'stats'],
+    queryKey: ["provider", "stats"],
     queryFn: async () => {
-      const response = await apiClient.get('/provider/stats');
+      const response = await apiClient.get("/provider/stats");
       return response.data;
     },
   });
@@ -14,9 +37,9 @@ export function useProviderStats() {
 // Provider Profile Hook
 export function useProviderProfile(enabled: boolean = true) {
   return useQuery({
-    queryKey: ['provider', 'profile'],
+    queryKey: ["provider", "profile"],
     queryFn: async () => {
-      const response = await apiClient.get('/provider/profile');
+      const response = await apiClient.get("/provider/profile");
       return response.data;
     },
     enabled,
@@ -24,17 +47,16 @@ export function useProviderProfile(enabled: boolean = true) {
   });
 }
 
-
 // Update Provider Profile Hook
 export function useUpdateProviderProfile() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiClient.put('/provider/profile', data);
+      const response = await apiClient.put("/provider/profile", data);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['provider', 'profile'] });
+      queryClient.invalidateQueries({ queryKey: ["provider", "profile"] });
     },
   });
 }
@@ -42,9 +64,9 @@ export function useUpdateProviderProfile() {
 // Provider Earnings Chart Hook
 export function useProviderEarningsChart() {
   return useQuery({
-    queryKey: ['provider', 'earnings', 'chart'],
+    queryKey: ["provider", "earnings", "chart"],
     queryFn: async () => {
-      const response = await apiClient.get('/provider/earnings/chart');
+      const response = await apiClient.get("/provider/earnings/chart");
       return response.data;
     },
   });
@@ -53,9 +75,9 @@ export function useProviderEarningsChart() {
 // Provider Activities Hook
 export function useProviderActivities() {
   return useQuery({
-    queryKey: ['provider', 'activities'],
+    queryKey: ["provider", "activities"],
     queryFn: async () => {
-      const response = await apiClient.get('/provider/activities');
+      const response = await apiClient.get("/provider/activities");
       return response.data;
     },
   });
@@ -64,9 +86,9 @@ export function useProviderActivities() {
 // Provider Services Hook
 export function useProviderServices() {
   return useQuery({
-    queryKey: ['provider', 'services'],
+    queryKey: ["provider", "services"],
     queryFn: async () => {
-      const response = await apiClient.get('/provider/services');
+      const response = await apiClient.get("/provider/services");
       return response.data;
     },
   });
@@ -76,12 +98,12 @@ export function useProviderServices() {
 export function useCreateService() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: any) => {
-      const response = await apiClient.post('/provider/services', data);
+    mutationFn: async (data: ServicePayload) => {
+      const response = await apiClient.post("/provider/services", data);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['provider', 'services'] });
+      queryClient.invalidateQueries({ queryKey: ["provider", "services"] });
     },
   });
 }
@@ -90,12 +112,18 @@ export function useCreateService() {
 export function useUpdateService() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: ServiceUpdatePayload;
+    }) => {
       const response = await apiClient.put(`/provider/services?id=${id}`, data);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['provider', 'services'] });
+      queryClient.invalidateQueries({ queryKey: ["provider", "services"] });
     },
   });
 }
@@ -109,22 +137,29 @@ export function useDeleteService() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['provider', 'services'] });
+      queryClient.invalidateQueries({ queryKey: ["provider", "services"] });
     },
   });
 }
 
 // Provider Bookings Hook
-export function useProviderBookings(params?: { status?: string; from?: Date; to?: Date }) {
+export function useProviderBookings(params?: {
+  status?: string;
+  from?: Date;
+  to?: Date;
+}) {
   return useQuery({
-    queryKey: ['provider', 'bookings', params],
+    queryKey: ["provider", "bookings", params],
     queryFn: async () => {
       const queryParams = new URLSearchParams();
-      if (params?.status && params.status !== 'all') queryParams.append('status', params.status);
-      if (params?.from) queryParams.append('from', params.from.toISOString());
-      if (params?.to) queryParams.append('to', params.to.toISOString());
-      
-      const response = await apiClient.get(`/provider/bookings?${queryParams.toString()}`);
+      if (params?.status && params.status !== "all")
+        queryParams.append("status", params.status);
+      if (params?.from) queryParams.append("from", params.from.toISOString());
+      if (params?.to) queryParams.append("to", params.to.toISOString());
+
+      const response = await apiClient.get(
+        `/provider/bookings?${queryParams.toString()}`,
+      );
       return response.data;
     },
   });
@@ -139,7 +174,7 @@ export function useUpdateBooking() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['provider', 'bookings'] });
+      queryClient.invalidateQueries({ queryKey: ["provider", "bookings"] });
     },
   });
 }
@@ -153,7 +188,7 @@ export function useDeleteBooking() {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['provider', 'bookings'] });
+      queryClient.invalidateQueries({ queryKey: ["provider", "bookings"] });
     },
   });
 }
@@ -161,9 +196,9 @@ export function useDeleteBooking() {
 // Provider Earnings Hook
 export function useProviderEarnings(range?: string) {
   return useQuery({
-    queryKey: ['provider', 'earnings', range],
+    queryKey: ["provider", "earnings", range],
     queryFn: async () => {
-      const params = range ? `?range=${range}` : '';
+      const params = range ? `?range=${range}` : "";
       const response = await apiClient.get(`/provider/earnings${params}`);
       return response.data;
     },
@@ -173,9 +208,9 @@ export function useProviderEarnings(range?: string) {
 // Provider Reviews Hook
 export function useProviderReviews() {
   return useQuery({
-    queryKey: ['provider', 'reviews'],
+    queryKey: ["provider", "reviews"],
     queryFn: async () => {
-      const response = await apiClient.get('/provider/reviews');
+      const response = await apiClient.get("/provider/reviews");
       return response.data;
     },
   });

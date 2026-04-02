@@ -15,7 +15,11 @@ import { toast } from "sonner";
 import NotificationPermissionOverlay from "@/components/NotificationPermissionOverlay";
 import { useSearchParams, useRouter } from "next/navigation";
 import { hasRole } from "@/lib/auth/roles";
-import { detectCurrentLocation } from "@/lib/utils/geolocation";
+import {
+  detectCurrentLocation,
+  getLocationFailureToastMessage,
+  getLocationFallbackToastMessage,
+} from "@/lib/utils/geolocation";
 
 type DashboardFilters = {
   search: string;
@@ -118,22 +122,15 @@ const DashboardPage = () => {
 
         if (detected.source === "IP") {
           toast.info(
-            "Using approximate location from your network. You can refine it in filters.",
+            getLocationFallbackToastMessage(detected) ||
+              "Using approximate location from your network. You can refine it in filters.",
           );
         } else {
           toast.success(`Location detected: ${locationLabel}`);
         }
       } catch (error: unknown) {
-        if (
-          error instanceof Error &&
-          /permission denied/i.test(error.message)
-        ) {
-          toast.info(
-            "Location access denied. You can manually enter your location in filters.",
-          );
-        } else {
-          console.error("Location detection error:", error);
-        }
+        console.error("Location detection error:", error);
+        toast.error(getLocationFailureToastMessage(error));
       } finally {
         setLocationLoading(false);
       }

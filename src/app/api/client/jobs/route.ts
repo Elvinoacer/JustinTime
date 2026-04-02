@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { handleError, successResponse } from "@/lib/middleware/errorHandler";
+import { handleError } from "@/lib/middleware/errorHandler";
 import { hasAnyRole } from "@/lib/auth/roles";
 
 export async function GET(request: NextRequest) {
@@ -19,22 +19,80 @@ export async function GET(request: NextRequest) {
 
     const userId = session.user.id;
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "5");
+    const page = Math.max(
+      1,
+      Number.parseInt(searchParams.get("page") || "1", 10) || 1,
+    );
+    const requestedPageSize = Number.parseInt(
+      searchParams.get("pageSize") || searchParams.get("limit") || "5",
+      10,
+    );
+    const pageSize = Math.min(
+      Math.max(Number.isFinite(requestedPageSize) ? requestedPageSize : 5, 1),
+      100,
+    );
+    const status = searchParams.get("status")?.trim();
+    const search = searchParams.get("search")?.trim();
 
-    const jobs = await prisma.job.findMany({
-      where: {
-        clientId: userId,
-      },
-      include: {
-        _count: {
-          select: { proposals: true },
+    const where: {
+      clientId: string;
+      status?: string;
+      OR?: Array<
+        | { title: { contains: string; mode: "insensitive" } }
+        | { description: { contains: string; mode: "insensitive" } }
+        | { location: { contains: string; mode: "insensitive" } }
+      >;
+    } = {
+      clientId: userId,
+    };
+
+    if (status && status !== "ALL") {
+      where.status = status;
+    }
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+        { location: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    const [jobs, total] = await Promise.all([
+      prisma.job.findMany({
+        where,
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+          _count: {
+            select: { proposals: true },
+          },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.job.count({ where }),
+    ]);
 
-    return NextResponse.json({ jobs });
+    const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
+    const hasMore = page < totalPages;
+
+    return NextResponse.json({
+      jobs,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+        hasMore,
+      },
+    });
   } catch (error) {
     return handleError(error);
   }
