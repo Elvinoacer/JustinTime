@@ -62,7 +62,7 @@ export default function StepClientDetails({
   const hasAutoPrefilledRef = React.useRef(false);
 
   const handleGetLocation = async () => {
-    await loc.getLocation("client");
+    await loc.getLocation();
   };
 
   React.useEffect(() => {
@@ -73,7 +73,7 @@ export default function StepClientDetails({
 
   // Sync location hook results to clientData
   React.useEffect(() => {
-    if (loc.location.latitude && loc.location.longitude) {
+    if (loc.location.latitude != null && loc.location.longitude != null) {
       setClientData((prev) => ({
         ...prev,
         latitude: loc.location.latitude,
@@ -129,7 +129,8 @@ export default function StepClientDetails({
   };
 
   const locationSourceBadge = () => {
-    if (!clientData.latitude) return null;
+    if (clientData.latitude == null || clientData.longitude == null)
+      return null;
     const badges: Record<
       LocationSource,
       { icon: string; label: string; color: string }
@@ -296,7 +297,7 @@ export default function StepClientDetails({
             )}
           </button>
 
-          {clientData.latitude && clientData.longitude && (
+          {clientData.latitude != null && clientData.longitude != null && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}

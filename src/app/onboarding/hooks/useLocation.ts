@@ -1,8 +1,14 @@
 "use client";
 import { useState, useCallback } from "react";
+import { getApproximateLocationFromIP } from "@/lib/utils/geolocation";
 
 export type LocationSource = "GPS" | "IP" | "MANUAL";
-export type LocationStatus = "IDLE" | "LOADING" | "SUCCESS" | "DENIED" | "FAILED";
+export type LocationStatus =
+  | "IDLE"
+  | "LOADING"
+  | "SUCCESS"
+  | "DENIED"
+  | "FAILED";
 
 interface LocationResult {
   latitude: number | null;
@@ -16,7 +22,7 @@ interface UseLocationReturn {
   location: LocationResult;
   status: LocationStatus;
   permissionStatus: PermissionState | null;
-  getLocation: (userType: "provider" | "client") => void;
+  getLocation: () => Promise<void>;
   prefillIfPermitted: () => Promise<void>;
   setManualAddress: (address: string) => void;
   setLocationResult: (result: Partial<LocationResult>) => void;
@@ -37,7 +43,7 @@ const reverseGeocode = async (lat: number, lon: number): Promise<string> => {
           "Accept-Language": "en",
         },
         signal: AbortSignal.timeout(5000),
-      }
+      },
     );
     const data = await res.json();
     return data.display_name ?? `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
@@ -55,29 +61,33 @@ export function useLocation(): UseLocationReturn {
     accuracy: null,
   });
   const [status, setStatus] = useState<LocationStatus>("IDLE");
-  const [permissionStatus, setPermissionStatus] = useState<PermissionState | null>(null);
+  const [permissionStatus, setPermissionStatus] =
+    useState<PermissionState | null>(null);
 
   const applyLocation = useCallback(
-    async (lat: number, lon: number, source: LocationSource, accuracy: number | null) => {
+    async (
+      lat: number,
+      lon: number,
+      source: LocationSource,
+      accuracy: number | null,
+    ) => {
       const address = await reverseGeocode(lat, lon);
       setLocation({ latitude: lat, longitude: lon, address, source, accuracy });
       setStatus("SUCCESS");
     },
-    []
+    [],
   );
 
   const requestIPFallback = useCallback(async () => {
     try {
-      const res = await fetch(
-        "http://ip-api.com/json/?fields=lat,lon,city,regionName,country"
-      );
-      const data = await res.json();
-      if (data.lat && data.lon) {
-        const address = `${data.city}, ${data.regionName}, ${data.country}`;
+      const approximate = await getApproximateLocationFromIP();
+      if (approximate.latitude != null && approximate.longitude != null) {
         setLocation({
-          latitude: data.lat,
-          longitude: data.lon,
-          address,
+          latitude: approximate.latitude,
+          longitude: approximate.longitude,
+          address:
+            approximate.address ||
+            `${approximate.latitude.toFixed(5)}, ${approximate.longitude.toFixed(5)}`,
           source: "IP",
           accuracy: null,
         });
@@ -103,7 +113,7 @@ export function useLocation(): UseLocationReturn {
             pos.coords.latitude,
             pos.coords.longitude,
             "GPS",
-            pos.coords.accuracy
+            pos.coords.accuracy,
           );
         },
         (err) => {
@@ -113,19 +123,21 @@ export function useLocation(): UseLocationReturn {
             // PERMISSION_DENIED or POSITION_UNAVAILABLE
             if (err.code === err.PERMISSION_DENIED) {
               setPermissionStatus("denied");
+              setStatus("DENIED");
             }
-            requestIPFallback();
+            void requestIPFallback();
           }
         },
-        GPS_OPTIONS_TIERS[tier]
+        GPS_OPTIONS_TIERS[tier],
       );
     },
-    [applyLocation, requestIPFallback]
+    [applyLocation, requestIPFallback],
   );
 
   const getLocation = useCallback(async () => {
     if (!navigator.geolocation) {
-      setStatus("FAILED");
+      setStatus("LOADING");
+      await requestIPFallback();
       return;
     }
 
@@ -173,7 +185,11 @@ export function useLocation(): UseLocationReturn {
   }, [requestGPS, requestIPFallback]);
 
   const setManualAddress = useCallback((address: string) => {
-    setLocation((prev) => ({ ...prev, address, source: "MANUAL" as LocationSource }));
+    setLocation((prev) => ({
+      ...prev,
+      address,
+      source: "MANUAL" as LocationSource,
+    }));
   }, []);
 
   const setLocationResult = useCallback((result: Partial<LocationResult>) => {

@@ -42,12 +42,19 @@ import {
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 import PaymentTimelineCard from "@/components/jobs/PaymentTimelineCard";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   parseFulfillmentPreference,
   withFulfillmentPreference,
@@ -103,7 +110,8 @@ function getErrorMessage(error: unknown) {
   return "Failed to submit proposal";
 }
 
-function buildProviderMessagesHref(
+function buildMessagesHref(
+  basePath: string,
   partnerId: string,
   partnerName?: string,
   partnerImage?: string | null,
@@ -111,12 +119,19 @@ function buildProviderMessagesHref(
   const params = new URLSearchParams({ partnerId });
   if (partnerName) params.set("partnerName", partnerName);
   if (partnerImage) params.set("partnerImage", partnerImage);
-  return `/dashboard/messages?${params.toString()}`;
+  return `${basePath}?${params.toString()}`;
+}
+
+function normalizeWhatsAppPhone(rawPhone?: string | null): string | null {
+  if (!rawPhone) return null;
+  const digitsOnly = rawPhone.replace(/\D/g, "");
+  return digitsOnly || null;
 }
 
 export default function JobDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status: authStatus } = useSession();
   const jobId = params.id as string;
 
@@ -143,6 +158,7 @@ export default function JobDetailPage() {
     useState<BookingTimelineResponse | null>(null);
   const [useProfile, setUseProfile] = useState(false);
   const [showImageGallery, setShowImageGallery] = useState(false);
+  const [showMessageOptions, setShowMessageOptions] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const { trackEvent } = useJobsEvents();
   const quickApplyVariant =
@@ -153,7 +169,12 @@ export default function JobDetailPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverLetterRef = useRef<HTMLTextAreaElement>(null);
+  const hasHandledMessageIntentRef = useRef(false);
   const isProvider = hasRole(session?.user, "PROVIDER");
+  const prefersDashboardMessages =
+    hasRole(session?.user, "PROVIDER") || hasRole(session?.user, "ADMIN");
+  const shouldResumeMessageIntent =
+    searchParams.get("messageClientInApp") === "1";
 
   const { data: job, isLoading, error } = useJob(jobId);
   const { data: profile } = useProviderProfile(
@@ -197,11 +218,45 @@ export default function JobDetailPage() {
   const isJobClosed = !!job && job.status !== "OPEN";
   const isApplyingClosed =
     isJobClosed || isMaxApplicantsReached || isAcceptedProvidersLimitReached;
+  const hasWhatsAppContact = Boolean(
+    normalizeWhatsAppPhone(job?.client?.phone),
+  );
   const canAutofill = Boolean(
     isProvider &&
     providerProfile &&
     (providerProfile.bio || providerProfile.hourlyRate),
   );
+
+  useEffect(() => {
+    if (!shouldResumeMessageIntent || authStatus !== "authenticated") return;
+    if (!session?.user?.id || !job?.client?.id) return;
+    if (hasHandledMessageIntentRef.current) return;
+
+    hasHandledMessageIntentRef.current = true;
+
+    if (session.user.id === job.client.id) {
+      toast.info("This is your own job posting");
+      return;
+    }
+
+    router.replace(
+      buildMessagesHref(
+        prefersDashboardMessages ? "/dashboard/messages" : "/client/messages",
+        job.client.id,
+        job.client.name || undefined,
+        job.client.image,
+      ),
+    );
+  }, [
+    authStatus,
+    job?.client?.id,
+    job?.client?.image,
+    job?.client?.name,
+    prefersDashboardMessages,
+    router,
+    session?.user?.id,
+    shouldResumeMessageIntent,
+  ]);
 
   useEffect(() => {
     if (!useProfile || !providerProfile) return;
@@ -510,18 +565,30 @@ export default function JobDetailPage() {
   };
 
   const handleMessageClient = () => {
-    if (!session) {
-      router.push(`/auth/login?callbackUrl=/jobs/${jobId}`);
-      return;
-    }
-
-    if (!isProvider) {
-      toast.error("Only providers can message clients from this page");
-      return;
-    }
-
     if (!job?.client?.id) {
       toast.error("Client account is unavailable");
+      return;
+    }
+
+    if (session?.user?.id && session.user.id === job.client.id) {
+      toast.info("This is your own job posting");
+      return;
+    }
+
+    setShowMessageOptions(true);
+  };
+
+  const handleInAppMessage = () => {
+    if (!job?.client?.id) {
+      toast.error("Client account is unavailable");
+      return;
+    }
+
+    if (!session) {
+      const callbackUrl = encodeURIComponent(
+        `/jobs/${jobId}?messageClientInApp=1`,
+      );
+      router.push(`/auth/login?callbackUrl=${callbackUrl}`);
       return;
     }
 
@@ -530,12 +597,34 @@ export default function JobDetailPage() {
       return;
     }
 
+    setShowMessageOptions(false);
     router.push(
-      buildProviderMessagesHref(
+      buildMessagesHref(
+        prefersDashboardMessages ? "/dashboard/messages" : "/client/messages",
         job.client.id,
         job.client.name || undefined,
         job.client.image,
       ),
+    );
+  };
+
+  const handleWhatsAppMessage = () => {
+    const formattedPhone = normalizeWhatsAppPhone(job?.client?.phone);
+    if (!formattedPhone) {
+      toast.error("Client phone number is unavailable for WhatsApp");
+      return;
+    }
+
+    const clientName = job?.client?.name || "there";
+    const message = encodeURIComponent(
+      `Hi ${clientName}, I saw your job \"${job?.title || "on JustInTime"}\" on JustInTime and would like to discuss it.`,
+    );
+
+    setShowMessageOptions(false);
+    window.open(
+      `https://wa.me/${formattedPhone}?text=${message}`,
+      "_blank",
+      "noopener,noreferrer",
     );
   };
 
@@ -1053,7 +1142,7 @@ export default function JobDetailPage() {
                 </div>
               </div>
 
-              {isProvider && !isJobOwner ? (
+              {!isJobOwner && job.client ? (
                 <button
                   onClick={handleMessageClient}
                   className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 transition-colors hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
@@ -1669,6 +1758,44 @@ export default function JobDetailPage() {
           </div>
         </div>
       </main>
+
+      <Dialog open={showMessageOptions} onOpenChange={setShowMessageOptions}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Message client</DialogTitle>
+            <DialogDescription>
+              {isGuest
+                ? "Choose how to reach out. In-app chat requires login first."
+                : "Choose how you want to contact this client."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-5 space-y-3">
+            <button
+              onClick={handleInAppMessage}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+            >
+              <MessageSquare className="h-4 w-4" />
+              {isGuest ? "Log in for in-app message" : "Continue in-app"}
+            </button>
+
+            <button
+              onClick={handleWhatsAppMessage}
+              disabled={!hasWhatsAppContact}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Send className="h-4 w-4" />
+              Message on WhatsApp
+            </button>
+
+            {!hasWhatsAppContact ? (
+              <p className="text-xs text-slate-500">
+                The client has not shared a WhatsApp number.
+              </p>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {showImageGallery && job.images?.length > 0 ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 p-4">

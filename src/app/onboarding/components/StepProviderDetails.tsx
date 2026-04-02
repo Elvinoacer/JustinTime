@@ -54,12 +54,13 @@ export default function StepProviderDetails({
   const [phoneError, setPhoneError] = React.useState<string | null>(null);
   const [isCheckingPhone, setIsCheckingPhone] = React.useState(false);
   const [serviceSearch, setServiceSearch] = React.useState("");
-  const [isServiceDropdownOpen, setIsServiceDropdownOpen] = React.useState(false);
+  const [isServiceDropdownOpen, setIsServiceDropdownOpen] =
+    React.useState(false);
   const hasAutoPrefilledRef = React.useRef(false);
   const servicePickerRef = React.useRef<HTMLDivElement | null>(null);
 
   const handleGetLocation = async () => {
-    await loc.getLocation("provider");
+    await loc.getLocation();
   };
 
   React.useEffect(() => {
@@ -70,7 +71,7 @@ export default function StepProviderDetails({
 
   // Sync location hook results to providerData
   React.useEffect(() => {
-    if (loc.location.latitude && loc.location.longitude) {
+    if (loc.location.latitude != null && loc.location.longitude != null) {
       setProviderData((prev) => ({
         ...prev,
         latitude: loc.location.latitude,
@@ -175,7 +176,8 @@ export default function StepProviderDetails({
   };
 
   const locationSourceBadge = () => {
-    if (!providerData.latitude) return null;
+    if (providerData.latitude == null || providerData.longitude == null)
+      return null;
     const badges: Record<
       LocationSource,
       { icon: string; label: string; color: string }
@@ -261,8 +263,8 @@ export default function StepProviderDetails({
               </h3>
               <p className="mt-1 text-sm text-gray-600">
                 Search or pick from popular services below. Choose up to{" "}
-                {VALIDATION.MAX_PROVIDER_SKILLS} so clients know exactly what
-                to book you for.
+                {VALIDATION.MAX_PROVIDER_SKILLS} so clients know exactly what to
+                book you for.
               </p>
             </div>
           </div>
@@ -365,7 +367,8 @@ export default function StepProviderDetails({
                     : "text-emerald-700"
                 }`}
               >
-                {providerData.skills.length} / {VALIDATION.MAX_PROVIDER_SKILLS} selected
+                {providerData.skills.length} / {VALIDATION.MAX_PROVIDER_SKILLS}{" "}
+                selected
               </p>
             </div>
 
@@ -486,7 +489,9 @@ export default function StepProviderDetails({
                     }`}
                   >
                     {renderServiceVisual(category)}
-                    <span className="max-w-[160px] truncate">{category.name}</span>
+                    <span className="max-w-[160px] truncate">
+                      {category.name}
+                    </span>
                     <span
                       className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs ${
                         isSelected
@@ -699,7 +704,7 @@ export default function StepProviderDetails({
             </p>
           </div>
 
-          {providerData.latitude && providerData.longitude && (
+          {providerData.latitude != null && providerData.longitude != null && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}

@@ -9,7 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api/client";
 import CategorySelector from "@/components/CategorySelector";
 import { useJobsEvents } from "@/hooks/useJobsEvents";
-import { getCurrentLocation } from "@/lib/utils/geolocation";
+import { useLocation } from "@/app/onboarding/hooks/useLocation";
 
 // Steps configuration
 const steps = [
@@ -38,6 +38,18 @@ interface Category {
   icon: string;
   count: number;
 }
+
+type JobUpsertPayload = {
+  title: string;
+  category: string;
+  description: string;
+  budget: number;
+  location: string;
+  deadline?: string;
+  images: string[];
+  maxApplicants?: number;
+  maxAcceptedProviders?: number;
+};
 
 function PostJobPageContent() {
   const router = useRouter();
@@ -87,9 +99,10 @@ function PostJobPageContent() {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [locationFetchError, setLocationFetchError] = useState("");
-  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const stepRef = useRef<HTMLDivElement>(null);
+  const postLocation = useLocation();
+  const isFetchingLocation = postLocation.status === "LOADING";
 
   const createJobMutation = useCreateJob();
 
@@ -142,7 +155,7 @@ function PostJobPageContent() {
 
   // Update job mutation for edit mode
   const updateJobMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: JobUpsertPayload) => {
       await apiClient.put(`/jobs/${editJobId}`, data);
     },
     onSuccess: () => {
@@ -212,7 +225,7 @@ function PostJobPageContent() {
         const data = await response.json();
 
         setUploadingFiles((prev) =>
-          prev.map((f, idx) =>
+          prev.map((f) =>
             f.preview === fileObj.preview
               ? { ...f, progress: 100, publicId: data.publicId }
               : f,
@@ -353,6 +366,9 @@ function PostJobPageContent() {
   ) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+    if (name === "location") {
+      postLocation.setManualAddress(value);
+    }
     if (name === "location" && locationFetchError) {
       setLocationFetchError("");
     }
@@ -368,59 +384,40 @@ function PostJobPageContent() {
     }
   };
 
-  const reverseGeocode = async (latitude: number, longitude: number) => {
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 5000);
-
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-        {
-          headers: {
-            "Accept-Language": "en",
-          },
-          signal: controller.signal,
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error("Reverse geocoding failed");
-      }
-
-      const data = await response.json();
-      return (
-        data?.display_name || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
-      );
-    } catch {
-      return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-    } finally {
-      window.clearTimeout(timeoutId);
-    }
-  };
-
   const handleUseCurrentLocation = async () => {
     setLocationFetchError("");
-    setIsFetchingLocation(true);
-
     try {
-      const position = await getCurrentLocation();
-      const address =
-        position.address && position.address.trim().length > 0
-          ? position.address
-          : await reverseGeocode(position.latitude, position.longitude);
-
-      setFormData((prev) => ({ ...prev, location: address }));
-      setErrors((prev) => ({ ...prev, location: "" }));
+      await postLocation.getLocation();
     } catch (error) {
       setLocationFetchError(
         error instanceof Error
           ? error.message
           : "Unable to detect your current location",
       );
-    } finally {
-      setIsFetchingLocation(false);
     }
   };
+
+  useEffect(() => {
+    if (postLocation.status !== "SUCCESS") return;
+
+    const detectedAddress = postLocation.location.address.trim();
+    if (!detectedAddress) return;
+
+    setFormData((prev) =>
+      prev.location === detectedAddress
+        ? prev
+        : { ...prev, location: detectedAddress },
+    );
+    setErrors((prev) => (prev.location ? { ...prev, location: "" } : prev));
+    setLocationFetchError("");
+  }, [postLocation.location.address, postLocation.status]);
+
+  useEffect(() => {
+    if (postLocation.status !== "FAILED") return;
+    setLocationFetchError(
+      "Unable to detect your current location. Please enter location manually.",
+    );
+  }, [postLocation.status]);
 
   const validateForm = (): boolean => {
     let isValid = true;
@@ -756,7 +753,7 @@ function PostJobPageContent() {
               </div>
 
               <div className="flex gap-1 mb-4">
-                {steps.map((step, index) => (
+                {steps.map((step) => (
                   <div
                     key={step.id}
                     className={`h-1 flex-1 rounded-full ${
@@ -874,7 +871,7 @@ function PostJobPageContent() {
                       <div className="space-y-4 sm:space-y-6">
                         <div>
                           <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
-                            Let's start with the basics
+                            Let&apos;s start with the basics
                           </h2>
                           <p className="text-xs sm:text-sm text-gray-500">
                             Give professionals immediate context about the work.

@@ -7,7 +7,7 @@ import apiClient from "@/lib/api/client";
 import { socket } from "@/lib/socket";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Conversation {
   partner: {
@@ -37,6 +37,18 @@ interface Message {
   isDelivered?: boolean;
 }
 
+interface SocketMessage extends Message {
+  receiverId: string;
+}
+
+interface Contact {
+  id: string;
+  name: string | null;
+  image: string | null;
+  role?: string;
+  phone?: string | null;
+}
+
 export default function ProviderMessagesPage() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
@@ -52,6 +64,33 @@ export default function ProviderMessagesPage() {
   const deepLinkPartnerId = searchParams.get("partnerId");
   const deepLinkPartnerName = searchParams.get("partnerName");
   const deepLinkPartnerImage = searchParams.get("partnerImage");
+
+  const ensureDeepLinkConversation = useCallback(
+    (items: Conversation[]) => {
+      if (!deepLinkPartnerId) return items;
+
+      const exists = items.some((c) => c.partner.id === deepLinkPartnerId);
+      if (exists) return items;
+
+      const starterConversation: Conversation = {
+        partner: {
+          id: deepLinkPartnerId,
+          name: deepLinkPartnerName || "Conversation",
+          image: deepLinkPartnerImage || null,
+        },
+        lastMessage: {
+          content: "",
+          createdAt: new Date().toISOString(),
+          isRead: true,
+          isOwn: false,
+        },
+        unreadCount: 0,
+      };
+
+      return [starterConversation, ...items];
+    },
+    [deepLinkPartnerId, deepLinkPartnerImage, deepLinkPartnerName],
+  );
 
   // Track recently sent message IDs to prevent duplicates from socket
   const recentlySentIds = useRef<Set<string>>(new Set());
@@ -75,7 +114,7 @@ export default function ProviderMessagesPage() {
         const { data } = await apiClient.get<{ conversations: Conversation[] }>(
           "/messages/conversations",
         );
-        setConversations(data.conversations);
+        setConversations(ensureDeepLinkConversation(data.conversations));
       } catch (error) {
         console.error("Failed to fetch conversations:", error);
       }
@@ -84,41 +123,26 @@ export default function ProviderMessagesPage() {
     if (session?.user) {
       fetchConversations();
     }
-  }, [session]);
+  }, [ensureDeepLinkConversation, session]);
 
   useEffect(() => {
     if (!deepLinkPartnerId) return;
 
     setSelectedPartnerId(deepLinkPartnerId);
-    setConversations((prev) => {
-      const exists = prev.some((c) => c.partner.id === deepLinkPartnerId);
-      if (exists) return prev;
-
-      const starterConversation: Conversation = {
-        partner: {
-          id: deepLinkPartnerId,
-          name: deepLinkPartnerName || "Conversation",
-          image: deepLinkPartnerImage || null,
-        },
-        lastMessage: {
-          content: "",
-          createdAt: new Date().toISOString(),
-          isRead: true,
-          isOwn: false,
-        },
-        unreadCount: 0,
-      };
-
-      return [starterConversation, ...prev];
-    });
-  }, [deepLinkPartnerId, deepLinkPartnerImage, deepLinkPartnerName]);
+    setConversations((prev) => ensureDeepLinkConversation(prev));
+  }, [deepLinkPartnerId, ensureDeepLinkConversation]);
 
   // Track selected partner ID in a ref to use in socket listener without re-binding
   const selectedPartnerIdRef = useRef<string | null>(selectedPartnerId);
+  const conversationsRef = useRef<Conversation[]>(conversations);
 
   useEffect(() => {
     selectedPartnerIdRef.current = selectedPartnerId;
   }, [selectedPartnerId]);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
 
   // Socket connection - Only run on session change
   useEffect(() => {
@@ -190,7 +214,7 @@ export default function ProviderMessagesPage() {
   useEffect(() => {
     if (!session?.user) return;
 
-    const handleReceiveMessage = (message: any) => {
+    const handleReceiveMessage = (message: SocketMessage) => {
       console.log("Received socket message:", message);
 
       const currentPartnerId = selectedPartnerIdRef.current;
@@ -289,7 +313,7 @@ export default function ProviderMessagesPage() {
 
     const handleUserOffline = ({ userId }: { userId: string }) => {
       if (userId === selectedPartnerIdRef.current) {
-        const partner = conversations.find(
+        const partner = conversationsRef.current.find(
           (c) => c.partner.id === userId,
         )?.partner;
         if (partner) {
@@ -308,25 +332,13 @@ export default function ProviderMessagesPage() {
       setOnlineUsers(new Set(userIds));
     };
 
-    const handleMessageRead = ({
-      messageId,
-      receiverId,
-    }: {
-      messageId: string;
-      receiverId: string;
-    }) => {
+    const handleMessageRead = ({ messageId }: { messageId: string }) => {
       setMessages((prev) =>
         prev.map((m) => (m.id === messageId ? { ...m, isRead: true } : m)),
       );
     };
 
-    const handleMessageDelivered = ({
-      messageId,
-      receiverId,
-    }: {
-      messageId: string;
-      receiverId: string;
-    }) => {
+    const handleMessageDelivered = ({ messageId }: { messageId: string }) => {
       setMessages((prev) =>
         prev.map((m) => (m.id === messageId ? { ...m, isDelivered: true } : m)),
       );
@@ -502,7 +514,7 @@ export default function ProviderMessagesPage() {
     }
   };
 
-  const handleSelectUser = (contact: any) => {
+  const handleSelectUser = (contact: Contact) => {
     // Check if conversation already exists
     const existingConv = conversations.find((c) => c.partner.id === contact.id);
 
@@ -516,7 +528,7 @@ export default function ProviderMessagesPage() {
           name: contact.name || "Unknown",
           image: contact.image,
           role: contact.role,
-          phone: contact.phone,
+          ...(contact.phone ? { phone: contact.phone } : {}),
         },
         lastMessage: {
           content: "",

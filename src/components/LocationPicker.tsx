@@ -17,7 +17,7 @@ interface LocationPickerProps {
       latitude: number;
       longitude: number;
       address?: string;
-    } | null
+    } | null,
   ) => void;
   /** Smaller control when the services toolbar is in compact (scrolled) mode */
   compact?: boolean;
@@ -87,7 +87,7 @@ export default function LocationPicker({
           const response = await fetch("/api/user/location");
           if (response.ok) {
             const data = await response.json();
-            if (data.latitude && data.longitude) {
+            if (data.latitude != null && data.longitude != null) {
               const location = {
                 latitude: data.latitude,
                 longitude: data.longitude,
@@ -104,7 +104,7 @@ export default function LocationPicker({
     };
 
     loadSavedLocation();
-  }, [session]);
+  }, [onLocationChange, session]);
 
   const handleDetectLocation = async () => {
     setIsDetecting(true);
@@ -133,7 +133,7 @@ export default function LocationPicker({
       setIsOpen(false);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to detect location"
+        error instanceof Error ? error.message : "Failed to detect location",
       );
     } finally {
       setIsDetecting(false);
@@ -158,7 +158,9 @@ export default function LocationPicker({
       ? "min-h-10 px-3 py-2 text-xs sm:text-sm lg:min-h-10"
       : "min-h-[48px] px-4 py-2.5 text-sm lg:min-h-[52px] lg:min-w-[168px]";
   const rounded = quiet ? "rounded-xl" : "rounded-2xl";
-  const labelClass = quiet ? "font-medium text-slate-700" : "font-semibold text-slate-800";
+  const labelClass = quiet
+    ? "font-medium text-slate-700"
+    : "font-semibold text-slate-800";
   const shadow = quiet
     ? "shadow-inner shadow-slate-200/30"
     : "shadow-sm shadow-slate-200/40";
@@ -172,7 +174,11 @@ export default function LocationPicker({
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           className={buttonClass}
-          aria-label={currentLocation ? "Change location" : "Set location for distance sorting"}
+          aria-label={
+            currentLocation
+              ? "Change location"
+              : "Set location for distance sorting"
+          }
         >
           <span className="material-symbols-outlined shrink-0 text-[20px] text-emerald-600">
             my_location

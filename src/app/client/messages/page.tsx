@@ -7,7 +7,7 @@ import apiClient from "@/lib/api/client";
 import { socket } from "@/lib/socket";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState, useRef, Suspense } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 // Force dynamic rendering to prevent SSR issues with socket.io
 export const dynamic = "force-dynamic";
@@ -38,6 +38,16 @@ interface Message {
   isDelivered?: boolean;
 }
 
+interface SocketMessage extends Message {
+  receiverId: string;
+}
+
+interface Contact {
+  id: string;
+  name: string | null;
+  image: string | null;
+}
+
 function ClientMessagesContent() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
@@ -56,6 +66,33 @@ function ClientMessagesContent() {
   const deepLinkPartnerId = searchParams.get("partnerId");
   const deepLinkPartnerName = searchParams.get("partnerName");
   const deepLinkPartnerImage = searchParams.get("partnerImage");
+
+  const ensureDeepLinkConversation = useCallback(
+    (items: Conversation[]) => {
+      if (!deepLinkPartnerId) return items;
+
+      const exists = items.some((c) => c.partner.id === deepLinkPartnerId);
+      if (exists) return items;
+
+      const starterConversation: Conversation = {
+        partner: {
+          id: deepLinkPartnerId,
+          name: deepLinkPartnerName || "Conversation",
+          image: deepLinkPartnerImage || null,
+        },
+        lastMessage: {
+          content: "",
+          createdAt: new Date().toISOString(),
+          isRead: true,
+          isOwn: false,
+        },
+        unreadCount: 0,
+      };
+
+      return [starterConversation, ...items];
+    },
+    [deepLinkPartnerId, deepLinkPartnerImage, deepLinkPartnerName],
+  );
 
   useEffect(() => {
     selectedPartnerIdRef.current = selectedPartnerId;
@@ -79,7 +116,7 @@ function ClientMessagesContent() {
         const { data } = await apiClient.get<{ conversations: Conversation[] }>(
           "/messages/conversations",
         );
-        setConversations(data.conversations);
+        setConversations(ensureDeepLinkConversation(data.conversations));
       } catch (error) {
         console.error("Failed to fetch conversations:", error);
       } finally {
@@ -90,35 +127,15 @@ function ClientMessagesContent() {
     if (session?.user) {
       fetchConversations();
     }
-  }, [session]);
+  }, [ensureDeepLinkConversation, session]);
 
   useEffect(() => {
     if (!deepLinkPartnerId) return;
 
     setSelectedPartnerId(deepLinkPartnerId);
 
-    setConversations((prev) => {
-      const exists = prev.some((c) => c.partner.id === deepLinkPartnerId);
-      if (exists) return prev;
-
-      const starterConversation: Conversation = {
-        partner: {
-          id: deepLinkPartnerId,
-          name: deepLinkPartnerName || "Conversation",
-          image: deepLinkPartnerImage || null,
-        },
-        lastMessage: {
-          content: "",
-          createdAt: new Date().toISOString(),
-          isRead: true,
-          isOwn: false,
-        },
-        unreadCount: 0,
-      };
-
-      return [starterConversation, ...prev];
-    });
-  }, [deepLinkPartnerId, deepLinkPartnerImage, deepLinkPartnerName]);
+    setConversations((prev) => ensureDeepLinkConversation(prev));
+  }, [deepLinkPartnerId, ensureDeepLinkConversation]);
 
   // Socket connection and listeners
   useEffect(() => {
@@ -127,7 +144,7 @@ function ClientMessagesContent() {
     socket.connect();
     socket.emit("join", session.user.id);
 
-    const handleReceiveMessage = (message: any) => {
+    const handleReceiveMessage = (message: SocketMessage) => {
       const activePartnerId = selectedPartnerIdRef.current;
 
       if (
@@ -322,7 +339,7 @@ function ClientMessagesContent() {
     }
   };
 
-  const handleSelectUser = (contact: any) => {
+  const handleSelectUser = (contact: Contact) => {
     // Check if conversation already exists
     const existingConv = conversations.find((c) => c.partner.id === contact.id);
 
