@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 
+const LOCATION_SOURCES = new Set(["GPS", "IP", "MANUAL"]);
+
 // GET: Retrieve user's saved location
 export async function GET(req: NextRequest) {
   try {
@@ -16,6 +18,8 @@ export async function GET(req: NextRequest) {
         latitude: true,
         longitude: true,
         location: true,
+        locationSource: true,
+        locationAccuracy: true,
       },
     });
 
@@ -27,12 +31,14 @@ export async function GET(req: NextRequest) {
       latitude: profile.latitude,
       longitude: profile.longitude,
       location: profile.location,
+      source: profile.locationSource,
+      accuracy: profile.locationAccuracy,
     });
   } catch (error) {
     console.error("Error fetching location:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -46,12 +52,30 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { latitude, longitude, address } = body;
+    const { latitude, longitude, address, source, accuracy } = body;
 
     if (typeof latitude !== "number" || typeof longitude !== "number") {
       return NextResponse.json(
         { error: "Invalid coordinates" },
-        { status: 400 }
+        { status: 400 },
+      );
+    }
+
+    if (source !== undefined && !LOCATION_SOURCES.has(source)) {
+      return NextResponse.json(
+        { error: "Invalid location source" },
+        { status: 400 },
+      );
+    }
+
+    if (
+      accuracy !== undefined &&
+      accuracy !== null &&
+      (typeof accuracy !== "number" || !Number.isFinite(accuracy))
+    ) {
+      return NextResponse.json(
+        { error: "Invalid location accuracy" },
+        { status: 400 },
       );
     }
 
@@ -62,6 +86,8 @@ export async function POST(req: NextRequest) {
         latitude,
         longitude,
         location: address || null,
+        ...(source ? { locationSource: source } : {}),
+        ...(accuracy !== undefined ? { locationAccuracy: accuracy } : {}),
       },
       create: {
         userId: session.user.id,
@@ -71,20 +97,28 @@ export async function POST(req: NextRequest) {
         bio: "",
         skills: [],
         portfolio: [],
+        locationSource: source || "MANUAL",
+        ...(accuracy !== undefined ? { locationAccuracy: accuracy } : {}),
       },
       select: {
         latitude: true,
         longitude: true,
         location: true,
+        locationSource: true,
+        locationAccuracy: true,
       },
     });
 
-    return NextResponse.json(profile);
+    return NextResponse.json({
+      ...profile,
+      source: profile.locationSource,
+      accuracy: profile.locationAccuracy,
+    });
   } catch (error) {
     console.error("Error saving location:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

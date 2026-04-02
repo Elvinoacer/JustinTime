@@ -158,8 +158,9 @@ async function fetchServices(
   if (filters.maxPrice) params.append("maxPrice", filters.maxPrice.toString());
   if (filters.search) params.append("search", filters.search);
   if (filters.sort) params.append("sort", filters.sort);
-  if (filters.latitude) params.append("latitude", filters.latitude.toString());
-  if (filters.longitude)
+  if (filters.latitude != null)
+    params.append("latitude", filters.latitude.toString());
+  if (filters.longitude != null)
     params.append("longitude", filters.longitude.toString());
 
   const { data } = await apiClient.get(`/services?${params.toString()}`);

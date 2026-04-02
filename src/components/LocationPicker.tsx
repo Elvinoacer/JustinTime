@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import {
-  getCurrentLocation,
+  detectCurrentLocation,
+  getGeolocationPermissionState,
   getLocationFromStorage,
   saveLocationToStorage,
   clearLocationFromStorage,
+  type LocationSource,
 } from "@/lib/utils/geolocation";
 
 interface LocationPickerProps {
@@ -25,6 +27,14 @@ interface LocationPickerProps {
   quiet?: boolean;
 }
 
+type PickerLocation = {
+  latitude: number;
+  longitude: number;
+  address?: string;
+  source?: LocationSource;
+  accuracy?: number | null;
+};
+
 export default function LocationPicker({
   onLocationChange,
   compact = false,
@@ -33,12 +43,60 @@ export default function LocationPicker({
   const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState<{
-    latitude: number;
-    longitude: number;
-    address?: string;
-  } | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<PickerLocation | null>(
+    null,
+  );
   const [isMobile, setIsMobile] = useState(false);
+  const bootstrapIdentityRef = useRef<string | null>(null);
+
+  const syncLocation = useCallback(
+    async (
+      location: PickerLocation,
+      options?: { silent?: boolean; closeAfter?: boolean },
+    ) => {
+      setCurrentLocation(location);
+      onLocationChange({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        address: location.address,
+      });
+
+      saveLocationToStorage(location);
+
+      if (session?.user?.id) {
+        try {
+          await fetch("/api/user/location", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              latitude: location.latitude,
+              longitude: location.longitude,
+              address: location.address,
+              source: location.source,
+              accuracy: location.accuracy,
+            }),
+          });
+        } catch (error) {
+          console.error("Failed to save location to server:", error);
+        }
+      }
+
+      if (!options?.silent) {
+        if (location.source === "IP") {
+          toast.info(
+            "Approximate location detected from your network. You can refine it manually.",
+          );
+        } else {
+          toast.success("Location detected!");
+        }
+      }
+
+      if (options?.closeAfter) {
+        setIsOpen(false);
+      }
+    },
+    [onLocationChange, session?.user?.id],
+  );
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -70,67 +128,88 @@ export default function LocationPicker({
     };
   }, [isOpen]);
 
-  // Load saved location on mount
+  // Bootstrap with saved location, then refresh from live detection when appropriate.
   useEffect(() => {
-    const loadSavedLocation = async () => {
-      // Try localStorage first
+    const identityKey = session?.user?.id || "__guest__";
+    if (bootstrapIdentityRef.current === identityKey) {
+      return;
+    }
+    bootstrapIdentityRef.current = identityKey;
+
+    const bootstrapLocation = async () => {
+      let existingLocation: PickerLocation | null = null;
+
       const storedLocation = getLocationFromStorage();
       if (storedLocation) {
+        existingLocation = storedLocation;
         setCurrentLocation(storedLocation);
         onLocationChange(storedLocation);
-        return;
       }
 
-      // If authenticated, try to fetch from server
-      if (session?.user?.id) {
+      if (!existingLocation && session?.user?.id) {
         try {
           const response = await fetch("/api/user/location");
           if (response.ok) {
             const data = await response.json();
             if (data.latitude != null && data.longitude != null) {
-              const location = {
+              existingLocation = {
                 latitude: data.latitude,
                 longitude: data.longitude,
                 address: data.location,
+                source: data.source,
+                accuracy: data.accuracy,
               };
-              setCurrentLocation(location);
-              onLocationChange(location);
+              setCurrentLocation(existingLocation);
+              onLocationChange(existingLocation);
+              saveLocationToStorage(existingLocation);
             }
           }
         } catch (error) {
           console.error("Failed to load saved location:", error);
         }
       }
+
+      const permission = await getGeolocationPermissionState();
+      const shouldAutoDetect = !existingLocation || permission === "granted";
+
+      if (!shouldAutoDetect) {
+        return;
+      }
+
+      try {
+        const detected = await detectCurrentLocation();
+        await syncLocation(
+          {
+            latitude: detected.latitude,
+            longitude: detected.longitude,
+            address: detected.address,
+            source: detected.source,
+            accuracy: detected.accuracy,
+          },
+          { silent: true },
+        );
+      } catch {
+        // Silent bootstrap should not interrupt normal manual flow.
+      }
     };
 
-    loadSavedLocation();
-  }, [onLocationChange, session]);
+    void bootstrapLocation();
+  }, [onLocationChange, session?.user?.id, syncLocation]);
 
   const handleDetectLocation = async () => {
     setIsDetecting(true);
     try {
-      const location = await getCurrentLocation();
-      setCurrentLocation(location);
-      onLocationChange(location);
-
-      // Save to localStorage
-      saveLocationToStorage(location);
-
-      // If authenticated, save to server
-      if (session?.user?.id) {
-        try {
-          await fetch("/api/user/location", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(location),
-          });
-        } catch (error) {
-          console.error("Failed to save location to server:", error);
-        }
-      }
-
-      toast.success("Location detected!");
-      setIsOpen(false);
+      const detected = await detectCurrentLocation();
+      await syncLocation(
+        {
+          latitude: detected.latitude,
+          longitude: detected.longitude,
+          address: detected.address,
+          source: detected.source,
+          accuracy: detected.accuracy,
+        },
+        { closeAfter: true },
+      );
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to detect location",
@@ -425,46 +504,6 @@ export default function LocationPicker({
                       </p>
                     </div>
                   </>
-                )}
-
-                {/* Quick Location Presets */}
-                {currentLocation && (
-                  <div className="pt-4 border-t border-gray-100">
-                    <p className="text-xs font-medium text-gray-700 mb-2">
-                      Quick Locations
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        {
-                          label: "Nairobi CBD",
-                          lat: -1.286389,
-                          lng: 36.817223,
-                        },
-                        { label: "Westlands", lat: -1.26559, lng: 36.804356 },
-                        { label: "Karen", lat: -1.319358, lng: 36.70842 },
-                        { label: "Thika", lat: -1.03352, lng: 37.0698 },
-                      ].map((loc) => (
-                        <button
-                          key={loc.label}
-                          onClick={() => {
-                            const newLocation = {
-                              latitude: loc.lat,
-                              longitude: loc.lng,
-                              address: loc.label,
-                            };
-                            setCurrentLocation(newLocation);
-                            onLocationChange(newLocation);
-                            saveLocationToStorage(newLocation);
-                            toast.success(`Location set to ${loc.label}`);
-                            setIsOpen(false);
-                          }}
-                          className="px-3 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs text-gray-700 transition-colors active:scale-[0.98]"
-                        >
-                          {loc.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 )}
               </div>
 

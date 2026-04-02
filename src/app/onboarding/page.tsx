@@ -70,6 +70,8 @@ function OnboardingPageContent() {
     location: "",
     latitude: null as number | null,
     longitude: null as number | null,
+    locationSource: "MANUAL" as "GPS" | "IP" | "MANUAL",
+    locationAccuracy: null as number | null,
     bio: "",
     phone: "",
     hourlyRate: "",
@@ -82,6 +84,8 @@ function OnboardingPageContent() {
     location: "",
     latitude: null as number | null,
     longitude: null as number | null,
+    locationSource: "MANUAL" as "GPS" | "IP" | "MANUAL",
+    locationAccuracy: null as number | null,
   });
   const [clientInterests, setClientInterests] = useState<string[]>([]);
   const [referralCode, setReferralCode] = useState("");
@@ -246,6 +250,8 @@ function OnboardingPageContent() {
         location: clientData.location,
         latitude: clientData.latitude,
         longitude: clientData.longitude,
+        locationSource: clientData.locationSource,
+        locationAccuracy: clientData.locationAccuracy,
         clientInterests,
         ...(referralCode ? { referralCode } : {}),
       };
@@ -319,6 +325,8 @@ function OnboardingPageContent() {
         location: providerData.location,
         latitude: providerData.latitude,
         longitude: providerData.longitude,
+        locationSource: providerData.locationSource,
+        locationAccuracy: providerData.locationAccuracy,
         bio: providerData.bio,
         phone: providerData.phone,
         hourlyRate: providerData.hourlyRate

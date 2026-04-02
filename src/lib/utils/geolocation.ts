@@ -2,6 +2,33 @@
  * Geolocation utilities for calculating distances and managing location data
  */
 
+export type LocationSource = "GPS" | "IP" | "MANUAL";
+
+export type LocationFallbackReason =
+  | "permission_denied"
+  | "position_unavailable"
+  | "timeout"
+  | "unsupported"
+  | "unknown";
+
+export type LocationCoordinates = {
+  latitude: number;
+  longitude: number;
+  address?: string;
+  source?: LocationSource;
+  accuracy?: number | null;
+  fallbackReason?: LocationFallbackReason;
+};
+
+export type DetectedLocation = {
+  latitude: number;
+  longitude: number;
+  address?: string;
+  source: "GPS" | "IP";
+  accuracy: number | null;
+  fallbackReason?: LocationFallbackReason;
+};
+
 /**
  * Calculate distance between two coordinates using Haversine formula
  * @param lat1 Latitude of first point
@@ -73,15 +100,9 @@ function toRadians(degrees: number): number {
   return degrees * (Math.PI / 180);
 }
 
-type LocationCoordinates = {
-  latitude: number;
-  longitude: number;
-  address?: string;
-};
-
 async function fetchJsonWithTimeout(url: string, timeoutMs = 6000) {
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(url, {
@@ -97,8 +118,90 @@ async function fetchJsonWithTimeout(url: string, timeoutMs = 6000) {
 
     return response.json();
   } finally {
-    window.clearTimeout(timeoutId);
+    clearTimeout(timeoutId);
   }
+}
+
+type NominatimResponse = {
+  display_name?: string;
+  address?: Record<string, string | undefined>;
+};
+
+function firstNonEmpty(...values: Array<string | undefined>) {
+  for (const value of values) {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function formatReadableAddress(
+  data: NominatimResponse,
+  lat: number,
+  lon: number,
+) {
+  const address = data.address || {};
+
+  const locality = firstNonEmpty(
+    address.neighbourhood,
+    address.suburb,
+    address.city_district,
+    address.town,
+    address.city,
+    address.village,
+    address.county,
+    address.state,
+  );
+  const city = firstNonEmpty(
+    address.city,
+    address.town,
+    address.village,
+    address.county,
+    address.state_district,
+    address.state,
+  );
+  const region = firstNonEmpty(
+    address.county,
+    address.state_district,
+    address.state,
+    address.region,
+  );
+  const country = firstNonEmpty(address.country);
+
+  const ordered = [locality, city, region, country].filter(
+    (part): part is string => Boolean(part),
+  );
+
+  const deduped: string[] = [];
+  for (const part of ordered) {
+    if (
+      !deduped.some((existing) => existing.toLowerCase() === part.toLowerCase())
+    ) {
+      deduped.push(part);
+    }
+  }
+
+  if (deduped.length > 0) {
+    return deduped.join(", ");
+  }
+
+  if (typeof data.display_name === "string" && data.display_name.trim()) {
+    const chunks = data.display_name
+      .split(",")
+      .map((chunk) => chunk.trim())
+      .filter(Boolean);
+
+    if (chunks.length > 0) {
+      return chunks.slice(0, 4).join(", ");
+    }
+  }
+
+  return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
 }
 
 function toNumber(value: unknown): number | null {
@@ -112,7 +215,90 @@ function toNumber(value: unknown): number | null {
   return Number.isFinite(num) ? num : null;
 }
 
-export async function getApproximateLocationFromIP(): Promise<LocationCoordinates> {
+function geolocationErrorToFallbackReason(
+  error: GeolocationPositionError,
+): LocationFallbackReason {
+  switch (error.code) {
+    case 1:
+      return "permission_denied";
+    case 2:
+      return "position_unavailable";
+    case 3:
+      return "timeout";
+    default:
+      return "unknown";
+  }
+}
+
+function geolocationErrorMessage(error: GeolocationPositionError): string {
+  switch (geolocationErrorToFallbackReason(error)) {
+    case "permission_denied":
+      return "Location permission denied. Please allow location access in your browser.";
+    case "position_unavailable":
+      return "Location information unavailable";
+    case "timeout":
+      return "Location request timed out. Try again in an open area or enter location manually.";
+    default:
+      return "Unable to retrieve location";
+  }
+}
+
+function resolvePosition(
+  options: PositionOptions,
+): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
+  });
+}
+
+export async function reverseGeocodeCoordinates(
+  lat: number,
+  lon: number,
+  timeoutMs: number = 5000,
+): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
+      {
+        headers: {
+          "User-Agent": "JustInTime/1.0 (support@gtss.software)",
+          "Accept-Language": "en",
+        },
+        signal: AbortSignal.timeout(timeoutMs),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Reverse geocoding failed with ${response.status}`);
+    }
+
+    const data = (await response.json()) as NominatimResponse;
+    return formatReadableAddress(data, lat, lon);
+  } catch {
+    return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  }
+}
+
+export async function getGeolocationPermissionState(): Promise<PermissionState | null> {
+  if (
+    typeof navigator === "undefined" ||
+    !("permissions" in navigator) ||
+    typeof navigator.permissions?.query !== "function"
+  ) {
+    return null;
+  }
+
+  try {
+    const permission = await navigator.permissions.query({
+      name: "geolocation",
+    });
+    return permission.state;
+  } catch {
+    return null;
+  }
+}
+
+export async function getApproximateLocationFromIP(): Promise<DetectedLocation> {
   // Provider 1: ipapi
   try {
     const data = await fetchJsonWithTimeout("https://ipapi.co/json/");
@@ -128,6 +314,8 @@ export async function getApproximateLocationFromIP(): Promise<LocationCoordinate
         latitude,
         longitude,
         address: parts.length > 0 ? parts.join(", ") : undefined,
+        source: "IP",
+        accuracy: null,
       };
     }
   } catch {
@@ -147,6 +335,8 @@ export async function getApproximateLocationFromIP(): Promise<LocationCoordinate
         latitude,
         longitude,
         address: parts.length > 0 ? parts.join(", ") : undefined,
+        source: "IP",
+        accuracy: null,
       };
     }
   } catch {
@@ -156,107 +346,97 @@ export async function getApproximateLocationFromIP(): Promise<LocationCoordinate
   throw new Error("Unable to determine location automatically");
 }
 
+export async function detectCurrentLocation(): Promise<DetectedLocation> {
+  if (typeof navigator === "undefined") {
+    throw new Error("Location detection is only available in the browser");
+  }
+
+  const resolveWithIPFallback = async (
+    fallbackReason: LocationFallbackReason,
+    geolocationError?: GeolocationPositionError,
+  ) => {
+    try {
+      const approximate = await getApproximateLocationFromIP();
+      return {
+        ...approximate,
+        fallbackReason,
+      } satisfies DetectedLocation;
+    } catch {
+      if (geolocationError) {
+        throw new Error(geolocationErrorMessage(geolocationError));
+      }
+
+      throw new Error("Unable to determine your location automatically");
+    }
+  };
+
+  if (!navigator.geolocation) {
+    return resolveWithIPFallback("unsupported");
+  }
+
+  try {
+    const precise = await resolvePosition({
+      enableHighAccuracy: true,
+      timeout: 8000,
+      maximumAge: 0,
+    });
+
+    return {
+      latitude: precise.coords.latitude,
+      longitude: precise.coords.longitude,
+      accuracy: precise.coords.accuracy ?? null,
+      address: await reverseGeocodeCoordinates(
+        precise.coords.latitude,
+        precise.coords.longitude,
+      ),
+      source: "GPS",
+    };
+  } catch (firstError) {
+    const firstGeoError = firstError as GeolocationPositionError;
+    const firstReason = geolocationErrorToFallbackReason(firstGeoError);
+
+    if (firstReason === "permission_denied") {
+      return resolveWithIPFallback(firstReason, firstGeoError);
+    }
+
+    try {
+      const fallback = await resolvePosition({
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 300000,
+      });
+
+      return {
+        latitude: fallback.coords.latitude,
+        longitude: fallback.coords.longitude,
+        accuracy: fallback.coords.accuracy ?? null,
+        address: await reverseGeocodeCoordinates(
+          fallback.coords.latitude,
+          fallback.coords.longitude,
+        ),
+        source: "GPS",
+      };
+    } catch (secondError) {
+      const secondGeoError = secondError as GeolocationPositionError;
+      return resolveWithIPFallback(
+        geolocationErrorToFallbackReason(secondGeoError),
+        secondGeoError,
+      );
+    }
+  }
+}
+
 /**
  * Get current location using browser's Geolocation API
  * @returns Promise with coordinates and address
  */
-export function getCurrentLocation(): Promise<LocationCoordinates> {
-  const resolvePosition = (
-    options: PositionOptions,
-  ): Promise<{ latitude: number; longitude: number }> => {
-    return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          resolve({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          });
-        },
-        (error) => reject(error),
-        options,
-      );
-    });
+export async function getCurrentLocation(): Promise<LocationCoordinates> {
+  const location = await detectCurrentLocation();
+  return {
+    latitude: location.latitude,
+    longitude: location.longitude,
+    address: location.address,
   };
-
-  const toError = (error: GeolocationPositionError) => {
-    let errorMessage = "Unable to retrieve location";
-
-    switch (error.code) {
-      case error.PERMISSION_DENIED:
-        errorMessage =
-          "Location permission denied. Please allow location access in your browser.";
-        break;
-      case error.POSITION_UNAVAILABLE:
-        errorMessage = "Location information unavailable";
-        break;
-      case error.TIMEOUT:
-        errorMessage =
-          "Location request timed out. Try again in an open area or enter location manually.";
-        break;
-      default:
-        break;
-    }
-
-    return new Error(errorMessage);
-  };
-
-  return new Promise(async (resolve, reject) => {
-    if (!navigator.geolocation) {
-      try {
-        const approximate = await getApproximateLocationFromIP();
-        resolve(approximate);
-      } catch {
-        reject(new Error("Geolocation is not supported by your browser"));
-      }
-      return;
-    }
-
-    const resolveWithIPFallback = async (
-      geolocationError?: GeolocationPositionError,
-    ) => {
-      try {
-        const approximate = await getApproximateLocationFromIP();
-        resolve(approximate);
-      } catch {
-        if (geolocationError) {
-          reject(toError(geolocationError));
-          return;
-        }
-
-        reject(new Error("Unable to retrieve location"));
-      }
-    };
-
-    try {
-      // Attempt 1: Fast and accurate for devices with a good sensor/GPS fix.
-      const precise = await resolvePosition({
-        enableHighAccuracy: true,
-        timeout: 8000,
-        maximumAge: 0,
-      });
-      resolve(precise);
-      return;
-    } catch (firstError) {
-      const geoError = firstError as GeolocationPositionError;
-
-      if (geoError.code === geoError.PERMISSION_DENIED) {
-        await resolveWithIPFallback(geoError);
-        return;
-      }
-
-      try {
-        // Attempt 2: More lenient fallback that can use cached/network-based location.
-        const fallback = await resolvePosition({
-          enableHighAccuracy: false,
-          timeout: 15000,
-          maximumAge: 300000,
-        });
-        resolve(fallback);
-      } catch (secondError) {
-        await resolveWithIPFallback(secondError as GeolocationPositionError);
-      }
-    }
-  });
 }
 
 /**
@@ -272,30 +452,84 @@ export function formatDistance(km: number): string {
   return `${km.toFixed(1)} km`;
 }
 
-/**
- * Save location to localStorage
- */
-export function saveLocationToStorage(location: {
+const LOCATION_STORAGE_KEY = "userLocation";
+
+type StoredLocation = {
   latitude: number;
   longitude: number;
   address?: string;
-}): void {
-  localStorage.setItem("userLocation", JSON.stringify(location));
+  source?: LocationSource;
+  accuracy?: number | null;
+};
+
+function normalizeStoredLocation(value: unknown): StoredLocation | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const candidate = value as {
+    latitude?: unknown;
+    longitude?: unknown;
+    address?: unknown;
+    source?: unknown;
+    accuracy?: unknown;
+  };
+
+  const latitude = toNumber(candidate.latitude);
+  const longitude = toNumber(candidate.longitude);
+
+  if (latitude === null || longitude === null) {
+    return null;
+  }
+
+  const normalized: StoredLocation = {
+    latitude,
+    longitude,
+  };
+
+  if (typeof candidate.address === "string" && candidate.address.trim()) {
+    normalized.address = candidate.address;
+  }
+
+  if (
+    candidate.source === "GPS" ||
+    candidate.source === "IP" ||
+    candidate.source === "MANUAL"
+  ) {
+    normalized.source = candidate.source;
+  }
+
+  const accuracy = toNumber(candidate.accuracy);
+  if (accuracy !== null) {
+    normalized.accuracy = accuracy;
+  } else if (candidate.accuracy === null) {
+    normalized.accuracy = null;
+  }
+
+  return normalized;
+}
+
+/**
+ * Save location to localStorage
+ */
+export function saveLocationToStorage(location: StoredLocation): void {
+  const normalized = normalizeStoredLocation(location);
+  if (!normalized) {
+    return;
+  }
+
+  localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(normalized));
 }
 
 /**
  * Get location from localStorage
  */
-export function getLocationFromStorage(): {
-  latitude: number;
-  longitude: number;
-  address?: string;
-} | null {
-  const stored = localStorage.getItem("userLocation");
+export function getLocationFromStorage(): StoredLocation | null {
+  const stored = localStorage.getItem(LOCATION_STORAGE_KEY);
   if (!stored) return null;
 
   try {
-    return JSON.parse(stored);
+    return normalizeStoredLocation(JSON.parse(stored));
   } catch {
     return null;
   }
@@ -305,5 +539,5 @@ export function getLocationFromStorage(): {
  * Clear location from localStorage
  */
 export function clearLocationFromStorage(): void {
-  localStorage.removeItem("userLocation");
+  localStorage.removeItem(LOCATION_STORAGE_KEY);
 }

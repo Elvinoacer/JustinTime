@@ -9,6 +9,14 @@ import {
   multiRoleFeatureFlags,
 } from "@/lib/auth/roles";
 
+const ALLOWED_LOCATION_SOURCES = new Set([
+  "GPS",
+  "IP",
+  "MANUAL",
+  "PROFILE",
+  "BROWSER_GEOLOCATION",
+]);
+
 async function persistCompatibilityRoles(
   userId: string,
   primaryRole: "CLIENT" | "PROVIDER",
@@ -77,6 +85,26 @@ export const POST = auth(async (req) => {
     const normalizedReferralCode = referralCode
       ? String(referralCode).trim().toUpperCase()
       : "";
+    const normalizedLocationSource =
+      typeof locationSource === "string" &&
+      ALLOWED_LOCATION_SOURCES.has(locationSource)
+        ? locationSource
+        : undefined;
+    const normalizedLocationAccuracy =
+      locationAccuracy !== undefined && locationAccuracy !== null
+        ? Number(locationAccuracy)
+        : undefined;
+
+    if (
+      normalizedLocationAccuracy !== undefined &&
+      (!Number.isFinite(normalizedLocationAccuracy) ||
+        normalizedLocationAccuracy < 0)
+    ) {
+      return NextResponse.json(
+        { error: "Invalid location accuracy" },
+        { status: 400 },
+      );
+    }
 
     // B12 Fix: Robust validation
     if (!["CLIENT", "PROVIDER"].includes(role)) {
@@ -279,9 +307,11 @@ export const POST = auth(async (req) => {
           faceMatchScore: Number(faceMatchScore),
         }),
         ...(idDocumentType && { idDocumentType }),
-        ...(locationSource && { locationSource }),
-        ...(locationAccuracy !== undefined && {
-          locationAccuracy: Number(locationAccuracy),
+        ...(normalizedLocationSource && {
+          locationSource: normalizedLocationSource,
+        }),
+        ...(normalizedLocationAccuracy !== undefined && {
+          locationAccuracy: normalizedLocationAccuracy,
         }),
         verificationAttempts: { increment: 1 },
         lastVerificationAt: new Date(),
@@ -304,9 +334,11 @@ export const POST = auth(async (req) => {
             faceMatchScore: Number(faceMatchScore),
           }),
           ...(idDocumentType && { idDocumentType }),
-          ...(locationSource && { locationSource }),
-          ...(locationAccuracy !== undefined && {
-            locationAccuracy: Number(locationAccuracy),
+          ...(normalizedLocationSource && {
+            locationSource: normalizedLocationSource,
+          }),
+          ...(normalizedLocationAccuracy !== undefined && {
+            locationAccuracy: normalizedLocationAccuracy,
           }),
           verificationAttempts: 1,
           lastVerificationAt: new Date(),
@@ -324,11 +356,36 @@ export const POST = auth(async (req) => {
           ...verificationFields,
         },
       });
+    } else if (role === "CLIENT") {
+      // Persist client location metadata for consistent location-driven experiences.
+      await prisma.profile.upsert({
+        where: { userId: actingUser.id },
+        create: {
+          userId: actingUser.id,
+          skills: [],
+          location,
+          latitude,
+          longitude,
+          ...(normalizedLocationSource && {
+            locationSource: normalizedLocationSource,
+          }),
+          ...(normalizedLocationAccuracy !== undefined && {
+            locationAccuracy: normalizedLocationAccuracy,
+          }),
+        },
+        update: {
+          location,
+          latitude,
+          longitude,
+          ...(normalizedLocationSource && {
+            locationSource: normalizedLocationSource,
+          }),
+          ...(normalizedLocationAccuracy !== undefined && {
+            locationAccuracy: normalizedLocationAccuracy,
+          }),
+        },
+      });
     }
-
-    // If client, we might want to create a profile too or store address somewhere
-    // For now, we can extend the User model or store in a separate ClientProfile
-    // Since the schema doesn't have a specific client profile, we'll just ensure phone is saved above
 
     return NextResponse.json({
       ...updatedUser,

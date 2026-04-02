@@ -102,6 +102,7 @@ function PostJobPageContent() {
   const [locationFetchHint, setLocationFetchHint] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const stepRef = useRef<HTMLDivElement>(null);
+  const hasAutoLocationPrefilledRef = useRef(false);
   const postLocation = useLocation();
   const isFetchingLocation = postLocation.status === "LOADING";
 
@@ -125,6 +126,15 @@ function PostJobPageContent() {
       setPostMode("quick");
     }
   }, [isEditMode, quickPostEnabled, searchParams]);
+
+  useEffect(() => {
+    if (isEditMode || hasAutoLocationPrefilledRef.current) {
+      return;
+    }
+
+    hasAutoLocationPrefilledRef.current = true;
+    void postLocation.prefillIfPermitted();
+  }, [isEditMode, postLocation]);
 
   // Check for mobile
   useEffect(() => {

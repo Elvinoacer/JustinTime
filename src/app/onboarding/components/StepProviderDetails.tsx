@@ -19,6 +19,8 @@ interface ProviderData {
   location: string;
   latitude: number | null;
   longitude: number | null;
+  locationSource?: LocationSource;
+  locationAccuracy?: number | null;
   bio: string;
   phone: string;
   hourlyRate: string;
@@ -77,12 +79,16 @@ export default function StepProviderDetails({
         latitude: loc.location.latitude,
         longitude: loc.location.longitude,
         location: loc.location.address,
+        locationSource: loc.location.source,
+        locationAccuracy: loc.location.accuracy,
       }));
     }
   }, [
+    loc.location.accuracy,
     loc.location.latitude,
     loc.location.longitude,
     loc.location.address,
+    loc.location.source,
     setProviderData,
   ]);
 
@@ -690,6 +696,8 @@ export default function StepProviderDetails({
                   setProviderData((prev) => ({
                     ...prev,
                     location: value,
+                    locationSource: "MANUAL",
+                    locationAccuracy: null,
                   }));
                   loc.setManualAddress(value);
                 }}

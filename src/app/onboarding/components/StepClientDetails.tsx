@@ -21,6 +21,8 @@ interface ClientData {
   location: string;
   latitude: number | null;
   longitude: number | null;
+  locationSource?: LocationSource;
+  locationAccuracy?: number | null;
 }
 
 interface StepClientDetailsProps {
@@ -80,12 +82,16 @@ export default function StepClientDetails({
         longitude: loc.location.longitude,
         location: loc.location.address,
         address: loc.location.address,
+        locationSource: loc.location.source,
+        locationAccuracy: loc.location.accuracy,
       }));
     }
   }, [
+    loc.location.accuracy,
     loc.location.latitude,
     loc.location.longitude,
     loc.location.address,
+    loc.location.source,
     setClientData,
   ]);
 
@@ -247,6 +253,8 @@ export default function StepClientDetails({
                   ...prev,
                   address: e.target.value,
                   location: e.target.value,
+                  locationSource: "MANUAL",
+                  locationAccuracy: null,
                 }))
               }
               className="w-full pl-9 sm:pl-11 pr-3 sm:pr-4 py-3 sm:py-4 rounded-lg sm:rounded-xl bg-gray-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium text-sm sm:text-base"

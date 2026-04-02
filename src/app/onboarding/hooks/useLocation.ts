@@ -1,8 +1,14 @@
 "use client";
-import { useState, useCallback } from "react";
-import { getApproximateLocationFromIP } from "@/lib/utils/geolocation";
 
-export type LocationSource = "GPS" | "IP" | "MANUAL";
+import { useCallback, useState } from "react";
+import {
+  detectCurrentLocation,
+  getGeolocationPermissionState,
+  type DetectedLocation,
+  type LocationSource as SharedLocationSource,
+} from "@/lib/utils/geolocation";
+
+export type LocationSource = SharedLocationSource;
 export type LocationStatus =
   | "IDLE"
   | "LOADING"
@@ -28,115 +34,27 @@ interface UseLocationReturn {
   setLocationResult: (result: Partial<LocationResult>) => void;
 }
 
-const GPS_OPTIONS_TIERS = [
-  { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
-  { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
-];
-
-type NominatimResponse = {
-  display_name?: string;
-  address?: Record<string, string | undefined>;
-};
-
-function firstNonEmpty(...values: Array<string | undefined>) {
-  for (const value of values) {
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      if (trimmed.length > 0) {
-        return trimmed;
-      }
-    }
+function normalizeAddress(location: DetectedLocation): string {
+  const candidate = location.address?.trim();
+  if (candidate) {
+    return candidate;
   }
-  return undefined;
+
+  return `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
 }
 
-function formatReadableAddress(
-  data: NominatimResponse,
-  lat: number,
-  lon: number,
-) {
-  const address = data.address || {};
-
-  const locality = firstNonEmpty(
-    address.neighbourhood,
-    address.suburb,
-    address.city_district,
-    address.town,
-    address.city,
-    address.village,
-    address.county,
-    address.state,
-  );
-  const city = firstNonEmpty(
-    address.city,
-    address.town,
-    address.village,
-    address.county,
-    address.state_district,
-    address.state,
-  );
-  const region = firstNonEmpty(
-    address.county,
-    address.state_district,
-    address.state,
-    address.region,
-  );
-  const country = firstNonEmpty(address.country);
-
-  const ordered = [locality, city, region, country].filter(
-    (part): part is string => Boolean(part),
-  );
-
-  const deduped: string[] = [];
-  for (const part of ordered) {
-    if (
-      !deduped.some((existing) => existing.toLowerCase() === part.toLowerCase())
-    ) {
-      deduped.push(part);
-    }
-  }
-
-  if (deduped.length > 0) {
-    return deduped.join(", ");
-  }
-
-  if (typeof data.display_name === "string" && data.display_name.trim()) {
-    const chunks = data.display_name
-      .split(",")
-      .map((chunk) => chunk.trim())
-      .filter(Boolean);
-
-    if (chunks.length > 0) {
-      return chunks.slice(0, 4).join(", ");
-    }
-  }
-
-  return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+function statusFromDetection(_location: DetectedLocation): LocationStatus {
+  // A detected fallback location is still a usable success state.
+  return "SUCCESS";
 }
 
-const reverseGeocode = async (lat: number, lon: number): Promise<string> => {
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
-      {
-        headers: {
-          "User-Agent": "JustInTime/1.0 (support@gtss.software)",
-          "Accept-Language": "en",
-        },
-        signal: AbortSignal.timeout(5000),
-      },
-    );
-
-    if (!res.ok) {
-      throw new Error("Reverse geocoding failed");
-    }
-
-    const data = (await res.json()) as NominatimResponse;
-    return formatReadableAddress(data, lat, lon);
-  } catch {
-    return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+function isPermissionDeniedError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
   }
-};
+
+  return /permission denied/i.test(error.message);
+}
 
 export function useLocation(): UseLocationReturn {
   const [location, setLocation] = useState<LocationResult>({
@@ -150,131 +68,65 @@ export function useLocation(): UseLocationReturn {
   const [permissionStatus, setPermissionStatus] =
     useState<PermissionState | null>(null);
 
-  const applyLocation = useCallback(
-    async (
-      lat: number,
-      lon: number,
-      source: LocationSource,
-      accuracy: number | null,
-    ) => {
-      const address = await reverseGeocode(lat, lon);
-      setLocation({ latitude: lat, longitude: lon, address, source, accuracy });
-      setStatus("SUCCESS");
-    },
-    [],
-  );
-
-  const requestIPFallback = useCallback(async () => {
-    try {
-      const approximate = await getApproximateLocationFromIP();
-      if (approximate.latitude != null && approximate.longitude != null) {
-        setLocation({
-          latitude: approximate.latitude,
-          longitude: approximate.longitude,
-          address:
-            approximate.address ||
-            `${approximate.latitude.toFixed(5)}, ${approximate.longitude.toFixed(5)}`,
-          source: "IP",
-          accuracy: null,
-        });
-        setStatus("SUCCESS");
-      } else {
-        setStatus("FAILED");
-      }
-    } catch {
-      setStatus("FAILED");
+  const applyDetectedLocation = useCallback((detected: DetectedLocation) => {
+    setLocation({
+      latitude: detected.latitude,
+      longitude: detected.longitude,
+      address: normalizeAddress(detected),
+      source: detected.source,
+      accuracy: detected.accuracy,
+    });
+    setStatus(statusFromDetection(detected));
+    if (detected.fallbackReason === "permission_denied") {
+      setPermissionStatus("denied");
     }
   }, []);
 
-  const requestGPS = useCallback(
-    (tier: number = 0) => {
-      if (tier >= GPS_OPTIONS_TIERS.length) {
-        requestIPFallback();
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          await applyLocation(
-            pos.coords.latitude,
-            pos.coords.longitude,
-            "GPS",
-            pos.coords.accuracy,
-          );
-        },
-        (err) => {
-          if (err.code === err.TIMEOUT) {
-            requestGPS(tier + 1);
-          } else {
-            // PERMISSION_DENIED or POSITION_UNAVAILABLE
-            if (err.code === err.PERMISSION_DENIED) {
-              setPermissionStatus("denied");
-              setStatus("DENIED");
-            }
-            void requestIPFallback();
-          }
-        },
-        GPS_OPTIONS_TIERS[tier],
-      );
-    },
-    [applyLocation, requestIPFallback],
-  );
-
   const getLocation = useCallback(async () => {
-    if (!navigator.geolocation) {
-      setStatus("LOADING");
-      await requestIPFallback();
+    setStatus("LOADING");
+
+    const permission = await getGeolocationPermissionState();
+    if (permission) {
+      setPermissionStatus(permission);
+    }
+
+    try {
+      const detected = await detectCurrentLocation();
+      applyDetectedLocation(detected);
+    } catch (error) {
+      const denied = permission === "denied" || isPermissionDeniedError(error);
+      setStatus(denied ? "DENIED" : "FAILED");
+    }
+  }, [applyDetectedLocation]);
+
+  const prefillIfPermitted = useCallback(async () => {
+    const permission = await getGeolocationPermissionState();
+    if (!permission) {
+      return;
+    }
+
+    setPermissionStatus(permission);
+
+    // Avoid surprise prompts: prefill only when browser already has a stored decision.
+    if (permission !== "granted" && permission !== "denied") {
       return;
     }
 
     setStatus("LOADING");
-
-    // Step 1: Check permission status
-    if ("permissions" in navigator) {
-      try {
-        const perm = await navigator.permissions.query({ name: "geolocation" });
-        setPermissionStatus(perm.state);
-        if (perm.state === "denied") {
-          setStatus("DENIED");
-          // Still try IP fallback
-          await requestIPFallback();
-          return;
-        }
-      } catch {
-        // permissions.query not supported (e.g., Safari) — proceed anyway
-      }
-    }
-
-    // Step 2: Attempt GPS
-    requestGPS(0);
-  }, [requestGPS, requestIPFallback]);
-
-  const prefillIfPermitted = useCallback(async () => {
-    if (!("permissions" in navigator)) {
-      return;
-    }
-
     try {
-      const perm = await navigator.permissions.query({ name: "geolocation" });
-      setPermissionStatus(perm.state);
-
-      if (perm.state === "granted") {
-        setStatus("LOADING");
-        requestGPS(0);
-      } else if (perm.state === "denied") {
-        setStatus("LOADING");
-        await requestIPFallback();
-      }
-    } catch {
-      // Ignore permission prefill failures and keep manual flow available.
+      const detected = await detectCurrentLocation();
+      applyDetectedLocation(detected);
+    } catch (error) {
+      const denied = permission === "denied" || isPermissionDeniedError(error);
+      setStatus(denied ? "DENIED" : "FAILED");
     }
-  }, [requestGPS, requestIPFallback]);
+  }, [applyDetectedLocation]);
 
   const setManualAddress = useCallback((address: string) => {
     setLocation((prev) => ({
       ...prev,
       address,
-      source: "MANUAL" as LocationSource,
+      source: "MANUAL",
     }));
   }, []);
 
