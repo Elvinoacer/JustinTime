@@ -17,6 +17,7 @@ import { validatePromoCode } from "@/lib/promo";
 import { getDynamicPrice } from "@/lib/pricing-engine";
 import { VALIDATION } from "@/lib/constants/validation";
 import { Prisma } from "@/generated/prisma/client";
+import { SERVICE_LOCATION_TYPES } from "@/lib/services/config";
 import {
   BOOKING_LIFECYCLE_EVENT_TYPES,
   recordBookingLifecycleEvent,
@@ -193,6 +194,31 @@ export async function POST(request: Request) {
       );
     }
 
+    const hasValidDefaultDuration =
+      typeof service.defaultDuration === "number" &&
+      Number.isFinite(service.defaultDuration) &&
+      service.defaultDuration >= 15;
+    const hasValidLocationType =
+      typeof service.locationType === "string" &&
+      SERVICE_LOCATION_TYPES.includes(
+        service.locationType as (typeof SERVICE_LOCATION_TYPES)[number],
+      );
+
+    if (!hasValidDefaultDuration || !hasValidLocationType) {
+      return NextResponse.json(
+        {
+          error:
+            "This service is missing required booking configuration. Please ask the provider to update the service settings.",
+          code: "SERVICE_CONFIGURATION_INCOMPLETE",
+          missingFields: [
+            !hasValidDefaultDuration ? "defaultDuration" : null,
+            !hasValidLocationType ? "locationType" : null,
+          ].filter(Boolean),
+        },
+        { status: 422 },
+      );
+    }
+
     // Prepare slots
     let bookingSlots: { date: Date; startTime: string; endTime: string }[] = [];
 
@@ -250,6 +276,7 @@ export async function POST(request: Request) {
           return NextResponse.json(
             {
               error: "Time slot not available",
+              code: "BOOKING_SLOT_CONFLICT",
               reason: availabilityCheck.reason,
               slot: slot,
             },
@@ -318,7 +345,14 @@ export async function POST(request: Request) {
               date: slot.date,
               booking: {
                 providerId: professionalId,
-                status: { in: ["PENDING", "CONFIRMED", "IN_PROGRESS"] },
+                status: {
+                  in: [
+                    "PENDING",
+                    "CONFIRMED",
+                    "IN_PROGRESS",
+                    "AWAITING_CLIENT_CONFIRMATION",
+                  ],
+                },
               },
               startTime: { lt: slot.endTime },
               endTime: { gt: slot.startTime },
@@ -542,7 +576,10 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof Error && error.message === "BOOKING_SLOT_CONFLICT") {
       return NextResponse.json(
-        { error: "One or more selected time slots are no longer available." },
+        {
+          error: "One or more selected time slots are no longer available.",
+          code: "BOOKING_SLOT_CONFLICT",
+        },
         { status: 409 },
       );
     }

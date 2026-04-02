@@ -35,10 +35,25 @@ interface Message {
   createdAt: string;
   isRead: boolean;
   isDelivered?: boolean;
+  clientTempId?: string;
 }
 
 interface SocketMessage extends Message {
   receiverId: string;
+  sender?: {
+    id: string;
+    name: string | null;
+    image: string | null;
+    role?: string;
+    phone?: string | null;
+  };
+  receiver?: {
+    id: string;
+    name: string | null;
+    image: string | null;
+    role?: string;
+    phone?: string | null;
+  };
 }
 
 interface Contact {
@@ -91,9 +106,6 @@ export default function ProviderMessagesPage() {
     },
     [deepLinkPartnerId, deepLinkPartnerImage, deepLinkPartnerName],
   );
-
-  // Track recently sent message IDs to prevent duplicates from socket
-  const recentlySentIds = useRef<Set<string>>(new Set());
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -221,6 +233,12 @@ export default function ProviderMessagesPage() {
 
       // Emit delivered status if we are the receiver
       if (message.receiverId === session.user.id) {
+        void apiClient
+          .post("/messages/delivered", { messageId: message.id })
+          .catch((error) => {
+            console.error("Failed to persist delivery receipt:", error);
+          });
+
         socket.emit("message_delivered", {
           messageId: message.id,
           senderId: message.senderId,
@@ -229,6 +247,12 @@ export default function ProviderMessagesPage() {
 
         // If we are looking at this conversation, emit read status too
         if (currentPartnerId === message.senderId) {
+          void apiClient
+            .post("/messages/read", { messageId: message.id })
+            .catch((error) => {
+              console.error("Failed to persist read receipt:", error);
+            });
+
           socket.emit("message_read", {
             messageId: message.id,
             senderId: message.senderId,
@@ -244,14 +268,27 @@ export default function ProviderMessagesPage() {
           message.receiverId === currentPartnerId)
       ) {
         setMessages((prev) => {
-          // Ignore if this is a message we just sent (tracked in recentlySentIds)
-          if (recentlySentIds.current.has(message.id)) {
+          const existingById = prev.some((m) => m.id === message.id);
+          if (existingById) {
             return prev;
           }
 
-          // Check for existing message by ID
-          const exists = prev.some((m) => m.id === message.id);
-          if (exists) return prev;
+          if (message.senderId === session.user.id && message.clientTempId) {
+            const tempIndex = prev.findIndex(
+              (item) => item.id === message.clientTempId,
+            );
+
+            if (tempIndex >= 0) {
+              const next = [...prev];
+              next[tempIndex] = {
+                ...next[tempIndex],
+                ...message,
+                id: message.id,
+                clientTempId: undefined,
+              };
+              return next;
+            }
+          }
 
           return [...prev, message];
         });
@@ -285,6 +322,38 @@ export default function ProviderMessagesPage() {
           // Move to top
           const [updatedConv] = newConvs.splice(convIndex, 1);
           newConvs.unshift(updatedConv);
+        } else {
+          const partnerFromMessage =
+            message.senderId === session.user.id
+              ? message.receiver
+              : message.sender;
+          const partnerId =
+            message.senderId === session.user.id
+              ? message.receiverId
+              : message.senderId;
+
+          newConvs.unshift({
+            partner: {
+              id: partnerId,
+              name: partnerFromMessage?.name || "Conversation",
+              image: partnerFromMessage?.image || null,
+              role: partnerFromMessage?.role,
+              ...(partnerFromMessage?.phone
+                ? { phone: partnerFromMessage.phone }
+                : {}),
+            },
+            lastMessage: {
+              content: message.content,
+              createdAt: message.createdAt,
+              isRead: false,
+              isOwn: message.senderId === session.user.id,
+            },
+            unreadCount:
+              message.senderId !== session.user.id &&
+              currentPartnerId !== message.senderId
+                ? 1
+                : 0,
+          });
         }
         return newConvs;
       });
@@ -344,6 +413,39 @@ export default function ProviderMessagesPage() {
       );
     };
 
+    const handleMessagesRead = ({ messageIds }: { messageIds?: string[] }) => {
+      if (!messageIds || messageIds.length === 0) return;
+      const idSet = new Set(messageIds);
+      setMessages((prev) =>
+        prev.map((message) =>
+          idSet.has(message.id)
+            ? { ...message, isRead: true, isDelivered: true }
+            : message,
+        ),
+      );
+    };
+
+    const handleConversationCleared = ({
+      clearedById,
+      partnerId,
+    }: {
+      clearedById?: string;
+      partnerId?: string | null;
+    }) => {
+      if (clearedById !== session.user.id || !partnerId) {
+        return;
+      }
+
+      setConversations((prev) =>
+        prev.filter((conversation) => conversation.partner.id !== partnerId),
+      );
+
+      if (selectedPartnerIdRef.current === partnerId) {
+        setMessages([]);
+        setSelectedPartnerId(null);
+      }
+    };
+
     socket.on("receive_message", handleReceiveMessage);
     socket.on("user_typing", handleUserTyping);
     socket.on("user_stop_typing", handleUserStopTyping);
@@ -352,6 +454,8 @@ export default function ProviderMessagesPage() {
     socket.on("online_users_list", handleOnlineUsersList);
     socket.on("message_read", handleMessageRead);
     socket.on("message_delivered", handleMessageDelivered);
+    socket.on("messages_read", handleMessagesRead);
+    socket.on("conversation_cleared", handleConversationCleared);
 
     return () => {
       socket.off("receive_message", handleReceiveMessage);
@@ -362,6 +466,8 @@ export default function ProviderMessagesPage() {
       socket.off("online_users_list", handleOnlineUsersList);
       socket.off("message_read", handleMessageRead);
       socket.off("message_delivered", handleMessageDelivered);
+      socket.off("messages_read", handleMessagesRead);
+      socket.off("conversation_cleared", handleConversationCleared);
     };
   }, [session]); // Only re-run if session changes (which is rare)
 
@@ -392,6 +498,22 @@ export default function ProviderMessagesPage() {
     fetchMessages();
   }, [selectedPartnerId]);
 
+  const emitTypingStart = useCallback(() => {
+    if (!selectedPartnerId || !session?.user?.id) return;
+    socket.emit("typing", {
+      senderId: session.user.id,
+      receiverId: selectedPartnerId,
+    });
+  }, [selectedPartnerId, session?.user?.id]);
+
+  const emitTypingStop = useCallback(() => {
+    if (!selectedPartnerId || !session?.user?.id) return;
+    socket.emit("stop_typing", {
+      senderId: session.user.id,
+      receiverId: selectedPartnerId,
+    });
+  }, [selectedPartnerId, session?.user?.id]);
+
   const handleSendMessage = async (
     content: string,
     fileUrl?: string,
@@ -400,7 +522,7 @@ export default function ProviderMessagesPage() {
     if (!selectedPartnerId || !session?.user) return;
 
     // Optimistic update
-    const tempId = Date.now().toString();
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const newMessage = {
       id: tempId,
       senderId: session.user.id,
@@ -410,10 +532,8 @@ export default function ProviderMessagesPage() {
       createdAt: new Date().toISOString(),
       isRead: false,
       isDelivered: false,
+      clientTempId: tempId,
     };
-
-    // Track this message ID to prevent duplicates from socket
-    recentlySentIds.current.add(tempId);
 
     // Immediately add to messages for instant UI feedback
     setMessages((prev) => [...prev, newMessage]);
@@ -443,12 +563,6 @@ export default function ProviderMessagesPage() {
       return newConvs;
     });
 
-    // Emit socket event for real-time delivery to other user
-    socket.emit("send_message", {
-      ...newMessage,
-      receiverId: selectedPartnerId,
-    });
-
     try {
       // Persist to DB and get the real message ID
       const response = await apiClient.post("/messages/send", {
@@ -456,6 +570,7 @@ export default function ProviderMessagesPage() {
         content,
         fileUrl,
         fileType,
+        clientTempId: tempId,
       });
 
       // Update the temporary message with the real ID from the server
@@ -463,23 +578,22 @@ export default function ProviderMessagesPage() {
         const realId = response.data.message.id;
 
         setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, id: realId } : m)),
+          prev.map((m) =>
+            m.id === tempId
+              ? {
+                  ...m,
+                  ...response.data.message,
+                  id: realId,
+                  clientTempId: undefined,
+                }
+              : m,
+          ),
         );
-
-        // Add real ID to tracking and remove temp ID after a delay
-        recentlySentIds.current.add(realId);
-        recentlySentIds.current.delete(tempId);
-
-        // Clean up tracking after 5 seconds
-        setTimeout(() => {
-          recentlySentIds.current.delete(realId);
-        }, 5000);
       }
     } catch (error) {
       console.error("Failed to send message:", error);
       // Remove the optimistic message on error
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      recentlySentIds.current.delete(tempId);
       alert("Failed to send message. Please try again.");
     }
   };
@@ -498,19 +612,23 @@ export default function ProviderMessagesPage() {
   };
 
   const handleClearConversation = async (partnerId: string) => {
-    // Optimistic update - clear messages locally
+    const previousMessages = messages;
+    const previousConversations = conversations;
+    const previousSelectedPartnerId = selectedPartnerId;
+
     setMessages([]);
+    setConversations((prev) => prev.filter((c) => c.partner.id !== partnerId));
+    if (selectedPartnerId === partnerId) {
+      setSelectedPartnerId(null);
+    }
 
     try {
       await apiClient.delete(`/messages/clear/${partnerId}`);
-      // Remove conversation from list
-      setConversations((prev) =>
-        prev.filter((c) => c.partner.id !== partnerId),
-      );
-      setSelectedPartnerId(null);
     } catch (error) {
       console.error("Failed to clear conversation:", error);
-      // Could refetch messages here if needed
+      setMessages(previousMessages);
+      setConversations(previousConversations);
+      setSelectedPartnerId(previousSelectedPartnerId);
     }
   };
 
@@ -583,6 +701,8 @@ export default function ProviderMessagesPage() {
           onSendMessage={handleSendMessage}
           onDeleteMessage={handleDeleteMessage}
           onClearConversation={handleClearConversation}
+          onTypingStart={emitTypingStart}
+          onTypingStop={emitTypingStop}
           isTyping={isTyping}
           isOnline={
             selectedPartnerId ? onlineUsers.has(selectedPartnerId) : false

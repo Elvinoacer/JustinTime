@@ -15,6 +15,18 @@ import {
   recordBookingLifecycleEvent,
 } from "@/lib/bookings/lifecycleTimeline";
 
+const ALLOWED_BOOKING_STATUSES = [
+  "PENDING",
+  "CONFIRMED",
+  "IN_PROGRESS",
+  "AWAITING_CLIENT_CONFIRMATION",
+  "COMPLETED",
+  "CANCELLED",
+  "DISPUTED",
+] as const;
+
+type AllowedBookingStatus = (typeof ALLOWED_BOOKING_STATUSES)[number];
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -27,7 +39,26 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { status, notes, cancellationReason } = body;
+    const rawStatus =
+      typeof body.status === "string"
+        ? body.status.trim().toUpperCase()
+        : undefined;
+    let status: AllowedBookingStatus | undefined;
+
+    if (rawStatus) {
+      if (
+        !ALLOWED_BOOKING_STATUSES.includes(rawStatus as AllowedBookingStatus)
+      ) {
+        return NextResponse.json(
+          { error: "Invalid booking status provided" },
+          { status: 400 },
+        );
+      }
+
+      status = rawStatus as AllowedBookingStatus;
+    }
+
+    const { notes, cancellationReason } = body;
 
     const booking = await prisma.booking.findUnique({
       where: { id },
@@ -73,6 +104,22 @@ export async function PATCH(
       );
     }
 
+    const providerMarkedComplete = isProvider && status === "COMPLETED";
+    if (providerMarkedComplete) {
+      status = "AWAITING_CLIENT_CONFIRMATION";
+    }
+
+    if (status === "COMPLETED") {
+      return new NextResponse(
+        JSON.stringify({
+          error: "Forbidden",
+          message:
+            "Use /api/bookings/[id]/confirm-completion for client confirmation.",
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
     if (isClient && !isProvider && status && status !== "CANCELLED") {
       console.error(
         "[BOOKING_PATCH] Client trying to update to non-CANCELLED status:",
@@ -87,7 +134,7 @@ export async function PATCH(
       );
     }
 
-    const { plainNotes, escrow } = extractEscrowMilestones(booking.notes);
+    const { escrow } = extractEscrowMilestones(booking.notes);
     const notesForUpdate =
       typeof notes === "string"
         ? escrow
@@ -123,8 +170,9 @@ export async function PATCH(
         eventType: BOOKING_LIFECYCLE_EVENT_TYPES.BOOKING_STATUS_CHANGED,
         fromState: booking.status,
         toState: status,
-        reason:
-          status === "CANCELLED"
+        reason: providerMarkedComplete
+          ? "Provider marked work complete and is waiting for client confirmation."
+          : status === "CANCELLED"
             ? cancellationReason || "Booking was cancelled."
             : "Booking status updated.",
         actorUserId: session.user.id,
@@ -132,6 +180,35 @@ export async function PATCH(
         actorRole,
         idempotencyKey: `booking:${booking.id}:status:${booking.status}:${status}:${updatedBooking.updatedAt.toISOString()}`,
       });
+
+      if (isProvider && status === "IN_PROGRESS") {
+        await recordBookingLifecycleEvent({
+          bookingId: booking.id,
+          eventType: BOOKING_LIFECYCLE_EVENT_TYPES.WORK_STARTED,
+          fromState: booking.status,
+          toState: status,
+          reason: "Provider started work.",
+          actorUserId: session.user.id,
+          actorName,
+          actorRole,
+          idempotencyKey: `booking:${booking.id}:work-started:${updatedBooking.updatedAt.toISOString()}`,
+        });
+      }
+
+      if (isProvider && status === "AWAITING_CLIENT_CONFIRMATION") {
+        await recordBookingLifecycleEvent({
+          bookingId: booking.id,
+          eventType: BOOKING_LIFECYCLE_EVENT_TYPES.PROVIDER_MARKED_COMPLETE,
+          fromState: booking.status,
+          toState: status,
+          reason:
+            "Provider marked work complete and requested client confirmation.",
+          actorUserId: session.user.id,
+          actorName,
+          actorRole,
+          idempotencyKey: `booking:${booking.id}:provider-marked-complete:${updatedBooking.updatedAt.toISOString()}`,
+        });
+      }
 
       if (booking.jobId) {
         await recordJobLifecycleEvent({
@@ -149,102 +226,6 @@ export async function PATCH(
           actorRole,
           idempotencyKey: `booking:${booking.id}:status:${booking.status}:${status}:${updatedBooking.updatedAt.toISOString()}`,
         });
-      }
-
-      if (status === "COMPLETED") {
-        if (escrow) {
-          escrow.milestones = escrow.milestones.map((milestone) =>
-            milestone.status === "RELEASED"
-              ? milestone
-              : {
-                  ...milestone,
-                  status: "RELEASED",
-                  releasedAt: new Date().toISOString(),
-                },
-          );
-          escrow.releasedAmount = escrow.totalAmount;
-          escrow.updatedAt = new Date().toISOString();
-
-          await prisma.booking.update({
-            where: { id },
-            data: {
-              notes: upsertEscrowMilestones(plainNotes, escrow),
-            },
-          });
-        }
-
-        const pendingPayments = await prisma.payment.findMany({
-          where: {
-            bookingId: id,
-            status: "PENDING",
-          },
-          select: {
-            id: true,
-            status: true,
-            method: true,
-            transactionId: true,
-          },
-        });
-
-        await prisma.payment.updateMany({
-          where: {
-            bookingId: id,
-            status: "PENDING",
-          },
-          data: {
-            status: "COMPLETED",
-            transactionId: `escrow_release_${id}`,
-          },
-        });
-
-        if (pendingPayments.length > 0) {
-          await Promise.all(
-            pendingPayments.map((payment) =>
-              recordBookingLifecycleEvent({
-                bookingId: booking.id,
-                paymentId: payment.id,
-                eventType: BOOKING_LIFECYCLE_EVENT_TYPES.PAYMENT_STATUS_CHANGED,
-                fromState: payment.status,
-                toState: "COMPLETED",
-                reason: "Escrow released after booking completion.",
-                actorUserId: session.user.id,
-                actorName,
-                actorRole,
-                metadata: {
-                  method: payment.method,
-                  previousTransactionId: payment.transactionId,
-                  nextTransactionId: `escrow_release_${id}`,
-                },
-                idempotencyKey: `booking:${booking.id}:payment:${payment.id}:status:PENDING:COMPLETED:${updatedBooking.updatedAt.toISOString()}`,
-              }),
-            ),
-          );
-        }
-
-        if (booking.jobId && pendingPayments.length > 0) {
-          await Promise.all(
-            pendingPayments.map((payment) =>
-              recordJobLifecycleEvent({
-                jobId: booking.jobId as string,
-                bookingId: booking.id,
-                paymentId: payment.id,
-                eventType: JOB_LIFECYCLE_EVENT_TYPES.PAYMENT_STATUS_CHANGED,
-                fromState: payment.status,
-                toState: "COMPLETED",
-                reason: "Escrow released after booking completion.",
-                actorUserId: session.user.id,
-                actorName,
-                actorRole,
-                metadata: {
-                  method: payment.method,
-                  previousTransactionId: payment.transactionId,
-                  nextTransactionId: `escrow_release_${id}`,
-                },
-                idempotencyKey: `payment:${payment.id}:status:PENDING:COMPLETED:${updatedBooking.updatedAt.toISOString()}`,
-              }),
-            ),
-          );
-        }
       }
 
       if (status === "CANCELLED") {
@@ -335,6 +316,14 @@ export async function PATCH(
 
     // Send notifications if status changed
     if (status && status !== booking.status) {
+      const notificationType =
+        status === "IN_PROGRESS" ||
+        status === "AWAITING_CLIENT_CONFIRMATION" ||
+        status === "DISPUTED" ||
+        status === "PENDING"
+          ? "CONFIRMED"
+          : status;
+
       // Notify the OTHER party
       const recipientId = isProvider ? booking.clientId : booking.providerId;
 
@@ -342,7 +331,7 @@ export async function PATCH(
         booking.id,
         session.user.id,
         recipientId,
-        status, // Status is used as notification type/content hint
+        notificationType,
         booking.service?.title || "Service",
       );
 
@@ -358,7 +347,7 @@ export async function PATCH(
         // Send email notification when provider updates status
         if (isProvider) {
           try {
-            const { sendBookingStatusUpdateEmail, sendReviewRequestEmail } =
+            const { sendBookingStatusUpdateEmail } =
               await import("@/lib/email");
             const providerName = session.user.name || "The provider";
 
@@ -373,35 +362,6 @@ export async function PATCH(
               booking.slots,
             );
             console.log(`[BOOKING_PATCH] Email sent to ${recipientEmail}`);
-
-            if (status === "COMPLETED") {
-              await sendReviewRequestEmail(
-                recipientEmail,
-                recipientName,
-                providerName,
-                booking.service?.title || "Service",
-                booking.id,
-              );
-              console.log(
-                `[BOOKING_PATCH] Review request email sent to ${recipientEmail}`,
-              );
-
-              // Check and award badges for the provider
-              try {
-                const { checkAndAwardBadges } =
-                  await import("@/lib/gamification/badge-checker");
-                await checkAndAwardBadges(booking.providerId);
-                console.log(
-                  `[BOOKING_PATCH] Badge check completed for provider ${booking.providerId}`,
-                );
-              } catch (badgeError) {
-                console.error(
-                  "[BOOKING_PATCH] Error checking badges:",
-                  badgeError,
-                );
-                // Don't fail the request if badge check fails
-              }
-            }
           } catch (emailError) {
             console.error("[BOOKING_PATCH] Error sending email:", emailError);
             // Don't fail the request if email fails

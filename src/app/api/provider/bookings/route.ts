@@ -88,6 +88,8 @@ export async function GET(request: NextRequest) {
 
 function getStatusColor(status: string) {
   switch (status) {
+    case "AWAITING_CLIENT_CONFIRMATION":
+      return "bg-indigo-100 text-indigo-700";
     case "COMPLETED":
       return "bg-emerald-100 text-emerald-700";
     case "IN_PROGRESS":

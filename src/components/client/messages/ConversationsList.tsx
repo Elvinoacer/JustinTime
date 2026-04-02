@@ -2,6 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 interface Conversation {
   partner: {
@@ -190,13 +191,15 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                 <div className="flex space-x-3">
                   <div className="shrink-0 relative">
                     {conv.partner.image ? (
-                      <img
+                      <Image
                         src={conv.partner.image}
                         alt={conv.partner.name}
+                        width={isMobile ? 40 : 48}
+                        height={isMobile ? 40 : 48}
+                        unoptimized
                         className={`rounded-full object-cover border border-gray-200 ${
                           isMobile ? "h-10 w-10" : "h-12 w-12"
                         }`}
-                        loading="lazy"
                       />
                     ) : (
                       <div
@@ -241,8 +244,8 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                       </span>
                     </div>
 
-                    {/* Role and Phone Display - Hidden on small mobile */}
-                    {!isMobile && (conv.partner.role || conv.partner.phone) && (
+                    {/* Role Display - Hidden on small mobile */}
+                    {!isMobile && conv.partner.role && (
                       <div className="flex items-center gap-2 mb-1">
                         {conv.partner.role && (
                           <span
@@ -253,14 +256,6 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                             } text-[10px]`}
                           >
                             {conv.partner.role}
-                          </span>
-                        )}
-                        {conv.partner.phone && (
-                          <span className="text-[10px] text-gray-500 flex items-center">
-                            <span className="material-symbols-outlined text-[10px] mr-0.5">
-                              phone
-                            </span>
-                            {conv.partner.phone}
                           </span>
                         )}
                       </div>

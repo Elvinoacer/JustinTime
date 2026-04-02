@@ -387,9 +387,12 @@ const ServiceFormModal = ({
         newErrors.description = "Description must be at least 10 characters";
         isValid = false;
       }
-      if (formData.requiresAvailability && !formData.defaultDuration) {
+      if (
+        formData.defaultDuration === null ||
+        formData.defaultDuration === undefined
+      ) {
         newErrors.defaultDuration =
-          "Set a default duration when availability scheduling is enabled";
+          "Set a default duration to support booking slot calculations";
         isValid = false;
       }
       if (
@@ -727,6 +730,7 @@ const ServiceFormModal = ({
                             setFormData({
                               ...formData,
                               requiresAvailability: false,
+                              defaultDuration: formData.defaultDuration ?? 60,
                             })
                           }
                           className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
@@ -742,13 +746,13 @@ const ServiceFormModal = ({
 
                     <div>
                       <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                        Default Duration (minutes)
+                        Default Duration (minutes){" "}
+                        <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="number"
                         min={15}
                         step={15}
-                        disabled={!formData.requiresAvailability}
                         value={formData.defaultDuration ?? ""}
                         onChange={(e) =>
                           setFormData({
@@ -763,7 +767,7 @@ const ServiceFormModal = ({
                           errors.defaultDuration
                             ? "border-red-300 focus:ring-red-500"
                             : "border-gray-200 focus:ring-emerald-500"
-                        } focus:ring-2 focus:border-transparent transition-all text-sm text-gray-900 placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-400`}
+                        } focus:ring-2 focus:border-transparent transition-all text-sm text-gray-900 placeholder:text-gray-500`}
                         placeholder="60"
                       />
                       {errors.defaultDuration && (
@@ -1458,6 +1462,7 @@ const ServiceFormModal = ({
                             setFormData({
                               ...formData,
                               requiresAvailability: false,
+                              defaultDuration: formData.defaultDuration ?? 60,
                             })
                           }
                           className={`rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
@@ -1473,13 +1478,13 @@ const ServiceFormModal = ({
 
                     <div>
                       <label className="mb-2 block text-sm font-semibold text-gray-700">
-                        Default Duration (minutes)
+                        Default Duration (minutes){" "}
+                        <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="number"
                         min={15}
                         step={15}
-                        disabled={!formData.requiresAvailability}
                         value={formData.defaultDuration ?? ""}
                         onChange={(e) =>
                           setFormData({
@@ -1494,7 +1499,7 @@ const ServiceFormModal = ({
                           errors.defaultDuration
                             ? "border-red-300 focus:ring-red-500"
                             : "border-gray-200 focus:ring-emerald-500"
-                        } focus:border-transparent focus:ring-2 disabled:bg-gray-100 disabled:text-gray-400`}
+                        } focus:border-transparent focus:ring-2`}
                         placeholder="60"
                       />
                       {errors.defaultDuration && (

@@ -53,6 +53,11 @@ const STEPS = [
     title: "Review & confirm",
     description: "Double-check the request and submit it.",
   },
+  {
+    step: 4,
+    title: "Negotiate (optional)",
+    description: "Propose adjustments before you submit.",
+  },
 ];
 
 function getLocationLabel(locationType?: string | null) {
@@ -92,6 +97,9 @@ function BookingPageContent() {
     clientPhone,
     clientAddress,
     promoCode,
+    appliedPromo,
+    promoDiscount,
+    negotiationData,
   } = state;
 
   const {
@@ -103,6 +111,9 @@ function BookingPageContent() {
     setClientPhone,
     setClientAddress,
     setPromoCode,
+    setAppliedPromo,
+    setPromoDiscount,
+    setNegotiationData,
   } = setters;
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -115,13 +126,6 @@ function BookingPageContent() {
   >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showNegotiationDialog, setShowNegotiationDialog] = useState(false);
-  const [negotiationData, setNegotiationData] = useState({
-    proposedPrice: "",
-    proposedLocation: "",
-    message: "",
-  });
-  const [appliedPromo, setAppliedPromo] = useState("");
-  const [promoDiscount, setPromoDiscount] = useState(0);
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
   const [promoError, setPromoError] = useState("");
   const [showMobileSummaryDetails, setShowMobileSummaryDetails] =
@@ -170,9 +174,17 @@ function BookingPageContent() {
 
   const mobileProgress = (currentStep / STEPS.length) * 100;
   const isMobileContinueDisabled =
-    currentStep === 1 ? !canProceedToStep2 : !canProceedToStep3;
+    currentStep === 1
+      ? !canProceedToStep2
+      : currentStep === 2
+        ? !canProceedToStep3
+        : false;
   const mobileContinueLabel =
-    currentStep === 1 ? "Continue to details" : "Review booking";
+    currentStep === 1
+      ? "Continue to details"
+      : currentStep === 2
+        ? "Review booking"
+        : "Continue";
 
   const mobileDisabledHint = useMemo(() => {
     if (!isMobileContinueDisabled) return "";
@@ -420,6 +432,18 @@ function BookingPageContent() {
       const result = await response.json();
 
       if (!response.ok) {
+        const isSlotConflict =
+          response.status === 409 && result?.code === "BOOKING_SLOT_CONFLICT";
+
+        if (isSlotConflict) {
+          setSelectedTimeSlots({});
+          setCurrentStep(1);
+          toast.error(
+            "One or more selected slots are no longer available. Please choose new times.",
+          );
+          return;
+        }
+
         throw new Error(
           result.error || result.reason || "Failed to create booking",
         );
@@ -565,7 +589,7 @@ function BookingPageContent() {
                       Booking progress
                     </p>
                     <p className="text-sm text-slate-600">
-                      Step {currentStep} of 3
+                      Step {currentStep} of {STEPS.length}
                     </p>
                   </div>
                 </div>
@@ -638,7 +662,7 @@ function BookingPageContent() {
               />
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2">
+            <div className="mt-3 grid grid-cols-4 gap-1.5 sm:gap-2">
               {STEPS.map((step) => {
                 const isActive = currentStep === step.step;
                 const isComplete = currentStep > step.step;
@@ -821,8 +845,9 @@ function BookingPageContent() {
                       </h2>
                       <p className="mt-2 text-[13px] leading-5 text-slate-600 sm:text-sm sm:leading-6">
                         Review your summary (right side on desktop, snapshot on
-                        mobile). If everything looks good, confirm the request
-                        or send a negotiation proposal.
+                        mobile). If everything looks good, confirm the request.
+                        If you need adjustments, continue to the negotiation
+                        step.
                       </p>
                     </div>
 
@@ -849,20 +874,18 @@ function BookingPageContent() {
                       <div className="space-y-4">
                         <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-3.5 text-[13px] leading-5 text-slate-600 sm:p-4 sm:text-sm sm:leading-6">
                           Confirming creates a pending booking request and
-                          notifies the professional immediately. If you need to
-                          adjust price or location first, use the negotiation
-                          option below.
+                          notifies the professional immediately.
                         </div>
 
                         <div className="hidden gap-3 sm:grid sm:grid-cols-2">
                           <button
                             type="button"
-                            onClick={() => setShowNegotiationDialog(true)}
+                            onClick={() => setCurrentStep(4)}
                             disabled={isSubmitting}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-sky-700 disabled:opacity-50"
                           >
                             <Handshake className="h-4 w-4" />
-                            Negotiate first
+                            Go to negotiation
                           </button>
                           <button
                             type="button"
@@ -881,6 +904,70 @@ function BookingPageContent() {
                                 Confirm booking
                               </>
                             )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
+                {currentStep === 4 ? (
+                  <div className="space-y-6">
+                    <div>
+                      <h2 className="text-lg font-bold tracking-tight text-slate-950 sm:text-2xl">
+                        Negotiate (optional)
+                      </h2>
+                      <p className="mt-2 text-[13px] leading-5 text-slate-600 sm:text-sm sm:leading-6">
+                        Send a proposal if you want to adjust the price,
+                        location, or notes before the booking is submitted.
+                      </p>
+                    </div>
+
+                    {status === "unauthenticated" ? (
+                      <div className="rounded-[1.5rem] border border-sky-200 bg-sky-50 p-4 text-center sm:p-6">
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+                          <User className="h-8 w-8" />
+                        </div>
+                        <h3 className="mt-3 text-base font-bold text-slate-950 sm:mt-4 sm:text-lg">
+                          Sign in to continue negotiation
+                        </h3>
+                        <p className="mx-auto mt-2 max-w-md text-[13px] leading-5 text-slate-600 sm:text-sm sm:leading-6">
+                          Your booking draft is saved. Sign in and continue from
+                          this step.
+                        </p>
+                        <button
+                          onClick={handleLoginRedirect}
+                          className="mt-4 rounded-2xl bg-sky-600 px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-sky-700 sm:mt-5 sm:px-6 sm:py-3 sm:text-sm"
+                        >
+                          Continue to sign in
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 p-3.5 text-[13px] leading-5 text-slate-600 sm:p-4 sm:text-sm sm:leading-6">
+                          Open the negotiation form to share your preferred
+                          price or location details. You can return to review
+                          anytime.
+                        </div>
+
+                        <div className="hidden gap-3 sm:grid sm:grid-cols-2">
+                          <button
+                            type="button"
+                            onClick={() => setCurrentStep(3)}
+                            disabled={isSubmitting}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            Back to review
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowNegotiationDialog(true)}
+                            disabled={isSubmitting}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-sky-700 disabled:opacity-50"
+                          >
+                            <Handshake className="h-4 w-4" />
+                            Open negotiation form
                           </button>
                         </div>
                       </div>
@@ -1055,12 +1142,12 @@ function BookingPageContent() {
             <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
               <button
                 type="button"
-                onClick={() => setShowNegotiationDialog(true)}
+                onClick={() => setCurrentStep(4)}
                 disabled={isSubmitting}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-3 text-[13px] font-semibold text-white transition-colors hover:bg-sky-700 disabled:opacity-50 sm:h-12 sm:text-sm"
               >
                 <Handshake className="h-4 w-4" />
-                Negotiate
+                Go to negotiate
               </button>
 
               <button
@@ -1080,6 +1167,34 @@ function BookingPageContent() {
                     Confirm
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {currentStep === 4 && status !== "unauthenticated" ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
+          <div className="mx-auto max-w-7xl px-3 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] pt-2.5 sm:px-4 sm:pt-3">
+            <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setCurrentStep(3)}
+                disabled={isSubmitting}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-[13px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50 sm:h-12 sm:text-sm"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back to review
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowNegotiationDialog(true)}
+                disabled={isSubmitting}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-3 text-[13px] font-semibold text-white transition-colors hover:bg-sky-700 disabled:opacity-50 sm:h-12 sm:text-sm"
+              >
+                <Handshake className="h-4 w-4" />
+                Open form
               </button>
             </div>
           </div>

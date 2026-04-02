@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import React, { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { toggleCall } from "@/components/communication/CallOverlay";
 import { Phone, Video as VideoIcon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -47,6 +48,8 @@ interface ChatWindowProps {
   isTyping?: boolean;
   onDeleteMessage?: (messageId: string) => void;
   onClearConversation?: (partnerId: string) => void;
+  onTypingStart?: () => void;
+  onTypingStop?: () => void;
   isOnline?: boolean;
   onBack?: () => void;
   isMobile?: boolean;
@@ -60,6 +63,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   isTyping = false,
   onDeleteMessage,
   onClearConversation,
+  onTypingStart,
+  onTypingStop,
   isOnline = false,
   onBack,
   isMobile = false,
@@ -70,6 +75,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingActiveRef = useRef(false);
   const [filePreview, setFilePreview] = useState<{
     file: File;
     url: string;
@@ -95,8 +102,17 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       if (filePreview) {
         URL.revokeObjectURL(filePreview.url);
       }
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      if (typingActiveRef.current) {
+        typingActiveRef.current = false;
+        onTypingStop?.();
+      }
     };
-  }, [filePreview]);
+  }, [filePreview, onTypingStop]);
 
   useEffect(() => {
     if (!messageInputRef.current) return;
@@ -109,9 +125,42 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
+  const stopTypingSignal = () => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+
+    if (typingActiveRef.current) {
+      typingActiveRef.current = false;
+      onTypingStop?.();
+    }
+  };
+
+  const scheduleTypingStop = () => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      stopTypingSignal();
+    }, 1500);
+  };
+
+  const notifyTyping = () => {
+    if (!typingActiveRef.current) {
+      typingActiveRef.current = true;
+      onTypingStart?.();
+    }
+
+    scheduleTypingStop();
+  };
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!newMessage.trim() && !filePreview) || isUploading) return;
+
+    stopTypingSignal();
 
     try {
       setIsUploading(true);
@@ -200,6 +249,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
+  const handleMessageChange = (value: string) => {
+    setNewMessage(value);
+
+    if (value.trim().length > 0) {
+      notifyTyping();
+    } else {
+      stopTypingSignal();
+    }
+  };
+
   if (!partner) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 h-full text-gray-400 p-4">
@@ -248,9 +307,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           )}
           <div className="relative">
             {partner.image ? (
-              <img
+              <Image
                 src={partner.image}
                 alt={partner.name}
+                width={isMobile ? 32 : 40}
+                height={isMobile ? 32 : 40}
+                unoptimized
                 className={`rounded-full object-cover border border-gray-200 ${
                   isMobile ? "h-8 w-8" : "h-10 w-10"
                 }`}
@@ -302,14 +364,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                       {partner.role}
                     </span>
                   )}
-                  {partner.phone && !isMobile && (
-                    <span className="hidden sm:flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[10px]">
-                        phone
-                      </span>
-                      {partner.phone}
-                    </span>
-                  )}
                 </>
               )}
             </div>
@@ -322,11 +376,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               toggleCall(partner.id, partner.name, partner.image, "AUDIO")
             }
             className="inline-flex items-center gap-1.5 p-2 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-full sm:rounded-lg transition-colors touch-manipulation"
-            title="Voice Call"
-            aria-label="Start voice call"
+            title="In-App Audio Call (Internet required)"
+            aria-label="Start in-app audio call"
           >
             <Phone className="w-5 h-5" />
-            <span className="hidden md:inline text-xs font-semibold">Call</span>
+            <span className="hidden lg:inline text-xs font-semibold">
+              In-App Audio
+            </span>
           </button>
           <button
             onClick={() =>
@@ -334,12 +390,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               toggleCall(partner.id, partner.name, partner.image, "VIDEO")
             }
             className="inline-flex items-center gap-1.5 p-2 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-full sm:rounded-lg transition-colors touch-manipulation"
-            title="Video Call"
-            aria-label="Start video call"
+            title="In-App Video Call (Internet required)"
+            aria-label="Start in-app video call"
           >
             <VideoIcon className="w-5 h-5" />
-            <span className="hidden md:inline text-xs font-semibold">
-              Video
+            <span className="hidden lg:inline text-xs font-semibold">
+              In-App Video
             </span>
           </button>
 
@@ -374,9 +430,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                         )
                       ) {
                         setShowMenu(false);
-                        onClearConversation &&
-                          partner &&
+                        if (onClearConversation && partner) {
                           onClearConversation(partner.id);
+                        }
                       } else {
                         setShowMenu(false);
                       }
@@ -520,14 +576,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                       >
                         {isImageFile(msg.fileUrl, msg.fileType) && (
                           <div className="mb-2">
-                            <img
+                            <Image
                               src={msg.fileUrl!}
                               alt="Shared image"
-                              className="rounded-lg w-full max-h-72 sm:max-h-96 object-cover cursor-pointer hover:opacity-95 transition-opacity touch-manipulation"
+                              width={1280}
+                              height={960}
+                              unoptimized
+                              className="rounded-lg w-full h-auto max-h-72 sm:max-h-96 object-cover cursor-pointer hover:opacity-95 transition-opacity touch-manipulation"
                               onClick={() =>
                                 window.open(msg.fileUrl!, "_blank")
                               }
-                              loading="lazy"
                             />
                           </div>
                         )}
@@ -690,9 +748,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             }`}
           >
             {filePreview.type === "image" ? (
-              <img
+              <Image
                 src={filePreview.url}
                 alt="Preview"
+                width={isMobile ? 48 : 64}
+                height={isMobile ? 48 : 64}
+                unoptimized
                 className={`rounded-lg object-cover border border-gray-200 ${
                   isMobile ? "w-12 h-12" : "w-16 h-16"
                 }`}
@@ -814,10 +875,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     : "Type your message..."
                 }
                 value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
+                onChange={(e) => handleMessageChange(e.target.value)}
                 onKeyDown={handleComposerKeyDown}
                 onFocus={() => setIsComposerFocused(true)}
-                onBlur={() => setIsComposerFocused(false)}
+                onBlur={() => {
+                  setIsComposerFocused(false);
+                  stopTypingSignal();
+                }}
                 className={`w-full resize-none overflow-y-auto max-h-35 bg-transparent border-0 focus:outline-none focus:ring-0 text-gray-900 placeholder:text-gray-400 leading-5 ${
                   isMobile ? "px-1 py-2 text-sm" : "px-1 py-2.5 text-sm"
                 }`}

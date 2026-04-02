@@ -4,6 +4,9 @@ import { useState, useMemo, Fragment } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { DateRange } from "react-day-picker";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { cancelBooking } from "@/app/actions/cancellation";
+import DisputeModal from "@/components/bookings/DisputeModal";
 import {
   useProviderBookings,
   useUpdateBooking,
@@ -11,6 +14,7 @@ import {
 } from "@/lib/api/hooks/useProvider";
 import { Calendar } from "@/components/ui/calendar";
 import { Modal, ConfirmModal } from "@/components/Modal";
+import apiClient from "@/lib/api/client";
 import { toast } from "sonner";
 import { Popover, Transition } from "@headlessui/react";
 
@@ -19,6 +23,7 @@ const BookingsPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const queryClient = useQueryClient();
 
   const {
     data: bookingsData,
@@ -37,9 +42,102 @@ const BookingsPage = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [cancellationError, setCancellationError] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [editStatus, setEditStatus] = useState("");
   const [editNotes, setEditNotes] = useState("");
+
+  const getErrorMessage = (error: any, fallback: string) => {
+    const zodErrors = error?.response?.data?.error;
+    if (Array.isArray(zodErrors) && zodErrors[0]?.message) {
+      return zodErrors[0].message;
+    }
+
+    return (
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      fallback
+    );
+  };
+
+  const canCancelBooking = (status: string) =>
+    status === "PENDING" || status === "CONFIRMED";
+
+  const canDisputeBooking = (status: string) =>
+    ["CONFIRMED", "IN_PROGRESS"].includes(status);
+
+  const handleInitiateCancel = (booking: any) => {
+    setSelectedBooking(booking);
+    setCancellationReason("");
+    setCancellationError("");
+    setIsViewModalOpen(false);
+    setIsCancelModalOpen(true);
+  };
+
+  const handleInitiateDispute = (booking: any) => {
+    setSelectedBooking(booking);
+    setIsViewModalOpen(false);
+    setIsDisputeModalOpen(true);
+  };
+
+  const cancelBookingMutation = useMutation({
+    mutationFn: async ({
+      bookingId,
+      reason,
+    }: {
+      bookingId: string;
+      reason: string;
+    }) => {
+      return cancelBooking(bookingId, reason);
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["provider", "bookings"] });
+      const refundAmount = Number(result?.refundAmount || 0);
+      if (refundAmount > 0) {
+        toast.success(
+          `Booking cancelled. KES ${refundAmount.toLocaleString()} refunded to client wallet.`,
+        );
+      } else {
+        toast.success("Booking cancelled successfully");
+      }
+
+      setIsCancelModalOpen(false);
+      setCancellationReason("");
+      setCancellationError("");
+      setSelectedBooking(null);
+    },
+    onError: (error: any) => {
+      toast.error(getErrorMessage(error, "Failed to cancel booking"));
+    },
+  });
+
+  const disputeBookingMutation = useMutation({
+    mutationFn: async ({
+      bookingId,
+      reason,
+    }: {
+      bookingId: string;
+      reason: string;
+    }) => {
+      const response = await apiClient.post(`/bookings/${bookingId}/dispute`, {
+        reason,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["provider", "bookings"] });
+      toast.success("Dispute filed successfully. Admin review has started.");
+      setIsDisputeModalOpen(false);
+      setIsViewModalOpen(false);
+      setSelectedBooking(null);
+    },
+    onError: (error: any) => {
+      toast.error(getErrorMessage(error, "Failed to file dispute"));
+    },
+  });
 
   const bookings = bookingsData?.bookings || [];
 
@@ -57,6 +155,9 @@ const BookingsPage = () => {
     return {
       all: bookings.length,
       COMPLETED: bookings.filter((b: any) => b.status === "COMPLETED").length,
+      AWAITING_CLIENT_CONFIRMATION: bookings.filter(
+        (b: any) => b.status === "AWAITING_CLIENT_CONFIRMATION",
+      ).length,
       PENDING: bookings.filter((b: any) => b.status === "PENDING").length,
       CONFIRMED: bookings.filter((b: any) => b.status === "CONFIRMED").length,
       IN_PROGRESS: bookings.filter((b: any) => b.status === "IN_PROGRESS")
@@ -70,6 +171,8 @@ const BookingsPage = () => {
       PENDING: "bg-amber-100 text-amber-800 border-amber-200",
       CONFIRMED: "bg-blue-100 text-blue-800 border-blue-200",
       IN_PROGRESS: "bg-purple-100 text-purple-800 border-purple-200",
+      AWAITING_CLIENT_CONFIRMATION:
+        "bg-indigo-100 text-indigo-800 border-indigo-200",
       COMPLETED: "bg-emerald-100 text-emerald-800 border-emerald-200",
       CANCELLED: "bg-red-100 text-red-800 border-red-200",
       DISPUTED: "bg-orange-100 text-orange-800 border-orange-200",
@@ -85,6 +188,7 @@ const BookingsPage = () => {
       PENDING: "schedule",
       CONFIRMED: "check_circle",
       IN_PROGRESS: "pending",
+      AWAITING_CLIENT_CONFIRMATION: "hourglass_top",
       COMPLETED: "task_alt",
       CANCELLED: "cancel",
       DISPUTED: "gavel",
@@ -144,8 +248,8 @@ const BookingsPage = () => {
         </div>
       </div>
 
-      {/* Stats Cards - Mobile: 2 columns, Desktop: 5 columns */}
-      <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4 mb-6 sm:mb-8">
+      {/* Stats Cards - Mobile: 2 columns, Desktop: 6 columns */}
+      <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4 mb-6 sm:mb-8">
         {[
           {
             label: "Total",
@@ -174,6 +278,13 @@ const BookingsPage = () => {
             value: "IN_PROGRESS",
             gradient: "from-purple-500 to-purple-600",
             icon: "pending",
+          },
+          {
+            label: "Awaiting client",
+            count: statusCounts.AWAITING_CLIENT_CONFIRMATION,
+            value: "AWAITING_CLIENT_CONFIRMATION",
+            gradient: "from-indigo-500 to-indigo-600",
+            icon: "hourglass_top",
           },
           {
             label: "Completed",
@@ -491,10 +602,7 @@ const BookingsPage = () => {
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     {booking.status === "PENDING" ? (
                       <button
-                        onClick={() => {
-                          setSelectedBooking(booking);
-                          setIsCancelModalOpen(true);
-                        }}
+                        onClick={() => handleInitiateCancel(booking)}
                         className="w-full p-2 sm:p-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 sm:gap-2 group"
                       >
                         <span className="material-symbols-outlined text-xs sm:text-sm group-hover:scale-110 transition-transform">
@@ -669,10 +777,7 @@ const BookingsPage = () => {
                           </button>
                           {booking.status === "PENDING" && (
                             <button
-                              onClick={() => {
-                                setSelectedBooking(booking);
-                                setIsCancelModalOpen(true);
-                              }}
+                              onClick={() => handleInitiateCancel(booking)}
                               className="p-1.5 sm:p-2 text-gray-600 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
                               title="Cancel"
                             >
@@ -754,6 +859,13 @@ const BookingsPage = () => {
                 <p className="text-xs sm:text-sm text-gray-600">Client</p>
               </div>
             </div>
+
+            {selectedBooking.status === "DISPUTED" && (
+              <div className="rounded-lg border border-orange-300 bg-orange-50 px-4 py-3 text-sm text-orange-900">
+                This booking is in dispute. Funds remain frozen while admin
+                support investigates both sides.
+              </div>
+            )}
 
             {/* Contact Information - Quick Actions */}
             {(selectedBooking.clientPhone || selectedBooking.clientAddress) && (
@@ -953,13 +1065,31 @@ const BookingsPage = () => {
               </div>
             </div>
 
-            <div className="flex justify-end pt-3 sm:pt-4 border-t border-gray-200">
+            <div className="flex flex-wrap justify-end gap-2 pt-3 sm:pt-4 border-t border-gray-200">
               <button
                 onClick={() => setIsViewModalOpen(false)}
                 className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-sm transition-colors"
               >
                 Close
               </button>
+
+              {canCancelBooking(selectedBooking.status) && (
+                <button
+                  onClick={() => handleInitiateCancel(selectedBooking)}
+                  className="px-4 sm:px-6 py-2 sm:py-2.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-medium text-sm transition-colors"
+                >
+                  Cancel Booking
+                </button>
+              )}
+
+              {canDisputeBooking(selectedBooking.status) && (
+                <button
+                  onClick={() => handleInitiateDispute(selectedBooking)}
+                  className="px-4 sm:px-6 py-2 sm:py-2.5 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg font-medium text-sm transition-colors"
+                >
+                  File Dispute
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -988,7 +1118,9 @@ const BookingsPage = () => {
               <option value="PENDING">Pending</option>
               <option value="CONFIRMED">Confirmed</option>
               <option value="IN_PROGRESS">In Progress</option>
-              <option value="COMPLETED">Completed</option>
+              <option value="AWAITING_CLIENT_CONFIRMATION">
+                Awaiting Client Confirmation
+              </option>
               <option value="CANCELLED">Cancelled</option>
             </select>
           </div>
@@ -1056,30 +1188,121 @@ const BookingsPage = () => {
         </div>
       </Modal>
 
-      {/* Cancel Confirmation Modal */}
-      <ConfirmModal
+      {/* Cancel Booking Modal */}
+      <Modal
         isOpen={isCancelModalOpen}
-        onClose={() => setIsCancelModalOpen(false)}
-        onConfirm={() => {
-          if (!selectedBooking) return;
-          updateBooking.mutate(
-            { id: selectedBooking.id, data: { status: "CANCELLED" } },
-            {
-              onSuccess: () => {
-                toast.success("Booking cancelled successfully");
-                setIsCancelModalOpen(false);
-              },
-              onError: () => {
-                toast.error("Failed to cancel booking");
-              },
-            },
-          );
+        onClose={() => {
+          if (!cancelBookingMutation.isPending) {
+            setIsCancelModalOpen(false);
+            setCancellationError("");
+          }
         }}
         title="Cancel Booking"
-        description="Are you sure you want to cancel this booking? This action cannot be undone and the client will be notified."
-        confirmText="Yes, Cancel Booking"
-        danger
-        isLoading={updateBooking.isPending}
+        icon="warning"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            A cancellation reason is required for support and refund audit
+            records.
+          </p>
+
+          {selectedBooking && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <p className="text-sm font-semibold text-gray-900">
+                {selectedBooking.service}
+              </p>
+              <p className="mt-1 text-xs text-gray-600">
+                Client: {selectedBooking.client}
+              </p>
+            </div>
+          )}
+
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">
+              Cancellation reason <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              rows={4}
+              maxLength={500}
+              value={cancellationReason}
+              onChange={(event) => {
+                setCancellationReason(event.target.value);
+                if (cancellationError) setCancellationError("");
+              }}
+              placeholder="Explain why you are cancelling this booking."
+              className={`w-full resize-none rounded-lg border px-3 py-2 text-sm text-gray-900 outline-none transition-all focus:border-transparent focus:ring-2 ${
+                cancellationError
+                  ? "border-red-300 focus:ring-red-500"
+                  : "border-gray-300 focus:ring-emerald-500"
+              }`}
+            />
+            <div className="mt-1 flex items-center justify-between text-xs">
+              <p
+                className={cancellationError ? "text-red-600" : "text-gray-500"}
+              >
+                {cancellationError || "Minimum 5 characters"}
+              </p>
+              <p className="text-gray-500">{cancellationReason.length}/500</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse gap-2 xs:flex-row xs:justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                setIsCancelModalOpen(false);
+                setCancellationError("");
+              }}
+              disabled={cancelBookingMutation.isPending}
+              className="rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50"
+            >
+              Keep Booking
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!selectedBooking) return;
+                const normalizedReason = cancellationReason.trim();
+                if (normalizedReason.length < 5) {
+                  setCancellationError("Please provide at least 5 characters.");
+                  return;
+                }
+
+                setCancellationError("");
+                cancelBookingMutation.mutate({
+                  bookingId: selectedBooking.id,
+                  reason: normalizedReason,
+                });
+              }}
+              disabled={cancelBookingMutation.isPending}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+            >
+              {cancelBookingMutation.isPending
+                ? "Cancelling..."
+                : "Confirm Cancel"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <DisputeModal
+        isOpen={isDisputeModalOpen}
+        onClose={() => {
+          if (!disputeBookingMutation.isPending) {
+            setIsDisputeModalOpen(false);
+          }
+        }}
+        onSubmit={(reason) => {
+          if (!selectedBooking) return;
+
+          disputeBookingMutation.mutate({
+            bookingId: selectedBooking.id,
+            reason,
+          });
+        }}
+        isSubmitting={disputeBookingMutation.isPending}
+        title="File Booking Dispute"
       />
 
       {/* Delete Confirmation Modal */}

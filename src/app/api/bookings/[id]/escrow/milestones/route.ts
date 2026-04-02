@@ -110,7 +110,13 @@ export async function POST(
         status: true,
         notes: true,
         payment: {
-          select: { id: true, status: true },
+          select: {
+            id: true,
+            status: true,
+            method: true,
+            amount: true,
+            transactionId: true,
+          },
         },
       },
     });
@@ -154,6 +160,49 @@ export async function POST(
       );
     }
 
+    if (!booking.payment) {
+      return new NextResponse(
+        "Cannot configure milestones before payment is recorded",
+        { status: 409 },
+      );
+    }
+
+    if (["FAILED", "REFUNDED"].includes(booking.payment.status)) {
+      return new NextResponse(
+        "Cannot configure milestones for failed or refunded payments",
+        { status: 409 },
+      );
+    }
+
+    if (!booking.payment.transactionId?.trim()) {
+      return new NextResponse(
+        "Cannot configure milestones until a confirmed payment reference exists",
+        { status: 409 },
+      );
+    }
+
+    if (
+      booking.payment.method !== "WALLET" &&
+      booking.payment.status !== "COMPLETED"
+    ) {
+      return new NextResponse(
+        "Cannot configure milestones until payment is confirmed by the gateway",
+        { status: 409 },
+      );
+    }
+
+    if (!withinMoneyTolerance(Number(booking.payment.amount), bookingTotal)) {
+      return NextResponse.json(
+        {
+          error:
+            "Payment amount must match booking total before milestone configuration",
+          paymentAmount: Number(booking.payment.amount),
+          bookingTotal,
+        },
+        { status: 400 },
+      );
+    }
+
     const { plainNotes } = extractEscrowMilestones(booking.notes);
     const escrowState: EscrowMilestoneState = {
       version: 1,
@@ -177,24 +226,14 @@ export async function POST(
         data: { notes: notesWithEscrow },
       });
 
-      if (!booking.payment) {
-        await tx.payment.create({
-          data: {
-            bookingId: booking.id,
-            amount: booking.totalAmount,
-            method: "WALLET",
-            status: "PENDING",
-            transactionId: `escrow_hold_${booking.id}`,
-          },
-        });
-      }
-
       return updatedBooking;
     });
 
     return NextResponse.json({
       bookingId: result.id,
       escrow: escrowState,
+      paymentId: booking.payment.id,
+      paymentTransactionId: booking.payment.transactionId,
       message: "Milestone escrow configured",
     });
   } catch (error) {
@@ -229,6 +268,15 @@ export async function PATCH(
         totalAmount: true,
         status: true,
         notes: true,
+        payment: {
+          select: {
+            id: true,
+            status: true,
+            method: true,
+            amount: true,
+            transactionId: true,
+          },
+        },
       },
     });
 
@@ -254,6 +302,37 @@ export async function PATCH(
         {
           status: 409,
         },
+      );
+    }
+
+    if (!booking.payment) {
+      return new NextResponse(
+        "Cannot release milestones before payment is recorded",
+        { status: 409 },
+      );
+    }
+
+    if (["FAILED", "REFUNDED"].includes(booking.payment.status)) {
+      return new NextResponse(
+        "Cannot release milestones for failed or refunded payments",
+        { status: 409 },
+      );
+    }
+
+    if (!booking.payment.transactionId?.trim()) {
+      return new NextResponse(
+        "Cannot release milestones until a confirmed payment reference exists",
+        { status: 409 },
+      );
+    }
+
+    if (
+      booking.payment.method !== "WALLET" &&
+      booking.payment.status !== "COMPLETED"
+    ) {
+      return new NextResponse(
+        "Cannot release milestones until payment is confirmed by the gateway",
+        { status: 409 },
       );
     }
 
@@ -288,29 +367,21 @@ export async function PATCH(
       escrow.totalAmount,
     );
 
+    const nextPaymentStatus = isFullyReleased
+      ? "COMPLETED"
+      : booking.payment.status === "COMPLETED"
+        ? "COMPLETED"
+        : "PENDING";
+
     await prisma.$transaction(async (tx) => {
       await tx.booking.update({
         where: { id: booking.id },
         data: { notes: notesWithEscrow },
       });
 
-      await tx.payment.upsert({
-        where: { bookingId: booking.id },
-        update: {
-          status: isFullyReleased ? "COMPLETED" : "PENDING",
-          transactionId: isFullyReleased
-            ? `escrow_release_${booking.id}_all`
-            : `escrow_partial_${booking.id}_${escrow.milestones.filter((m) => m.status === "RELEASED").length}`,
-        },
-        create: {
-          bookingId: booking.id,
-          amount: booking.totalAmount,
-          method: "WALLET",
-          status: isFullyReleased ? "COMPLETED" : "PENDING",
-          transactionId: isFullyReleased
-            ? `escrow_release_${booking.id}_all`
-            : `escrow_partial_${booking.id}_1`,
-        },
+      await tx.payment.update({
+        where: { id: booking.payment.id },
+        data: { status: nextPaymentStatus },
       });
     });
 

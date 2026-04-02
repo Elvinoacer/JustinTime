@@ -2,12 +2,53 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-// @ts-ignore
+import Image from "next/image";
+// @ts-expect-error simple-peer types are not resolved in this workspace setup
 import SimplePeer from "simple-peer";
 import VideoCallInterface from "./VideoCallInterface";
 import { logCallStart, logCallStatus } from "@/app/actions/calls";
 import { toast } from "sonner";
 import { Phone, Video } from "lucide-react";
+
+type CallType = "AUDIO" | "VIDEO";
+
+type IncomingCallPayload = {
+  from: string;
+  name?: string;
+  image?: string | null;
+  signal: unknown;
+  callType?: CallType;
+  callId?: string;
+};
+
+type InitiateCallEventDetail = {
+  userId: string;
+  userName: string;
+  userImage: string | null;
+  type: CallType;
+};
+
+type IceCandidatePayload = {
+  candidate?: unknown;
+};
+
+type WebkitAudioWindow = Window & {
+  webkitAudioContext?: typeof AudioContext;
+};
+
+interface SocketClient {
+  connected: boolean;
+  connect: () => void;
+  emit: (event: string, payload?: unknown) => void;
+  on: (event: string, handler: (...args: unknown[]) => void) => void;
+  off: (event: string, handler?: (...args: unknown[]) => void) => void;
+}
+
+interface PeerClient {
+  signal: (data: unknown) => void;
+  on: (event: string, handler: (...args: unknown[]) => void) => void;
+  destroy: () => void;
+}
 
 // Global event bus for triggering calls from other components
 export const callEvents = new EventTarget();
@@ -16,7 +57,7 @@ export function toggleCall(
   userId: string,
   userName: string,
   userImage: string | null,
-  type: "AUDIO" | "VIDEO" = "VIDEO",
+  type: CallType = "VIDEO",
 ) {
   const event = new CustomEvent("initiate_call", {
     detail: { userId, userName, userImage, type },
@@ -31,29 +72,42 @@ export default function CallOverlay() {
   const [callStatus, setCallStatus] = useState<
     "idle" | "incoming" | "calling" | "ongoing"
   >("idle");
-  const [callType, setCallType] = useState<"AUDIO" | "VIDEO">("VIDEO");
+  const [callType, setCallType] = useState<CallType>("VIDEO");
   const [partnerId, setPartnerId] = useState<string>("");
   const [partnerName, setPartnerName] = useState<string>("");
   const [partnerImage, setPartnerImage] = useState<string | null>(null);
-  const [incomingCallSignal, setIncomingCallSignal] = useState<any>(null);
+  const [incomingCallSignal, setIncomingCallSignal] = useState<unknown>(null);
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
 
-  const socket = useRef<any>(null);
-  const peer = useRef<any>(null);
+  const socket = useRef<SocketClient | null>(null);
+  const peer = useRef<PeerClient | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const currentCallIdRef = useRef<string | null>(null);
+  const callDurationRef = useRef(0);
   const streamRef = useRef<MediaStream | null>(null);
   const partnerStreamRef = useRef<MediaStream | null>(null);
   const partnerIdRef = useRef<string>("");
   const incomingAlertIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const initiateCallRef = useRef<
+    (
+      id: string,
+      name: string,
+      image: string | null,
+      type: CallType,
+    ) => Promise<void>
+  >(async () => {});
 
   useEffect(() => {
     currentCallIdRef.current = currentCallId;
   }, [currentCallId]);
+
+  useEffect(() => {
+    callDurationRef.current = callDuration;
+  }, [callDuration]);
 
   useEffect(() => {
     streamRef.current = stream;
@@ -95,8 +149,9 @@ export default function CallOverlay() {
   const playIncomingTone = useCallback(() => {
     try {
       if (!audioContextRef.current) {
+        const contextWindow = window as WebkitAudioWindow;
         const Context =
-          window.AudioContext || (window as any).webkitAudioContext;
+          globalThis.AudioContext || contextWindow.webkitAudioContext;
         if (!Context) return;
         audioContextRef.current = new Context();
       }
@@ -214,15 +269,87 @@ export default function CallOverlay() {
     [stopIncomingAlert],
   );
 
+  useEffect(() => {
+    if (callStatus !== "ongoing" || !currentCallId) {
+      return;
+    }
+
+    const heartbeat = setInterval(() => {
+      const callId = currentCallIdRef.current;
+      if (!callId) {
+        return;
+      }
+
+      fetch("/api/calls/heartbeat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        keepalive: true,
+        body: JSON.stringify({
+          callId,
+          mode: "heartbeat",
+          durationSeconds: callDurationRef.current,
+        }),
+      }).catch(() => {
+        // no-op
+      });
+    }, 30000);
+
+    return () => clearInterval(heartbeat);
+  }, [callStatus, currentCallId]);
+
+  useEffect(() => {
+    if (callStatus !== "ongoing" || !currentCallId) {
+      return;
+    }
+
+    const notifyEnd = () => {
+      const callId = currentCallIdRef.current;
+      if (!callId) {
+        return;
+      }
+
+      const payload = JSON.stringify({ callId, mode: "end" });
+
+      if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+        navigator.sendBeacon(
+          "/api/calls/heartbeat",
+          new Blob([payload], { type: "application/json" }),
+        );
+        return;
+      }
+
+      fetch("/api/calls/heartbeat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        keepalive: true,
+        body: payload,
+      }).catch(() => {
+        // no-op
+      });
+    };
+
+    window.addEventListener("beforeunload", notifyEnd);
+    window.addEventListener("pagehide", notifyEnd);
+
+    return () => {
+      window.removeEventListener("beforeunload", notifyEnd);
+      window.removeEventListener("pagehide", notifyEnd);
+    };
+  }, [callStatus, currentCallId]);
+
   // Initialize Socket
   useEffect(() => {
     let mounted = true;
     let handleConnect: (() => void) | null = null;
-    let handleCallUser: ((data: any) => void) | null = null;
-    let handleCallAccepted: ((signal: any) => void) | null = null;
+    let handleCallUser: ((data: unknown) => void) | null = null;
+    let handleCallAccepted: ((signal: unknown) => void) | null = null;
     let handleCallRejected: (() => void) | null = null;
     let handleCallEnded: (() => void) | null = null;
-    let handleIceCandidate: ((data: any) => void) | null = null;
+    let handleIceCandidate: ((data: unknown) => void) | null = null;
 
     if (session?.user?.id) {
       import("@/lib/socket").then(
@@ -235,23 +362,32 @@ export default function CallOverlay() {
           socket.current.connect();
 
           handleConnect = () => {
-            socket.current.emit("join", session.user.id);
+            socket.current?.emit("join", session.user.id);
           };
 
-          handleCallUser = (data: any) => {
+          handleCallUser = (payload: unknown) => {
+            const data = (payload || {}) as Partial<IncomingCallPayload>;
+            if (typeof data.from !== "string" || data.signal == null) {
+              return;
+            }
+
+            const resolvedType: CallType =
+              data.callType === "AUDIO" ? "AUDIO" : "VIDEO";
+
             setCallStatus("incoming");
             setPartnerId(data.from);
             setPartnerName(data.name || "Unknown User");
             setPartnerImage(data.image || null);
             setIncomingCallSignal(data.signal);
-            setCallType(data.callType || "VIDEO");
-            startIncomingAlert(
-              data.name || "Unknown User",
-              data.callType || "VIDEO",
-            );
+            setCallType(resolvedType);
+            if (data.callId) {
+              setCurrentCallId(data.callId);
+              currentCallIdRef.current = data.callId;
+            }
+            startIncomingAlert(data.name || "Unknown User", resolvedType);
           };
 
-          handleCallAccepted = (signal: any) => {
+          handleCallAccepted = (signal: unknown) => {
             setCallStatus("ongoing");
             if (peer.current) {
               peer.current.signal(signal);
@@ -272,10 +408,13 @@ export default function CallOverlay() {
             cleanupCall("ENDED", { notifyPeer: false });
           };
 
-          handleIceCandidate = (data: any) => {
-            if (peer.current) {
-              peer.current.signal(data.candidate);
+          handleIceCandidate = (payload: unknown) => {
+            const data = (payload || {}) as IceCandidatePayload;
+            if (!peer.current || data.candidate == null) {
+              return;
             }
+
+            peer.current.signal(data.candidate);
           };
 
           socket.current.on("connect", handleConnect);
@@ -313,15 +452,34 @@ export default function CallOverlay() {
 
   // Listen for outgoing call events
   useEffect(() => {
-    const handleInitiateCall = (e: any) => {
-      const { userId, userName, userImage, type } = e.detail;
-      initiateCall(userId, userName, userImage, type);
+    const handleInitiateCall = (event: Event) => {
+      if (!(event instanceof CustomEvent)) {
+        return;
+      }
+
+      const detail = (event.detail || {}) as Partial<InitiateCallEventDetail>;
+      if (
+        typeof detail.userId !== "string" ||
+        typeof detail.userName !== "string"
+      ) {
+        return;
+      }
+
+      const resolvedType: CallType =
+        detail.type === "AUDIO" ? "AUDIO" : "VIDEO";
+
+      void initiateCallRef.current(
+        detail.userId,
+        detail.userName,
+        detail.userImage ?? null,
+        resolvedType,
+      );
     };
 
     callEvents.addEventListener("initiate_call", handleInitiateCall);
     return () =>
       callEvents.removeEventListener("initiate_call", handleInitiateCall);
-  }, [session]);
+  }, []);
 
   const startTimer = () => {
     setCallDuration(0);
@@ -331,7 +489,7 @@ export default function CallOverlay() {
     }, 1000);
   };
 
-  const getMediaStream = async (type: "AUDIO" | "VIDEO") => {
+  const getMediaStream = useCallback(async (type: CallType) => {
     try {
       const currentStream = await navigator.mediaDevices.getUserMedia({
         video: type === "VIDEO",
@@ -347,72 +505,80 @@ export default function CallOverlay() {
       toast.error("Could not access camera/microphone");
       return null;
     }
-  };
+  }, []);
 
-  const initiateCall = async (
-    id: string,
-    name: string,
-    image: string | null,
-    type: "AUDIO" | "VIDEO",
-  ) => {
-    if (!session?.user?.id || !socket.current) return;
+  const initiateCall = useCallback(
+    async (id: string, name: string, image: string | null, type: CallType) => {
+      if (!session?.user?.id || !socket.current) return;
 
-    if (!socket.current.connected) {
-      socket.current.connect();
-      socket.current.emit("join", session.user.id);
-    }
+      if (!socket.current.connected) {
+        socket.current.connect();
+        socket.current.emit("join", session.user.id);
+      }
 
-    setPartnerId(id);
-    setPartnerName(name);
-    setPartnerImage(image);
-    setCallType(type);
-    setCallStatus("calling");
+      setPartnerId(id);
+      setPartnerName(name);
+      setPartnerImage(image);
+      setCallType(type);
+      setCallStatus("calling");
 
-    const currentStream = await getMediaStream(type);
-    if (!currentStream) {
-      setCallStatus("idle");
-      return;
-    }
+      const currentStream = await getMediaStream(type);
+      if (!currentStream) {
+        setCallStatus("idle");
+        return;
+      }
 
-    // Log call in DB
-    const logRes = await logCallStart(id, type);
-    if (logRes.success && logRes.callId) {
-      setCurrentCallId(logRes.callId);
-    }
+      // Log call in DB
+      const logRes = await logCallStart(id, type);
+      const startedCallId =
+        logRes.success && logRes.callId ? logRes.callId : null;
+      if (startedCallId) {
+        setCurrentCallId(startedCallId);
+        currentCallIdRef.current = startedCallId;
+      }
 
-    const p = new SimplePeer({
-      initiator: true,
-      trickle: false,
-      stream: currentStream,
-    });
-
-    p.on("signal", (data: any) => {
-      socket.current.emit("call_user", {
-        userToCall: id,
-        signalData: data,
-        from: session.user.id,
-        name: session.user.name,
-        image: session.user.image,
-        callType: type,
+      const p = new SimplePeer({
+        initiator: true,
+        trickle: false,
+        stream: currentStream,
       });
-    });
 
-    p.on("stream", (remoteStream: MediaStream) => {
-      setPartnerStream(remoteStream);
-    });
+      p.on("signal", (data: unknown) => {
+        socket.current?.emit("call_user", {
+          userToCall: id,
+          signalData: data,
+          from: session.user.id,
+          name: session.user.name,
+          image: session.user.image,
+          callType: type,
+          callId: startedCallId,
+        });
+      });
 
-    p.on("close", () => {
-      cleanupCall("ENDED", { notifyPeer: false });
-    });
+      p.on("stream", (remoteStream: unknown) => {
+        if (remoteStream instanceof MediaStream) {
+          setPartnerStream(remoteStream);
+        }
+      });
 
-    p.on("error", (error: unknown) => {
-      console.error("Call peer error:", error);
-      toast.error("Call connection failed");
-      cleanupCall("ENDED", { notifyPeer: false });
-    });
+      p.on("close", () => {
+        cleanupCall("ENDED", { notifyPeer: false });
+      });
 
-    peer.current = p;
-  };
+      p.on("error", (error: unknown) => {
+        console.error("Call peer error:", error);
+        toast.error("Call connection failed");
+        cleanupCall("ENDED", { notifyPeer: false });
+      });
+
+      peer.current = p;
+    },
+    [cleanupCall, getMediaStream, session],
+  );
+
+  useEffect(() => {
+    initiateCallRef.current = initiateCall;
+  }, [initiateCall]);
 
   const answerCall = async () => {
     if (!socket.current) return;
@@ -420,6 +586,12 @@ export default function CallOverlay() {
     stopIncomingAlert();
     setCallStatus("ongoing");
     startTimer();
+
+    const activeCallId = currentCallIdRef.current;
+    if (activeCallId) {
+      logCallStatus(activeCallId, "ACCEPTED");
+      logCallStatus(activeCallId, "ONGOING");
+    }
 
     const currentStream = await getMediaStream(callType);
     if (!currentStream) {
@@ -433,12 +605,14 @@ export default function CallOverlay() {
       stream: currentStream,
     });
 
-    p.on("signal", (data: any) => {
-      socket.current.emit("answer_call", { signal: data, to: partnerId });
+    p.on("signal", (data: unknown) => {
+      socket.current?.emit("answer_call", { signal: data, to: partnerId });
     });
 
-    p.on("stream", (remoteStream: MediaStream) => {
-      setPartnerStream(remoteStream);
+    p.on("stream", (remoteStream: unknown) => {
+      if (remoteStream instanceof MediaStream) {
+        setPartnerStream(remoteStream);
+      }
     });
 
     p.on("error", (error: unknown) => {
@@ -447,7 +621,9 @@ export default function CallOverlay() {
       cleanupCall("ENDED", { notifyPeer: false });
     });
 
-    p.signal(incomingCallSignal);
+    if (incomingCallSignal != null) {
+      p.signal(incomingCallSignal);
+    }
     peer.current = p;
   };
 
@@ -456,6 +632,14 @@ export default function CallOverlay() {
     if (socket.current && partnerId) {
       socket.current.emit("reject_call", { to: partnerId });
     }
+
+    const activeCallId = currentCallIdRef.current;
+    if (activeCallId) {
+      logCallStatus(activeCallId, "REJECTED");
+      currentCallIdRef.current = null;
+      setCurrentCallId(null);
+    }
+
     setCallStatus("idle");
     setPartnerId("");
     setPartnerName("");
@@ -495,9 +679,12 @@ export default function CallOverlay() {
           <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
               {partnerImage ? (
-                <img
+                <Image
                   src={partnerImage}
                   alt=""
+                  width={64}
+                  height={64}
+                  unoptimized
                   className="w-full h-full object-cover"
                 />
               ) : (

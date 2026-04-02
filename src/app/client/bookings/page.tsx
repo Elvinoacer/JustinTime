@@ -1,4 +1,6 @@
 "use client";
+import { cancelBooking } from "@/app/actions/cancellation";
+import DisputeModal from "@/components/bookings/DisputeModal";
 import { Modal } from "@/components/Modal";
 import apiClient from "@/lib/api/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,8 +14,6 @@ interface Booking {
   date: string;
   status: string;
   totalAmount: number;
-  insuranceFee?: number;
-  exciseDutyAmount?: number;
   insuranceFee?: number;
   exciseDutyAmount?: number;
   notes?: string;
@@ -53,6 +53,8 @@ const statusColors: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-800 border-amber-300",
   CONFIRMED: "bg-blue-100 text-blue-800 border-blue-300",
   IN_PROGRESS: "bg-purple-100 text-purple-800 border-purple-300",
+  AWAITING_CLIENT_CONFIRMATION:
+    "bg-indigo-100 text-indigo-800 border-indigo-300",
   COMPLETED: "bg-emerald-100 text-emerald-800 border-emerald-300",
   CANCELLED: "bg-red-100 text-red-800 border-red-300",
   DISPUTED: "bg-orange-100 text-orange-800 border-orange-300",
@@ -62,6 +64,7 @@ const statusIcons: Record<string, string> = {
   PENDING: "schedule",
   CONFIRMED: "check_circle",
   IN_PROGRESS: "pending",
+  AWAITING_CLIENT_CONFIRMATION: "hourglass_top",
   COMPLETED: "task_alt",
   CANCELLED: "cancel",
   DISPUTED: "gavel",
@@ -73,15 +76,46 @@ export default function ClientBookingsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  
+
   // Cancellation State
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [cancellationError, setCancellationError] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
+
+  const getErrorMessage = (error: any, fallback: string) => {
+    const zodErrors = error?.response?.data?.error;
+    if (Array.isArray(zodErrors) && zodErrors[0]?.message) {
+      return zodErrors[0].message;
+    }
+
+    return (
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      fallback
+    );
+  };
+
+  const canCancelBooking = (status: string) =>
+    status === "PENDING" || status === "CONFIRMED";
+
+  const canDisputeBooking = (status: string) =>
+    ["CONFIRMED", "IN_PROGRESS"].includes(status);
 
   const handleInitiateCancel = (booking: Booking) => {
-      setSelectedBooking(booking);
-      setIsViewModalOpen(false);
-      setIsCancelModalOpen(true);
+    setSelectedBooking(booking);
+    setCancellationReason("");
+    setCancellationError("");
+    setIsViewModalOpen(false);
+    setIsCancelModalOpen(true);
+  };
+
+  const handleInitiateDispute = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setIsViewModalOpen(false);
+    setIsDisputeModalOpen(true);
   };
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -93,20 +127,58 @@ export default function ClientBookingsPage() {
   });
 
   const cancelBookingMutation = useMutation({
-    mutationFn: async (bookingId: string) => {
-      const response = await apiClient.patch(`/bookings/${bookingId}`, {
-        status: "CANCELLED",
+    mutationFn: async ({
+      bookingId,
+      reason,
+    }: {
+      bookingId: string;
+      reason: string;
+    }) => {
+      return cancelBooking(bookingId, reason);
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["client-bookings"] });
+      setIsViewModalOpen(false);
+      const refundAmount = Number(result?.refundAmount || 0);
+      if (refundAmount > 0) {
+        toast.success(
+          `Booking cancelled. KES ${refundAmount.toLocaleString()} refunded to your wallet.`,
+        );
+      } else {
+        toast.success("Booking cancelled successfully");
+      }
+      setIsCancelModalOpen(false);
+      setCancellationReason("");
+      setCancellationError("");
+      setSelectedBooking(null);
+    },
+    onError: (error: any) => {
+      toast.error(getErrorMessage(error, "Failed to cancel booking"));
+    },
+  });
+
+  const disputeBookingMutation = useMutation({
+    mutationFn: async ({
+      bookingId,
+      reason,
+    }: {
+      bookingId: string;
+      reason: string;
+    }) => {
+      const response = await apiClient.post(`/bookings/${bookingId}/dispute`, {
+        reason,
       });
       return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["client-bookings"] });
-      toast.success("Booking cancelled successfully");
-      setIsCancelModalOpen(false);
+      toast.success("Dispute filed successfully. Admin review has started.");
+      setIsDisputeModalOpen(false);
+      setIsViewModalOpen(false);
       setSelectedBooking(null);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || "Failed to cancel booking");
+      toast.error(getErrorMessage(error, "Failed to file dispute"));
     },
   });
 
@@ -123,6 +195,28 @@ export default function ClientBookingsPage() {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to delete booking");
+    },
+  });
+
+  const confirmCompletionMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
+      const response = await apiClient.post(
+        `/bookings/${bookingId}/confirm-completion`,
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["client-bookings"] });
+      toast.success("Booking marked as completed");
+      setIsViewModalOpen(false);
+      setSelectedBooking(null);
+    },
+    onError: (error: any) => {
+      toast.error(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Failed to confirm completion",
+      );
     },
   });
 
@@ -152,7 +246,17 @@ export default function ClientBookingsPage() {
 
   const handleCancelBooking = () => {
     if (selectedBooking) {
-      cancelBookingMutation.mutate(selectedBooking.id);
+      const normalizedReason = cancellationReason.trim();
+      if (normalizedReason.length < 5) {
+        setCancellationError("Please provide at least 5 characters.");
+        return;
+      }
+
+      setCancellationError("");
+      cancelBookingMutation.mutate({
+        bookingId: selectedBooking.id,
+        reason: normalizedReason,
+      });
     }
   };
 
@@ -160,6 +264,10 @@ export default function ClientBookingsPage() {
     if (selectedBooking) {
       deleteBookingMutation.mutate(selectedBooking.id);
     }
+  };
+
+  const handleConfirmCompletion = (bookingId: string) => {
+    confirmCompletionMutation.mutate(bookingId);
   };
 
   if (error) {
@@ -218,7 +326,7 @@ export default function ClientBookingsPage() {
                 .split(" ")
                 .map(
                   (word) =>
-                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
                 )
                 .join(" ")}
             </div>
@@ -331,7 +439,7 @@ export default function ClientBookingsPage() {
                                         {
                                           month: "short",
                                           day: "numeric",
-                                        }
+                                        },
                                       )}
                                       <span className="text-gray-300 mx-1">
                                         |
@@ -364,11 +472,11 @@ export default function ClientBookingsPage() {
                                       month: "short",
                                       day: "numeric",
                                       year: booking.date.includes(
-                                        new Date().getFullYear().toString()
+                                        new Date().getFullYear().toString(),
                                       )
                                         ? undefined
                                         : "numeric",
-                                    }
+                                    },
                                   )}
                                   <span className="text-gray-300 mx-1">|</span>
                                   {new Date(booking.date).toLocaleTimeString(
@@ -377,7 +485,7 @@ export default function ClientBookingsPage() {
                                       hour: "numeric",
                                       minute: "2-digit",
                                       hour12: true,
-                                    }
+                                    },
                                   )}
                                 </span>
                               </div>
@@ -436,13 +544,26 @@ export default function ClientBookingsPage() {
                       </button>
 
                       <div className="flex gap-2">
-                        {(booking.status === "PENDING" ||
-                          booking.status === "CONFIRMED") && (
+                        {booking.status === "AWAITING_CLIENT_CONFIRMATION" && (
                           <button
-                            onClick={() => {
-                              setSelectedBooking(booking);
-                              setIsCancelModalOpen(true);
-                            }}
+                            onClick={() => handleConfirmCompletion(booking.id)}
+                            disabled={confirmCompletionMutation.isPending}
+                            className="flex-1 xs:flex-none px-3 py-2 md:px-4 md:py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 text-sm md:text-base touch-manipulation disabled:opacity-50"
+                          >
+                            <span className="material-symbols-outlined text-sm md:text-base">
+                              task_alt
+                            </span>
+                            <span>
+                              {confirmCompletionMutation.isPending
+                                ? "Confirming..."
+                                : "Confirm Complete"}
+                            </span>
+                          </button>
+                        )}
+
+                        {canCancelBooking(booking.status) && (
+                          <button
+                            onClick={() => handleInitiateCancel(booking)}
                             className="flex-1 xs:flex-none px-3 py-2 md:px-4 md:py-2 bg-white border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5 text-sm md:text-base touch-manipulation"
                           >
                             <span className="material-symbols-outlined text-sm md:text-base">
@@ -451,6 +572,19 @@ export default function ClientBookingsPage() {
                             <span>Cancel</span>
                           </button>
                         )}
+
+                        {canDisputeBooking(booking.status) && (
+                          <button
+                            onClick={() => handleInitiateDispute(booking)}
+                            className="flex-1 xs:flex-none px-3 py-2 md:px-4 md:py-2 bg-white border border-orange-300 text-orange-700 rounded-lg font-medium hover:bg-orange-50 transition-colors flex items-center justify-center gap-1.5 text-sm md:text-base touch-manipulation"
+                          >
+                            <span className="material-symbols-outlined text-sm md:text-base">
+                              gavel
+                            </span>
+                            <span>Dispute</span>
+                          </button>
+                        )}
+
                         {(booking.status === "CANCELLED" ||
                           booking.status === "COMPLETED") && (
                           <button
@@ -489,31 +623,38 @@ export default function ClientBookingsPage() {
             <div className="flex items-center justify-between gap-3 md:gap-4 p-3 md:p-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg md:rounded-xl border border-emerald-200">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-md md:shadow-lg flex-shrink-0">
-                    {selectedBooking.provider.image ? (
+                  {selectedBooking.provider.image ? (
                     <img
-                        src={selectedBooking.provider.image}
-                        alt={selectedBooking.provider.name}
-                        className="w-full h-full rounded-full object-cover"
+                      src={selectedBooking.provider.image}
+                      alt={selectedBooking.provider.name}
+                      className="w-full h-full rounded-full object-cover"
                     />
-                    ) : (
+                  ) : (
                     selectedBooking.provider.name.charAt(0).toUpperCase()
-                    )}
+                  )}
                 </div>
                 <div className="min-w-0">
-                    <h4 className="font-bold text-gray-900 text-base md:text-lg truncate">
+                  <h4 className="font-bold text-gray-900 text-base md:text-lg truncate">
                     {selectedBooking.provider.name}
-                    </h4>
-                    <p className="text-xs md:text-sm text-gray-600">
+                  </h4>
+                  <p className="text-xs md:text-sm text-gray-600">
                     Service Provider
-                    </p>
+                  </p>
                 </div>
               </div>
-              
+
               {/* Secure Call Button - Only for confirmed/in-progress */}
-              {['CONFIRMED', 'IN_PROGRESS'].includes(selectedBooking.status) && (
-                  <SecureCallButton bookingId={selectedBooking.id} />
-              )}
+              {["CONFIRMED", "IN_PROGRESS"].includes(
+                selectedBooking.status,
+              ) && <SecureCallButton bookingId={selectedBooking.id} />}
             </div>
+
+            {selectedBooking.status === "DISPUTED" && (
+              <div className="rounded-lg border border-orange-300 bg-orange-50 px-4 py-3 text-sm text-orange-900">
+                This booking is currently disputed. Funds remain frozen while
+                admin support reviews the case.
+              </div>
+            )}
 
             {/* Details Grid - 2 columns on mobile */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
@@ -541,32 +682,46 @@ export default function ClientBookingsPage() {
                   </p>
                 </div>
                 <div className="space-y-1">
-                    {selectedBooking.exciseDutyAmount ? (
-                        <>
-                             <div className="flex justify-between text-xs text-gray-600">
-                                <span>Service Cost</span>
-                                <span>KES {(selectedBooking.totalAmount - (selectedBooking.exciseDutyAmount || 0) - (selectedBooking.insuranceFee || 0)).toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between text-xs text-gray-600">
-                                <span>Excise Duty (20%)</span>
-                                <span>KES {selectedBooking.exciseDutyAmount.toLocaleString()}</span>
-                            </div>
-                             {selectedBooking.insuranceFee && (
-                                <div className="flex justify-between text-xs text-emerald-700 font-medium">
-                                    <span>Happiness Pledge</span>
-                                    <span>KES {selectedBooking.insuranceFee.toLocaleString()}</span>
-                                </div>
-                            )}
-                             <div className="flex justify-between font-bold text-emerald-600 pt-1 border-t border-gray-200 mt-1">
-                                <span>Total</span>
-                                <span>KES {selectedBooking.totalAmount.toLocaleString()}</span>
-                            </div>
-                        </>
-                    ) : (
-                         <p className="font-semibold text-emerald-600 text-lg md:text-xl">
-                            KES {selectedBooking.totalAmount.toLocaleString()}
-                        </p>
-                    )}
+                  {selectedBooking.exciseDutyAmount ? (
+                    <>
+                      <div className="flex justify-between text-xs text-gray-600">
+                        <span>Service Cost</span>
+                        <span>
+                          KES{" "}
+                          {(
+                            selectedBooking.totalAmount -
+                            (selectedBooking.exciseDutyAmount || 0) -
+                            (selectedBooking.insuranceFee || 0)
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-600">
+                        <span>Excise Duty (20%)</span>
+                        <span>
+                          KES{" "}
+                          {selectedBooking.exciseDutyAmount.toLocaleString()}
+                        </span>
+                      </div>
+                      {selectedBooking.insuranceFee && (
+                        <div className="flex justify-between text-xs text-emerald-700 font-medium">
+                          <span>Happiness Pledge</span>
+                          <span>
+                            KES {selectedBooking.insuranceFee.toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-bold text-emerald-600 pt-1 border-t border-gray-200 mt-1">
+                        <span>Total</span>
+                        <span>
+                          KES {selectedBooking.totalAmount.toLocaleString()}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="font-semibold text-emerald-600 text-lg md:text-xl">
+                      KES {selectedBooking.totalAmount.toLocaleString()}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -670,32 +825,156 @@ export default function ClientBookingsPage() {
               >
                 Close
               </button>
-              
-              {["PENDING", "CONFIRMED"].includes(selectedBooking.status) && (
-                  <button
-                    onClick={() => handleInitiateCancel(selectedBooking)}
-                    className="px-4 py-2 md:px-6 md:py-2.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-medium transition-colors text-sm md:text-base touch-manipulation"
-                  >
-                    Cancel Booking
-                  </button>
+
+              {canCancelBooking(selectedBooking.status) && (
+                <button
+                  onClick={() => handleInitiateCancel(selectedBooking)}
+                  className="px-4 py-2 md:px-6 md:py-2.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-medium transition-colors text-sm md:text-base touch-manipulation"
+                >
+                  Cancel Booking
+                </button>
+              )}
+
+              {canDisputeBooking(selectedBooking.status) && (
+                <button
+                  onClick={() => handleInitiateDispute(selectedBooking)}
+                  className="px-4 py-2 md:px-6 md:py-2.5 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg font-medium transition-colors text-sm md:text-base touch-manipulation"
+                >
+                  File Dispute
+                </button>
               )}
 
               {selectedBooking.invoice && (
                 <a
-                    href={`/bookings/${selectedBooking.id}/invoice`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 md:px-6 md:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors text-sm md:text-base touch-manipulation flex items-center gap-2"
+                  href={`/bookings/${selectedBooking.id}/invoice`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 md:px-6 md:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors text-sm md:text-base touch-manipulation flex items-center gap-2"
                 >
-                    <span className="material-symbols-outlined text-sm">receipt_long</span>
-                    View Invoice
+                  <span className="material-symbols-outlined text-sm">
+                    receipt_long
+                  </span>
+                  View Invoice
                 </a>
+              )}
+
+              {selectedBooking.status === "AWAITING_CLIENT_CONFIRMATION" && (
+                <button
+                  onClick={() => handleConfirmCompletion(selectedBooking.id)}
+                  disabled={confirmCompletionMutation.isPending}
+                  className="px-4 py-2 md:px-6 md:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors text-sm md:text-base touch-manipulation disabled:opacity-50"
+                >
+                  {confirmCompletionMutation.isPending
+                    ? "Confirming..."
+                    : "Confirm Completion"}
+                </button>
               )}
             </div>
           </div>
         )}
       </Modal>
 
+      <Modal
+        isOpen={isCancelModalOpen}
+        onClose={() => {
+          if (!cancelBookingMutation.isPending) {
+            setIsCancelModalOpen(false);
+            setCancellationError("");
+          }
+        }}
+        title="Cancel Booking"
+        icon="warning"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            Share the cancellation reason. This is required for refund and
+            support audit records.
+          </p>
+
+          {selectedBooking && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <p className="text-sm font-semibold text-gray-900">
+                {selectedBooking.job?.title || selectedBooking.service?.title}
+              </p>
+              <p className="mt-1 text-xs text-gray-600">
+                Provider: {selectedBooking.provider.name}
+              </p>
+            </div>
+          )}
+
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-gray-700">
+              Cancellation reason <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              rows={4}
+              maxLength={500}
+              value={cancellationReason}
+              onChange={(event) => {
+                setCancellationReason(event.target.value);
+                if (cancellationError) setCancellationError("");
+              }}
+              placeholder="Explain why you are cancelling this booking."
+              className={`w-full resize-none rounded-lg border px-3 py-2 text-sm text-gray-900 outline-none transition-all focus:border-transparent focus:ring-2 ${
+                cancellationError
+                  ? "border-red-300 focus:ring-red-500"
+                  : "border-gray-300 focus:ring-emerald-500"
+              }`}
+            />
+            <div className="mt-1 flex items-center justify-between text-xs">
+              <p
+                className={cancellationError ? "text-red-600" : "text-gray-500"}
+              >
+                {cancellationError || "Minimum 5 characters"}
+              </p>
+              <p className="text-gray-500">{cancellationReason.length}/500</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse gap-2 xs:flex-row xs:justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                setIsCancelModalOpen(false);
+                setCancellationError("");
+              }}
+              disabled={cancelBookingMutation.isPending}
+              className="rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50"
+            >
+              Keep Booking
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelBooking}
+              disabled={cancelBookingMutation.isPending}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+            >
+              {cancelBookingMutation.isPending
+                ? "Cancelling..."
+                : "Confirm Cancel"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <DisputeModal
+        isOpen={isDisputeModalOpen}
+        onClose={() => {
+          if (!disputeBookingMutation.isPending) {
+            setIsDisputeModalOpen(false);
+          }
+        }}
+        onSubmit={(reason) => {
+          if (!selectedBooking) return;
+          disputeBookingMutation.mutate({
+            bookingId: selectedBooking.id,
+            reason,
+          });
+        }}
+        isSubmitting={disputeBookingMutation.isPending}
+        title="File Booking Dispute"
+      />
 
       {/* Delete Confirmation Modal */}
       <Modal

@@ -271,7 +271,7 @@ export async function runJobSlaMonitor(
           not: null,
         },
         status: {
-          in: ["CONFIRMED", "IN_PROGRESS"],
+          in: ["CONFIRMED", "IN_PROGRESS", "AWAITING_CLIENT_CONFIRMATION"],
         },
         date: {
           lte: delayedCutoff,

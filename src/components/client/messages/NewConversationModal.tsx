@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import apiClient from "@/lib/api/client";
 
 interface Contact {
@@ -42,7 +43,7 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
     const fetchRecentContacts = async () => {
       try {
         const { data } = await apiClient.get<{ contacts: Contact[] }>(
-          "/messages/recent-contacts"
+          "/messages/recent-contacts",
         );
         setRecentContacts(data.contacts);
       } catch (error) {
@@ -65,7 +66,7 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
       setIsLoading(true);
       try {
         const { data } = await apiClient.get<{ contacts: Contact[] }>(
-          `/messages/contacts?search=${encodeURIComponent(searchQuery)}`
+          `/messages/contacts?search=${encodeURIComponent(searchQuery)}`,
         );
         setContacts(data.contacts);
       } catch (error) {
@@ -193,13 +194,15 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
                         className="flex items-center p-3 hover:bg-gray-50 active:bg-gray-100 rounded-lg sm:rounded-xl cursor-pointer transition-colors border border-transparent hover:border-gray-100 touch-manipulation"
                       >
                         {contact.image ? (
-                          <img
+                          <Image
                             src={contact.image}
                             alt={contact.name || "User"}
+                            width={isMobile ? 40 : 44}
+                            height={isMobile ? 40 : 44}
+                            unoptimized
                             className={`rounded-full object-cover border border-gray-200 ${
                               isMobile ? "w-10 h-10" : "w-11 h-11"
                             }`}
-                            loading="lazy"
                           />
                         ) : (
                           <div
@@ -232,20 +235,6 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
                             >
                               {contact.role}
                             </span>
-                            {contact.phone && (
-                              <span
-                                className={`text-gray-500 flex items-center gap-0.5 truncate ${
-                                  isMobile ? "text-[10px]" : "text-xs"
-                                }`}
-                              >
-                                <span className="material-symbols-outlined text-[10px]">
-                                  phone
-                                </span>
-                                <span className="truncate max-w-[80px] sm:max-w-[120px]">
-                                  {contact.phone}
-                                </span>
-                              </span>
-                            )}
                           </div>
                         </div>
                         <span className="material-symbols-outlined text-gray-300 text-lg">
@@ -287,13 +276,15 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
                           className="flex items-center p-3 hover:bg-gray-50 active:bg-gray-100 rounded-lg sm:rounded-xl cursor-pointer transition-colors border border-transparent hover:border-gray-100 touch-manipulation"
                         >
                           {contact.image ? (
-                            <img
+                            <Image
                               src={contact.image}
                               alt={contact.name || "User"}
+                              width={isMobile ? 40 : 44}
+                              height={isMobile ? 40 : 44}
+                              unoptimized
                               className={`rounded-full object-cover border border-gray-200 ${
                                 isMobile ? "w-10 h-10" : "w-11 h-11"
                               }`}
-                              loading="lazy"
                             />
                           ) : (
                             <div
@@ -326,20 +317,6 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
                               >
                                 {contact.role}
                               </span>
-                              {contact.phone && (
-                                <span
-                                  className={`text-gray-500 flex items-center gap-0.5 truncate ${
-                                    isMobile ? "text-[10px]" : "text-xs"
-                                  }`}
-                                >
-                                  <span className="material-symbols-outlined text-[10px]">
-                                    phone
-                                  </span>
-                                  <span className="truncate max-w-[80px] sm:max-w-[120px]">
-                                    {contact.phone}
-                                  </span>
-                                </span>
-                              )}
                             </div>
                           </div>
                           <span className="material-symbols-outlined text-gray-300 text-lg">

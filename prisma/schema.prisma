@@ -59,31 +59,33 @@ model User {
   sessions Session[]
 
   // Relations
-  profile                Profile?
-  services               Service[]
-  jobs                   Job[]
-  proposals              Proposal[]
-  bookings               Booking[]               @relation("ClientBookings")
-  providerBookings       Booking[]               @relation("ProviderBookings")
-  reviews                Review[]                @relation("WrittenReviews")
-  receivedReviews        Review[]                @relation("ReceivedReviews")
-  sentMessages           Message[]               @relation("SentMessages")
-  receivedMessages       Message[]               @relation("ReceivedMessages")
-  notifications          Notification[]
-  wallet                 Wallet?
-  subscription           Subscription?
-  disputes               Dispute[]               @relation("CreatedDisputes")
-  disputesAgainst        Dispute[]               @relation("DisputesAgainst")
-  supportTickets         SupportTicket[]
-  availability           Availability[]
-  availabilityExceptions AvailabilityException[]
-  initiatedNegotiations  BookingNegotiation[]    @relation("InitiatedNegotiations")
-  receivedNegotiations   BookingNegotiation[]    @relation("ReceivedNegotiations")
-  fcmTokens              UserToken[]
-  trustedContacts        TrustedContact[]
-  sosAlerts              SOSAlert[]
-  backgroundChecks       BackgroundCheck[]
-  taxFilings             TaxFiling[]
+  profile                       Profile?
+  services                      Service[]
+  jobs                          Job[]
+  proposals                     Proposal[]
+  bookings                      Booking[]                  @relation("ClientBookings")
+  providerBookings              Booking[]                  @relation("ProviderBookings")
+  reviews                       Review[]                   @relation("WrittenReviews")
+  receivedReviews               Review[]                   @relation("ReceivedReviews")
+  sentMessages                  Message[]                  @relation("SentMessages")
+  receivedMessages              Message[]                  @relation("ReceivedMessages")
+  conversationStates            MessageConversationState[] @relation("MessageConversationStates")
+  conversationCounterpartStates MessageConversationState[] @relation("MessageConversationCounterpartStates")
+  notifications                 Notification[]
+  wallet                        Wallet?
+  subscription                  Subscription?
+  disputes                      Dispute[]                  @relation("CreatedDisputes")
+  disputesAgainst               Dispute[]                  @relation("DisputesAgainst")
+  supportTickets                SupportTicket[]
+  availability                  Availability[]
+  availabilityExceptions        AvailabilityException[]
+  initiatedNegotiations         BookingNegotiation[]       @relation("InitiatedNegotiations")
+  receivedNegotiations          BookingNegotiation[]       @relation("ReceivedNegotiations")
+  fcmTokens                     UserToken[]
+  trustedContacts               TrustedContact[]
+  sosAlerts                     SOSAlert[]
+  backgroundChecks              BackgroundCheck[]
+  taxFilings                    TaxFiling[]
 
   // Referral system
   referralCode     String?    @unique
@@ -455,6 +457,7 @@ enum BookingStatus {
   PENDING
   CONFIRMED
   IN_PROGRESS
+  AWAITING_CLIENT_CONFIRMATION
   COMPLETED
   CANCELLED
   DISPUTED
@@ -741,6 +744,22 @@ model Message {
 
   sender   User @relation("SentMessages", fields: [senderId], references: [id])
   receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model MessageConversationState {
+  id          String    @id @default(cuid())
+  userId      String
+  otherUserId String
+  clearedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user      User @relation("MessageConversationStates", fields: [userId], references: [id], onDelete: Cascade)
+  otherUser User @relation("MessageConversationCounterpartStates", fields: [otherUserId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, otherUserId])
+  @@index([userId])
+  @@index([otherUserId])
 }
 
 // Notifications

@@ -36,10 +36,25 @@ interface Message {
   createdAt: string;
   isRead: boolean;
   isDelivered?: boolean;
+  clientTempId?: string;
 }
 
 interface SocketMessage extends Message {
   receiverId: string;
+  sender?: {
+    id: string;
+    name: string | null;
+    image: string | null;
+    role?: string;
+    phone?: string | null;
+  };
+  receiver?: {
+    id: string;
+    name: string | null;
+    image: string | null;
+    role?: string;
+    phone?: string | null;
+  };
 }
 
 interface Contact {
@@ -147,14 +162,63 @@ function ClientMessagesContent() {
     const handleReceiveMessage = (message: SocketMessage) => {
       const activePartnerId = selectedPartnerIdRef.current;
 
+      if (message.receiverId === session.user.id) {
+        void apiClient
+          .post("/messages/delivered", { messageId: message.id })
+          .catch((error) => {
+            console.error("Failed to persist delivery receipt:", error);
+          });
+
+        socket.emit("message_delivered", {
+          messageId: message.id,
+          senderId: message.senderId,
+          receiverId: session.user.id,
+        });
+
+        if (activePartnerId === message.senderId) {
+          void apiClient
+            .post("/messages/read", { messageId: message.id })
+            .catch((error) => {
+              console.error("Failed to persist read receipt:", error);
+            });
+
+          socket.emit("message_read", {
+            messageId: message.id,
+            senderId: message.senderId,
+            receiverId: session.user.id,
+          });
+        }
+      }
+
       if (
         activePartnerId &&
         (message.senderId === activePartnerId ||
           message.receiverId === activePartnerId)
       ) {
         setMessages((prev) => {
-          const exists = prev.some((m) => m.id === message.id);
-          return exists ? prev : [...prev, message];
+          const existingById = prev.some((item) => item.id === message.id);
+          if (existingById) {
+            return prev;
+          }
+
+          if (message.senderId === session.user.id && message.clientTempId) {
+            const tempIndex = prev.findIndex(
+              (item) => item.id === message.clientTempId,
+            );
+
+            if (tempIndex >= 0) {
+              const next = [...prev];
+              next[tempIndex] = {
+                ...next[tempIndex],
+                ...message,
+                id: message.id,
+                clientTempId: undefined,
+              };
+              return next;
+            }
+          }
+
+          return [...prev, message];
         });
       }
 
@@ -183,6 +247,34 @@ function ClientMessagesContent() {
           };
           const [updatedConv] = newConvs.splice(convIndex, 1);
           newConvs.unshift(updatedConv);
+        } else {
+          const partnerFromMessage =
+            message.senderId === session.user.id
+              ? message.receiver
+              : message.sender;
+          const partnerId =
+            message.senderId === session.user.id
+              ? message.receiverId
+              : message.senderId;
+
+          newConvs.unshift({
+            partner: {
+              id: partnerId,
+              name: partnerFromMessage?.name || "Conversation",
+              image: partnerFromMessage?.image || null,
+            },
+            lastMessage: {
+              content: message.content,
+              createdAt: message.createdAt,
+              isRead: false,
+              isOwn: message.senderId === session.user.id,
+            },
+            unreadCount:
+              message.senderId !== session.user.id &&
+              activePartnerId !== message.senderId
+                ? 1
+                : 0,
+          });
         }
 
         return newConvs;
@@ -221,12 +313,69 @@ function ClientMessagesContent() {
       setOnlineUsers(new Set(userIds));
     };
 
+    const handleMessageDelivered = ({ messageId }: { messageId: string }) => {
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === messageId
+            ? { ...message, isDelivered: true }
+            : message,
+        ),
+      );
+    };
+
+    const handleMessageRead = ({ messageId }: { messageId: string }) => {
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === messageId
+            ? { ...message, isRead: true, isDelivered: true }
+            : message,
+        ),
+      );
+    };
+
+    const handleMessagesRead = ({ messageIds }: { messageIds?: string[] }) => {
+      if (!messageIds || messageIds.length === 0) return;
+      const idSet = new Set(messageIds);
+      setMessages((prev) =>
+        prev.map((message) =>
+          idSet.has(message.id)
+            ? { ...message, isRead: true, isDelivered: true }
+            : message,
+        ),
+      );
+    };
+
+    const handleConversationCleared = ({
+      clearedById,
+      partnerId,
+    }: {
+      clearedById?: string;
+      partnerId?: string | null;
+    }) => {
+      if (clearedById !== session.user.id || !partnerId) {
+        return;
+      }
+
+      setConversations((prev) =>
+        prev.filter((conversation) => conversation.partner.id !== partnerId),
+      );
+
+      if (selectedPartnerIdRef.current === partnerId) {
+        setMessages([]);
+        setSelectedPartnerId(null);
+      }
+    };
+
     socket.on("receive_message", handleReceiveMessage);
     socket.on("user_typing", handleUserTyping);
     socket.on("user_stop_typing", handleUserStopTyping);
     socket.on("user_online", handleUserOnline);
     socket.on("user_offline", handleUserOffline);
     socket.on("online_users_list", handleOnlineUsersList);
+    socket.on("message_delivered", handleMessageDelivered);
+    socket.on("message_read", handleMessageRead);
+    socket.on("messages_read", handleMessagesRead);
+    socket.on("conversation_cleared", handleConversationCleared);
 
     return () => {
       socket.off("receive_message", handleReceiveMessage);
@@ -235,6 +384,10 @@ function ClientMessagesContent() {
       socket.off("user_online", handleUserOnline);
       socket.off("user_offline", handleUserOffline);
       socket.off("online_users_list", handleOnlineUsersList);
+      socket.off("message_delivered", handleMessageDelivered);
+      socket.off("message_read", handleMessageRead);
+      socket.off("messages_read", handleMessagesRead);
+      socket.off("conversation_cleared", handleConversationCleared);
     };
   }, [session]);
 
@@ -265,6 +418,22 @@ function ClientMessagesContent() {
     fetchMessages();
   }, [selectedPartnerId]);
 
+  const emitTypingStart = useCallback(() => {
+    if (!selectedPartnerId || !session?.user?.id) return;
+    socket.emit("typing", {
+      senderId: session.user.id,
+      receiverId: selectedPartnerId,
+    });
+  }, [selectedPartnerId, session?.user?.id]);
+
+  const emitTypingStop = useCallback(() => {
+    if (!selectedPartnerId || !session?.user?.id) return;
+    socket.emit("stop_typing", {
+      senderId: session.user.id,
+      receiverId: selectedPartnerId,
+    });
+  }, [selectedPartnerId, session?.user?.id]);
+
   const handleSendMessage = async (
     content: string,
     fileUrl?: string,
@@ -273,7 +442,7 @@ function ClientMessagesContent() {
     if (!selectedPartnerId || !session?.user) return;
 
     // Optimistic update
-    const tempId = Date.now().toString();
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const newMessage = {
       id: tempId,
       senderId: session.user.id,
@@ -283,25 +452,64 @@ function ClientMessagesContent() {
       createdAt: new Date().toISOString(),
       isRead: false,
       isDelivered: false,
+      clientTempId: tempId,
     };
 
     // Add to messages immediately for instant feedback
     setMessages((prev) => [...prev, newMessage]);
 
-    // Emit socket event immediately for real-time feel
-    socket.emit("send_message", {
-      ...newMessage,
-      receiverId: selectedPartnerId,
+    setConversations((prev) => {
+      const next = [...prev];
+      const existingIndex = next.findIndex(
+        (conversation) => conversation.partner.id === selectedPartnerId,
+      );
+
+      if (existingIndex === -1) {
+        return prev;
+      }
+
+      next[existingIndex] = {
+        ...next[existingIndex],
+        lastMessage: {
+          content: content || (fileUrl ? "Sent an attachment" : ""),
+          createdAt: newMessage.createdAt,
+          isRead: false,
+          isOwn: true,
+        },
+      };
+
+      const [activeConversation] = next.splice(existingIndex, 1);
+      next.unshift(activeConversation);
+      return next;
     });
 
     try {
       // Persist to DB
-      await apiClient.post("/messages/send", {
-        receiverId: selectedPartnerId,
-        content,
-        fileUrl,
-        fileType,
-      });
+      const { data } = await apiClient.post<{ message: Message }>(
+        "/messages/send",
+        {
+          receiverId: selectedPartnerId,
+          content,
+          fileUrl,
+          fileType,
+          clientTempId: tempId,
+        },
+      );
+
+      if (data?.message?.id) {
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === tempId
+              ? {
+                  ...message,
+                  ...data.message,
+                  id: data.message.id,
+                  clientTempId: undefined,
+                }
+              : message,
+          ),
+        );
+      }
     } catch (error) {
       console.error("Failed to send message:", error);
       // Remove optimistic message on error
@@ -323,19 +531,23 @@ function ClientMessagesContent() {
   };
 
   const handleClearConversation = async (partnerId: string) => {
-    // Optimistic update - clear messages locally
+    const previousMessages = messages;
+    const previousConversations = conversations;
+    const previousSelectedPartnerId = selectedPartnerId;
+
     setMessages([]);
+    setConversations((prev) => prev.filter((c) => c.partner.id !== partnerId));
+    if (selectedPartnerId === partnerId) {
+      setSelectedPartnerId(null);
+    }
 
     try {
       await apiClient.delete(`/messages/clear/${partnerId}`);
-      // Remove conversation from list
-      setConversations((prev) =>
-        prev.filter((c) => c.partner.id !== partnerId),
-      );
-      setSelectedPartnerId(null);
     } catch (error) {
       console.error("Failed to clear conversation:", error);
-      // Could refetch messages here if needed
+      setMessages(previousMessages);
+      setConversations(previousConversations);
+      setSelectedPartnerId(previousSelectedPartnerId);
     }
   };
 
@@ -413,6 +625,8 @@ function ClientMessagesContent() {
               onSendMessage={handleSendMessage}
               onDeleteMessage={handleDeleteMessage}
               onClearConversation={handleClearConversation}
+              onTypingStart={emitTypingStart}
+              onTypingStop={emitTypingStop}
               isTyping={isTyping}
               isOnline={
                 selectedPartnerId ? onlineUsers.has(selectedPartnerId) : false

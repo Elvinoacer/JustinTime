@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { sendNotificationToUser } from "@/lib/notifications/dispatcher";
 import {
   BOOKING_LIFECYCLE_EVENT_TYPES,
   recordBookingLifecycleEvent,
@@ -134,6 +135,65 @@ export async function POST(
 
       return createdDispute;
     });
+
+    const admins = await prisma.user.findMany({
+      where: {
+        OR: [
+          { role: "ADMIN" },
+          {
+            roles: {
+              has: "ADMIN",
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (admins.length > 0) {
+      const actorName =
+        session.user.name?.trim() || (isClient ? "Client" : "Provider");
+      const message = `${actorName} opened a dispute for booking ${booking.id}.`;
+
+      await prisma.notification.createMany({
+        data: admins.map((admin) => ({
+          userId: admin.id,
+          title: "New booking dispute opened",
+          message,
+          type: "DISPUTE_OPENED",
+          isRead: false,
+        })),
+      });
+
+      await Promise.all(
+        admins.map(async (admin) => {
+          try {
+            await sendNotificationToUser(admin.id, {
+              notification: {
+                title: "New booking dispute opened",
+                body: message,
+              },
+              data: {
+                type: "DISPUTE_OPENED",
+                disputeId: dispute.id,
+                bookingId: booking.id,
+                url: "/admin/disputes",
+              },
+            });
+          } catch (notificationError) {
+            console.error(
+              "[BOOKING_DISPUTE_POST] Failed to push admin dispute notification",
+              {
+                adminId: admin.id,
+                error: notificationError,
+              },
+            );
+          }
+        }),
+      );
+    }
 
     return NextResponse.json(dispute, { status: 201 });
   } catch (error) {

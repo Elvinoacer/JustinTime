@@ -1,6 +1,84 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { parseIncomingMessage } from "@/lib/whatsapp-service";
 import crypto from "crypto";
+
+type NormalizedWhatsAppMessage = {
+  from: string;
+  body: string;
+  type: string;
+  mediaId?: string;
+  mimeType?: string;
+  providerMessageId?: string;
+  timestamp?: string;
+};
+
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as JsonRecord;
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeIncomingMessages(
+  payload: unknown,
+): NormalizedWhatsAppMessage[] {
+  const normalized: NormalizedWhatsAppMessage[] = [];
+  const root = asRecord(payload);
+  const entries = asArray(root?.entry);
+
+  for (const entry of entries) {
+    const entryRecord = asRecord(entry);
+    const changes = asArray(entryRecord?.changes);
+
+    for (const change of changes) {
+      const changeRecord = asRecord(change);
+      const value = asRecord(changeRecord?.value);
+      const messages = asArray(value?.messages);
+
+      for (const message of messages) {
+        const messageRecord = asRecord(message);
+        const from =
+          typeof messageRecord?.from === "string" ? messageRecord.from : "";
+        if (!from) {
+          continue;
+        }
+
+        const type =
+          typeof messageRecord?.type === "string" ? messageRecord.type : "text";
+        const mediaPayload = asRecord(messageRecord?.[type]);
+        const textPayload = asRecord(messageRecord?.text);
+
+        normalized.push({
+          from,
+          body: typeof textPayload?.body === "string" ? textPayload.body : "",
+          type,
+          mediaId:
+            typeof mediaPayload?.id === "string" ? mediaPayload.id : undefined,
+          mimeType:
+            typeof mediaPayload?.mime_type === "string"
+              ? mediaPayload.mime_type
+              : undefined,
+          providerMessageId:
+            typeof messageRecord?.id === "string"
+              ? messageRecord.id
+              : undefined,
+          timestamp:
+            typeof messageRecord?.timestamp === "string"
+              ? messageRecord.timestamp
+              : undefined,
+        });
+      }
+    }
+  }
+
+  return normalized;
+}
 
 function verifyMetaSignature(
   rawBody: string,
@@ -58,31 +136,25 @@ export async function POST(req: NextRequest) {
       return new NextResponse("Invalid signature", { status: 401 });
     }
 
-    const body = JSON.parse(rawBody);
+    const body: unknown = JSON.parse(rawBody);
+    const root = asRecord(body);
 
-    // Check if it's a WhatsApp status update or message
     // Meta sends object: { object: 'whatsapp_business_account', entry: [...] }
-    if (body.object) {
-      if (
-        body.entry &&
-        body.entry[0].changes &&
-        body.entry[0].changes[0] &&
-        body.entry[0].changes[0].value.messages &&
-        body.entry[0].changes[0].value.messages[0]
-      ) {
-        const message = body.entry[0].changes[0].value.messages[0];
-        const from = message.from; // Sender phone number
-        const msgBody = message.text?.body || ""; // Text content
-
-        console.log(`[Webhook] Received message from ${from}: ${msgBody}`);
-
-        // Process asynchronously
-        await parseIncomingMessage({ from, body: msgBody });
-      }
-      return new NextResponse("EVENT_RECEIVED", { status: 200 });
-    } else {
+    if (!root?.object) {
       return new NextResponse(null, { status: 404 });
     }
+
+    const normalizedMessages = normalizeIncomingMessages(root);
+
+    if (normalizedMessages.length > 0) {
+      after(async () => {
+        await Promise.allSettled(
+          normalizedMessages.map((message) => parseIncomingMessage(message)),
+        );
+      });
+    }
+
+    return new NextResponse("EVENT_RECEIVED", { status: 200 });
   } catch (error) {
     console.error("Error processing webhook:", error);
     return new NextResponse("Internal Server Error", { status: 500 });

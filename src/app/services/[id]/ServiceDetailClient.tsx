@@ -191,7 +191,9 @@ export default function ServiceDetailClient({
                     <span className="text-xl font-bold text-zinc-900 tabular-nums">
                       KES {service.price.toLocaleString()}
                     </span>
-                    <span className="text-zinc-500">· {service.pricingUnit}</span>
+                    <span className="text-zinc-500">
+                      · {service.pricingUnit}
+                    </span>
                   </div>
                   <InteractionBar
                     id={service.id}
@@ -264,8 +266,7 @@ export default function ServiceDetailClient({
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
                         <StarRow value={provider.rating} />
                         <span className="tabular-nums">
-                          {provider.rating.toFixed(1)} ·{" "}
-                          {provider.reviewCount}{" "}
+                          {provider.rating.toFixed(1)} · {provider.reviewCount}{" "}
                           {provider.reviewCount === 1 ? "review" : "reviews"}
                         </span>
                       </div>
@@ -306,7 +307,7 @@ export default function ServiceDetailClient({
                       Book now
                     </Link>
                     <Link
-                      href={`/client/messages?recipient=${provider.id}`}
+                      href={`/client/messages?partnerId=${provider.id}&partnerName=${encodeURIComponent(provider.name)}`}
                       className="flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-600/30 bg-white px-4 py-3 text-center text-sm font-semibold text-emerald-800 transition hover:bg-emerald-50"
                     >
                       <span className="material-symbols-outlined text-[20px]">
@@ -440,7 +441,9 @@ export default function ServiceDetailClient({
                       <p className="text-[11px] font-medium text-blue-800">
                         Member since
                       </p>
-                      <p className="mt-1 text-sm font-semibold">{memberSince}</p>
+                      <p className="mt-1 text-sm font-semibold">
+                        {memberSince}
+                      </p>
                     </div>
                     <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
                       <p className="text-[11px] font-medium text-emerald-800">
@@ -566,9 +569,7 @@ export default function ServiceDetailClient({
               {activeTab === "reviews" && (
                 <div className="animate-in fade-in duration-200">
                   <div className="flex flex-wrap items-end justify-between gap-3">
-                    <h2 className="text-lg font-bold text-zinc-900">
-                      Reviews
-                    </h2>
+                    <h2 className="text-lg font-bold text-zinc-900">Reviews</h2>
                     <div className="flex items-center gap-2 text-sm">
                       <StarRow value={provider.rating} />
                       <span className="font-semibold tabular-nums">
@@ -650,8 +651,7 @@ export default function ServiceDetailClient({
                         <div>
                           <p className="font-semibold text-zinc-900">Phone</p>
                           <p className="text-sm text-zinc-600">
-                            Available after you book or message on the
-                            platform.
+                            Available after you book or message on the platform.
                           </p>
                         </div>
                       </div>
@@ -669,8 +669,8 @@ export default function ServiceDetailClient({
                     </div>
                   </div>
                   <p className="text-sm text-zinc-500">
-                    For your safety, arrange work and payments through JustInTime
-                    where possible.
+                    For your safety, arrange work and payments through
+                    JustInTime where possible.
                   </p>
                 </div>
               )}
@@ -717,7 +717,7 @@ export default function ServiceDetailClient({
                 Book
               </Link>
               <Link
-                href={`/client/messages?recipient=${provider.id}`}
+                href={`/client/messages?partnerId=${provider.id}&partnerName=${encodeURIComponent(provider.name)}`}
                 className="flex items-center justify-center gap-2 rounded-lg border border-zinc-200 py-2.5 text-sm font-semibold text-zinc-800"
               >
                 <span className="material-symbols-outlined text-lg">chat</span>

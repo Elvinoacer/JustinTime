@@ -34,7 +34,9 @@ export async function GET(request: NextRequest) {
         prisma.booking.count({
           where: {
             providerId: userId,
-            status: { in: ["CONFIRMED", "IN_PROGRESS"] },
+            status: {
+              in: ["CONFIRMED", "IN_PROGRESS", "AWAITING_CLIENT_CONFIRMATION"],
+            },
           },
         }),
 
