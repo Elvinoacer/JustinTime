@@ -99,6 +99,7 @@ function PostJobPageContent() {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [locationFetchError, setLocationFetchError] = useState("");
+  const [locationFetchHint, setLocationFetchHint] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const stepRef = useRef<HTMLDivElement>(null);
   const postLocation = useLocation();
@@ -368,6 +369,9 @@ function PostJobPageContent() {
     setFormData({ ...formData, [name]: value });
     if (name === "location") {
       postLocation.setManualAddress(value);
+      if (locationFetchHint) {
+        setLocationFetchHint("");
+      }
     }
     if (name === "location" && locationFetchError) {
       setLocationFetchError("");
@@ -408,12 +412,35 @@ function PostJobPageContent() {
         ? prev
         : { ...prev, location: detectedAddress },
     );
+
+    if (postLocation.location.source === "IP") {
+      setLocationFetchHint(
+        "Approximate location detected from your network. Edit the address to your exact area if needed.",
+      );
+    } else if (
+      postLocation.location.source === "GPS" &&
+      postLocation.location.accuracy != null &&
+      postLocation.location.accuracy > 400
+    ) {
+      setLocationFetchHint(
+        `GPS location is approximate (about +/- ${Math.round(postLocation.location.accuracy)}m). You can refine it manually.`,
+      );
+    } else {
+      setLocationFetchHint("");
+    }
+
     setErrors((prev) => (prev.location ? { ...prev, location: "" } : prev));
     setLocationFetchError("");
-  }, [postLocation.location.address, postLocation.status]);
+  }, [
+    postLocation.location.accuracy,
+    postLocation.location.address,
+    postLocation.location.source,
+    postLocation.status,
+  ]);
 
   useEffect(() => {
     if (postLocation.status !== "FAILED") return;
+    setLocationFetchHint("");
     setLocationFetchError(
       "Unable to detect your current location. Please enter location manually.",
     );
@@ -704,6 +731,11 @@ function PostJobPageContent() {
                 {locationFetchError && (
                   <p className="mt-1 text-xs text-red-600">
                     {locationFetchError}
+                  </p>
+                )}
+                {!locationFetchError && locationFetchHint && (
+                  <p className="mt-1 text-xs text-amber-700">
+                    {locationFetchHint}
                   </p>
                 )}
               </div>
@@ -1366,6 +1398,11 @@ function PostJobPageContent() {
                                 location_off
                               </span>
                               {locationFetchError}
+                            </p>
+                          )}
+                          {!locationFetchError && locationFetchHint && (
+                            <p className="mt-1 text-xs sm:text-sm text-amber-700">
+                              {locationFetchHint}
                             </p>
                           )}
                         </div>

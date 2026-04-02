@@ -33,10 +33,91 @@ const GPS_OPTIONS_TIERS = [
   { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
 ];
 
+type NominatimResponse = {
+  display_name?: string;
+  address?: Record<string, string | undefined>;
+};
+
+function firstNonEmpty(...values: Array<string | undefined>) {
+  for (const value of values) {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+  }
+  return undefined;
+}
+
+function formatReadableAddress(
+  data: NominatimResponse,
+  lat: number,
+  lon: number,
+) {
+  const address = data.address || {};
+
+  const locality = firstNonEmpty(
+    address.neighbourhood,
+    address.suburb,
+    address.city_district,
+    address.town,
+    address.city,
+    address.village,
+    address.county,
+    address.state,
+  );
+  const city = firstNonEmpty(
+    address.city,
+    address.town,
+    address.village,
+    address.county,
+    address.state_district,
+    address.state,
+  );
+  const region = firstNonEmpty(
+    address.county,
+    address.state_district,
+    address.state,
+    address.region,
+  );
+  const country = firstNonEmpty(address.country);
+
+  const ordered = [locality, city, region, country].filter(
+    (part): part is string => Boolean(part),
+  );
+
+  const deduped: string[] = [];
+  for (const part of ordered) {
+    if (
+      !deduped.some((existing) => existing.toLowerCase() === part.toLowerCase())
+    ) {
+      deduped.push(part);
+    }
+  }
+
+  if (deduped.length > 0) {
+    return deduped.join(", ");
+  }
+
+  if (typeof data.display_name === "string" && data.display_name.trim()) {
+    const chunks = data.display_name
+      .split(",")
+      .map((chunk) => chunk.trim())
+      .filter(Boolean);
+
+    if (chunks.length > 0) {
+      return chunks.slice(0, 4).join(", ");
+    }
+  }
+
+  return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+}
+
 const reverseGeocode = async (lat: number, lon: number): Promise<string> => {
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
       {
         headers: {
           "User-Agent": "JustInTime/1.0 (support@gtss.software)",
@@ -45,8 +126,13 @@ const reverseGeocode = async (lat: number, lon: number): Promise<string> => {
         signal: AbortSignal.timeout(5000),
       },
     );
-    const data = await res.json();
-    return data.display_name ?? `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+
+    if (!res.ok) {
+      throw new Error("Reverse geocoding failed");
+    }
+
+    const data = (await res.json()) as NominatimResponse;
+    return formatReadableAddress(data, lat, lon);
   } catch {
     return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
   }
