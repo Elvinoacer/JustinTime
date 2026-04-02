@@ -60,3 +60,37 @@ Proxy API limiter (in `src/proxy.ts`):
 - `PROXY_RATE_LIMIT_AUTH_RECOVERY_WINDOW_MS` (default: `900000`)
 - `PROXY_RATE_LIMIT_AUTH_GENERIC_LIMIT` (default: `80`)
 - `PROXY_RATE_LIMIT_AUTH_GENERIC_WINDOW_MS` (default: `900000`)
+
+## Notification Outbox Processor
+
+Use this endpoint to process pending notification deliveries from an external scheduler:
+
+- Endpoint: `POST /api/internal/notifications/outbox/process`
+- Auth header options:
+  - `Authorization: Bearer <NOTIFICATION_OUTBOX_SECRET>`
+  - `x-notification-outbox-secret: <NOTIFICATION_OUTBOX_SECRET>`
+- Optional params (query string or JSON body):
+  - `limit` (1-100, default 25)
+  - `notificationId` (process one notification)
+  - `processorId` (custom processor label for logs)
+
+Required environment variable:
+
+- `NOTIFICATION_OUTBOX_SECRET`: shared secret used by external schedulers and internal processor calls.
+
+GitHub Actions scheduler:
+
+- Workflow file: `.github/workflows/notifications-outbox-cron.yml`
+- Schedule: `0 0,12 * * *` (twice daily, UTC)
+- Required GitHub repository secrets:
+  - `NOTIFICATION_OUTBOX_PROCESS_URL`: full endpoint URL (for example, `https://your-domain/api/internal/notifications/outbox/process`)
+  - `NOTIFICATION_OUTBOX_SECRET`: same secret value configured in the app runtime environment
+
+Example:
+
+```bash
+curl -X POST "https://<your-domain>/api/internal/notifications/outbox/process?limit=50" \
+  -H "Authorization: Bearer ${NOTIFICATION_OUTBOX_SECRET}" \
+  -H "Content-Type: application/json" \
+  -d '{"processorId":"external-cron"}'
+```

@@ -198,6 +198,9 @@ export default function ClientSettingsPage() {
     emailReviews: true,
     emailMarketing: false,
     pushNotifications: true,
+    allowMarketing: true,
+    allowMessages: true,
+    allowBookingUpdates: true,
   });
 
   const [privacy, setPrivacy] = useState({
@@ -973,14 +976,32 @@ export default function ClientSettingsPage() {
                         },
                         {
                           key: "emailBookings",
-                          label: "Booking Updates",
-                          desc: "Get notified about booking status changes",
+                          label: "Email Booking Updates",
+                          desc: "Get booking status updates by email",
                           icon: Bell,
                         },
                         {
                           key: "emailMarketing",
-                          label: "Marketing Emails",
+                          label: "Email Marketing",
                           desc: "Receive news, updates, and special offers",
+                          icon: Bell,
+                        },
+                        {
+                          key: "allowMessages",
+                          label: "In-App Messages",
+                          desc: "Show message alerts inside your notification center",
+                          icon: MessageSquare,
+                        },
+                        {
+                          key: "allowBookingUpdates",
+                          label: "In-App Booking Updates",
+                          desc: "Show booking and negotiation updates in-app",
+                          icon: Bell,
+                        },
+                        {
+                          key: "allowMarketing",
+                          label: "In-App Marketing",
+                          desc: "Allow promotional notifications in-app",
                           icon: Bell,
                         },
                       ].map((item) => {

@@ -18,20 +18,64 @@ export async function POST(req: NextRequest) {
     // Upsert token to avoid duplicates
     await prisma.userToken.upsert({
       where: { token },
-      update: { 
+      update: {
         updatedAt: new Date(),
-        userId: session.user.id // Ensure token belongs to current user
+        userId: session.user.id,
+        platform,
+        lastSeenAt: new Date(),
+        revokedAt: null,
       },
       create: {
         userId: session.user.id,
         token,
         platform,
+        lastSeenAt: new Date(),
       },
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error storing FCM token:", error);
+    return new NextResponse("Internal Server Error", { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const body = (await req.json().catch(() => ({}))) as {
+      token?: string;
+    };
+
+    const where = body.token
+      ? {
+          userId: session.user.id,
+          token: body.token,
+          revokedAt: null,
+        }
+      : {
+          userId: session.user.id,
+          platform: "web",
+          revokedAt: null,
+        };
+
+    const revoked = await prisma.userToken.updateMany({
+      where,
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      revokedCount: revoked.count,
+    });
+  } catch (error) {
+    console.error("Error revoking FCM token:", error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

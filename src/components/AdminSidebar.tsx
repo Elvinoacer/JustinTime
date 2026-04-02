@@ -22,6 +22,7 @@ import {
   User,
   ChevronRight,
 } from "lucide-react";
+import { signOutWithNotificationCleanup } from "@/lib/auth/signOutWithNotificationCleanup";
 
 const navItems = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -183,13 +184,18 @@ const AdminSidebar = ({ onClose }: AdminSidebarProps) => {
               </div>
 
               {/* Logout Button */}
-              <Link
-                href="/api/auth/signout"
+              <button
+                type="button"
+                onClick={() => {
+                  void signOutWithNotificationCleanup({
+                    callbackUrl: "/auth/login",
+                  });
+                }}
                 className="flex items-center justify-center w-10 h-10 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-xl transition-colors"
                 title="Sign out"
               >
                 <LogOut className="w-5 h-5" />
-              </Link>
+              </button>
             </div>
 
             {/* Quick Stats - Desktop Only */}

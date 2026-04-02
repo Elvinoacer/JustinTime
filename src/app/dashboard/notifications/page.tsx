@@ -1,30 +1,196 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { isApplicationUpdateNotification } from "@/lib/notifications/applicationUpdates";
+import {
+  emitNotificationSync,
+  subscribeToNotificationSync,
+} from "@/lib/notifications/clientSync";
+import { getNotificationActionUrl } from "@/lib/notifications/routing";
 
-interface Notification {
+interface NotificationItem {
   id: string;
   title: string;
   message: string;
   type: string;
   isRead: boolean;
   createdAt: string;
+  actionUrl?: string | null;
+  clickedAt?: string | null;
+}
+
+interface NotificationPagination {
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+  nextPage: number | null;
+}
+
+interface NotificationListResponse {
+  notifications: NotificationItem[];
+  pagination: NotificationPagination;
+}
+
+const PAGE_SIZE = 20;
+
+async function fetchNotificationsPage(
+  page: number,
+): Promise<NotificationListResponse> {
+  const response = await fetch(
+    `/api/notifications?page=${page}&limit=${PAGE_SIZE}`,
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch notifications");
+  }
+
+  return response.json() as Promise<NotificationListResponse>;
 }
 
 const NotificationsPage = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
+
   const [filter, setFilter] = useState<"all" | "unread" | "applications">(
     "all",
   );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  const notificationsQuery = useInfiniteQuery({
+    queryKey: ["notifications"],
+    queryFn: ({ pageParam }) => fetchNotificationsPage(Number(pageParam)),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.hasMore
+        ? (lastPage.pagination.nextPage ?? undefined)
+        : undefined,
+    refetchOnWindowFocus: true,
+  });
+
+  const notifications = useMemo(
+    () =>
+      notificationsQuery.data?.pages.flatMap((page) => page.notifications) ??
+      [],
+    [notificationsQuery.data],
+  );
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = notificationsQuery;
+
+  const refreshNotifications = () => {
+    void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    emitNotificationSync({ reason: "notification-mutation" });
+  };
+
+  const markAsReadMutation = useMutation({
+    mutationFn: async ({
+      id,
+      markClicked = false,
+    }: {
+      id: string;
+      markClicked?: boolean;
+    }) => {
+      const response = await fetch(`/api/notifications/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ markClicked }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update notification");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      refreshNotifications();
+    },
+  });
+
+  const markAllAsReadMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/notifications/mark-all-read", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to mark all notifications as read");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast.success("All notifications marked as read");
+      refreshNotifications();
+    },
+    onError: () => {
+      toast.error("Failed to mark all notifications as read");
+    },
+  });
+
+  const deleteNotificationMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/notifications/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete notification");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast.success("Notification deleted");
+      refreshNotifications();
+    },
+    onError: () => {
+      toast.error("Failed to delete notification");
+    },
+    onSettled: () => {
+      setDeletingId(null);
+    },
+  });
+
+  const clearAllMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/notifications", {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to clear notifications");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast.success("Notifications archived");
+      refreshNotifications();
+    },
+    onError: () => {
+      toast.error("Failed to clear notifications");
+    },
+  });
+
   useEffect(() => {
-    // Check if mobile
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
@@ -36,93 +202,80 @@ const NotificationsPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
-  }, []);
-
-  const fetchNotifications = async () => {
-    try {
-      const response = await fetch("/api/notifications");
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data.notifications || []);
-      }
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-    } finally {
-      setIsLoading(false);
+    if (!hasNextPage || isFetchingNextPage) {
+      return;
     }
-  };
+
+    const element = loadMoreRef.current;
+    if (!element) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          void fetchNextPage();
+        }
+      },
+      {
+        rootMargin: "200px",
+      },
+    );
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  useEffect(() => {
+    return subscribeToNotificationSync((payload) => {
+      if (payload.reason) {
+        void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      }
+    });
+  }, [queryClient]);
 
   const markAsRead = async (id: string) => {
     try {
-      const response = await fetch(`/api/notifications/${id}`, {
-        method: "PATCH",
-      });
-      if (response.ok) {
-        setNotifications(
-          notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
-        );
-        toast.success("Marked as read");
-      }
-    } catch (error) {
-      console.error("Error marking notification as read:", error);
+      await markAsReadMutation.mutateAsync({ id });
+      toast.success("Marked as read");
+    } catch {
       toast.error("Failed to mark as read");
     }
   };
 
-  const markAllAsRead = async () => {
+  const openNotification = async (notification: NotificationItem) => {
+    const actionUrl = getNotificationActionUrl(
+      notification.type,
+      session?.user?.role,
+      notification.actionUrl,
+    );
+
     try {
-      const response = await fetch("/api/notifications/mark-all-read", {
-        method: "POST",
+      await markAsReadMutation.mutateAsync({
+        id: notification.id,
+        markClicked: true,
       });
-      if (response.ok) {
-        setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
-        toast.success("All notifications marked as read");
-      }
-    } catch (error) {
-      console.error("Error marking all as read:", error);
-      toast.error("Failed to mark all as read");
+    } catch {
+      // Keep navigation responsive even if read tracking fails.
     }
-  };
 
-  const deleteNotification = async (id: string) => {
-    setDeletingId(id);
-    try {
-      const response = await fetch(`/api/notifications/${id}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        setNotifications(notifications.filter((n) => n.id !== id));
-        toast.success("Notification deleted");
-      } else {
-        throw new Error("Failed to delete");
-      }
-    } catch (error) {
-      console.error("Error deleting notification:", error);
-      toast.error("Failed to delete notification");
-    } finally {
-      setDeletingId(null);
+    if (actionUrl && !actionUrl.endsWith("/notifications")) {
+      router.push(actionUrl);
     }
   };
 
   const clearAllNotifications = async () => {
-    if (!confirm("Are you sure you want to clear all notifications?")) return;
+    if (!confirm("Are you sure you want to clear all notifications?")) {
+      return;
+    }
 
     try {
-      const response = await fetch("/api/notifications", {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        setNotifications([]);
-        toast.success("All notifications cleared");
-      } else {
-        throw new Error("Failed to clear notifications");
-      }
-    } catch (error) {
-      console.error("Error clearing notifications:", error);
-      toast.error("Failed to clear notifications");
+      await clearAllMutation.mutateAsync();
+    } catch {
+      // The mutation already reports toast errors.
     }
   };
 
@@ -138,9 +291,11 @@ const NotificationsPage = () => {
     return true;
   });
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
-  const applicationCount = notifications.filter((n) =>
-    isApplicationUpdateNotification(n.type),
+  const unreadCount = notifications.filter(
+    (notification) => !notification.isRead,
+  ).length;
+  const applicationCount = notifications.filter((notification) =>
+    isApplicationUpdateNotification(notification.type),
   ).length;
 
   const getNotificationIcon = (type: string) => {
@@ -148,12 +303,19 @@ const NotificationsPage = () => {
       case "PAYMENT":
         return "payments";
       case "BOOKING":
+      case "BOOKING_CREATED":
+      case "BOOKING_PENDING":
+      case "BOOKING_CONFIRMED":
+      case "BOOKING_REJECTED":
+      case "BOOKING_CANCELLED":
+      case "BOOKING_COMPLETED":
         return "calendar_month";
       case "MESSAGE":
         return "mail";
       case "SYSTEM":
         return "info";
       case "JOB":
+      case "JOB_ALERT":
         return "work";
       case "PROPOSAL":
       case "PROPOSAL_STATUS_UPDATE":
@@ -169,12 +331,19 @@ const NotificationsPage = () => {
       case "PAYMENT":
         return "text-emerald-600 bg-emerald-100";
       case "BOOKING":
+      case "BOOKING_CREATED":
+      case "BOOKING_PENDING":
+      case "BOOKING_CONFIRMED":
+      case "BOOKING_REJECTED":
+      case "BOOKING_CANCELLED":
+      case "BOOKING_COMPLETED":
         return "text-blue-600 bg-blue-100";
       case "MESSAGE":
         return "text-purple-600 bg-purple-100";
       case "SYSTEM":
         return "text-amber-600 bg-amber-100";
       case "JOB":
+      case "JOB_ALERT":
         return "text-indigo-600 bg-indigo-100";
       case "PROPOSAL":
       case "PROPOSAL_STATUS_UPDATE":
@@ -201,7 +370,7 @@ const NotificationsPage = () => {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
-  if (isLoading) {
+  if (notificationsQuery.isLoading) {
     return (
       <div className="flex items-center justify-center min-h-75 sm:min-h-100">
         <div
@@ -213,9 +382,21 @@ const NotificationsPage = () => {
     );
   }
 
+  if (notificationsQuery.isError) {
+    return (
+      <div className="max-w-2xl mx-auto py-16 px-4 text-center">
+        <p className="text-lg font-semibold text-gray-900">
+          Failed to load notifications
+        </p>
+        <p className="text-sm text-gray-600 mt-2">
+          Please try again in a moment.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-2 sm:px-4 md:px-6 pb-16 sm:pb-8 pt-2 sm:pt-4 md:pt-6">
-      {/* Header */}
       <div className="mb-4 sm:mb-6 md:mb-8">
         <div className="flex items-center justify-between mb-2">
           <div className="flex-1 min-w-0">
@@ -252,52 +433,39 @@ const NotificationsPage = () => {
         </div>
       </div>
 
-      {/* Filter and Actions */}
       <div className="flex flex-col xs:flex-row items-stretch xs:items-center justify-between gap-2 sm:gap-3 mb-4 sm:mb-5">
         <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-1 -mx-2 px-2">
-          <button
-            onClick={() => setFilter("all")}
-            className={`rounded-lg font-medium transition-colors touch-manipulation whitespace-nowrap ${
-              filter === "all"
-                ? "bg-emerald-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300"
-            } ${
-              isMobile ? "px-3 py-1.5 text-xs" : "px-3 py-2 sm:px-4 text-sm"
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilter("unread")}
-            className={`rounded-lg font-medium transition-colors touch-manipulation whitespace-nowrap ${
-              filter === "unread"
-                ? "bg-emerald-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300"
-            } ${
-              isMobile ? "px-3 py-1.5 text-xs" : "px-3 py-2 sm:px-4 text-sm"
-            }`}
-          >
-            Unread {unreadCount > 0 && `(${unreadCount})`}
-          </button>
-          <button
-            onClick={() => setFilter("applications")}
-            className={`rounded-lg font-medium transition-colors touch-manipulation whitespace-nowrap ${
-              filter === "applications"
-                ? "bg-emerald-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300"
-            } ${
-              isMobile ? "px-3 py-1.5 text-xs" : "px-3 py-2 sm:px-4 text-sm"
-            }`}
-          >
-            Application Updates
-            {applicationCount > 0 && ` (${applicationCount})`}
-          </button>
+          {[
+            { value: "all", label: "All" },
+            {
+              value: "unread",
+              label: `Unread ${unreadCount > 0 ? `(${unreadCount})` : ""}`,
+            },
+            {
+              value: "applications",
+              label: `Application Updates${applicationCount > 0 ? ` (${applicationCount})` : ""}`,
+            },
+          ].map((item) => (
+            <button
+              key={item.value}
+              onClick={() =>
+                setFilter(item.value as "all" | "unread" | "applications")
+              }
+              className={`rounded-lg font-medium transition-colors touch-manipulation whitespace-nowrap ${
+                filter === item.value
+                  ? "bg-emerald-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300"
+              } ${isMobile ? "px-3 py-1.5 text-xs" : "px-3 py-2 sm:px-4 text-sm"}`}
+            >
+              {item.label.trim()}
+            </button>
+          ))}
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2 mt-2 xs:mt-0">
           {unreadCount > 0 && (
             <button
-              onClick={markAllAsRead}
+              onClick={() => markAllAsReadMutation.mutate()}
               className={`text-emerald-600 hover:text-emerald-700 active:text-emerald-800 font-medium flex items-center gap-1 sm:gap-2 touch-manipulation ${
                 isMobile
                   ? "text-xs px-2 py-1.5"
@@ -314,7 +482,9 @@ const NotificationsPage = () => {
           )}
           {notifications.length > 0 && (
             <button
-              onClick={clearAllNotifications}
+              onClick={() => {
+                void clearAllNotifications();
+              }}
               className={`text-red-600 hover:text-red-700 active:text-red-800 font-medium flex items-center gap-1 sm:gap-2 touch-manipulation ${
                 isMobile
                   ? "text-xs px-2 py-1.5"
@@ -332,7 +502,6 @@ const NotificationsPage = () => {
         </div>
       </div>
 
-      {/* Notifications List */}
       <div className="space-y-2 sm:space-y-3">
         {filteredNotifications.length === 0 ? (
           <div className="text-center py-6 sm:py-8 md:py-12 bg-gray-50 rounded-lg sm:rounded-xl">
@@ -378,7 +547,6 @@ const NotificationsPage = () => {
               }`}
             >
               <div className="flex items-start gap-2 sm:gap-3 md:gap-4">
-                {/* Icon */}
                 <div
                   className={`rounded-full flex items-center justify-center shrink-0 ${getNotificationColor(
                     notification.type,
@@ -393,8 +561,12 @@ const NotificationsPage = () => {
                   </span>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
+                <div
+                  className="flex-1 min-w-0 cursor-pointer"
+                  onClick={() => {
+                    void openNotification(notification);
+                  }}
+                >
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1.5 sm:gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-1">
@@ -429,11 +601,13 @@ const NotificationsPage = () => {
                       </p>
                     </div>
 
-                    {/* Actions */}
                     <div className="flex items-center gap-0.5 self-end sm:self-start mt-1 sm:mt-0">
                       {!notification.isRead && (
                         <button
-                          onClick={() => markAsRead(notification.id)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void markAsRead(notification.id);
+                          }}
                           className={`text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100 rounded-lg transition-colors touch-manipulation ${
                             isMobile ? "p-1" : "p-1.5"
                           }`}
@@ -450,7 +624,11 @@ const NotificationsPage = () => {
                         </button>
                       )}
                       <button
-                        onClick={() => deleteNotification(notification.id)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setDeletingId(notification.id);
+                          deleteNotificationMutation.mutate(notification.id);
+                        }}
                         disabled={deletingId === notification.id}
                         className={`text-gray-400 hover:text-red-600 hover:bg-red-50 active:bg-red-100 rounded-lg transition-colors touch-manipulation disabled:opacity-50 ${
                           isMobile ? "p-1" : "p-1.5"
@@ -481,36 +659,15 @@ const NotificationsPage = () => {
             </motion.div>
           ))
         )}
-      </div>
 
-      {/* Bottom action buttons for mobile */}
-      {isMobile && notifications.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-lg p-3 z-10">
-          <div className="flex justify-between items-center max-w-4xl mx-auto px-2">
-            <span className="text-xs text-gray-600">
-              {filter === "all"
-                ? `${notifications.length} total`
-                : `${unreadCount} unread`}
-            </span>
-            <div className="flex gap-2">
-              {unreadCount > 0 && (
-                <button
-                  onClick={markAllAsRead}
-                  className="px-3 py-1.5 text-xs bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors touch-manipulation whitespace-nowrap"
-                >
-                  Mark All Read
-                </button>
-              )}
-              <button
-                onClick={clearAllNotifications}
-                className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 active:bg-gray-300 transition-colors touch-manipulation whitespace-nowrap"
-              >
-                Clear All
-              </button>
-            </div>
+        {hasNextPage && (
+          <div ref={loadMoreRef} className="flex justify-center py-4">
+            {isFetchingNextPage && (
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

@@ -1,16 +1,28 @@
 import { prisma } from "@/lib/prisma";
-import { sendNotificationToUser } from "@/lib/notifications/dispatcher";
-import { Resend } from "resend";
-import { getFromEmail } from "@/lib/email";
-
-// Initialize Resend client
-const resend = new Resend(process.env.RESEND_API_KEY);
+import type {
+  NotificationDeliveryChannel,
+  NotificationOutboxStatus,
+  Prisma,
+} from "@/generated/prisma/client";
+import {
+  normalizeNotificationPreferences,
+  shouldSendPushNotification,
+  shouldStoreInAppNotification,
+} from "@/lib/notifications/preferences";
+import { getNotificationActionUrl } from "@/lib/notifications/routing";
+import { processNotificationOutboxBatch } from "@/lib/notifications/outbox";
 
 interface NotificationPayload {
   userId: string;
   title: string;
   message: string;
   type: string;
+  actionUrl?: string;
+  entityType?: string;
+  entityId?: string;
+  actorId?: string;
+  metadata?: Prisma.InputJsonValue;
+  priority?: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   emailSubject?: string;
   emailHtml?: string;
 }
@@ -22,7 +34,20 @@ interface NotificationPayload {
 export async function sendComprehensiveNotification(
   payload: NotificationPayload,
 ) {
-  const { userId, title, message, type, emailSubject, emailHtml } = payload;
+  const {
+    userId,
+    title,
+    message,
+    type,
+    actionUrl,
+    entityType,
+    entityId,
+    actorId,
+    metadata,
+    priority,
+    emailSubject,
+    emailHtml,
+  } = payload;
 
   console.log(
     "[Notification] Starting comprehensive notification for user:",
@@ -38,6 +63,7 @@ export async function sendComprehensiveNotification(
       select: {
         email: true,
         name: true,
+        role: true,
         notificationPreferences: true,
       },
     });
@@ -50,12 +76,37 @@ export async function sendComprehensiveNotification(
     console.log("[Notification] User found:", user.email);
 
     // Parse notification preferences (stored as JSON)
-    const prefs =
-      (user.notificationPreferences as Record<string, boolean> | null) || {};
+    const prefs = normalizeNotificationPreferences(
+      user.notificationPreferences,
+    );
     console.log("[Notification] User preferences:", prefs);
 
+    const categoryEnabled = shouldStoreInAppNotification(prefs, type);
+    if (!categoryEnabled) {
+      console.log(
+        "[Notification] Notification category disabled by user preferences, skipping all channels",
+      );
+      return {
+        success: true,
+        skippedByPreferences: true,
+      };
+    }
+
+    const resolvedActionUrl = getNotificationActionUrl(
+      type,
+      user.role,
+      actionUrl,
+    );
+
     // Map notification type to email preference key
-    const getEmailPreferenceKey = (notifType: string): string | null => {
+    const getEmailPreferenceKey = (
+      notifType: string,
+    ):
+      | "emailBookings"
+      | "emailMessages"
+      | "emailReviews"
+      | "emailJobAlerts"
+      | null => {
       if (notifType === "BOOKING_CREATED") return "emailBookings";
       if (notifType === "MESSAGE") return "emailMessages";
       if (notifType === "REVIEW") return "emailReviews";
@@ -65,117 +116,127 @@ export async function sendComprehensiveNotification(
       return null; // For admin actions, always send
     };
 
-    // 1. Create notification in database (always create DB record)
-    console.log("[Notification] Creating database record...");
-    const dbNotification = await prisma.notification.create({
-      data: {
-        userId,
-        title,
-        message,
-        type,
-        isRead: false,
-      },
-    });
-    console.log("[Notification] Database record created:", dbNotification.id);
+    const shouldSendPush = shouldSendPushNotification(prefs, type);
+    const emailPrefKey = getEmailPreferenceKey(type);
+    const emailRequested = Boolean(emailSubject && emailHtml);
+    const shouldSendEmail =
+      emailRequested &&
+      Boolean(user.email) &&
+      (!emailPrefKey || prefs[emailPrefKey]);
 
-    // 2. Send push notification (via FCM) - Check preference
-    const shouldSendPush = prefs.pushNotifications !== false;
-    console.log("[Notification] Push notification enabled:", shouldSendPush);
-
+    const outboxChannels: NotificationDeliveryChannel[] = [];
     if (shouldSendPush) {
-      console.log("[Notification] Attempting to send push notification...");
-      try {
-        await sendNotificationToUser(userId, {
-          notification: {
-            title,
-            body: message,
+      outboxChannels.push("PUSH");
+    }
+    if (shouldSendEmail) {
+      outboxChannels.push("EMAIL");
+    }
+
+    const outboxPayload: Prisma.InputJsonValue = {
+      type,
+      channels: outboxChannels,
+      ...(shouldSendPush
+        ? {
+            push: {
+              title,
+              body: message,
+              data: {
+                type,
+                url: resolvedActionUrl,
+                ...(entityType ? { entityType } : {}),
+                ...(entityId ? { entityId } : {}),
+              },
+            },
+          }
+        : {}),
+      ...(shouldSendEmail
+        ? {
+            email: {
+              to: user.email as string,
+              subject: emailSubject as string,
+              html: emailHtml as string,
+            },
+          }
+        : {}),
+    };
+
+    const now = new Date();
+    const deliveryStatus: NotificationOutboxStatus =
+      outboxChannels.length > 0 ? "PENDING" : "DELIVERED";
+
+    console.log("[Notification] Creating DB notification and delivery records");
+    const dbNotification = await prisma.$transaction(async (tx) => {
+      const createdNotification = await tx.notification.create({
+        data: {
+          userId,
+          title,
+          message,
+          type,
+          isRead: false,
+          actionUrl: resolvedActionUrl,
+          entityType,
+          entityId,
+          actorId,
+          metadata,
+          priority: priority || "NORMAL",
+          deliveryStatus,
+          deliveredAt: deliveryStatus === "DELIVERED" ? now : null,
+          lastDeliveryAttemptAt: deliveryStatus === "DELIVERED" ? now : null,
+          deliveryAttempts: 0,
+        },
+      });
+
+      await tx.notificationDelivery.create({
+        data: {
+          notificationId: createdNotification.id,
+          channel: "IN_APP",
+          status: "SENT",
+          attempt: 1,
+          attemptedAt: now,
+          sentAt: now,
+          providerMetadata: {
+            source: "notification-db-create",
           },
+        },
+      });
+
+      if (outboxChannels.length > 0) {
+        await tx.notificationOutbox.create({
           data: {
-            type,
-            notificationId: dbNotification.id,
-            url: "/dashboard/notifications",
+            notificationId: createdNotification.id,
+            userId,
+            status: "PENDING",
+            attempts: 0,
+            maxAttempts: 5,
+            nextAttemptAt: now,
+            payload: outboxPayload,
           },
         });
-        console.log("[Notification] Push notification sent successfully");
-      } catch (pushError) {
+      }
+
+      return createdNotification;
+    });
+
+    if (outboxChannels.length > 0) {
+      // Fire-and-forget immediate processing; retries are handled by the outbox worker.
+      void processNotificationOutboxBatch({
+        limit: 1,
+        notificationId: dbNotification.id,
+        processorId: "inline-sendComprehensiveNotification",
+      }).catch((error) => {
         console.error(
-          "[Notification] Failed to send push notification:",
-          pushError,
+          "[Notification] Inline outbox processing failed; worker retry will handle it",
+          error,
         );
-        // Don't throw - email and DB notification are still sent
-      }
-    } else {
-      console.log(
-        "[Notification] Push notifications disabled by user, skipping",
-      );
+      });
     }
 
-    // 3. Send email notification - Check preference
-    if (emailSubject && emailHtml) {
-      const emailPrefKey = getEmailPreferenceKey(type);
-      const shouldSendEmail = !emailPrefKey || prefs[emailPrefKey] !== false;
-
-      console.log(
-        "[Notification] Email preference key:",
-        emailPrefKey,
-        "Enabled:",
-        shouldSendEmail,
-      );
-
-      if (shouldSendEmail) {
-        console.log("[Notification] Attempting to send email to:", user.email);
-        try {
-          const emailResult = await resend.emails.send({
-            from: `JustInTime <${getFromEmail()}>`,
-            to: user.email,
-            subject: emailSubject,
-            html: emailHtml,
-          });
-          console.log(
-            "[Notification] Email sent successfully to",
-            user.email,
-            "ID:",
-            emailResult.data?.id,
-          );
-        } catch (emailError: unknown) {
-          const normalizedEmailError =
-            typeof emailError === "object" && emailError !== null
-              ? (emailError as { message?: string; code?: string })
-              : {};
-
-          console.error("[Notification] Failed to send email notification:");
-          console.error(
-            "[Notification] Error message:",
-            normalizedEmailError.message,
-          );
-          console.error(
-            "[Notification] Error code:",
-            normalizedEmailError.code,
-          );
-          console.error(
-            "[Notification] Full error:",
-            JSON.stringify(emailError, null, 2),
-          );
-          // Don't throw - DB and push notification are still sent
-        }
-      } else {
-        console.log(
-          "[Notification] Email notifications disabled by user for type:",
-          type,
-        );
-      }
-    } else {
-      console.log(
-        "[Notification] No email subject/html provided, skipping email",
-      );
-    }
-
-    console.log(
-      "[Notification] Comprehensive notification completed successfully",
-    );
+    console.log("[Notification] Notification queued successfully");
     return {
       success: true,
       notificationId: dbNotification.id,
+      queuedChannels: outboxChannels,
+      deliveryStatus,
     };
   } catch (error) {
     console.error(

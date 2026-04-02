@@ -151,6 +151,9 @@ const SettingsPage = () => {
     emailReviews: true,
     emailMarketing: false,
     pushNotifications: true,
+    allowMarketing: true,
+    allowMessages: true,
+    allowBookingUpdates: true,
   });
   const [privacy, setPrivacy] = useState({
     profileVisible: true,
@@ -1157,6 +1160,60 @@ const SettingsPage = () => {
                           key: "emailMarketing",
                           label: "Marketing & Promotions",
                           desc: "Receive news, tips, and special offers",
+                        },
+                      ].map((item) => (
+                        <label
+                          key={item.key}
+                          className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={
+                              notifications[
+                                item.key as keyof typeof notifications
+                              ]
+                            }
+                            onChange={(e) =>
+                              setNotifications({
+                                ...notifications,
+                                [item.key]: e.target.checked,
+                              })
+                            }
+                            className="mt-0.5 sm:mt-1 w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 flex-shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 text-sm sm:text-base">
+                              {item.label}
+                            </p>
+                            <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">
+                              {item.desc}
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 sm:pt-6 border-t border-gray-200">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+                      In-App Notification Channels
+                    </h3>
+                    <div className="space-y-3 sm:space-y-4">
+                      {[
+                        {
+                          key: "allowMessages",
+                          label: "Messages",
+                          desc: "Show message-related alerts in your notification center",
+                        },
+                        {
+                          key: "allowBookingUpdates",
+                          label: "Booking Updates",
+                          desc: "Show booking and negotiation updates in-app",
+                        },
+                        {
+                          key: "allowMarketing",
+                          label: "Marketing",
+                          desc: "Allow promotional and campaign notifications in-app",
                         },
                       ].map((item) => (
                         <label

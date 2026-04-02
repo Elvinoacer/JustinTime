@@ -1,12 +1,14 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import LanguageSwitcher from "./common/LanguageSwitcher";
 import { hasRole } from "@/lib/auth/roles";
 import { useNotificationCounts } from "@/lib/hooks/useNotificationCounts";
+import { signOutWithNotificationCleanup } from "@/lib/auth/signOutWithNotificationCleanup";
 
 const navItems = [
   {
@@ -102,10 +104,10 @@ const Sidebar = ({
 }: SidebarProps) => {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { unreadApplicationUpdatesCount } = useNotificationCounts(pathname);
+  const { unreadCount } = useNotificationCounts(pathname);
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: "/auth/login" });
+    await signOutWithNotificationCleanup({ callbackUrl: "/auth/login" });
   };
 
   const handleLinkClick = () => {
@@ -116,7 +118,7 @@ const Sidebar = ({
 
   return (
     <aside
-      className={`flex h-full flex-col bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 border-r border-gray-700 shadow-2xl transition-all duration-300 overflow-hidden ${
+      className={`flex h-full flex-col bg-linear-to-b from-gray-900 via-gray-800 to-gray-900 border-r border-gray-700 shadow-2xl transition-all duration-300 overflow-hidden ${
         isCollapsed ? "w-20" : "w-72"
       }`}
       role="complementary"
@@ -124,17 +126,19 @@ const Sidebar = ({
     >
       {/* Fixed Header */}
       <div
-        className={`flex-shrink-0 p-6 border-b border-gray-700/50 flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}
+        className={`shrink-0 p-6 border-b border-gray-700/50 flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}
       >
         <Link
           href="/"
           className="flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-lg p-2 -m-2"
           onClick={handleLinkClick}
         >
-          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
-            <img
+          <div className="w-10 h-10 flex items-center justify-center shrink-0">
+            <Image
               src="/images/JustinTimeLogo.png"
               alt="JustInTime Logo"
+              width={40}
+              height={40}
               className="w-full h-full object-contain"
             />
           </div>
@@ -183,7 +187,7 @@ const Sidebar = ({
                   aria-label={`${item.name} - ${item.description}`}
                   className={`group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
                     isActive
-                      ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30"
+                      ? "bg-linear-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30"
                       : "text-gray-300 hover:bg-gray-800/50 hover:text-white"
                   } ${isCollapsed ? "justify-center" : ""}`}
                   title={isCollapsed ? item.name : undefined}
@@ -194,7 +198,7 @@ const Sidebar = ({
                     transition={{ type: "spring", stiffness: 400, damping: 25 }}
                   >
                     <span
-                      className={`material-symbols-outlined text-xl flex-shrink-0 ${
+                      className={`material-symbols-outlined text-xl shrink-0 ${
                         isActive
                           ? "text-white"
                           : "text-gray-400 group-hover:text-emerald-400"
@@ -218,7 +222,7 @@ const Sidebar = ({
                     {isActive && !isCollapsed && (
                       <motion.div
                         layoutId="activeIndicator"
-                        className="w-1.5 h-1.5 bg-white rounded-full flex-shrink-0"
+                        className="w-1.5 h-1.5 bg-white rounded-full shrink-0"
                         transition={{
                           type: "spring",
                           stiffness: 500,
@@ -249,7 +253,7 @@ const Sidebar = ({
                 title={isCollapsed ? "Client Dashboard" : undefined}
               >
                 <span
-                  className="material-symbols-outlined text-xl text-gray-400 group-hover:text-emerald-400 flex-shrink-0"
+                  className="material-symbols-outlined text-xl text-gray-400 group-hover:text-emerald-400 shrink-0"
                   aria-hidden="true"
                 >
                   swap_horiz
@@ -270,18 +274,16 @@ const Sidebar = ({
               aria-label="Notifications"
               title={isCollapsed ? "Notifications" : undefined}
             >
-              <div className="relative flex items-center justify-center flex-shrink-0">
+              <div className="relative flex items-center justify-center shrink-0">
                 <span
                   className="material-symbols-outlined text-xl text-gray-400 group-hover:text-emerald-400"
                   aria-hidden="true"
                 >
                   notifications
                 </span>
-                {unreadApplicationUpdatesCount > 0 && (
+                {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-2 inline-flex items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] font-bold min-w-4 h-4 px-1">
-                    {unreadApplicationUpdatesCount > 9
-                      ? "9+"
-                      : unreadApplicationUpdatesCount}
+                    {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
               </div>
@@ -301,7 +303,7 @@ const Sidebar = ({
               title={isCollapsed ? "Availability" : undefined}
             >
               <span
-                className="material-symbols-outlined text-xl text-gray-400 group-hover:text-emerald-400 flex-shrink-0"
+                className="material-symbols-outlined text-xl text-gray-400 group-hover:text-emerald-400 shrink-0"
                 aria-hidden="true"
               >
                 schedule
@@ -322,7 +324,7 @@ const Sidebar = ({
               title={isCollapsed ? "Settings" : undefined}
             >
               <span
-                className="material-symbols-outlined text-xl text-gray-400 group-hover:text-emerald-400 flex-shrink-0"
+                className="material-symbols-outlined text-xl text-gray-400 group-hover:text-emerald-400 shrink-0"
                 aria-hidden="true"
               >
                 settings
@@ -336,12 +338,12 @@ const Sidebar = ({
             <Link
               href="/dashboard/premium"
               onClick={handleLinkClick}
-              className={`group flex items-center gap-3 px-3 py-3 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 text-amber-400 hover:from-amber-500/20 hover:to-orange-500/20 hover:border-amber-500/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${isCollapsed ? "justify-center" : ""}`}
+              className={`group flex items-center gap-3 px-3 py-3 rounded-xl bg-linear-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 text-amber-400 hover:from-amber-500/20 hover:to-orange-500/20 hover:border-amber-500/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${isCollapsed ? "justify-center" : ""}`}
               aria-label="Upgrade to Premium"
               title={isCollapsed ? "Upgrade" : undefined}
             >
               <span
-                className="material-symbols-outlined text-xl flex-shrink-0"
+                className="material-symbols-outlined text-xl shrink-0"
                 aria-hidden="true"
               >
                 workspace_premium
@@ -362,7 +364,7 @@ const Sidebar = ({
               title={isCollapsed ? "Help" : undefined}
             >
               <span
-                className="material-symbols-outlined text-xl text-gray-400 group-hover:text-emerald-400 flex-shrink-0"
+                className="material-symbols-outlined text-xl text-gray-400 group-hover:text-emerald-400 shrink-0"
                 aria-hidden="true"
               >
                 help
@@ -389,7 +391,7 @@ const Sidebar = ({
       </div>
 
       {/* Fixed Footer - User Profile */}
-      <div className="flex-shrink-0 border-t border-gray-700/50 p-4 bg-gray-900/50 backdrop-blur-sm">
+      <div className="shrink-0 border-t border-gray-700/50 p-4 bg-gray-900/50 backdrop-blur-sm">
         {!isCollapsed && (
           <div className="mb-4">
             <LanguageSwitcher />
@@ -399,7 +401,7 @@ const Sidebar = ({
           className={`flex items-center gap-3 mb-3 ${isCollapsed ? "justify-center" : ""}`}
         >
           <div
-            className="relative bg-center bg-no-repeat bg-cover rounded-full size-11 ring-2 ring-emerald-500/30 flex-shrink-0 overflow-hidden"
+            className="relative bg-center bg-no-repeat bg-cover rounded-full size-11 ring-2 ring-emerald-500/30 shrink-0 overflow-hidden"
             style={
               session?.user?.image
                 ? { backgroundImage: `url("${session.user.image}")` }
@@ -409,7 +411,7 @@ const Sidebar = ({
             aria-label={`${session?.user?.name || "User"} profile picture`}
           >
             {!session?.user?.image && (
-              <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+              <div className="w-full h-full bg-linear-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
                 <span className="material-symbols-outlined text-white text-xl">
                   person
                 </span>

@@ -23,6 +23,9 @@ interface Settings {
     emailReviews: boolean;
     emailMarketing: boolean;
     pushNotifications: boolean;
+    allowMarketing: boolean;
+    allowMessages: boolean;
+    allowBookingUpdates: boolean;
   };
   privacy: {
     profileVisible: boolean;
@@ -41,6 +44,15 @@ interface UpdateSettingsParams {
   phone?: string;
   notifications?: Partial<Settings["notifications"]>;
   privacy?: Partial<Settings["privacy"]>;
+}
+
+interface UpdateSettingsResponse {
+  message: string;
+  settings: {
+    phone?: string | null;
+    notifications?: Settings["notifications"];
+    privacy?: Settings["privacy"];
+  };
 }
 
 // Fetch user settings
@@ -65,7 +77,7 @@ export const useSettings = () => {
 export const useUpdateSettings = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<any, Error, UpdateSettingsParams>({
+  return useMutation<UpdateSettingsResponse, Error, UpdateSettingsParams>({
     mutationFn: async (data) => {
       const response = await fetch("/api/settings", {
         method: "PUT",

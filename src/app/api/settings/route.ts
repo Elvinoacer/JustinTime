@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  normalizeNotificationPreferences,
+} from "@/lib/notifications/preferences";
 
 // Default preferences for new users
-const defaultNotifications = {
-  emailJobAlerts: true,
-  emailMessages: true,
-  emailBookings: true,
-  emailReviews: true,
-  emailMarketing: false,
-  pushNotifications: true,
-};
+const defaultNotifications = DEFAULT_NOTIFICATION_PREFERENCES;
 
 const defaultPrivacy = {
   profileVisible: true,
@@ -47,7 +45,11 @@ export async function GET(req: NextRequest) {
       take: 10,
     });
 
-    const activeSessions = dbSessions
+    const activeSessions: Array<{
+      id: string;
+      expires: Date | null;
+      isCurrent: boolean;
+    }> = dbSessions
       .filter((dbSession) => dbSession.expires > now)
       .map((dbSession) => ({
         id: dbSession.id,
@@ -80,11 +82,9 @@ export async function GET(req: NextRequest) {
     }
 
     // Parse JSON preferences or use defaults
-    const notificationPreferences = user.notificationPreferences
-      ? typeof user.notificationPreferences === "string"
-        ? JSON.parse(user.notificationPreferences)
-        : user.notificationPreferences
-      : defaultNotifications;
+    const notificationPreferences = normalizeNotificationPreferences(
+      user.notificationPreferences ?? defaultNotifications,
+    );
 
     const privacySettings = user.privacySettings
       ? typeof user.privacySettings === "string"
@@ -142,18 +142,38 @@ export async function PUT(req: NextRequest) {
     const { phone, notifications, privacy } = body;
 
     // Build update data object
-    const updateData: any = {};
+    const updateData: Prisma.UserUpdateInput = {};
 
     if (phone !== undefined) {
-      updateData.phone = phone;
+      if (phone === null || typeof phone === "string") {
+        updateData.phone = phone;
+      }
     }
 
     if (notifications !== undefined) {
-      updateData.notificationPreferences = notifications;
+      const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: {
+          notificationPreferences: true,
+        },
+      });
+
+      const mergedNotificationPreferences = {
+        ...normalizeNotificationPreferences(
+          currentUser?.notificationPreferences,
+        ),
+        ...(notifications as Record<string, unknown>),
+      };
+
+      updateData.notificationPreferences = normalizeNotificationPreferences(
+        mergedNotificationPreferences,
+      ) as Prisma.InputJsonValue;
     }
 
     if (privacy !== undefined) {
-      updateData.privacySettings = privacy;
+      if (privacy && typeof privacy === "object" && !Array.isArray(privacy)) {
+        updateData.privacySettings = privacy as Prisma.InputJsonValue;
+      }
     }
 
     // Update user with new settings

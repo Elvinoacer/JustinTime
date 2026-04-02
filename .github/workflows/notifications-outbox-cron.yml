@@ -1,0 +1,93 @@
+name: Notifications Outbox Processor
+
+on:
+  schedule:
+    - cron: "0 0,12 * * *"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Batch size (1-100)"
+        required: false
+        default: "100"
+      notificationId:
+        description: "Optional notification ID to process"
+        required: false
+        default: ""
+
+permissions: {}
+
+jobs:
+  process-outbox:
+    name: Process outbox batch
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: notifications-outbox-cron
+      cancel-in-progress: false
+
+    steps:
+      - name: Validate required secrets
+        env:
+          OUTBOX_ENDPOINT: ${{ secrets.NOTIFICATION_OUTBOX_PROCESS_URL }}
+          OUTBOX_SECRET: ${{ secrets.NOTIFICATION_OUTBOX_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${OUTBOX_ENDPOINT}" ]; then
+            echo "Missing secret: NOTIFICATION_OUTBOX_PROCESS_URL"
+            exit 1
+          fi
+
+          if [ -z "${OUTBOX_SECRET}" ]; then
+            echo "Missing secret: NOTIFICATION_OUTBOX_SECRET"
+            exit 1
+          fi
+
+      - name: Trigger outbox processor endpoint
+        env:
+          OUTBOX_ENDPOINT: ${{ secrets.NOTIFICATION_OUTBOX_PROCESS_URL }}
+          OUTBOX_SECRET: ${{ secrets.NOTIFICATION_OUTBOX_SECRET }}
+          INPUT_LIMIT: ${{ github.event.inputs.limit }}
+          INPUT_NOTIFICATION_ID: ${{ github.event.inputs.notificationId }}
+        run: |
+          set -euo pipefail
+
+          limit="${INPUT_LIMIT:-100}"
+          if ! [[ "${limit}" =~ ^[0-9]+$ ]]; then
+            limit="100"
+          fi
+
+          if [ "${limit}" -lt 1 ]; then
+            limit=1
+          fi
+
+          if [ "${limit}" -gt 100 ]; then
+            limit=100
+          fi
+
+          notification_id="${INPUT_NOTIFICATION_ID:-}"
+          processor_id="github-actions-cron"
+
+          payload="{\"processorId\":\"${processor_id}\""
+          if [ -n "${notification_id}" ]; then
+            payload="${payload},\"notificationId\":\"${notification_id}\""
+          fi
+          payload="${payload}}"
+
+          response_file="$(mktemp)"
+          status_code="$(curl --silent --show-error \
+            --output "${response_file}" \
+            --write-out "%{http_code}" \
+            --request POST "${OUTBOX_ENDPOINT}?limit=${limit}" \
+            --header "Authorization: Bearer ${OUTBOX_SECRET}" \
+            --header "Content-Type: application/json" \
+            --data "${payload}")"
+
+          echo "HTTP status: ${status_code}"
+          echo "Response body:"
+          cat "${response_file}"
+
+          if [ "${status_code}" -lt 200 ] || [ "${status_code}" -ge 300 ]; then
+            echo "Outbox processing request failed"
+            exit 1
+          fi

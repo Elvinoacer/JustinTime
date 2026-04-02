@@ -4,9 +4,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 import { Popover, Transition } from "@headlessui/react";
 import { Fragment } from "react";
+import { hasRole } from "@/lib/auth/roles";
+import { useNotificationCounts } from "@/lib/hooks/useNotificationCounts";
+import { getNotificationCenterPath } from "@/lib/notifications/routing";
+import { signOutWithNotificationCleanup } from "@/lib/auth/signOutWithNotificationCleanup";
 import {
   Menu,
   X,
@@ -38,6 +42,13 @@ const Header = () => {
   const isAuthenticated = status === "authenticated";
   const isLandingPage = pathname === "/";
   const isLoading = status === "loading";
+  const { unreadCount } = useNotificationCounts(pathname, isAuthenticated);
+
+  const notificationRoute = hasRole(session?.user, "ADMIN")
+    ? getNotificationCenterPath("ADMIN")
+    : hasRole(session?.user, "PROVIDER")
+      ? getNotificationCenterPath("PROVIDER")
+      : getNotificationCenterPath("CLIENT");
 
   const navItems = [
     { name: "Home", href: "/", icon: Home },
@@ -84,7 +95,7 @@ const Header = () => {
       signIn();
       return;
     }
-    router.push("/dashboard/notifications");
+    router.push(notificationRoute);
   };
 
   const handleSearch = () => {
@@ -202,7 +213,11 @@ const Header = () => {
                     <Bell
                       className={`w-5 h-5 ${isLandingPage ? "text-white/70" : "text-gray-600"}`}
                     />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-400 rounded-full" />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-1.5 right-1.5 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
                   </button>
 
                   {/* Desktop Authenticated Actions */}
@@ -233,9 +248,11 @@ const Header = () => {
                       <Bell
                         className={`w-5 h-5 ${isLandingPage ? "text-white/70" : "text-gray-600"}`}
                       />
-                      <span
-                        className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${isLandingPage ? "bg-emerald-400" : "bg-red-500"}`}
-                      />
+                      {unreadCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                          {unreadCount > 9 ? "9+" : unreadCount}
+                        </span>
+                      )}
                     </button>
 
                     {/* User Profile Dropdown */}
@@ -315,7 +332,11 @@ const Header = () => {
                             </div>
                             <div className="py-2 border-t border-gray-100">
                               <button
-                                onClick={() => signOut({ callbackUrl: "/" })}
+                                onClick={() => {
+                                  void signOutWithNotificationCleanup({
+                                    callbackUrl: "/",
+                                  });
+                                }}
                                 className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-700 hover:bg-red-50 transition-colors"
                               >
                                 <LogOut className="w-4 h-4" />
@@ -576,7 +597,9 @@ const Header = () => {
                     <button
                       onClick={() => {
                         setIsMenuOpen(false);
-                        signOut({ callbackUrl: "/" });
+                        void signOutWithNotificationCleanup({
+                          callbackUrl: "/",
+                        });
                       }}
                       className="flex w-full items-center justify-center gap-2 px-6 py-3 text-red-600 font-semibold hover:bg-red-50 rounded-xl transition-colors text-sm"
                     >

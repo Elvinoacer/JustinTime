@@ -1,8 +1,8 @@
 importScripts(
-  "https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"
+  "https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js",
 );
 importScripts(
-  "https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js"
+  "https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js",
 );
 
 // Initialize the Firebase app in the service worker by passing in the messagingSenderId.
@@ -21,18 +21,45 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage(function (payload) {
   console.log(
     "[firebase-messaging-sw.js] Received background message ",
-    payload
+    payload,
   );
   // Customize notification here
-  const notificationTitle = payload.notification.title;
+  const notificationTitle = payload.notification?.title || "New notification";
   const notificationOptions = {
-    body: payload.notification.body,
-    icon: payload.notification.icon || "/icons/icon-192x192.png", // Ensure you have this icon
-    badge: payload.notification.badge || "/icons/badge-72x72.png", // Ensure you have this icon
+    body: payload.notification?.body || "You have a new update.",
+    icon: payload.notification?.icon || "/icons/icon-192x192.png", // Ensure you have this icon
+    badge: payload.notification?.badge || "/icons/badge-72x72.png", // Ensure you have this icon
     data: payload.data,
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+self.addEventListener("notificationclick", function (event) {
+  const fallbackUrl = "/";
+  const targetPath = event.notification?.data?.url || fallbackUrl;
+  const targetUrl = new URL(targetPath, self.location.origin).href;
+
+  event.notification.close();
+
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then(function (windowClients) {
+        for (let i = 0; i < windowClients.length; i += 1) {
+          const client = windowClients[i];
+          if (client.url === targetUrl && "focus" in client) {
+            return client.focus();
+          }
+        }
+
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl);
+        }
+
+        return undefined;
+      }),
+  );
 });
 
 /////

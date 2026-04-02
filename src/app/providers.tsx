@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { SessionProvider } from "next-auth/react";
 import CallOverlay from "@/components/communication/CallOverlay";
+import ForegroundNotificationListener from "@/components/notifications/ForegroundNotificationListener";
 import { OfflineSyncProvider } from "@/providers/OfflineSyncProvider";
 
 // Create a client
@@ -29,6 +30,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <OfflineSyncProvider>
           {children}
+          <ForegroundNotificationListener />
           <CallOverlay />
         </OfflineSyncProvider>
         {/* Only show devtools in development */}

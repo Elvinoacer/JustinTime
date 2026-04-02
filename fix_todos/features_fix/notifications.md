@@ -1,3 +1,12 @@
+## Execution Status (2026-04-03)
+
+- Done: Applied Prisma migrations including notifications overhaul and outbox delivery tracking.
+- Done: Exposed outbox processor endpoint for external schedulers at `/api/internal/notifications/outbox/process`.
+- Done: Endpoint supports shared-secret auth through `Authorization: Bearer <NOTIFICATION_OUTBOX_SECRET>` or `x-notification-outbox-secret`.
+- Done: Endpoint accepts optional `limit`, `notificationId`, and `processorId` via query or JSON body.
+- Done: Added GitHub Actions scheduler `.github/workflows/notifications-outbox-cron.yml` with cron `0 0,12 * * *` (twice daily, UTC).
+- Required GitHub repository secrets: `NOTIFICATION_OUTBOX_PROCESS_URL` and `NOTIFICATION_OUTBOX_SECRET`.
+
 Based on the audit of the **Notifications & Alerts (Section 8)** files, the core CRUD infrastructure (fetching, marking as read, deleting) and the Firebase Cloud Messaging (FCM) backend integration are present.
 
 However, there are critical data flow breaks regarding real-time synchronization, a major missing piece in the FCM foreground lifecycle, and a complete absence of user consent management (preferences).

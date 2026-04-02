@@ -1,14 +1,32 @@
 import { useEffect, useState, useCallback } from "react";
-import { getToken, onMessage } from "firebase/messaging";
+import { getToken } from "firebase/messaging";
 import { messaging } from "@/lib/firebase";
+import {
+  clearStoredFcmToken,
+  getStoredFcmToken,
+  revokeClientFcmToken,
+  setStoredFcmToken,
+} from "@/lib/notifications/clientToken";
 
 export const useFcmToken = () => {
   const [token, setToken] = useState<string | null>(null);
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
+  const [notificationPermission, setNotificationPermission] =
+    useState<NotificationPermission>("default");
+
+  const syncTokenToBackend = useCallback(async (currentToken: string) => {
+    await fetch("/api/notifications/store-token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token: currentToken }),
+    });
+  }, []);
 
   const retrieveToken = useCallback(async () => {
     try {
       if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+        const previousToken = getStoredFcmToken();
         const msg = await messaging();
         if (!msg) return null;
 
@@ -18,22 +36,30 @@ export const useFcmToken = () => {
 
         if (currentToken) {
           setToken(currentToken);
-          // Send token to backend
-          await fetch("/api/notifications/store-token", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ token: currentToken }),
-          });
+          setStoredFcmToken(currentToken);
+          await syncTokenToBackend(currentToken);
+
+          if (previousToken && previousToken !== currentToken) {
+            await fetch("/api/notifications/store-token", {
+              method: "DELETE",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ token: previousToken }),
+            });
+          }
+
           return currentToken;
         }
+
+        clearStoredFcmToken();
+        setToken(null);
       }
     } catch (error) {
       console.error("An error occurred while retrieving token:", error);
     }
     return null;
-  }, []);
+  }, [syncTokenToBackend]);
 
   const requestPermission = useCallback(async () => {
     try {
@@ -54,29 +80,18 @@ export const useFcmToken = () => {
     // Check current permission status without requesting
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       setNotificationPermission(Notification.permission);
+
+      if (Notification.permission === "denied") {
+        setToken(null);
+        void revokeClientFcmToken();
+        return;
+      }
+
       if (Notification.permission === "granted") {
-        retrieveToken();
+        void retrieveToken();
       }
     }
   }, [retrieveToken]);
-
-  // Listen for foreground messages
-  useEffect(() => {
-    const setupMessageListener = async () => {
-      const msg = await messaging();
-      if (!msg) return;
-
-      const unsubscribe = onMessage(msg, (payload) => {
-        console.log("Foreground message received:", payload);
-        // You can show a toast notification here using sonner or similar library
-        // toast(payload.notification?.title, { description: payload.notification?.body });
-      });
-
-      return () => unsubscribe();
-    };
-
-    setupMessageListener();
-  }, []);
 
   return { token, notificationPermission, requestPermission };
 };

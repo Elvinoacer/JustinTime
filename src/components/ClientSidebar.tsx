@@ -1,12 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { hasRole } from "@/lib/auth/roles";
 import { useNotificationCounts } from "@/lib/hooks/useNotificationCounts";
+import { signOutWithNotificationCleanup } from "@/lib/auth/signOutWithNotificationCleanup";
 
 const navItems = [
   { name: "Dashboard", href: "/client/dashboard", icon: "dashboard" },
@@ -39,7 +41,7 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [isMobile, setIsMobile] = useState(false);
-  const { unreadApplicationUpdatesCount } = useNotificationCounts(pathname);
+  const { unreadCount } = useNotificationCounts(pathname);
 
   // Detect mobile screen size
   useEffect(() => {
@@ -76,9 +78,11 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
         <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 flex items-center justify-center">
-              <img
+              <Image
                 src="/images/JustinTimeLogo.png"
                 alt="JustInTime Logo"
+                width={32}
+                height={32}
                 className="w-full h-full object-contain"
               />
             </div>
@@ -98,9 +102,11 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
           <div className="hidden lg:flex items-center gap-3 px-2 py-2">
             <Link href="/" className="flex items-center gap-2">
               <div className="w-10 h-10 flex items-center justify-center">
-                <img
+                <Image
                   src="/images/JustinTimeLogo.png"
                   alt="JustInTime Logo"
+                  width={40}
+                  height={40}
                   className="w-full h-full object-contain"
                 />
               </div>
@@ -147,7 +153,7 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                             className={`
                               material-symbols-outlined 
                               ${isMobile ? "text-[18px]" : "text-[20px]"}
-                              transition-colors flex-shrink-0
+                              transition-colors shrink-0
                               ${
                                 isActive
                                   ? "text-emerald-600"
@@ -164,7 +170,7 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                           {isActive && (
                             <motion.div
                               layoutId="activeIndicator"
-                              className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"
+                              className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"
                             />
                           )}
                         </Link>
@@ -210,7 +216,7 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                             className={`
                               material-symbols-outlined 
                               ${isMobile ? "text-[18px]" : "text-[20px]"}
-                              transition-colors flex-shrink-0
+                              transition-colors shrink-0
                               ${
                                 isActive
                                   ? "text-emerald-600"
@@ -227,7 +233,7 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                           {isActive && (
                             <motion.div
                               layoutId="activeIndicator"
-                              className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"
+                              className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"
                             />
                           )}
                         </Link>
@@ -271,7 +277,7 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                         }
                       `}
                     >
-                      <div className="relative flex items-center justify-center flex-shrink-0">
+                      <div className="relative flex items-center justify-center shrink-0">
                         <span
                           className={`
                             material-symbols-outlined 
@@ -287,14 +293,11 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                         >
                           {item.icon}
                         </span>
-                        {isNotificationsItem &&
-                          unreadApplicationUpdatesCount > 0 && (
-                            <span className="absolute -top-1 -right-2 inline-flex items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] font-bold min-w-4 h-4 px-1">
-                              {unreadApplicationUpdatesCount > 9
-                                ? "9+"
-                                : unreadApplicationUpdatesCount}
-                            </span>
-                          )}
+                        {isNotificationsItem && unreadCount > 0 && (
+                          <span className="absolute -top-1 -right-2 inline-flex items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] font-bold min-w-4 h-4 px-1">
+                            {unreadCount > 9 ? "9+" : unreadCount}
+                          </span>
+                        )}
                       </div>
                       <span className="text-xs lg:text-sm truncate">
                         {item.name}
@@ -302,7 +305,7 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                       {isActive && (
                         <motion.div
                           layoutId="activeIndicator"
-                          className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"
+                          className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"
                         />
                       )}
                     </Link>
@@ -321,7 +324,7 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                 className="flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-xl transition-all duration-200 group text-gray-600 hover:bg-gray-50 hover:text-gray-900 w-full"
               >
                 <span
-                  className="material-symbols-outlined text-[18px] lg:text-[20px] transition-colors text-gray-400 group-hover:text-gray-600 flex-shrink-0"
+                  className="material-symbols-outlined text-[18px] lg:text-[20px] transition-colors text-gray-400 group-hover:text-gray-600 shrink-0"
                   aria-hidden="true"
                 >
                   swap_horiz
@@ -337,7 +340,7 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                 className="flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-xl transition-all duration-200 group bg-emerald-50 text-emerald-700 hover:bg-emerald-100 w-full"
               >
                 <span
-                  className="material-symbols-outlined text-[18px] lg:text-[20px] transition-colors text-emerald-600 flex-shrink-0"
+                  className="material-symbols-outlined text-[18px] lg:text-[20px] transition-colors text-emerald-600 shrink-0"
                   aria-hidden="true"
                 >
                   work
@@ -357,11 +360,13 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
           aria-label="User profile"
         >
           <div className="flex items-center gap-2 lg:gap-3">
-            <div className="bg-gray-100 rounded-full w-8 h-8 lg:w-10 lg:h-10 flex items-center justify-center overflow-hidden flex-shrink-0 border border-gray-200">
+            <div className="bg-gray-100 rounded-full w-8 h-8 lg:w-10 lg:h-10 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200">
               {session?.user?.image ? (
-                <img
+                <Image
                   src={session.user.image}
                   alt={session.user.name || "User"}
+                  width={40}
+                  height={40}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -378,16 +383,21 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
                 {session?.user?.email || "client@example.com"}
               </p>
             </div>
-            <Link
-              href="/api/auth/signout"
-              className="ml-auto text-gray-400 hover:text-red-500 transition-colors p-1 lg:p-1.5 hover:bg-red-50 rounded-lg flex-shrink-0"
+            <button
+              type="button"
+              onClick={() => {
+                void signOutWithNotificationCleanup({
+                  callbackUrl: "/auth/login",
+                });
+              }}
+              className="ml-auto text-gray-400 hover:text-red-500 transition-colors p-1 lg:p-1.5 hover:bg-red-50 rounded-lg shrink-0"
               title="Sign out"
               aria-label="Sign out"
             >
               <span className="material-symbols-outlined text-base lg:text-xl">
                 logout
               </span>
-            </Link>
+            </button>
           </div>
         </div>
       </aside>
