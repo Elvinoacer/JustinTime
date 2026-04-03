@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { formatCurrency } from "@/lib/financials";
+import { TAX_RATES } from "@/lib/etims/tax-calculator";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import PrintInvoiceButton from "@/components/invoices/PrintInvoiceButton";
@@ -21,10 +22,35 @@ export default async function InvoicePage({
     where: { id: bookingId },
     include: {
       invoice: true,
-      provider: true,
-      client: true,
-      service: true,
-      job: true,
+      provider: {
+        select: {
+          name: true,
+          email: true,
+          taxSettings: {
+            select: {
+              kraPin: true,
+              businessName: true,
+            },
+          },
+        },
+      },
+      client: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+      service: {
+        select: {
+          title: true,
+          description: true,
+        },
+      },
+      job: {
+        select: {
+          title: true,
+        },
+      },
     },
   });
 
@@ -52,6 +78,18 @@ export default async function InvoicePage({
       </div>
     );
   }
+
+  const sellerPin =
+    invoice.sellerPin || booking.provider.taxSettings?.kraPin || "Not provided";
+  const providerDisplayName =
+    booking.provider.taxSettings?.businessName || booking.provider.name;
+  const backHref =
+    session.user.role === "ADMIN"
+      ? "/admin/bookings"
+      : session.user.role === "CLIENT"
+        ? "/client/bookings"
+        : "/dashboard/bookings";
+  const exciseRateLabel = `${(TAX_RATES.EXCISE_DUTY * 100).toFixed(1)}%`;
 
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
@@ -97,13 +135,12 @@ export default async function InvoicePage({
                 Professional
               </h3>
               <div className="text-gray-800 font-medium">
-                {booking.provider.name}
+                {providerDisplayName}
               </div>
               <div className="text-gray-500 text-sm">
                 {booking.provider.email}
               </div>
-              <div className="text-gray-500 text-sm">PIN: P000000000Z</div>{" "}
-              {/* Mock PIN */}
+              <div className="text-gray-500 text-sm">PIN: {sellerPin}</div>
             </div>
           </div>
 
@@ -138,11 +175,25 @@ export default async function InvoicePage({
                 </span>
               </div>
               <div className="flex justify-between text-sm text-gray-600">
-                <span>Excise Duty (20%)</span>
+                <span>VAT (16%)</span>
+                <span className="font-mono">
+                  {formatCurrency(Number(invoice.vatAmount))}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Excise Duty ({exciseRateLabel})</span>
                 <span className="font-mono">
                   {formatCurrency(Number(invoice.exciseDuty))}
                 </span>
               </div>
+              {Number(invoice.withholdingTax) > 0 && (
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Withholding Tax (5%)</span>
+                  <span className="font-mono">
+                    {formatCurrency(Number(invoice.withholdingTax))}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between text-lg font-bold text-gray-900 border-t-2 border-gray-200 pt-2">
                 <span>Total</span>
                 <span className="font-mono">
@@ -154,7 +205,7 @@ export default async function InvoicePage({
 
           {/* eTIMS Footer */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 flex flex-col md:flex-row items-center gap-6">
-            <div className="bg-white p-2 rounded border border-gray-200 shadow-sm flex-shrink-0">
+            <div className="bg-white p-2 rounded border border-gray-200 shadow-sm shrink-0">
               {invoice.etimsQrUrl && (
                 // Use standard img tag if external URL or Image if strictly internal
                 <img
@@ -189,7 +240,7 @@ export default async function InvoicePage({
 
           <div className="mt-8 text-center print:hidden">
             <Link
-              href="/client/bookings"
+              href={backHref}
               className="text-emerald-600 hover:text-emerald-700 font-medium"
             >
               &larr; Back to Bookings

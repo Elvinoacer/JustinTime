@@ -1640,6 +1640,69 @@ export async function getFinanceSummary() {
       },
     });
 
+    const [
+      totalInvoices,
+      failedInvoices,
+      pendingInvoiceSubmissions,
+      completedWithoutInvoice,
+      invoiceWithoutCompletedBooking,
+      completedPaymentWithoutInvoice,
+      failedEtimsWithCompletedPayment,
+      totalProviders,
+      providersWithVerifiedKra,
+    ] = await Promise.all([
+      prisma.invoice.count(),
+      prisma.invoice.count({ where: { status: "FAILED" } }),
+      prisma.invoice.count({
+        where: { status: { in: ["GENERATED", "SUBMITTED"] } },
+      }),
+      prisma.booking.count({
+        where: {
+          status: "COMPLETED",
+          invoice: {
+            is: null,
+          },
+        },
+      }),
+      prisma.invoice.count({
+        where: {
+          booking: {
+            status: {
+              not: "COMPLETED",
+            },
+          },
+        },
+      }),
+      prisma.payment.count({
+        where: {
+          status: "COMPLETED",
+          booking: {
+            invoice: {
+              is: null,
+            },
+          },
+        },
+      }),
+      prisma.invoice.count({
+        where: {
+          status: "FAILED",
+          booking: {
+            payment: {
+              is: {
+                status: "COMPLETED",
+              },
+            },
+          },
+        },
+      }),
+      prisma.user.count({ where: { role: "PROVIDER" } }),
+      prisma.taxSettings.count({ where: { kraPinVerified: true } }),
+    ]);
+
+    const taxCoverage = totalProviders
+      ? (providersWithVerifiedKra / totalProviders) * 100
+      : 0;
+
     return {
       totalRevenue,
       totalPayments,
@@ -1647,6 +1710,20 @@ export async function getFinanceSummary() {
       totalTransactions,
       totalWalletBalance,
       platformFee,
+      totalInvoices,
+      failedInvoices,
+      pendingInvoiceSubmissions,
+      taxCoverage,
+      complianceCoverage: {
+        totalProviders,
+        providersWithVerifiedKra,
+      },
+      reconciliation: {
+        completedWithoutInvoice,
+        invoiceWithoutCompletedBooking,
+        completedPaymentWithoutInvoice,
+        failedEtimsWithCompletedPayment,
+      },
       recentTransactions: recentTransactions.map((t) => ({
         ...t,
         amount: Number(t.amount),

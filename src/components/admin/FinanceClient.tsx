@@ -126,8 +126,8 @@ export default function FinanceClient({ initialData }: FinanceClientProps) {
   }, [isFiltersOpen]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-teal-50/20">
-      <div className="max-w-[1600px] mx-auto p-3 xs:p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-emerald-50/30 to-teal-50/20">
+      <div className="max-w-400 mx-auto p-3 xs:p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 sm:gap-4">
           <div className="flex-1 min-w-0">
@@ -159,7 +159,7 @@ export default function FinanceClient({ initialData }: FinanceClientProps) {
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
-                className={`relative flex items-center gap-1.5 xs:gap-2 px-3 xs:px-4 sm:px-6 py-2 xs:py-2.5 text-xs xs:text-sm font-medium rounded-md sm:rounded-lg transition-all duration-200 flex-shrink-0 min-w-0 ${
+                className={`relative flex items-center gap-1.5 xs:gap-2 px-3 xs:px-4 sm:px-6 py-2 xs:py-2.5 text-xs xs:text-sm font-medium rounded-md sm:rounded-lg transition-all duration-200 shrink-0 min-w-0 ${
                   isActive
                     ? "text-emerald-700"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
@@ -239,7 +239,7 @@ export default function FinanceClient({ initialData }: FinanceClientProps) {
         {isLoading && (
           <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-2xl flex items-center gap-3 max-w-xs sm:max-w-sm w-full">
-              <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 animate-spin flex-shrink-0" />
+              <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 animate-spin shrink-0" />
               <p className="font-medium text-slate-900 text-sm sm:text-base">
                 Loading data...
               </p>
@@ -250,113 +250,163 @@ export default function FinanceClient({ initialData }: FinanceClientProps) {
         {/* Content */}
         <div className="space-y-4 sm:space-y-6">
           {activeTab === "overview" && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              {/* Recent Transactions Card */}
-              <div className="bg-white p-4 xs:p-5 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm">
-                <h3 className="text-base xs:text-lg font-bold text-slate-900 mb-3 sm:mb-4">
-                  Recent Transactions
-                </h3>
-                {initialData.summary.recentTransactions?.length > 0 ? (
-                  <div className="space-y-3 sm:space-y-4">
-                    {initialData.summary.recentTransactions
-                      .slice(0, 5)
-                      .map((t: any, i: number) => (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between p-3 bg-slate-50 rounded-lg sm:rounded-xl"
-                        >
-                          <div className="flex items-center gap-2 xs:gap-3 min-w-0 flex-1">
-                            <div
-                              className={`p-1.5 xs:p-2 rounded-lg flex-shrink-0 ${
-                                t.type === "DEPOSIT"
-                                  ? "bg-emerald-100 text-emerald-600"
-                                  : t.type === "WITHDRAWAL"
-                                  ? "bg-red-100 text-red-600"
-                                  : "bg-blue-100 text-blue-600"
-                              }`}
-                            >
-                              {t.type === "DEPOSIT" ? (
-                                <ArrowDownRight className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
-                              ) : t.type === "WITHDRAWAL" ? (
-                                <ArrowUpRight className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
-                              ) : (
-                                <ArrowRightLeft className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-slate-900 truncate">
-                                {t.type}
-                              </p>
-                              <p className="text-xs text-slate-500">
-                                {new Date(t.createdAt).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    month: "short",
-                                    day: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  }
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                {/* Recent Transactions Card */}
+                <div className="bg-white p-4 xs:p-5 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm">
+                  <h3 className="text-base xs:text-lg font-bold text-slate-900 mb-3 sm:mb-4">
+                    Recent Transactions
+                  </h3>
+                  {initialData.summary.recentTransactions?.length > 0 ? (
+                    <div className="space-y-3 sm:space-y-4">
+                      {initialData.summary.recentTransactions
+                        .slice(0, 5)
+                        .map((t: any, i: number) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between p-3 bg-slate-50 rounded-lg sm:rounded-xl"
+                          >
+                            <div className="flex items-center gap-2 xs:gap-3 min-w-0 flex-1">
+                              <div
+                                className={`p-1.5 xs:p-2 rounded-lg shrink-0 ${
+                                  t.type === "DEPOSIT"
+                                    ? "bg-emerald-100 text-emerald-600"
+                                    : t.type === "WITHDRAWAL"
+                                      ? "bg-red-100 text-red-600"
+                                      : "bg-blue-100 text-blue-600"
+                                }`}
+                              >
+                                {t.type === "DEPOSIT" ? (
+                                  <ArrowDownRight className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
+                                ) : t.type === "WITHDRAWAL" ? (
+                                  <ArrowUpRight className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
+                                ) : (
+                                  <ArrowRightLeft className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
                                 )}
-                              </p>
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-slate-900 truncate">
+                                  {t.type}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {new Date(t.createdAt).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )}
+                                </p>
+                              </div>
                             </div>
+                            <span className="font-bold text-slate-900 text-sm xs:text-base whitespace-nowrap ml-2">
+                              {new Intl.NumberFormat("en-KE", {
+                                style: "currency",
+                                currency: "KES",
+                              }).format(t.amount)}
+                            </span>
                           </div>
-                          <span className="font-bold text-slate-900 text-sm xs:text-base whitespace-nowrap ml-2">
-                            {new Intl.NumberFormat("en-KE", {
-                              style: "currency",
-                              currency: "KES",
-                            }).format(t.amount)}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                ) : (
-                  <p className="text-slate-500 text-sm text-center py-4">
-                    No recent transactions
-                  </p>
-                )}
+                        ))}
+                    </div>
+                  ) : (
+                    <p className="text-slate-500 text-sm text-center py-4">
+                      No recent transactions
+                    </p>
+                  )}
 
-                {/* View All Button */}
-                <button
-                  onClick={() => handleTabChange("transactions")}
-                  className="w-full mt-4 py-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors"
-                >
-                  View All Transactions
-                </button>
-              </div>
-
-              {/* Quick Stats Card */}
-              <div className="bg-white p-4 xs:p-5 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm">
-                <h3 className="text-base xs:text-lg font-bold text-slate-900 mb-3 sm:mb-4">
-                  Quick Actions
-                </h3>
-                <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                  <button className="p-3 xs:p-4 bg-emerald-50 rounded-lg sm:rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors text-center">
-                    <Wallet className="w-5 h-5 xs:w-6 xs:h-6 text-emerald-600 mx-auto mb-2" />
-                    <p className="text-xs xs:text-sm font-medium text-emerald-700">
-                      Wallet Balances
-                    </p>
-                  </button>
-                  <button className="p-3 xs:p-4 bg-blue-50 rounded-lg sm:rounded-xl border border-blue-100 hover:bg-blue-100 transition-colors text-center">
-                    <ArrowRightLeft className="w-5 h-5 xs:w-6 xs:h-6 text-blue-600 mx-auto mb-2" />
-                    <p className="text-xs xs:text-sm font-medium text-blue-700">
-                      All Transactions
-                    </p>
-                  </button>
-                  <button className="p-3 xs:p-4 bg-purple-50 rounded-lg sm:rounded-xl border border-purple-100 hover:bg-purple-100 transition-colors text-center">
-                    <LayoutDashboard className="w-5 h-5 xs:w-6 xs:h-6 text-purple-600 mx-auto mb-2" />
-                    <p className="text-xs xs:text-sm font-medium text-purple-700">
-                      Reports
-                    </p>
-                  </button>
-                  <button className="p-3 xs:p-4 bg-orange-50 rounded-lg sm:rounded-xl border border-orange-100 hover:bg-orange-100 transition-colors text-center">
-                    <ArrowUpRight className="w-5 h-5 xs:w-6 xs:h-6 text-orange-600 mx-auto mb-2" />
-                    <p className="text-xs xs:text-sm font-medium text-orange-700">
-                      Export Data
-                    </p>
+                  {/* View All Button */}
+                  <button
+                    onClick={() => handleTabChange("transactions")}
+                    className="w-full mt-4 py-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors"
+                  >
+                    View All Transactions
                   </button>
                 </div>
+
+                {/* Quick Stats Card */}
+                <div className="bg-white p-4 xs:p-5 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm">
+                  <h3 className="text-base xs:text-lg font-bold text-slate-900 mb-3 sm:mb-4">
+                    Quick Actions
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <button className="p-3 xs:p-4 bg-emerald-50 rounded-lg sm:rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors text-center">
+                      <Wallet className="w-5 h-5 xs:w-6 xs:h-6 text-emerald-600 mx-auto mb-2" />
+                      <p className="text-xs xs:text-sm font-medium text-emerald-700">
+                        Wallet Balances
+                      </p>
+                    </button>
+                    <button className="p-3 xs:p-4 bg-blue-50 rounded-lg sm:rounded-xl border border-blue-100 hover:bg-blue-100 transition-colors text-center">
+                      <ArrowRightLeft className="w-5 h-5 xs:w-6 xs:h-6 text-blue-600 mx-auto mb-2" />
+                      <p className="text-xs xs:text-sm font-medium text-blue-700">
+                        All Transactions
+                      </p>
+                    </button>
+                    <button className="p-3 xs:p-4 bg-purple-50 rounded-lg sm:rounded-xl border border-purple-100 hover:bg-purple-100 transition-colors text-center">
+                      <LayoutDashboard className="w-5 h-5 xs:w-6 xs:h-6 text-purple-600 mx-auto mb-2" />
+                      <p className="text-xs xs:text-sm font-medium text-purple-700">
+                        Reports
+                      </p>
+                    </button>
+                    <button className="p-3 xs:p-4 bg-orange-50 rounded-lg sm:rounded-xl border border-orange-100 hover:bg-orange-100 transition-colors text-center">
+                      <ArrowUpRight className="w-5 h-5 xs:w-6 xs:h-6 text-orange-600 mx-auto mb-2" />
+                      <p className="text-xs xs:text-sm font-medium text-orange-700">
+                        Export Data
+                      </p>
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
+
+              <div className="bg-white p-4 xs:p-5 sm:p-6 rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm">
+                <h3 className="text-base xs:text-lg font-bold text-slate-900 mb-3 sm:mb-4">
+                  Reconciliation Alerts
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {[
+                    {
+                      label: "Completed without Invoice",
+                      value:
+                        initialData.summary.reconciliation
+                          ?.completedWithoutInvoice ?? 0,
+                    },
+                    {
+                      label: "Invoice without Completion",
+                      value:
+                        initialData.summary.reconciliation
+                          ?.invoiceWithoutCompletedBooking ?? 0,
+                    },
+                    {
+                      label: "Paid without Invoice",
+                      value:
+                        initialData.summary.reconciliation
+                          ?.completedPaymentWithoutInvoice ?? 0,
+                    },
+                    {
+                      label: "Failed eTIMS + Paid",
+                      value:
+                        initialData.summary.reconciliation
+                          ?.failedEtimsWithCompletedPayment ?? 0,
+                    },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+                    >
+                      <p className="text-xs text-slate-600">{item.label}</p>
+                      <p
+                        className={`mt-1 text-xl font-bold ${
+                          item.value > 0 ? "text-rose-600" : "text-emerald-600"
+                        }`}
+                      >
+                        {item.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
 
           {activeTab === "transactions" && initialData.transactions && (

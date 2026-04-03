@@ -12,7 +12,6 @@ import {
   emailTemplates,
 } from "@/lib/notifications/adminNotifications";
 import { calculateBookingBreakdown } from "@/lib/financials";
-import { createInvoiceForBooking } from "@/app/actions/invoice";
 import { validatePromoCode } from "@/lib/promo";
 import { getDynamicPrice } from "@/lib/pricing-engine";
 import { VALIDATION } from "@/lib/constants/validation";
@@ -571,15 +570,6 @@ export async function POST(request: Request) {
         emailError,
       );
       // Don't fail the booking if notifications fail
-    }
-
-    // Generate eTIMS Invoice
-    try {
-      await createInvoiceForBooking(booking.id);
-    } catch (invoiceError) {
-      console.error("Failed to auto-generate invoice:", invoiceError);
-      // We don't fail the request, but we should log it.
-      // In a real system, we'd have a retry queue.
     }
 
     return NextResponse.json(booking, { status: 201 });

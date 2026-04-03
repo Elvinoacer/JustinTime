@@ -49,7 +49,7 @@ async function main() {
     date: new Date(),
     startTime: "14:00",
     endTime: "15:00",
-    status: "PENDING" as const,
+    status: "COMPLETED" as const,
     totalAmount: 2400, // 2000 + 400 tax
     exciseDutyAmount: 400,
     totalTaxAmount: 400,

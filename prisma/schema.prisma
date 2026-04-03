@@ -240,12 +240,6 @@ model Profile {
   views                 Int       @default(0)
   favorites             Int       @default(0)
 
-  // KRA / Tax Information
-  kraPin      String? // KRA Personal Identification Number
-  tccNumber   String? // Tax Compliance Certificate Number
-  tccExpiry   DateTime?
-  kraVerified Boolean   @default(false)
-
   // TaaS Premium Pricing
   premiumPricingEnabled Boolean @default(false)
   premiumMultiplier     Float   @default(1.0) // 1.0 = no premium, 1.3 = +30%

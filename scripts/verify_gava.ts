@@ -41,16 +41,22 @@ async function main() {
     return;
   }
 
-  // Update Profile
-  await prisma.profile.update({
+  // Update TaxSettings
+  await prisma.taxSettings.upsert({
     where: { userId: provider.id },
-    data: {
+    update: {
       kraPin: validPin,
       tccNumber: "TCC-TEST-001",
-      kraVerified: true,
+      kraPinVerified: true,
+    },
+    create: {
+      userId: provider.id,
+      kraPin: validPin,
+      tccNumber: "TCC-TEST-001",
+      kraPinVerified: true,
     },
   });
-  console.log("PASSED: Updated Tax Profile");
+  console.log("PASSED: Updated Tax Settings");
 
   // Create Tax Filing
   const filing = await prisma.taxFiling.create({

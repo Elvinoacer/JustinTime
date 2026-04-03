@@ -19,6 +19,10 @@ interface FinanceStatsProps {
     totalTransactions: number;
     totalWalletBalance: number;
     platformFee: number;
+    totalInvoices?: number;
+    failedInvoices?: number;
+    pendingInvoiceSubmissions?: number;
+    taxCoverage?: number;
   };
 }
 
@@ -108,10 +112,42 @@ export default function FinanceStats({ stats }: FinanceStatsProps) {
       iconBg: "bg-cyan-100",
       textColor: "text-cyan-700",
     },
+    {
+      label: "Failed eTIMS",
+      value: (stats.failedInvoices || 0).toLocaleString(),
+      compactValue: formatCompactNumber(stats.failedInvoices || 0),
+      icon: Activity,
+      gradient: "from-red-500 to-rose-500",
+      bgGradient: "from-red-50 to-rose-50",
+      iconBg: "bg-red-100",
+      textColor: "text-red-700",
+      pulse: (stats.failedInvoices || 0) > 0,
+    },
+    {
+      label: "Pending eTIMS",
+      value: (stats.pendingInvoiceSubmissions || 0).toLocaleString(),
+      compactValue: formatCompactNumber(stats.pendingInvoiceSubmissions || 0),
+      icon: CreditCard,
+      gradient: "from-amber-500 to-orange-500",
+      bgGradient: "from-amber-50 to-orange-50",
+      iconBg: "bg-amber-100",
+      textColor: "text-amber-700",
+      pulse: (stats.pendingInvoiceSubmissions || 0) > 0,
+    },
+    {
+      label: "KRA Coverage",
+      value: `${Math.round(stats.taxCoverage || 0)}%`,
+      compactValue: `${Math.round(stats.taxCoverage || 0)}%`,
+      icon: TrendingUp,
+      gradient: "from-teal-500 to-emerald-500",
+      bgGradient: "from-teal-50 to-emerald-50",
+      iconBg: "bg-teal-100",
+      textColor: "text-teal-700",
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-2 xs:gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 xs:gap-3 sm:gap-4">
       {statCards.map((stat, index) => {
         const Icon = stat.icon;
         return (
@@ -120,7 +156,7 @@ export default function FinanceStats({ stats }: FinanceStatsProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
-            className={`relative overflow-hidden rounded-lg xs:rounded-xl sm:rounded-2xl bg-gradient-to-br ${
+            className={`relative overflow-hidden rounded-lg xs:rounded-xl sm:rounded-2xl bg-linear-to-br ${
               stat.bgGradient
             } p-3 xs:p-4 sm:p-5 lg:p-6 shadow-xs xs:shadow-sm sm:shadow-md hover:shadow-lg transition-all duration-300 group cursor-pointer border border-white/50 ${
               stat.pulse ? "animate-pulse" : ""
@@ -128,7 +164,7 @@ export default function FinanceStats({ stats }: FinanceStatsProps) {
           >
             {/* Background decoration - Smaller on mobile */}
             <div
-              className={`absolute top-0 right-0 w-12 h-12 xs:w-16 xs:h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gradient-to-br ${stat.gradient} opacity-5 rounded-full -mr-4 xs:-mr-6 sm:-mr-8 lg:-mr-12 -mt-4 xs:-mt-6 sm:-mt-8 lg:-mt-12 group-hover:scale-110 xs:group-hover:scale-125 sm:group-hover:scale-150 transition-transform duration-500`}
+              className={`absolute top-0 right-0 w-12 h-12 xs:w-16 xs:h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-linear-to-br ${stat.gradient} opacity-5 rounded-full -mr-4 xs:-mr-6 sm:-mr-8 lg:-mr-12 -mt-4 xs:-mt-6 sm:-mt-8 lg:-mt-12 group-hover:scale-110 xs:group-hover:scale-125 sm:group-hover:scale-150 transition-transform duration-500`}
             />
 
             <div className="relative">
@@ -144,7 +180,7 @@ export default function FinanceStats({ stats }: FinanceStatsProps) {
                   <div
                     className={`hidden xs:flex items-center gap-1 text-[10px] xs:text-xs font-bold ${
                       stat.trendUp ? "text-emerald-600" : "text-red-600"
-                    } bg-white/50 px-1.5 xs:px-2 py-0.5 xs:py-1 rounded-full flex-shrink-0`}
+                    } bg-white/50 px-1.5 xs:px-2 py-0.5 xs:py-1 rounded-full shrink-0`}
                   >
                     {stat.trendUp ? (
                       <ArrowUpRight className="w-2.5 h-2.5 xs:w-3 xs:h-3" />
@@ -187,7 +223,7 @@ export default function FinanceStats({ stats }: FinanceStatsProps) {
             </div>
 
             {/* Shine effect on hover - Only on larger screens */}
-            <div className="hidden xs:block absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20 -translate-x-full group-hover:translate-x-full transition-all duration-1000" />
+            <div className="hidden xs:block absolute inset-0 bg-linear-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20 -translate-x-full group-hover:translate-x-full transition-all duration-1000" />
           </motion.div>
         );
       })}

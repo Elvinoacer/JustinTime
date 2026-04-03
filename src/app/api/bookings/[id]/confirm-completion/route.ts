@@ -14,6 +14,7 @@ import {
   JOB_LIFECYCLE_EVENT_TYPES,
   recordJobLifecycleEvent,
 } from "@/lib/jobs/lifecycleTimeline";
+import { createInvoiceForBooking } from "@/app/actions/invoice";
 
 export async function POST(
   _request: Request,
@@ -37,6 +38,9 @@ export async function POST(
         },
         client: true,
         slots: true,
+        invoice: {
+          select: { id: true },
+        },
       },
     });
 
@@ -50,6 +54,17 @@ export async function POST(
     }
 
     if (booking.status === "COMPLETED") {
+      if (!booking.invoice) {
+        try {
+          await createInvoiceForBooking(booking.id);
+        } catch (invoiceError) {
+          console.error(
+            "[BOOKING_CONFIRM_COMPLETION] Failed to backfill invoice for completed booking:",
+            invoiceError,
+          );
+        }
+      }
+
       return NextResponse.json({
         message: "Booking is already completed",
         bookingId: booking.id,
@@ -283,6 +298,15 @@ export async function POST(
       console.error(
         "[BOOKING_CONFIRM_COMPLETION] Error sending completion notifications:",
         emailError,
+      );
+    }
+
+    try {
+      await createInvoiceForBooking(booking.id);
+    } catch (invoiceError) {
+      console.error(
+        "[BOOKING_CONFIRM_COMPLETION] Failed to generate invoice after completion:",
+        invoiceError,
       );
     }
 
