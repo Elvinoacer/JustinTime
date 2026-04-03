@@ -181,7 +181,7 @@ export default async function AdminReconciliationPage() {
                       Status: Booking {row.bookingStatus || "N/A"} / Payment{" "}
                       {row.paymentStatus}
                     </p>
-                    {row.description && (
+                    {"description" in row && row.description && (
                       <p className="text-xs text-rose-700 mt-1">
                         Ref: {row.description}
                       </p>

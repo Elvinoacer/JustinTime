@@ -404,7 +404,39 @@ export default function ClientProposalsPage() {
     setIsLoading(true);
     try {
       const data = await getClientProposals(selectedJob || undefined);
-      setProposals(data as Proposal[]);
+      const normalizedData: Proposal[] = Array.isArray(data)
+        ? data.map((proposal: any) => {
+            const providerProfile = proposal?.provider?.profile;
+
+            return {
+              ...proposal,
+              price: Number(proposal?.price ?? 0),
+              createdAt:
+                proposal?.createdAt instanceof Date
+                  ? proposal.createdAt
+                  : new Date(proposal?.createdAt ?? Date.now()),
+              job: {
+                ...proposal?.job,
+                budget:
+                  proposal?.job?.budget == null
+                    ? null
+                    : Number(proposal.job.budget),
+              },
+              provider: {
+                ...proposal?.provider,
+                profile: providerProfile
+                  ? {
+                      ...providerProfile,
+                      skills: Array.isArray(providerProfile.skills)
+                        ? providerProfile.skills
+                        : [],
+                    }
+                  : null,
+              },
+            } as Proposal;
+          })
+        : [];
+      setProposals(normalizedData);
     } catch (error) {
       console.error("Error loading proposals:", error);
       toast.error("Failed to load proposals");
@@ -1460,10 +1492,10 @@ export default function ClientProposalsPage() {
                                     </p>
                                   )}
 
-                                  {proposal.provider.profile?.skills?.length >
-                                    0 && (
+                                  {(proposal.provider.profile?.skills?.length ??
+                                    0) > 0 && (
                                     <div className="flex flex-wrap gap-1 mb-2">
-                                      {proposal.provider.profile.skills
+                                      {(proposal.provider.profile?.skills ?? [])
                                         .slice(0, 6)
                                         .map((skill, skillIdx) => (
                                           <span

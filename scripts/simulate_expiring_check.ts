@@ -20,13 +20,12 @@ async function main() {
 
   await prisma.backgroundCheck.create({
     data: {
-      providerId: provider.id,
-      status: "CLEARED",
-      dciCertificateUrl: "https://example.com/mock-cert.pdf",
-      submittedAt: new Date(),
-      clearedAt: new Date(),
+      userId: provider.id,
+      status: "APPROVED",
+      documents: ["https://example.com/mock-cert.pdf"],
+      reportUrl: "https://example.com/mock-cert.pdf",
       expiresAt: expiringDate,
-      adminNotes: "Simulated expiring check",
+      renewalStatus: "DUE",
     },
   });
 

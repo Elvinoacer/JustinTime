@@ -314,10 +314,14 @@ export default function JobApplicationsPage() {
       return;
     }
 
-    const daysValue = estimatedDays ? Number.parseInt(estimatedDays, 10) : null;
-    if (estimatedDays && (!Number.isFinite(daysValue) || daysValue <= 0)) {
-      toast.error("Estimated days must be a positive number");
-      return;
+    let daysValue: number | undefined;
+    if (estimatedDays) {
+      const parsedDays = Number.parseInt(estimatedDays, 10);
+      if (!Number.isFinite(parsedDays) || parsedDays <= 0) {
+        toast.error("Estimated days must be a positive number");
+        return;
+      }
+      daysValue = parsedDays;
     }
 
     try {
@@ -356,10 +360,14 @@ export default function JobApplicationsPage() {
       return;
     }
 
-    const daysValue = estimatedDays ? Number.parseInt(estimatedDays, 10) : null;
-    if (estimatedDays && (!Number.isFinite(daysValue) || daysValue <= 0)) {
-      toast.error("Estimated days must be a positive number");
-      return;
+    let daysValue: number | undefined;
+    if (estimatedDays) {
+      const parsedDays = Number.parseInt(estimatedDays, 10);
+      if (!Number.isFinite(parsedDays) || parsedDays <= 0) {
+        toast.error("Estimated days must be a positive number");
+        return;
+      }
+      daysValue = parsedDays;
     }
 
     try {
@@ -416,6 +424,11 @@ export default function JobApplicationsPage() {
   };
 
   const handleSubmitProposal = async () => {
+    if (!selectedJob) {
+      toast.error("Select a job before submitting a proposal");
+      return;
+    }
+
     if (!coverLetter || coverLetter.length < 50) {
       toast.error("Cover letter must be at least 50 characters");
       return;
@@ -547,217 +560,224 @@ export default function JobApplicationsPage() {
           </div>
         ) : (
           <AnimatePresence mode="popLayout">
-            {jobs.map((job) => (
-              <motion.div
-                key={job.id}
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className="bg-white p-4 sm:p-5 md:p-6 rounded-lg sm:rounded-xl md:rounded-2xl shadow-xs sm:shadow-sm border border-gray-100 hover:shadow-sm sm:hover:shadow-md transition-shadow group cursor-pointer"
-                onClick={() => handleJobClick(job)}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
-                  <div className="flex items-start gap-3 flex-1">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg sm:rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors shrink-0">
-                      <span className="material-symbols-outlined text-base sm:text-lg md:text-xl">
-                        work
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-900 group-hover:text-emerald-600 transition-colors mb-1 truncate">
-                        {job.title}
-                      </h3>
-                      <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 mb-2">
-                        {job.description}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-gray-500">
-                        <div className="flex items-center gap-1 truncate">
-                          <span className="material-symbols-outlined text-xs sm:text-sm">
-                            person
-                          </span>
-                          <span className="truncate max-w-25 sm:max-w-none">
-                            {job.client?.name || "Client"}
-                          </span>
-                        </div>
-                        {job.location && (
-                          <div className="flex items-center gap-1">
+            {jobs.map((job) => {
+              const proposalCount = job._count?.proposals ?? 0;
+              const pendingProposalId =
+                job.proposal?.status === "PENDING" ? job.proposal.id : null;
+
+              return (
+                <motion.div
+                  key={job.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className="bg-white p-4 sm:p-5 md:p-6 rounded-lg sm:rounded-xl md:rounded-2xl shadow-xs sm:shadow-sm border border-gray-100 hover:shadow-sm sm:hover:shadow-md transition-shadow group cursor-pointer"
+                  onClick={() => handleJobClick(job)}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg sm:rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 group-hover:bg-emerald-50 group-hover:text-emerald-600 transition-colors shrink-0">
+                        <span className="material-symbols-outlined text-base sm:text-lg md:text-xl">
+                          work
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-900 group-hover:text-emerald-600 transition-colors mb-1 truncate">
+                          {job.title}
+                        </h3>
+                        <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 mb-2">
+                          {job.description}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-gray-500">
+                          <div className="flex items-center gap-1 truncate">
                             <span className="material-symbols-outlined text-xs sm:text-sm">
-                              location_on
+                              person
                             </span>
-                            <span className="truncate max-w-20 sm:max-w-none">
-                              {job.location}
+                            <span className="truncate max-w-25 sm:max-w-none">
+                              {job.client?.name || "Client"}
                             </span>
                           </div>
-                        )}
-                        <div className="flex items-center gap-1 whitespace-nowrap">
-                          <span className="material-symbols-outlined text-xs sm:text-sm">
-                            calendar_today
-                          </span>
-                          {new Date(job.createdAt).toLocaleDateString()}
-                        </div>
-                        {activeTab === "available" &&
-                          job._count?.proposals > 0 && (
+                          {job.location && (
+                            <div className="flex items-center gap-1">
+                              <span className="material-symbols-outlined text-xs sm:text-sm">
+                                location_on
+                              </span>
+                              <span className="truncate max-w-20 sm:max-w-none">
+                                {job.location}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1 whitespace-nowrap">
+                            <span className="material-symbols-outlined text-xs sm:text-sm">
+                              calendar_today
+                            </span>
+                            {new Date(job.createdAt).toLocaleDateString()}
+                          </div>
+                          {activeTab === "available" && proposalCount > 0 && (
                             <div className="flex items-center gap-1 text-amber-600 whitespace-nowrap">
                               <span className="material-symbols-outlined text-xs sm:text-sm">
                                 groups
                               </span>
-                              {job._count.proposals} applicant
-                              {job._count.proposals !== 1 ? "s" : ""}
+                              {proposalCount} applicant
+                              {proposalCount !== 1 ? "s" : ""}
                             </div>
                           )}
+                          {(activeTab === "recommended" ||
+                            activeTab === "available") &&
+                            job.deadline && (
+                              <div className="flex items-center gap-1 text-rose-600 whitespace-nowrap">
+                                <span className="material-symbols-outlined text-xs sm:text-sm">
+                                  timer
+                                </span>
+                                Due{" "}
+                                {new Date(job.deadline).toLocaleDateString()}
+                              </div>
+                            )}
+                        </div>
+                        {activeTab === "recommended" &&
+                        Array.isArray(job.recommendation?.reasons) &&
+                        job.recommendation.reasons.length > 0 ? (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {job.recommendation.reasons.map(
+                              (reason: string) => {
+                                const label =
+                                  reason === "category-match"
+                                    ? "Category Match"
+                                    : reason === "nearby"
+                                      ? "Nearby"
+                                      : reason === "low-competition"
+                                        ? "Low Competition"
+                                        : reason === "good-budget"
+                                          ? "Good Budget"
+                                          : reason === "urgent"
+                                            ? "Urgent"
+                                            : reason === "this-week"
+                                              ? "This Week"
+                                              : reason === "high-win-rate"
+                                                ? "High Win Rate"
+                                                : reason === "reliable-history"
+                                                  ? "Reliable History"
+                                                  : reason;
+
+                                return (
+                                  <span
+                                    key={`${job.id}-${reason}`}
+                                    className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
+                                  >
+                                    {label}
+                                  </span>
+                                );
+                              },
+                            )}
+                          </div>
+                        ) : null}
                         {(activeTab === "recommended" ||
                           activeTab === "available") &&
-                          job.deadline && (
-                            <div className="flex items-center gap-1 text-rose-600 whitespace-nowrap">
-                              <span className="material-symbols-outlined text-xs sm:text-sm">
-                                timer
-                              </span>
-                              Due {new Date(job.deadline).toLocaleDateString()}
-                            </div>
-                          )}
+                        job.winProbabilityBand ? (
+                          <div className="mt-2">
+                            <span
+                              title={
+                                job.winProbabilityReason ||
+                                "Estimated using competition and your recent outcomes"
+                              }
+                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${winProbabilityStyle[job.winProbabilityBand] || "border-slate-200 bg-slate-50 text-slate-700"}`}
+                            >
+                              {winProbabilityLabel[job.winProbabilityBand] ||
+                                "Competitive"}
+                            </span>
+                          </div>
+                        ) : null}
                       </div>
-                      {activeTab === "recommended" &&
-                      Array.isArray(job.recommendation?.reasons) &&
-                      job.recommendation.reasons.length > 0 ? (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {job.recommendation.reasons.map((reason: string) => {
-                            const label =
-                              reason === "category-match"
-                                ? "Category Match"
-                                : reason === "nearby"
-                                  ? "Nearby"
-                                  : reason === "low-competition"
-                                    ? "Low Competition"
-                                    : reason === "good-budget"
-                                      ? "Good Budget"
-                                      : reason === "urgent"
-                                        ? "Urgent"
-                                        : reason === "this-week"
-                                          ? "This Week"
-                                          : reason === "high-win-rate"
-                                            ? "High Win Rate"
-                                            : reason === "reliable-history"
-                                              ? "Reliable History"
-                                              : reason;
+                    </div>
 
-                            return (
-                              <span
-                                key={`${job.id}-${reason}`}
-                                className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
-                              >
-                                {label}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 border-t sm:border-t-0 border-gray-100 pt-3 sm:pt-0">
+                      <div className="text-right">
+                        {job.budget && (
+                          <p className="text-base sm:text-lg font-bold text-gray-900">
+                            KES {Number(job.budget).toLocaleString()}
+                          </p>
+                        )}
+                        {job.proposal && (
+                          <div className="flex flex-col items-end gap-1 mt-0.5 sm:mt-1">
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                                statusConfig[job.proposal.status]?.bg
+                              } ${statusConfig[job.proposal.status]?.text}`}
+                            >
+                              {statusConfig[job.proposal.status]?.label}
+                            </span>
+                            {job.proposal.latestStatusReason ? (
+                              <span className="text-[11px] text-gray-500 max-w-56 text-right line-clamp-2">
+                                {job.proposal.latestStatusReason}
                               </span>
-                            );
-                          })}
-                        </div>
-                      ) : null}
-                      {(activeTab === "recommended" ||
-                        activeTab === "available") &&
-                      job.winProbabilityBand ? (
-                        <div className="mt-2">
-                          <span
-                            title={
-                              job.winProbabilityReason ||
-                              "Estimated using competition and your recent outcomes"
-                            }
-                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${winProbabilityStyle[job.winProbabilityBand] || "border-slate-200 bg-slate-50 text-slate-700"}`}
-                          >
-                            {winProbabilityLabel[job.winProbabilityBand] ||
-                              "Competitive"}
-                          </span>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 border-t sm:border-t-0 border-gray-100 pt-3 sm:pt-0">
-                    <div className="text-right">
-                      {job.budget && (
-                        <p className="text-base sm:text-lg font-bold text-gray-900">
-                          KES {Number(job.budget).toLocaleString()}
-                        </p>
-                      )}
-                      {job.proposal && (
-                        <div className="flex flex-col items-end gap-1 mt-0.5 sm:mt-1">
-                          <span
-                            className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                              statusConfig[job.proposal.status]?.bg
-                            } ${statusConfig[job.proposal.status]?.text}`}
-                          >
-                            {statusConfig[job.proposal.status]?.label}
-                          </span>
-                          {job.proposal.latestStatusReason ? (
-                            <span className="text-[11px] text-gray-500 max-w-56 text-right line-clamp-2">
-                              {job.proposal.latestStatusReason}
-                            </span>
-                          ) : null}
-                          {formatTimelineDate(
-                            job.proposal.statusHistory?.[0]?.createdAt,
-                          ) ? (
-                            <span className="text-[11px] text-gray-400">
-                              Updated{" "}
-                              {formatTimelineDate(
-                                job.proposal.statusHistory?.[0]?.createdAt,
-                              )}
-                            </span>
-                          ) : null}
-                          {job.proposal.price && (
-                            <span className="text-xs text-gray-500">
-                              Your bid: KES{" "}
-                              {Number(job.proposal.price).toLocaleString()}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div
-                      className="flex gap-1.5 sm:gap-2"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {(activeTab === "available" ||
-                        activeTab === "recommended") && (
-                        <>
+                            ) : null}
+                            {formatTimelineDate(
+                              job.proposal.statusHistory?.[0]?.createdAt,
+                            ) ? (
+                              <span className="text-[11px] text-gray-400">
+                                Updated{" "}
+                                {formatTimelineDate(
+                                  job.proposal.statusHistory?.[0]?.createdAt,
+                                )}
+                              </span>
+                            ) : null}
+                            {job.proposal.price && (
+                              <span className="text-xs text-gray-500">
+                                Your bid: KES{" "}
+                                {Number(job.proposal.price).toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div
+                        className="flex gap-1.5 sm:gap-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {(activeTab === "available" ||
+                          activeTab === "recommended") && (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleQuickApply(job);
+                              }}
+                              disabled={submitProposal.isPending}
+                              className="px-3 py-1.5 sm:px-4 sm:py-2 border border-emerald-300 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors text-xs sm:text-sm font-semibold whitespace-nowrap disabled:opacity-50"
+                              title="Quick Apply uses an auto-filled proposal template"
+                            >
+                              Quick Apply
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleApplyClick(job);
+                              }}
+                              className="px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-xs sm:text-sm font-semibold whitespace-nowrap"
+                            >
+                              Apply Now
+                            </button>
+                          </>
+                        )}
+                        {activeTab === "applied" && pendingProposalId && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              void handleQuickApply(job);
-                            }}
-                            disabled={submitProposal.isPending}
-                            className="px-3 py-1.5 sm:px-4 sm:py-2 border border-emerald-300 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors text-xs sm:text-sm font-semibold whitespace-nowrap disabled:opacity-50"
-                            title="Quick Apply uses an auto-filled proposal template"
-                          >
-                            Quick Apply
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleApplyClick(job);
-                            }}
-                            className="px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-xs sm:text-sm font-semibold whitespace-nowrap"
-                          >
-                            Apply Now
-                          </button>
-                        </>
-                      )}
-                      {activeTab === "applied" &&
-                        job.proposal?.status === "PENDING" && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleWithdraw(job.proposal.id);
+                              handleWithdraw(pendingProposalId);
                             }}
                             className="px-3 py-1.5 sm:px-4 sm:py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-xs sm:text-sm font-semibold whitespace-nowrap"
                           >
                             Withdraw
                           </button>
                         )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         )}
       </div>

@@ -1,11 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, UserPlus, CheckCircle2 } from "lucide-react";
+import { Loader2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import { addMember } from "@/app/actions/teams";
+import { addMemberToMyTeam } from "@/app/actions/team";
 import { useRouter } from "next/navigation";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,40 +34,48 @@ const PERMISSION_LABELS: Record<string, string> = {
 
 export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
   const [email, setEmail] = useState("");
-  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(DEFAULT_MEMBER_PERMISSIONS);
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(
+    DEFAULT_MEMBER_PERMISSIONS,
+  );
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleInvite = async () => {
     if (!email) {
-        toast.error("Please enter an email address");
-        return;
+      toast.error("Please enter an email address");
+      return;
     }
 
     setLoading(true);
     try {
-        const result = await addMember(email, "MEMBER", selectedPermissions);
-        if (result.success) {
-            toast.success(`Member invited successfully!`);
-            setEmail("");
-            setSelectedPermissions(DEFAULT_MEMBER_PERMISSIONS);
-            router.refresh();
-            onClose();
-        } else {
-            toast.error(result.error || "Invite failed");
-        }
-    } catch (err) {
-        toast.error("Something went wrong");
+      const result = await addMemberToMyTeam(
+        email,
+        "MEMBER",
+        selectedPermissions,
+      );
+      if (result.success) {
+        toast.success(result.message || "Invitation sent successfully!");
+        setEmail("");
+        setSelectedPermissions(DEFAULT_MEMBER_PERMISSIONS);
+        router.refresh();
+        onClose();
+      } else {
+        const actionError =
+          "error" in result && typeof result.error === "string"
+            ? result.error
+            : "Invite failed";
+        toast.error(actionError);
+      }
+    } catch {
+      toast.error("Something went wrong");
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
   const togglePermission = (perm: string) => {
-    setSelectedPermissions(prev => 
-        prev.includes(perm) 
-        ? prev.filter(p => p !== perm)
-        : [...prev, perm]
+    setSelectedPermissions((prev) =>
+      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm],
     );
   };
 
@@ -74,49 +88,56 @@ export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
             Invite Team Member
           </DialogTitle>
           <DialogDescription>
-            Add a crew member or subcontractor to your team. They must have an existing user account.
+            Invite a crew member or subcontractor to your team. They must accept
+            the invitation before joining.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input 
-                    id="email" 
-                    placeholder="colleague@example.com" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email Address</Label>
+            <Input
+              id="email"
+              placeholder="colleague@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
 
-            <div className="space-y-3">
-                <Label>Permissions</Label>
-                <div className="grid grid-cols-1 gap-2 border rounded-lg p-3 max-h-60 overflow-y-auto">
-                    {Object.entries(PERMISSION_LABELS).map(([perm, label]) => (
-                        <div key={perm} className="flex items-center space-x-2">
-                            <Checkbox 
-                                id={perm} 
-                                checked={selectedPermissions.includes(perm)}
-                                onCheckedChange={() => togglePermission(perm)}
-                            />
-                            <label
-                                htmlFor={perm}
-                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                            >
-                                {label}
-                            </label>
-                        </div>
-                    ))}
+          <div className="space-y-3">
+            <Label>Permissions</Label>
+            <div className="grid grid-cols-1 gap-2 border rounded-lg p-3 max-h-60 overflow-y-auto">
+              {Object.entries(PERMISSION_LABELS).map(([perm, label]) => (
+                <div key={perm} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={perm}
+                    checked={selectedPermissions.includes(perm)}
+                    onChange={() => togglePermission(perm)}
+                  />
+                  <label
+                    htmlFor={perm}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                  >
+                    {label}
+                  </label>
                 </div>
+              ))}
             </div>
+          </div>
         </div>
 
         <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
-            <Button onClick={handleInvite} disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Send Invite
-            </Button>
+          <Button variant="outline" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleInvite}
+            disabled={loading}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Send Invite
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

@@ -17,6 +17,7 @@ import {
   BOOKING_LIFECYCLE_EVENT_TYPES,
   recordBookingLifecycleEvent,
 } from "@/lib/bookings/lifecycleTimeline";
+import { BookingStatus } from "@/generated/prisma/client";
 
 type IncomingBookingSlot = {
   date: string;
@@ -38,7 +39,13 @@ export async function GET(request: Request) {
 
     // Get bookings where user is the client
     const where: Prisma.BookingWhereInput = { clientId: session.user.id };
-    if (searchParams.get("status")) where.status = searchParams.get("status");
+    const statusParam = searchParams.get("status");
+    if (
+      statusParam &&
+      (Object.values(BookingStatus) as string[]).includes(statusParam)
+    ) {
+      where.status = statusParam as BookingStatus;
+    }
 
     const [bookings, total] = await Promise.all([
       prisma.booking.findMany({

@@ -305,31 +305,29 @@ export async function PATCH(
       );
     }
 
-    if (!booking.payment) {
+    const payment = booking.payment;
+    if (!payment) {
       return new NextResponse(
         "Cannot release milestones before payment is recorded",
         { status: 409 },
       );
     }
 
-    if (["FAILED", "REFUNDED"].includes(booking.payment.status)) {
+    if (["FAILED", "REFUNDED"].includes(payment.status)) {
       return new NextResponse(
         "Cannot release milestones for failed or refunded payments",
         { status: 409 },
       );
     }
 
-    if (!booking.payment.transactionId?.trim()) {
+    if (!payment.transactionId?.trim()) {
       return new NextResponse(
         "Cannot release milestones until a confirmed payment reference exists",
         { status: 409 },
       );
     }
 
-    if (
-      booking.payment.method !== "WALLET" &&
-      booking.payment.status !== "COMPLETED"
-    ) {
+    if (payment.method !== "WALLET" && payment.status !== "COMPLETED") {
       return new NextResponse(
         "Cannot release milestones until payment is confirmed by the gateway",
         { status: 409 },
@@ -369,7 +367,7 @@ export async function PATCH(
 
     const nextPaymentStatus = isFullyReleased
       ? "COMPLETED"
-      : booking.payment.status === "COMPLETED"
+      : payment.status === "COMPLETED"
         ? "COMPLETED"
         : "PENDING";
 
@@ -380,7 +378,7 @@ export async function PATCH(
       });
 
       await tx.payment.update({
-        where: { id: booking.payment.id },
+        where: { id: payment.id },
         data: { status: nextPaymentStatus },
       });
     });

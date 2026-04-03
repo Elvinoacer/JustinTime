@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@/generated/prisma/client";
+import { JobStatus, type Prisma } from "@/generated/prisma/client";
 import {
   createJobSchema,
   quickCreateJobSchema,
@@ -100,7 +100,6 @@ function serializeJobForList(
       name: string | null;
       image: string | null;
       profile: {
-        isVerified: boolean;
         verificationStatus: string | null;
       } | null;
       trustScore: {
@@ -172,21 +171,27 @@ export async function GET(request: Request) {
 
     // Build where clause
     const where: Prisma.JobWhereInput = {};
+    const statusParam = searchParams.get("status");
+    const categoryParam = searchParams.get("category");
+    const locationParam = searchParams.get("location");
 
     // Status filter
-    if (searchParams.get("status")) {
-      where.status = searchParams.get("status");
+    if (
+      statusParam &&
+      (Object.values(JobStatus) as string[]).includes(statusParam)
+    ) {
+      where.status = statusParam as JobStatus;
     }
 
     // Category filter
-    if (searchParams.get("category")) {
-      where.categoryId = searchParams.get("category");
+    if (categoryParam) {
+      where.categoryId = categoryParam;
     }
 
     // Location filter (partial match)
-    if (searchParams.get("location")) {
+    if (locationParam) {
       where.location = {
-        contains: searchParams.get("location"),
+        contains: locationParam,
         mode: "insensitive",
       };
     }
@@ -232,19 +237,35 @@ export async function GET(request: Request) {
     }
 
     // Sorting
-    const sortBy = searchParams.get("sortBy") || "createdAt";
-    const sortOrder = searchParams.get("sortOrder") || "desc";
+    const requestedSortBy = searchParams.get("sortBy") || "createdAt";
+    const allowedSortFields = new Set([
+      "createdAt",
+      "updatedAt",
+      "deadline",
+      "budget",
+      "title",
+      "status",
+      "distance",
+      "proposals",
+    ]);
+    const sortBy = allowedSortFields.has(requestedSortBy)
+      ? requestedSortBy
+      : "createdAt";
+    const sortOrder: Prisma.SortOrder =
+      searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
     const isDistanceSort =
       sortBy === "distance" && userLat !== null && userLon !== null;
     const distanceCandidateTake = Math.min(Math.max(pageSize * 20, 200), 1000);
 
-    let orderBy: Prisma.JobOrderByWithRelationInput = {
-      [sortBy]: sortOrder,
-    } as Prisma.JobOrderByWithRelationInput;
-
-    // Special case for proposals count sorting
+    let orderBy: Prisma.JobOrderByWithRelationInput = { createdAt: "desc" };
     if (sortBy === "proposals") {
       orderBy = { proposals: { _count: sortOrder } };
+    } else if (sortBy === "distance") {
+      orderBy = { createdAt: "desc" };
+    } else {
+      orderBy = {
+        [sortBy]: sortOrder,
+      } as Prisma.JobOrderByWithRelationInput;
     }
 
     const [jobs, total] = await Promise.all([

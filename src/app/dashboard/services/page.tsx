@@ -513,9 +513,9 @@ const ServicesPage = () => {
                 return (
                   <div className="grid gap-0 lg:grid-cols-[240px_minmax(0,1fr)]">
                     <div className="relative min-h-[220px] overflow-hidden bg-gray-100 lg:min-h-[100%]">
-                      {service.images && service.images.length > 0 ? (
+                      {(service.images?.length ?? 0) > 0 ? (
                         <img
-                          src={service.images[0]}
+                          src={service.images?.[0]}
                           alt={service.name}
                           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
@@ -564,12 +564,12 @@ const ServicesPage = () => {
                               </p>
                             </div>
                             <div className="flex flex-wrap justify-end gap-1.5">
-                              {service.images?.length > 0 && (
+                              {(service.images?.length ?? 0) > 0 && (
                                 <span className="flex items-center gap-1 rounded-full bg-white/12 px-2.5 py-1 text-xs font-medium text-white">
                                   <span className="material-symbols-outlined text-[12px]">
                                     photo_library
                                   </span>
-                                  {service.images.length}
+                                  {service.images?.length ?? 0}
                                 </span>
                               )}
                               {service.video && (
@@ -960,7 +960,7 @@ const ServicesPage = () => {
       <ServiceFormModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        service={editingService}
+        service={editingService ?? undefined}
         isMobile={isMobile}
       />
 

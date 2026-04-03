@@ -4,7 +4,8 @@ type RealtimeEvent =
   | "message_delivered"
   | "message_deleted"
   | "conversation_cleared"
-  | "sos_alert_update";
+  | "sos_alert_update"
+  | "team_announcement";
 
 interface RealtimeBroadcastPayload {
   event: RealtimeEvent;

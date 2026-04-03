@@ -110,7 +110,7 @@ export const useTopUpWallet = (
       );
       return response.data;
     },
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, onMutateResult, context) => {
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
       }
@@ -118,12 +118,12 @@ export const useTopUpWallet = (
       queryClient.invalidateQueries({ queryKey: queryKeys.wallet.balance() });
       queryClient.invalidateQueries({ queryKey: queryKeys.wallet.all });
 
-      onSuccess?.(data, variables, context);
+      onSuccess?.(data, variables, onMutateResult, context);
     },
-    onError: (error, variables, context) => {
+    onError: (error, variables, onMutateResult, context) => {
       const message = error?.message || "Failed to initiate top-up";
       toast.error(message);
-      onError?.(error, variables, context);
+      onError?.(error, variables, onMutateResult, context);
     },
     ...restOptions,
   });

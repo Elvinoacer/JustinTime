@@ -28,6 +28,11 @@ export default async function ExpensesPage() {
       (result.insights?.byStatus?.SCANNED || 0)
     : 0;
   const totalCount = result.success ? result.pagination?.totalCount || 0 : 0;
+  const normalizedExpenses = expenses.map((expense) => ({
+    ...expense,
+    amount: Number(expense.amount),
+    job: expense.job ? { id: expense.job.id, title: expense.job.title } : null,
+  }));
 
   return (
     <div className="container mx-auto py-8 space-y-8 px-4 md:px-6 max-w-6xl">
@@ -105,7 +110,7 @@ export default async function ExpensesPage() {
 
       <ExpenseList
         initialData={{
-          expenses,
+          expenses: normalizedExpenses,
           pagination: result.success ? result.pagination : undefined,
           insights: result.success ? result.insights : undefined,
         }}

@@ -520,7 +520,7 @@ export default function StepVerification({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className={`p-3 sm:p-4 rounded-xl border ${
-                verificationStatus === "VERIFIED"
+                verificationStatus === "PASSED"
                   ? "bg-emerald-50 border-emerald-200"
                   : "bg-red-50 border-red-200"
               }`}
@@ -586,7 +586,7 @@ export default function StepVerification({
               className={`p-3 sm:p-4 rounded-lg sm:rounded-xl flex items-center gap-2 sm:gap-3 border ${verificationTone}`}
             >
               <span className="material-symbols-outlined text-lg sm:text-xl">
-                {verificationStatus === "VERIFIED"
+                {verificationStatus === "PASSED"
                   ? "verified"
                   : verificationStatus === "REJECTED"
                     ? "error"

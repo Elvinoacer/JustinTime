@@ -540,7 +540,7 @@ export function ToastModal({
       onClose={onClose}
       title={title}
       description={description}
-      icon={type}
+      icon={type === "error" ? "danger" : type}
       size="xs"
       closeOnOverlayClick={true}
       compact={true}

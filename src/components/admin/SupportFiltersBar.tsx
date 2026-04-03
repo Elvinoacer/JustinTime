@@ -26,12 +26,15 @@ interface SupportFiltersBarProps {
   filters: SupportFilters;
   onFilterChange: (filters: SupportFilters) => void;
   onApply: () => void;
+  onClear?: () => void;
+  isMobile?: boolean;
 }
 
 export default function SupportFiltersBar({
   filters,
   onFilterChange,
   onApply,
+  onClear,
 }: SupportFiltersBarProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -41,15 +44,19 @@ export default function SupportFiltersBar({
   };
 
   const handleClear = () => {
-    onFilterChange({
-      search: "",
-      status: "ALL",
-      priority: "ALL",
-      category: "ALL",
-      dateFrom: "",
-      dateTo: "",
-    });
-    onApply();
+    if (onClear) {
+      onClear();
+    } else {
+      onFilterChange({
+        search: "",
+        status: "ALL",
+        priority: "ALL",
+        category: "ALL",
+        dateFrom: "",
+        dateTo: "",
+      });
+      onApply();
+    }
     setShowMobileFilters(false);
   };
 

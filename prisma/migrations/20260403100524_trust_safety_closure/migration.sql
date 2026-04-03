@@ -17,10 +17,10 @@ CREATE TYPE "ReportStatus" AS ENUM ('PENDING', 'REVIEWED', 'RESOLVED', 'DISMISSE
 ALTER TYPE "CallStatus" ADD VALUE 'ONGOING';
 
 -- DropIndex
-DROP INDEX "Notification_userId_deletedAt_createdAt_idx";
+DROP INDEX IF EXISTS "Notification_userId_deletedAt_createdAt_idx";
 
 -- DropIndex
-DROP INDEX "Notification_userId_deliveryStatus_createdAt_idx";
+DROP INDEX IF EXISTS "Notification_userId_deliveryStatus_createdAt_idx";
 
 -- AlterTable
 ALTER TABLE "Call" ADD COLUMN     "type" "CallType" NOT NULL DEFAULT 'AUDIO';
@@ -162,7 +162,7 @@ CREATE INDEX "Dispute_createdAt_idx" ON "Dispute"("createdAt");
 CREATE INDEX "Notification_userId_deletedAt_createdAt_idx" ON "Notification"("userId", "deletedAt", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "Notification_userId_deliveryStatus_createdAt_idx" ON "Notification"("userId", "deliveryStatus", "createdAt");
+-- (removed Notification_userId_deliveryStatus_createdAt_idx as column is added in later migration)
 
 -- AddForeignKey
 ALTER TABLE "ProposalTemplate" ADD CONSTRAINT "ProposalTemplate_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

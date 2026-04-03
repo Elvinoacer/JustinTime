@@ -6,10 +6,33 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // Helper function to get the from email address
 // Helper function to get the from email address
 export const getFromEmail = () => {
-  const emailEnv = process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || "support@gtss.software";
+  const emailEnv =
+    process.env.ADMIN_EMAIL ||
+    process.env.EMAIL_FROM ||
+    "support@gtss.software";
   // Check if it's in "Name <email>" format and extract just the email
   const match = emailEnv.match(/<(.+)>/);
   return match ? match[1] : emailEnv;
+};
+
+export const sendEmail = async ({
+  to,
+  subject,
+  html,
+  text,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}) => {
+  return resend.emails.send({
+    from: `JustInTime <${getFromEmail()}>`,
+    to,
+    subject,
+    html,
+    text,
+  });
 };
 
 // Send account deletion scheduled email
@@ -17,7 +40,7 @@ export const sendAccountDeletionScheduledEmail = async (
   userEmail: string,
   userName: string,
   deletionDate: Date,
-  reason?: string
+  reason?: string,
 ) => {
   try {
     const formattedDate = deletionDate.toLocaleString("en-US", {
@@ -126,7 +149,7 @@ Thank you for being part of JustInTime. We hope to see you again!
 // Send account deletion confirmed email
 export const sendAccountDeletionConfirmedEmail = async (
   userEmail: string,
-  userName: string
+  userName: string,
 ) => {
   try {
     await resend.emails.send({
@@ -202,7 +225,8 @@ All the best in your future endeavors!
 
 This is the last email you'll receive from JustInTime.
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`Deletion confirmed email sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -215,7 +239,7 @@ This is the last email you'll receive from JustInTime.
 export const sendSubscriptionExpirationEmail = async (
   userEmail: string,
   userName: string,
-  plan: string
+  plan: string,
 ) => {
   try {
     await resend.emails.send({
@@ -286,7 +310,8 @@ Renew your subscription: ${process.env.NEXTAUTH_URL}/dashboard/premium
 Thank you for being part of JustInTime!
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`Expiration email sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -300,7 +325,7 @@ export const sendSubscriptionActivationEmail = async (
   userEmail: string,
   userName: string,
   plan: string,
-  endDate: Date
+  endDate: Date,
 ) => {
   try {
     const formattedEndDate = endDate.toLocaleDateString("en-US", {
@@ -388,7 +413,8 @@ View your profile: ${process.env.NEXTAUTH_URL}/dashboard/profile
 Thank you for choosing JustInTime Premium!
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`Activation email sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -401,7 +427,7 @@ Thank you for choosing JustInTime Premium!
 export const sendPasswordChangedEmail = async (
   userEmail: string,
   userName: string,
-  changeDateTime: Date
+  changeDateTime: Date,
 ) => {
   try {
     const formattedDate = changeDateTime.toLocaleString("en-US", {
@@ -506,7 +532,8 @@ SECURITY TIPS:
 If you have any questions or concerns, please contact our support team at support@gtss.software
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`Password change notification sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -519,7 +546,7 @@ If you have any questions or concerns, please contact our support team at suppor
 export const sendPasswordResetEmail = async (
   userEmail: string,
   userName: string,
-  resetUrl: string
+  resetUrl: string,
 ) => {
   try {
     await resend.emails.send({
@@ -608,7 +635,8 @@ If you didn't request a password reset, please ignore this email or contact our 
 Need help? Contact us at support@gtss.software
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`Password reset email sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -623,7 +651,7 @@ export const sendSupportTicketCreatedEmail = async (
   userName: string,
   ticketId: string,
   subject: string,
-  category: string
+  category: string,
 ) => {
   try {
     await resend.emails.send({
@@ -702,7 +730,8 @@ View your ticket: ${process.env.NEXTAUTH_URL}/dashboard/help
 Need immediate assistance? Contact us at support@gtss.software
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`Support ticket created email sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -719,7 +748,7 @@ export const sendSupportTicketStatusEmail = async (
   subject: string,
   newStatus: string,
   adminNotes?: string,
-  resolution?: string
+  resolution?: string,
 ) => {
   try {
     const statusColors: Record<string, string> = {
@@ -820,7 +849,8 @@ View ticket details: ${process.env.NEXTAUTH_URL}/dashboard/help
 Have more questions? Feel free to reply to this email or create a new ticket.
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`Support ticket status email sent to ${userEmail}`);
     return true;
   } catch (error) {
@@ -841,7 +871,7 @@ export const sendBookingConfirmationEmail = async (
   endTime: string,
   location: string,
   price: number,
-  bookingId: string
+  bookingId: string,
 ) => {
   try {
     const formattedDate = bookingDate.toLocaleDateString("en-US", {
@@ -945,7 +975,8 @@ Provider Contact: ${providerEmail}
 View your bookings: ${process.env.NEXTAUTH_URL}/client/bookings
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`Booking confirmation email sent to ${clientEmail}`);
     return true;
   } catch (error) {
@@ -966,7 +997,7 @@ export const sendProviderBookingNotificationEmail = async (
   location: string,
   price: number,
   notes: string,
-  bookingId: string
+  bookingId: string,
 ) => {
   try {
     const formattedDate = bookingDate.toLocaleDateString("en-US", {
@@ -1038,12 +1069,16 @@ export const sendProviderBookingNotificationEmail = async (
                 </div>
               </div>
 
-              ${notes ? `
+              ${
+                notes
+                  ? `
                 <div class="notes-box">
                   <strong>📝 Client Notes:</strong>
                   <p style="margin: 5px 0 0 0;">${notes}</p>
                 </div>
-              ` : ""}
+              `
+                  : ""
+              }
 
               <p><strong>Action Required:</strong> Please review and respond to this booking request.</p>
 
@@ -1080,7 +1115,8 @@ ${notes ? `Client Notes: ${notes}` : ""}
 View and respond to this booking: ${process.env.NEXTAUTH_URL}/dashboard/bookings
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`Provider booking notification sent to ${providerEmail}`);
     return true;
   } catch (error) {
@@ -1099,7 +1135,7 @@ export const sendNegotiationRequestEmail = async (
   proposedPrice?: number,
   proposedLocation?: string,
   message?: string,
-  negotiationId?: string
+  negotiationId?: string,
 ) => {
   try {
     await resend.emails.send({
@@ -1138,7 +1174,9 @@ export const sendNegotiationRequestEmail = async (
               <div class="proposal-card">
                 <h3 style="margin-top: 0; color: #3b82f6;">📊 Proposed Changes</h3>
                 
-                ${proposedPrice ? `
+                ${
+                  proposedPrice
+                    ? `
                   <div class="comparison">
                     <div class="price-box">
                       <div style="font-size: 12px; color: #6b7280; margin-bottom: 5px;">Original Price</div>
@@ -1150,22 +1188,32 @@ export const sendNegotiationRequestEmail = async (
                       <div class="proposed-price">Kes ${proposedPrice.toLocaleString()}</div>
                     </div>
                   </div>
-                ` : ""}
+                `
+                    : ""
+                }
 
-                ${proposedLocation ? `
+                ${
+                  proposedLocation
+                    ? `
                   <div style="padding: 15px; background: #f3f4f6; border-radius: 8px; margin-top: 15px;">
                     <strong>📍 Proposed Location:</strong>
                     <div style="margin-top: 5px;">${proposedLocation}</div>
                   </div>
-                ` : ""}
+                `
+                    : ""
+                }
               </div>
 
-              ${message ? `
+              ${
+                message
+                  ? `
                 <div class="message-box">
                   <strong>💬 Message from ${initiatorName}:</strong>
                   <p style="margin: 5px 0 0 0;">${message}</p>
                 </div>
-              ` : ""}
+              `
+                  : ""
+              }
 
               <p><strong>What would you like to do?</strong></p>
               <ul>
@@ -1195,8 +1243,12 @@ Hi ${receiverName},
 ${initiatorName} has sent you a negotiation request for ${serviceTitle}.
 
 PROPOSED CHANGES
-${proposedPrice ? `Original Price: Kes ${originalPrice.toLocaleString()}
-Proposed Price: Kes ${proposedPrice.toLocaleString()}` : ""}
+${
+  proposedPrice
+    ? `Original Price: Kes ${originalPrice.toLocaleString()}
+Proposed Price: Kes ${proposedPrice.toLocaleString()}`
+    : ""
+}
 
 ${proposedLocation ? `Proposed Location: ${proposedLocation}` : ""}
 
@@ -1210,7 +1262,8 @@ What would you like to do?
 Respond to negotiation: ${process.env.NEXTAUTH_URL}/dashboard/bookings
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`Negotiation request email sent to ${receiverEmail}`);
     return true;
   } catch (error) {
@@ -1228,7 +1281,7 @@ export const sendNegotiationResponseEmail = async (
   responseType: "ACCEPTED" | "REJECTED" | "COUNTERED",
   counterPrice?: number,
   counterLocation?: string,
-  message?: string
+  message?: string,
 ) => {
   try {
     const responseConfig = {
@@ -1281,31 +1334,46 @@ export const sendNegotiationResponseEmail = async (
               <p>${config.text}</p>
               
               <div class="response-card">
-                ${responseType === "COUNTERED" && (counterPrice || counterLocation) ? `
+                ${
+                  responseType === "COUNTERED" &&
+                  (counterPrice || counterLocation)
+                    ? `
                   <h3 style="margin-top: 0; color: ${config.color};">📊 Counter Offer Details</h3>
                   ${counterPrice ? `<p><strong>Counter Price:</strong> Kes ${counterPrice.toLocaleString()}</p>` : ""}
                   ${counterLocation ? `<p><strong>Counter Location:</strong> ${counterLocation}</p>` : ""}
-                ` : ""}
+                `
+                    : ""
+                }
 
-                ${message ? `
+                ${
+                  message
+                    ? `
                   <div class="message-box">
                     <strong>💬 Message from ${responderName}:</strong>
                     <p style="margin: 5px 0 0 0;">${message}</p>
                   </div>
-                ` : ""}
+                `
+                    : ""
+                }
               </div>
 
-              ${responseType === "ACCEPTED" ? `
+              ${
+                responseType === "ACCEPTED"
+                  ? `
                 <p><strong>Next Steps:</strong></p>
                 <p>Your booking has been updated with the agreed terms. You can now proceed with the payment.</p>
-              ` : responseType === "COUNTERED" ? `
+              `
+                  : responseType === "COUNTERED"
+                    ? `
                 <p><strong>What would you like to do?</strong></p>
                 <ul>
                   <li>Accept the counter offer</li>
                   <li>Reject the counter offer</li>
                   <li>Send another counter offer</li>
                 </ul>
-              ` : ""}
+              `
+                    : ""
+              }
 
               <a href="${process.env.NEXTAUTH_URL}/client/bookings" class="button">
                 View Booking Details
@@ -1323,18 +1391,23 @@ Hi ${receiverName},
 
 ${config.text}
 
-${responseType === "COUNTERED" && (counterPrice || counterLocation) ? `
+${
+  responseType === "COUNTERED" && (counterPrice || counterLocation)
+    ? `
 COUNTER OFFER DETAILS
 ${counterPrice ? `Counter Price: Kes ${counterPrice.toLocaleString()}` : ""}
 ${counterLocation ? `Counter Location: ${counterLocation}` : ""}
-` : ""}
+`
+    : ""
+}
 
 ${message ? `Message from ${responderName}: ${message}` : ""}
 
 View booking details: ${process.env.NEXTAUTH_URL}/client/bookings
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`Negotiation response email sent to ${receiverEmail}`);
     return true;
   } catch (error) {
@@ -1352,7 +1425,7 @@ export const sendBookingStatusUpdateEmail = async (
   newStatus: string,
   bookingDate: Date,
   bookingId: string,
-  slots?: Array<{ date: Date; startTime: string; endTime: string }>
+  slots?: Array<{ date: Date; startTime: string; endTime: string }>,
 ) => {
   try {
     const statusColors: Record<string, string> = {
@@ -1430,7 +1503,7 @@ export const sendBookingStatusUpdateEmail = async (
                         month: "short",
                         day: "numeric",
                       })} • ${slot.startTime} - ${slot.endTime}</li>
-                    `
+                    `,
                       )
                       .join("")}
                   </ul>
@@ -1512,7 +1585,8 @@ View booking details: ${process.env.NEXTAUTH_URL}/client/bookings
 Need help? Contact us at support@gtss.software
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`Booking status update email sent to ${clientEmail}`);
     return true;
   } catch (error) {
@@ -1527,7 +1601,7 @@ export const sendReviewRequestEmail = async (
   clientName: string,
   providerName: string,
   serviceTitle: string,
-  bookingId: string
+  bookingId: string,
 ) => {
   try {
     await resend.emails.send({
@@ -1592,7 +1666,8 @@ Write a review: ${process.env.NEXTAUTH_URL}/client/reviews/submit/${bookingId}
 It only takes a minute to share your thoughts!
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`Review request email sent to ${clientEmail}`);
     return true;
   } catch (error) {
@@ -1606,7 +1681,7 @@ export const sendContactFormEmail = async (
   name: string,
   email: string,
   subject: string,
-  message: string
+  message: string,
 ) => {
   try {
     await resend.emails.send({
@@ -1640,14 +1715,17 @@ export const sendContactFormEmail = async (
                 <p style="margin: 0;"><strong>From:</strong> ${name}</p>
                 <p style="margin: 0;"><strong>Email:</strong> <a href="mailto:${email}" style="color: #10b981;">${email}</a></p>
                 <p style="margin: 0;"><strong>Subject:</strong> ${subject}</p>
-                <p style="margin: 0;"><strong>Date:</strong> ${new Date().toLocaleString("en-US", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "numeric",
-                })}</p>
+                <p style="margin: 0;"><strong>Date:</strong> ${new Date().toLocaleString(
+                  "en-US",
+                  {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "numeric",
+                  },
+                )}</p>
               </div>
 
               <div class="message-box">
@@ -1682,7 +1760,8 @@ ${message}
 You can reply directly to this email to respond to ${name}.
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`Contact form email sent from ${email}`);
     return true;
   } catch (error) {
@@ -1695,7 +1774,7 @@ You can reply directly to this email to respond to ${name}.
 export const sendVerificationEmail = async (
   userEmail: string,
   userName: string,
-  verificationUrl: string
+  verificationUrl: string,
 ) => {
   try {
     await resend.emails.send({
@@ -1778,8 +1857,11 @@ ${verificationUrl}
 Need help? Contact us at support@gtss.software
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
-    console.log(`Verification email sent to ${userEmail}. Link: ${verificationUrl}`);
+      `,
+    });
+    console.log(
+      `Verification email sent to ${userEmail}. Link: ${verificationUrl}`,
+    );
     return true;
   } catch (error) {
     console.error("Error sending verification email:", error);
@@ -1791,7 +1873,7 @@ Need help? Contact us at support@gtss.software
 export const sendTwoFactorTokenEmail = async (
   userEmail: string,
   userName: string,
-  token: string
+  token: string,
 ) => {
   try {
     await resend.emails.send({
@@ -1857,7 +1939,8 @@ This code will expire in 10 minutes.
 If you didn't request this code, please secure your account immediately.
 
 © ${new Date().getFullYear()} JustInTime. All rights reserved.
-      `,    });
+      `,
+    });
     console.log(`2FA email sent to ${userEmail}. Token: ${token}`);
     return true;
   } catch (error) {

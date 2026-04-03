@@ -8,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCurrency, formatDate } from "@/lib/utils"; // Assuming these exist, otherwise usage standard Intl
 import { TransactionType } from "@/generated/prisma/client";
 
 interface Transaction {

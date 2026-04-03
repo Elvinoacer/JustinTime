@@ -12,20 +12,22 @@ export const MOCK_PARTNERS = [
     rewards: [
       {
         title: "15% Off Power Tools",
-        description: "Get 15% discount on all power tools including drills, saws, and sanders",
+        description:
+          "Get 15% discount on all power tools including drills, saws, and sanders",
         discountType: "PERCENTAGE",
         discountValue: 15,
         minTierRequired: "SILVER" as LoyaltyTier,
-        termsConditions: "Valid on in-store purchases only. Cannot be combined with other offers."
+        termsConditions:
+          "Valid on in-store purchases only. Cannot be combined with other offers.",
       },
       {
         title: "20% Off Paint Supplies",
         description: "Save 20% on all paint, brushes, and painting supplies",
         discountType: "PERCENTAGE",
         discountValue: 20,
-        minTierRequired: "GOLD" as LoyaltyTier
-      }
-    ]
+        minTierRequired: "GOLD" as LoyaltyTier,
+      },
+    ],
   },
 
   // AUTOMOTIVE
@@ -41,7 +43,7 @@ export const MOCK_PARTNERS = [
         description: "10% discount on all automotive parts and accessories",
         discountType: "PERCENTAGE",
         discountValue: 10,
-        minTierRequired: "BRONZE" as LoyaltyTier
+        minTierRequired: "BRONZE" as LoyaltyTier,
       },
       {
         title: "Free Oil Change Kit",
@@ -49,9 +51,9 @@ export const MOCK_PARTNERS = [
         discountType: "FREE_ITEM",
         discountValue: 0,
         minTierRequired: "PLATINUM" as LoyaltyTier,
-        maxRedemptions: 100
-      }
-    ]
+        maxRedemptions: 100,
+      },
+    ],
   },
 
   // INSURANCE
@@ -67,16 +69,16 @@ export const MOCK_PARTNERS = [
         description: "Save 15% on professional liability insurance premiums",
         discountType: "PERCENTAGE",
         discountValue: 15,
-        minTierRequired: "GOLD" as LoyaltyTier
+        minTierRequired: "GOLD" as LoyaltyTier,
       },
       {
         title: "25% Off Equipment Insurance",
         description: "Protect your tools with 25% off equipment insurance",
         discountType: "PERCENTAGE",
         discountValue: 25,
-        minTierRequired: "PLATINUM" as LoyaltyTier
-      }
-    ]
+        minTierRequired: "PLATINUM" as LoyaltyTier,
+      },
+    ],
   },
 
   // EQUIPMENT RENTAL
@@ -92,7 +94,7 @@ export const MOCK_PARTNERS = [
         description: "Get 20% off on all equipment rental orders",
         discountType: "PERCENTAGE",
         discountValue: 20,
-        minTierRequired: "SILVER" as LoyaltyTier
+        minTierRequired: "SILVER" as LoyaltyTier,
       },
       {
         title: "Free Weekend Rental - Monthly",
@@ -100,9 +102,9 @@ export const MOCK_PARTNERS = [
         discountType: "FREE_ITEM",
         discountValue: 0,
         minTierRequired: "DIAMOND" as LoyaltyTier,
-        maxRedemptions: 50
-      }
-    ]
+        maxRedemptions: 50,
+      },
+    ],
   },
 
   // SUPPLIES
@@ -118,16 +120,16 @@ export const MOCK_PARTNERS = [
         description: "Save 10% on cement, steel, and building materials",
         discountType: "PERCENTAGE",
         discountValue: 10,
-        minTierRequired: "BRONZE" as LoyaltyTier
+        minTierRequired: "BRONZE" as LoyaltyTier,
       },
       {
         title: "Free Delivery on Large Orders",
         description: "Free delivery on orders over KES 50,000",
         discountType: "FREE_ITEM",
         discountValue: 0,
-        minTierRequired: "GOLD" as LoyaltyTier
-      }
-    ]
+        minTierRequired: "GOLD" as LoyaltyTier,
+      },
+    ],
   },
 
   // SOFTWARE
@@ -144,9 +146,9 @@ export const MOCK_PARTNERS = [
         discountType: "FREE_ITEM",
         discountValue: 0,
         minTierRequired: "GOLD" as LoyaltyTier,
-        maxRedemptions: 200
-      }
-    ]
+        maxRedemptions: 200,
+      },
+    ],
   },
 
   // TRAINING
@@ -162,7 +164,7 @@ export const MOCK_PARTNERS = [
         description: "Half price on all professional development courses",
         discountType: "PERCENTAGE",
         discountValue: 50,
-        minTierRequired: "SILVER" as LoyaltyTier
+        minTierRequired: "SILVER" as LoyaltyTier,
       },
       {
         title: "Free Business Subscription - 3 Months",
@@ -170,10 +172,10 @@ export const MOCK_PARTNERS = [
         discountType: "FREE_ITEM",
         discountValue: 0,
         minTierRequired: "DIAMOND" as LoyaltyTier,
-        maxRedemptions: 50
-      }
-    ]
-  }
+        maxRedemptions: 50,
+      },
+    ],
+  },
 ];
 
 /**
@@ -182,7 +184,7 @@ export const MOCK_PARTNERS = [
 export async function seedPartners() {
   const results = {
     partnersCreated: 0,
-    rewardsCreated: 0
+    rewardsCreated: 0,
   };
 
   for (const partnerData of MOCK_PARTNERS) {
@@ -190,7 +192,7 @@ export async function seedPartners() {
 
     // Check if partner already exists
     const existing = await prisma.partner.findFirst({
-      where: { name: partnerInfo.name }
+      where: { name: partnerInfo.name },
     });
 
     if (existing) {
@@ -203,17 +205,22 @@ export async function seedPartners() {
       data: {
         ...partnerInfo,
         rewards: {
-          create: rewards.map(reward => ({
-            ...reward,
-            expiryDate: reward.maxRedemptions 
-              ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year for limited rewards
-              : null
-          }))
-        }
+          create: rewards.map((reward) => {
+            const maxRedemptions =
+              "maxRedemptions" in reward ? reward.maxRedemptions : undefined;
+
+            return {
+              ...reward,
+              expiryDate: maxRedemptions
+                ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year for limited rewards
+                : null,
+            };
+          }),
+        },
       },
       include: {
-        rewards: true
-      }
+        rewards: true,
+      },
     });
 
     results.partnersCreated++;

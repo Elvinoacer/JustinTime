@@ -99,19 +99,21 @@ model User {
   receivedReferral Referral?  @relation("ReferredUserReferral")
 
   // Team / Agency
-  ownedTeam          Team?               @relation("OwnedTeam")
-  teamMemberships    TeamMember[]
-  callsMade          Call[]              @relation("CallsMade")
-  callsReceived      Call[]              @relation("CallsReceived")
-  insuranceClaims    InsuranceClaim[]
-  expenses           Expense[]
-  earnedBadges       UserBadge[]
-  pricingQuotes      PricingQuote[]
-  churnScores        ChurnScore[]
-  churnInterventions ChurnIntervention[]
-  loyalty            UserLoyalty?
-  taxSettings        TaxSettings?
-  verificationAudits VerificationAudit[]
+  ownedTeam               Team?               @relation("OwnedTeam")
+  teamMemberships         TeamMember[]
+  teamInvitationsSent     TeamInvitation[]    @relation("TeamInvitationsSent")
+  teamInvitationsReceived TeamInvitation[]    @relation("TeamInvitationsReceived")
+  callsMade               Call[]              @relation("CallsMade")
+  callsReceived           Call[]              @relation("CallsReceived")
+  insuranceClaims         InsuranceClaim[]
+  expenses                Expense[]
+  earnedBadges            UserBadge[]
+  pricingQuotes           PricingQuote[]
+  churnScores             ChurnScore[]
+  churnInterventions      ChurnIntervention[]
+  loyalty                 UserLoyalty?
+  taxSettings             TaxSettings?
+  verificationAudits      VerificationAudit[]
 
   // TaaS Premium Verification
   verificationBadges                   VerificationBadge[]
@@ -1278,6 +1280,14 @@ enum PayrollStatus {
   FAILED
 }
 
+enum TeamInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  REVOKED
+}
+
 model Team {
   id          String  @id @default(cuid())
   name        String
@@ -1298,6 +1308,7 @@ model Team {
   jobs          TeamJob[]
   payrolls      TeamPayroll[]
   announcements TeamAnnouncement[]
+  invitations   TeamInvitation[]
 
   @@index([ownerId])
   @@index([isActive])
@@ -1460,6 +1471,35 @@ model TeamAnnouncement {
 
   @@index([teamId])
   @@index([createdAt])
+}
+
+model TeamInvitation {
+  id            String  @id @default(cuid())
+  teamId        String
+  invitedById   String
+  invitedEmail  String
+  invitedUserId String?
+
+  role        TeamRole             @default(MEMBER)
+  permissions String[]
+  status      TeamInvitationStatus @default(PENDING)
+
+  token       String    @unique
+  message     String?   @db.Text
+  expiresAt   DateTime
+  respondedAt DateTime?
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  team        Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  invitedBy   User  @relation("TeamInvitationsSent", fields: [invitedById], references: [id], onDelete: Cascade)
+  invitedUser User? @relation("TeamInvitationsReceived", fields: [invitedUserId], references: [id], onDelete: SetNull)
+
+  @@index([teamId, status])
+  @@index([invitedEmail, status])
+  @@index([invitedUserId, status])
+  @@index([expiresAt])
 }
 
 // Expense Management

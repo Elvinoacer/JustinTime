@@ -147,6 +147,7 @@ export async function togglePremiumPricing(enabled: boolean) {
     if (enabled && !trustScore?.premiumEligible) {
       return { success: false, error: "Not eligible for premium pricing yet" };
     }
+    const premiumMultiplier = trustScore?.premiumMultiplier ?? 1.0;
 
     const profile = await prisma.profile.findUnique({
       where: { userId: session.user.id },
@@ -162,7 +163,7 @@ export async function togglePremiumPricing(enabled: boolean) {
       where: { userId: session.user.id },
       data: {
         premiumPricingEnabled: enabled,
-        premiumMultiplier: enabled ? trustScore.premiumMultiplier : 1.0,
+        premiumMultiplier: enabled ? premiumMultiplier : 1.0,
       },
     });
 
@@ -172,7 +173,7 @@ export async function togglePremiumPricing(enabled: boolean) {
     return {
       success: true,
       enabled,
-      multiplier: enabled ? trustScore.premiumMultiplier : 1.0,
+      multiplier: enabled ? premiumMultiplier : 1.0,
     };
   } catch (error) {
     console.error("[togglePremiumPricing]", error);

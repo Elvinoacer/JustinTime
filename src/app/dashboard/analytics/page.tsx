@@ -5,7 +5,7 @@ import AdvancedAnalytics from "@/components/dashboard/analytics/AdvancedAnalytic
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Analytics | JustInTime",
@@ -55,7 +55,8 @@ export default async function AnalyticsPage() {
   // Calculate stats for mobile view
   const totalBookings = user.providerBookings.length;
   const totalEarnings =
-    user.wallet?.transactions.reduce((sum, t) => sum + t.amount, 0) || 0;
+    user.wallet?.transactions.reduce((sum, t) => sum + Number(t.amount), 0) ||
+    0;
   const averageRating =
     user.receivedReviews.length > 0
       ? user.receivedReviews.reduce((sum, r) => sum + r.rating, 0) /

@@ -323,8 +323,12 @@ export async function GET(request: NextRequest) {
             where: { userId },
             select: {
               id: true,
-              updatedAt: true,
               verificationStatus: true,
+              user: {
+                select: {
+                  updatedAt: true,
+                },
+              },
             },
           })
           .then((profile) => {
@@ -335,7 +339,7 @@ export async function GET(request: NextRequest) {
                 type: "PROFILE" as const,
                 title: "Profile Updated",
                 desc: `Verification: ${profile.verificationStatus || "PENDING"}`,
-                time: profile.updatedAt,
+                time: profile.user.updatedAt,
                 icon: "person",
                 color: "bg-slate-100 text-slate-700",
               },

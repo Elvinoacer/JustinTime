@@ -17,6 +17,7 @@ import StepVerification, {
   type VerificationResult,
 } from "./components/StepVerification";
 import StepComplete from "./components/StepComplete";
+import type { LocationSource } from "./hooks/useLocation";
 
 type Role = "CLIENT" | "PROVIDER";
 
@@ -27,6 +28,28 @@ interface Category {
   image?: string;
   icon: string;
   count: number;
+}
+
+interface ProviderData {
+  skills: string[];
+  location: string;
+  latitude: number | null;
+  longitude: number | null;
+  locationSource?: LocationSource;
+  locationAccuracy?: number | null;
+  bio: string;
+  phone: string;
+  hourlyRate: string;
+}
+
+interface ClientData {
+  phone: string;
+  address: string;
+  location: string;
+  latitude: number | null;
+  longitude: number | null;
+  locationSource?: LocationSource;
+  locationAccuracy?: number | null;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -65,12 +88,12 @@ function OnboardingPageContent() {
   const [submitStage, setSubmitStage] = useState<string>("");
 
   // Provider Form Data
-  const [providerData, setProviderData] = useState({
+  const [providerData, setProviderData] = useState<ProviderData>({
     skills: [] as string[],
     location: "",
     latitude: null as number | null,
     longitude: null as number | null,
-    locationSource: "MANUAL" as "GPS" | "IP" | "MANUAL",
+    locationSource: "MANUAL",
     locationAccuracy: null as number | null,
     bio: "",
     phone: "",
@@ -78,13 +101,13 @@ function OnboardingPageContent() {
   });
 
   // Client Form Data
-  const [clientData, setClientData] = useState({
+  const [clientData, setClientData] = useState<ClientData>({
     phone: "",
     address: "",
     location: "",
     latitude: null as number | null,
     longitude: null as number | null,
-    locationSource: "MANUAL" as "GPS" | "IP" | "MANUAL",
+    locationSource: "MANUAL",
     locationAccuracy: null as number | null,
   });
   const [clientInterests, setClientInterests] = useState<string[]>([]);

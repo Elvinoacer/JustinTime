@@ -456,10 +456,14 @@ export default function JobDetailPage() {
       return;
     }
 
-    const daysValue = estimatedDays ? Number.parseInt(estimatedDays, 10) : null;
-    if (estimatedDays && (!Number.isFinite(daysValue) || daysValue <= 0)) {
-      toast.error("Estimated days must be a positive number");
-      return;
+    let daysValue: number | undefined;
+    if (estimatedDays) {
+      const parsedDays = Number.parseInt(estimatedDays, 10);
+      if (!Number.isFinite(parsedDays) || parsedDays <= 0) {
+        toast.error("Estimated days must be a positive number");
+        return;
+      }
+      daysValue = parsedDays;
     }
 
     try {
@@ -498,10 +502,14 @@ export default function JobDetailPage() {
       return;
     }
 
-    const daysValue = estimatedDays ? Number.parseInt(estimatedDays, 10) : null;
-    if (estimatedDays && (!Number.isFinite(daysValue) || daysValue <= 0)) {
-      toast.error("Estimated days must be a positive number");
-      return;
+    let daysValue: number | undefined;
+    if (estimatedDays) {
+      const parsedDays = Number.parseInt(estimatedDays, 10);
+      if (!Number.isFinite(parsedDays) || parsedDays <= 0) {
+        toast.error("Estimated days must be a positive number");
+        return;
+      }
+      daysValue = parsedDays;
     }
 
     try {

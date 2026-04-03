@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
-import { deleteFile } from '@/lib/s3';
+import { deleteFile } from "@/lib/s3";
 
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { messageId: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ messageId: string }> },
 ) {
   try {
     const session = await auth();

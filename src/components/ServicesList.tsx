@@ -327,7 +327,7 @@ const ServicesList = ({
                 dynamicPricing: service.dynamicPricing,
                 provider: {
                   name: service.provider?.name || "Unknown Provider",
-                  image: service.provider?.image,
+                  image: service.provider?.image ?? undefined,
                   subscription: subscriptionPlanLabel(
                     (service.provider as { subscription?: unknown })
                       ?.subscription,

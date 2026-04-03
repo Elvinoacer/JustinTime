@@ -22,8 +22,8 @@ export async function getAtRiskUsers(riskLevel?: ChurnRiskLevel) {
 
   try {
     const where = riskLevel
-      ? { riskLevel, riskLevel: { not: "LOW" } }
-      : { riskLevel: { not: "LOW" } };
+      ? { riskLevel }
+      : { riskLevel: { not: ChurnRiskLevel.LOW } };
 
     const scores = await prisma.churnScore.findMany({
       where,

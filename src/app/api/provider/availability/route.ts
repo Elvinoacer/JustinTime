@@ -347,6 +347,11 @@ export async function PATCH(request: Request) {
       });
     }
 
+    const [firstSegment, secondSegment] = normalized.segments;
+    if (!firstSegment) {
+      return new NextResponse("Invalid slot data", { status: 400 });
+    }
+
     const conflictValidation = await validateSegmentConflicts(
       session.user.id,
       normalized.segments,
@@ -358,8 +363,6 @@ export async function PATCH(request: Request) {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
-      const [firstSegment, secondSegment] = normalized.segments;
-
       const updatedPrimary = await tx.availability.update({
         where: { id },
         data: {

@@ -77,7 +77,7 @@ const benefitItem = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.45, ease: [0.23, 1, 0.32, 1] },
+    transition: { duration: 0.45, ease: [0.23, 1, 0.32, 1] as const },
   },
 };
 

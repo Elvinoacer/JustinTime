@@ -4,6 +4,7 @@
  */
 
 import prisma from "@/lib/prisma";
+import { OWNER_PERMISSIONS } from "@/lib/permissions";
 
 export interface EarningInput {
   teamId: string;
@@ -14,22 +15,32 @@ export interface EarningInput {
   reason: string;
 }
 
+function clampPercent(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.min(Math.max(value, 0), 100);
+}
+
 /**
- * Calculate earnings split for a completed job
+ * Calculate earnings split for a completed job.
  */
 export async function calculateJobSplit(
   jobId: string,
-  customSplits?: Record<string, number> // memberId -> percentage
+  customSplits?: Record<string, number>, // memberId -> percentage
 ) {
   const job = await prisma.teamJob.findUnique({
     where: { id: jobId },
     include: {
-      team: { select: { defaultSplit: true } },
+      team: { select: { defaultSplit: true, ownerId: true } },
       assignments: {
-        where: { status: 'COMPLETED' },
-        include: { member: true }
-      }
-    }
+        where: {
+          status: { in: ["PENDING", "ACCEPTED", "IN_PROGRESS", "COMPLETED"] },
+        },
+        include: { member: true },
+      },
+    },
   });
 
   if (!job || !job.collected) {
@@ -37,110 +48,201 @@ export async function calculateJobSplit(
   }
 
   const totalAmount = Number(job.amount);
-  const ownerSplit = job.team.defaultSplit; // e.g., 70%
-  const workerSplit = 100 - ownerSplit; // e.g., 30%
-  
-  // Split worker share among all assigned workers
-  const workerCount = job.assignments.length;
-  if (workerCount === 0) return [];
+  if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+    return [];
+  }
 
-  const perWorkerPercent = workerSplit / workerCount;
-  const perWorkerAmount = (totalAmount * perWorkerPercent) / 100;
+  const ownerSplit = clampPercent(Number(job.team.defaultSplit ?? 70));
+  const workerSplit = 100 - ownerSplit;
 
-  const earnings: EarningInput[] = job.assignments.map(a => ({
+  let ownerMember = await prisma.teamMember.findUnique({
+    where: {
+      teamId_userId: {
+        teamId: job.teamId,
+        userId: job.team.ownerId,
+      },
+    },
+  });
+
+  if (!ownerMember) {
+    ownerMember = await prisma.teamMember.create({
+      data: {
+        teamId: job.teamId,
+        userId: job.team.ownerId,
+        role: "OWNER",
+        permissions: OWNER_PERMISSIONS,
+        status: "ONLINE",
+      },
+    });
+  }
+
+  const workerAssignments = job.assignments.filter(
+    (assignment) => assignment.memberId !== ownerMember.id,
+  );
+
+  if (workerAssignments.length === 0) {
+    return [
+      {
+        teamId: job.teamId,
+        memberId: ownerMember.id,
+        jobId: job.id,
+        amount: totalAmount,
+        splitPercent: 100,
+        reason: `Job: ${job.title}`,
+      },
+    ];
+  }
+
+  const useCustom = customSplits && Object.keys(customSplits).length > 0;
+  const defaultWorkerPercent = workerSplit / workerAssignments.length;
+
+  const workerEarnings: EarningInput[] = workerAssignments.map((assignment) => {
+    const customPercent = useCustom
+      ? customSplits[assignment.memberId]
+      : undefined;
+    const splitPercent =
+      typeof customPercent === "number"
+        ? clampPercent(customPercent)
+        : defaultWorkerPercent;
+
+    return {
+      teamId: job.teamId,
+      memberId: assignment.memberId,
+      jobId: job.id,
+      amount: (totalAmount * splitPercent) / 100,
+      splitPercent,
+      reason: `Job: ${job.title}`,
+    };
+  });
+
+  const workerAllocatedPercent = workerEarnings.reduce(
+    (sum, earning) => sum + earning.splitPercent,
+    0,
+  );
+  const ownerPercent = clampPercent(100 - workerAllocatedPercent);
+
+  const ownerEarning: EarningInput = {
     teamId: job.teamId,
-    memberId: a.memberId,
+    memberId: ownerMember.id,
     jobId: job.id,
-    amount: customSplits?.[a.memberId] 
-      ? (totalAmount * customSplits[a.memberId]) / 100
-      : perWorkerAmount,
-    splitPercent: customSplits?.[a.memberId] || perWorkerPercent,
-    reason: `Job: ${job.title}`
-  }));
+    amount: (totalAmount * ownerPercent) / 100,
+    splitPercent: ownerPercent,
+    reason: `Job: ${job.title}`,
+  };
 
-  return earnings;
+  return [...workerEarnings, ownerEarning].filter(
+    (earning) => earning.amount > 0,
+  );
 }
 
 /**
- * Record earnings for team members
+ * Record earnings for team members.
  */
 export async function recordEarnings(earnings: EarningInput[]) {
   const results = await Promise.all(
-    earnings.map(async (e) => {
-      // Create earning record
+    earnings.map(async (earningInput) => {
+      if (earningInput.jobId) {
+        const existing = await prisma.teamEarning.findFirst({
+          where: {
+            jobId: earningInput.jobId,
+            memberId: earningInput.memberId,
+            reason: earningInput.reason,
+          },
+        });
+
+        if (existing) {
+          return existing;
+        }
+      }
+
       const earning = await prisma.teamEarning.create({
         data: {
-          teamId: e.teamId,
-          memberId: e.memberId,
-          jobId: e.jobId,
-          amount: e.amount,
-          splitPercent: e.splitPercent,
-          reason: e.reason,
-          isPaid: false
-        }
+          teamId: earningInput.teamId,
+          memberId: earningInput.memberId,
+          jobId: earningInput.jobId,
+          amount: earningInput.amount,
+          splitPercent: earningInput.splitPercent,
+          reason: earningInput.reason,
+          isPaid: false,
+        },
       });
 
-      // Update member's total earnings
       await prisma.teamMember.update({
-        where: { id: e.memberId },
+        where: { id: earningInput.memberId },
         data: {
-          totalEarnings: { increment: e.amount },
-          totalJobsCompleted: { increment: e.jobId ? 1 : 0 }
-        }
+          totalEarnings: { increment: earningInput.amount },
+          totalJobsCompleted: { increment: earningInput.jobId ? 1 : 0 },
+        },
       });
 
       return earning;
-    })
+    }),
   );
 
   return results;
 }
 
 /**
- * Process job completion and split earnings
+ * Process job completion and split earnings with idempotency protection.
  */
 export async function processJobEarnings(jobId: string) {
+  const existing = await prisma.teamEarning.findFirst({
+    where: { jobId },
+  });
+
+  if (existing) {
+    return prisma.teamEarning.findMany({
+      where: { jobId },
+    });
+  }
+
   const earnings = await calculateJobSplit(jobId);
-  return await recordEarnings(earnings);
+  if (earnings.length === 0) {
+    return [];
+  }
+
+  return recordEarnings(earnings);
 }
 
 /**
- * Get today's collections for a team
+ * Get today's collections for a team.
  */
 export async function getTodaysCollections(teamId: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
   const jobs = await prisma.teamJob.findMany({
     where: {
       teamId,
       collected: true,
-      collectedAt: { gte: today }
+      collectedAt: { gte: today, lt: tomorrow },
     },
     include: {
       assignments: {
         include: {
           member: {
-            include: { user: { select: { name: true } } }
-          }
-        }
-      }
-    }
+            include: { user: { select: { name: true } } },
+          },
+        },
+      },
+    },
   });
 
   const totalCollected = jobs.reduce((sum, job) => sum + Number(job.amount), 0);
-  
-  // Group by collector
+
   const byCollector: Record<string, number> = {};
-  jobs.forEach(job => {
-    const collectorId = job.collectedBy || 'unknown';
-    byCollector[collectorId] = (byCollector[collectorId] || 0) + Number(job.amount);
+  jobs.forEach((job) => {
+    const collectorId = job.collectedBy || "unknown";
+    byCollector[collectorId] =
+      (byCollector[collectorId] || 0) + Number(job.amount);
   });
 
-  // Group by payment method
   const byMethod: Record<string, number> = {};
-  jobs.forEach(job => {
-    const method = job.paymentMethod || 'CASH';
+  jobs.forEach((job) => {
+    const method = job.paymentMethod || "CASH";
     byMethod[method] = (byMethod[method] || 0) + Number(job.amount);
   });
 
@@ -149,89 +251,88 @@ export async function getTodaysCollections(teamId: string) {
     jobCount: jobs.length,
     byCollector,
     byMethod,
-    jobs
+    jobs,
   };
 }
 
 /**
- * Get member's unpaid balance
+ * Get member's unpaid balance.
  */
 export async function getMemberBalance(memberId: string) {
   const result = await prisma.teamEarning.aggregate({
     where: {
       memberId,
-      isPaid: false
+      isPaid: false,
     },
     _sum: { amount: true },
-    _count: true
+    _count: true,
   });
 
   return {
     unpaidAmount: Number(result._sum.amount || 0),
-    pendingJobs: result._count
+    pendingJobs: result._count,
   };
 }
 
 /**
- * Get earnings breakdown by member for a period
+ * Get earnings breakdown by member for a period.
  */
 export async function getTeamEarningsBreakdown(
   teamId: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
 ) {
   const earnings = await prisma.teamEarning.groupBy({
-    by: ['memberId'],
+    by: ["memberId"],
     where: {
       teamId,
-      createdAt: { gte: startDate, lte: endDate }
+      createdAt: { gte: startDate, lte: endDate },
     },
     _sum: { amount: true },
-    _count: true
+    _count: true,
   });
 
-  // Get member details
-  const memberIds = earnings.map(e => e.memberId);
+  const memberIds = earnings.map((entry) => entry.memberId);
   const members = await prisma.teamMember.findMany({
     where: { id: { in: memberIds } },
-    include: { user: { select: { name: true, image: true } } }
+    include: { user: { select: { name: true, image: true } } },
   });
 
-  return earnings.map(e => {
-    const member = members.find(m => m.id === e.memberId);
+  return earnings.map((entry) => {
+    const member = members.find((m) => m.id === entry.memberId);
     return {
-      memberId: e.memberId,
-      memberName: member?.user.name || 'Unknown',
+      memberId: entry.memberId,
+      memberName: member?.user.name || "Unknown",
       memberImage: member?.user.image,
-      totalEarned: Number(e._sum.amount || 0),
-      jobCount: e._count
+      totalEarned: Number(entry._sum.amount || 0),
+      jobCount: entry._count,
     };
   });
 }
 
 /**
- * Add bonus/tip to member
+ * Add bonus/tip to member.
  */
 export async function addBonusEarning(
   teamId: string,
   memberId: string,
   amount: number,
-  reason: string = 'Bonus'
+  reason: string = "Bonus",
 ) {
   const earning = await prisma.teamEarning.create({
     data: {
       teamId,
       memberId,
       amount,
-      splitPercent: 100, // Full amount to member
+      splitPercent: 100,
       reason,
-      isPaid: false
-    }
+      isPaid: false,
+    },
   });
 
   await prisma.teamMember.update({
     where: { id: memberId },
-    data: { totalEarnings: { increment: amount } }
+    data: { totalEarnings: { increment: amount } },
   });
 
   return earning;

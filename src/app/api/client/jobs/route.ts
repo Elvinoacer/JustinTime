@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
 import { hasAnyRole } from "@/lib/auth/roles";
+import type { Prisma } from "@/generated/prisma/client";
+import { JobStatus } from "@/generated/prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,20 +36,16 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")?.trim();
     const search = searchParams.get("search")?.trim();
 
-    const where: {
-      clientId: string;
-      status?: string;
-      OR?: Array<
-        | { title: { contains: string; mode: "insensitive" } }
-        | { description: { contains: string; mode: "insensitive" } }
-        | { location: { contains: string; mode: "insensitive" } }
-      >;
-    } = {
+    const where: Prisma.JobWhereInput = {
       clientId: userId,
     };
 
-    if (status && status !== "ALL") {
-      where.status = status;
+    if (
+      status &&
+      status !== "ALL" &&
+      (Object.values(JobStatus) as string[]).includes(status)
+    ) {
+      where.status = status as JobStatus;
     }
 
     if (search) {

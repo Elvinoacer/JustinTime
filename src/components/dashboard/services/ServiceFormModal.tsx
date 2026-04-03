@@ -113,7 +113,7 @@ type EditableService = {
   location?: string | null;
   cancellationPolicy?: ServiceCancellationPolicy;
   images?: string[];
-  video?: string;
+  video?: string | null;
 };
 
 interface ServiceFormModalProps {
@@ -591,7 +591,6 @@ const ServiceFormModal = ({
                       error={errors.category}
                       label="Category"
                       compact={true}
-                      isMobile={true}
                     />
                   </div>
 

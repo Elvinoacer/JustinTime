@@ -24,6 +24,18 @@ export default async function AchievementsPage() {
   const inProgressBadges = badges
     .filter((badge: any) => !badge.earned && badge.progress?.required > 0)
     .slice(0, 4);
+  const badgesForGrid = badges.map((badge: any) => ({
+    ...badge,
+    progress:
+      typeof badge.progress === "number"
+        ? badge.progress
+        : badge.progress?.current,
+    requirement:
+      badge.requirement ??
+      (badge.progress?.required != null
+        ? { value: badge.progress.required }
+        : undefined),
+  }));
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-7xl">
@@ -160,7 +172,7 @@ export default async function AchievementsPage() {
       {/* Badge Grid */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
         <h2 className="text-xl font-bold text-gray-900 mb-6">All Badges</h2>
-        <BadgeGrid badges={badges} />
+        <BadgeGrid badges={badgesForGrid} />
       </div>
 
       {/* Tips */}

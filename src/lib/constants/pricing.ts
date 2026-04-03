@@ -11,7 +11,14 @@ export const SUBSCRIPTION_PRICES = {
 export type SubscriptionPaidPlan = keyof typeof SUBSCRIPTION_PRICES;
 
 export const LEADS_PACKAGES = [
-  { id: "starter", credits: 5, price: 450, discount: "10%", label: "Starter" },
+  {
+    id: "starter",
+    credits: 5,
+    price: 450,
+    discount: "10%",
+    label: "Starter",
+    popular: false,
+  },
   {
     id: "growth",
     credits: 20,
@@ -26,6 +33,7 @@ export const LEADS_PACKAGES = [
     price: 3500,
     discount: "30%",
     label: "Professional",
+    popular: false,
   },
 ] as const;
 
@@ -36,6 +44,7 @@ export const PROMOTION_PLANS = {
     days: 7,
     price: 1000,
     label: "Standard Boost",
+    popular: false,
     features: [
       "Top of search results",
       "Highlighted listing",

@@ -232,7 +232,9 @@ function shortestHeadingDelta(fromDeg: number, toDeg: number) {
   return ((toDeg - fromDeg + 540) % 360) - 180;
 }
 
-function getTouchDistance(touches: TouchList) {
+function getTouchDistance(
+  touches: ArrayLike<{ clientX: number; clientY: number }>,
+) {
   if (touches.length < 2) {
     return 0;
   }

@@ -32,7 +32,29 @@ type DashboardFilters = {
 
 type DashboardJob = {
   id: string;
+  title: string;
+  description: string;
+  createdAt: string;
   status?: string;
+  budget?: number;
+  location?: string;
+  deadline?: string;
+  distance?: number | null;
+  score?: number;
+  category?: {
+    name: string;
+    slug: string;
+  };
+  client?: {
+    id: string;
+    name: string;
+    image?: string;
+    verified?: boolean;
+  };
+  _count?: {
+    proposals: number;
+  };
+  maxProposals?: number;
   [key: string]: unknown;
 };
 
@@ -159,10 +181,85 @@ const DashboardPage = () => {
     },
   });
 
-  const rawJobs = useMemo<DashboardJob[]>(
-    () => (Array.isArray(jobsData?.items) ? jobsData.items : []),
-    [jobsData?.items],
-  );
+  const rawJobs = useMemo<DashboardJob[]>(() => {
+    const items = Array.isArray(jobsData?.items) ? jobsData.items : [];
+
+    return items
+      .map((item: any) => {
+        const createdAtValue = item.createdAt;
+        const createdAt =
+          typeof createdAtValue === "string"
+            ? createdAtValue
+            : new Date(
+                (createdAtValue as string | number | Date | undefined) ??
+                  Date.now(),
+              ).toISOString();
+
+        const categoryValue = item.category;
+        const clientValue = item.client;
+
+        return {
+          ...(item as DashboardJob),
+          id: String(item.id ?? ""),
+          title:
+            typeof item.title === "string" && item.title.trim().length > 0
+              ? item.title
+              : "Untitled job",
+          description:
+            typeof item.description === "string" ? item.description : "",
+          createdAt,
+          budget:
+            item.budget == null || Number.isNaN(Number(item.budget))
+              ? undefined
+              : Number(item.budget),
+          deadline:
+            typeof item.deadline === "string" ? item.deadline : undefined,
+          location:
+            typeof item.location === "string" ? item.location : undefined,
+          distance:
+            typeof item.distance === "number"
+              ? item.distance
+              : typeof item.distanceKm === "number"
+                ? item.distanceKm
+                : null,
+          category:
+            categoryValue && typeof categoryValue === "object"
+              ? {
+                  name:
+                    typeof categoryValue.name === "string"
+                      ? categoryValue.name
+                      : "General",
+                  slug:
+                    typeof categoryValue.slug === "string"
+                      ? categoryValue.slug
+                      : "general",
+                }
+              : undefined,
+          client:
+            clientValue && typeof clientValue === "object"
+              ? {
+                  id: typeof clientValue.id === "string" ? clientValue.id : "",
+                  name:
+                    typeof clientValue.name === "string"
+                      ? clientValue.name
+                      : "Client",
+                  image:
+                    typeof clientValue.image === "string"
+                      ? clientValue.image
+                      : undefined,
+                  verified: Boolean(clientValue.verified),
+                }
+              : undefined,
+          _count: {
+            proposals: Number(
+              (item._count as { proposals?: unknown } | undefined)?.proposals ??
+                0,
+            ),
+          },
+        };
+      })
+      .filter((job) => job.id.length > 0);
+  }, [jobsData?.items]);
   const totalJobs = jobsData?.pagination?.total ?? 0;
   const hasMore = jobsData?.pagination?.hasMore ?? false;
   const categories = categoriesData?.data || [];
@@ -187,9 +284,71 @@ const DashboardPage = () => {
     bio: "",
   });
 
+  const recommendedJobs = useMemo<DashboardJob[]>(
+    () =>
+      recommendations.map((job: any) => ({
+        ...(job as DashboardJob),
+        id: String(job?.id ?? ""),
+        title:
+          typeof job?.title === "string" && job.title.trim().length > 0
+            ? job.title
+            : "Untitled job",
+        description:
+          typeof job?.description === "string" ? job.description : "",
+        createdAt:
+          typeof job?.createdAt === "string"
+            ? job.createdAt
+            : new Date().toISOString(),
+        budget:
+          job?.budget == null || Number.isNaN(Number(job.budget))
+            ? undefined
+            : Number(job.budget),
+        deadline: typeof job?.deadline === "string" ? job.deadline : undefined,
+        location: typeof job?.location === "string" ? job.location : undefined,
+        distance:
+          typeof job?.distance === "number"
+            ? job.distance
+            : typeof job?.distanceKm === "number"
+              ? job.distanceKm
+              : null,
+        category:
+          job?.category && typeof job.category === "object"
+            ? {
+                name:
+                  typeof job.category.name === "string"
+                    ? job.category.name
+                    : "General",
+                slug:
+                  typeof job.category.slug === "string"
+                    ? job.category.slug
+                    : "general",
+              }
+            : undefined,
+        client:
+          job?.client && typeof job.client === "object"
+            ? {
+                id: typeof job.client.id === "string" ? job.client.id : "",
+                name:
+                  typeof job.client.name === "string"
+                    ? job.client.name
+                    : "Client",
+                image:
+                  typeof job.client.image === "string"
+                    ? job.client.image
+                    : undefined,
+                verified: Boolean(job.client.verified),
+              }
+            : undefined,
+        _count: {
+          proposals: Number(job?._count?.proposals ?? 0),
+        },
+      })),
+    [recommendations],
+  );
+
   // Determine which jobs to display based on sort
   const jobs: DashboardJob[] =
-    sortBy === "recommended" ? recommendations : rawJobs;
+    sortBy === "recommended" ? recommendedJobs : rawJobs;
   const { data: providerServicesData } = useProviderServices();
   const providerServices = Array.isArray(providerServicesData?.data)
     ? providerServicesData.data
