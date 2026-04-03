@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSettings, useUpdateSettings } from "@/lib/api/hooks/useSettings";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ConfirmModal, PromptModal } from "@/components/Modal";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toggleTwoFactor } from "@/app/actions/twoFactor";
 import {
   User,
@@ -38,6 +39,53 @@ import {
 } from "lucide-react";
 
 import { useFcmToken } from "@/lib/hooks/useFcmToken";
+
+type SettingsTab = "account" | "security" | "notifications" | "privacy";
+
+function DeletionCountdown({
+  scheduledAt,
+  serverTimeOffsetMs,
+  onExpired,
+}: {
+  scheduledAt: string;
+  serverTimeOffsetMs: number;
+  onExpired: () => void;
+}) {
+  const [timeRemaining, setTimeRemaining] = useState("Calculating...");
+  const expirySyncTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      const deletionTimeMs = new Date(scheduledAt).getTime();
+      const nowMs = Date.now() + serverTimeOffsetMs;
+      const diff = deletionTimeMs - nowMs;
+
+      if (diff <= 0) {
+        setTimeRemaining("Expired");
+
+        if (!expirySyncTriggeredRef.current) {
+          expirySyncTriggeredRef.current = true;
+          onExpired();
+        }
+
+        return;
+      }
+
+      expirySyncTriggeredRef.current = false;
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeRemaining(`${hours}h ${minutes}m ${seconds}s`);
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [scheduledAt, serverTimeOffsetMs, onExpired]);
+
+  return <>{timeRemaining}</>;
+}
 
 // PushNotificationToggle Component
 function PushNotificationToggle() {
@@ -164,14 +212,14 @@ function TwoFactorToggle({ initialEnabled }: { initialEnabled: boolean }) {
 
 export default function ClientSettingsPage() {
   const router = useRouter();
-  const { data: settingsData, isLoading } = useSettings();
-  const updateSettings = useUpdateSettings();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const { data: settingsData, isLoading } = useSettings("client");
+  const updateSettings = useUpdateSettings("client");
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<
-    "account" | "security" | "notifications" | "privacy"
-  >("account");
+  const [activeTab, setActiveTab] = useState<SettingsTab>("account");
 
   // Password states
   const [currentPassword, setCurrentPassword] = useState("");
@@ -185,7 +233,11 @@ export default function ClientSettingsPage() {
   // Deletion tracking
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState("");
+  const [deletionScheduledAt, setDeletionScheduledAt] = useState<string | null>(
+    null,
+  );
+  const [deletionReason, setDeletionReason] = useState<string | null>(null);
+  const [serverTimeOffsetMs, setServerTimeOffsetMs] = useState(0);
 
   // Modal states
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -219,43 +271,35 @@ export default function ClientSettingsPage() {
   }, []);
 
   useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (
+      tab === "account" ||
+      tab === "security" ||
+      tab === "notifications" ||
+      tab === "privacy"
+    ) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (settingsData?.settings) {
       setNotifications(settingsData.settings.notifications);
       setPrivacy(settingsData.settings.privacy);
-    }
-  }, [settingsData]);
+      setDeletionScheduledAt(settingsData.settings.account.deletionScheduledAt);
+      setDeletionReason(settingsData.settings.account.deletionReason ?? null);
 
-  // Countdown timer for account deletion
-  useEffect(() => {
-    if (!settingsData?.settings?.account?.deletionScheduledAt) {
-      setTimeRemaining("");
-      return;
-    }
-
-    const updateCountdown = () => {
-      const deletionTime = new Date(
-        settingsData.settings.account.deletionScheduledAt!,
-      );
-      const now = new Date();
-      const diff = deletionTime.getTime() - now.getTime();
-
-      if (diff <= 0) {
-        setTimeRemaining("Expired");
-        return;
+      if (settingsData.serverTime) {
+        setServerTimeOffsetMs(
+          new Date(settingsData.serverTime).getTime() - Date.now(),
+        );
       }
-
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      setTimeRemaining(`${hours}h ${minutes}m ${seconds}s`);
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-
-    return () => clearInterval(interval);
+    }
   }, [settingsData]);
+
+  const handleDeletionExpired = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["client", "settings"] });
+  }, [queryClient]);
 
   const handleNotificationChange = (key: string) => {
     const newNotifications = {
@@ -297,13 +341,33 @@ export default function ClientSettingsPage() {
         body: JSON.stringify({ reason }),
       });
 
-      if (!response.ok) throw new Error("Failed to schedule deletion");
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to schedule deletion");
+      }
 
       toast.success("Account deletion scheduled for 24 hours from now");
-      window.location.reload();
+
+      setDeletionScheduledAt(
+        typeof data?.deletionScheduledAt === "string"
+          ? data.deletionScheduledAt
+          : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      );
+      setDeletionReason(reason.trim() || "User requested account deletion");
+
+      if (typeof data?.serverTime === "string") {
+        setServerTimeOffsetMs(new Date(data.serverTime).getTime() - Date.now());
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["client", "settings"] });
     } catch (error) {
       console.error("Error scheduling deletion:", error);
-      toast.error("Failed to schedule account deletion");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to schedule account deletion",
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -316,13 +380,29 @@ export default function ClientSettingsPage() {
         method: "POST",
       });
 
-      if (!response.ok) throw new Error("Failed to cancel deletion");
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to cancel deletion");
+      }
 
       toast.success("Account deletion cancelled! Welcome back!");
-      window.location.reload();
+
+      setDeletionScheduledAt(null);
+      setDeletionReason(null);
+
+      if (typeof data?.serverTime === "string") {
+        setServerTimeOffsetMs(new Date(data.serverTime).getTime() - Date.now());
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["client", "settings"] });
     } catch (error) {
       console.error("Error cancelling deletion:", error);
-      toast.error("Failed to cancel account deletion");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to cancel account deletion",
+      );
     } finally {
       setIsRestoring(false);
     }
@@ -407,7 +487,7 @@ export default function ClientSettingsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/20">
+    <div className="bg-gradient-to-br from-slate-50 via-white to-blue-50/20">
       <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Modals */}
         <ConfirmModal
@@ -693,7 +773,7 @@ export default function ClientSettingsPage() {
 
                     {/* Danger Zone */}
                     <div className="pt-4 sm:pt-6 border-t border-gray-200">
-                      {settingsData?.settings.account.deletionScheduledAt ? (
+                      {deletionScheduledAt ? (
                         <div className="bg-red-50 border-2 border-red-200 rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6">
                           <div className="flex items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
                             <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
@@ -707,10 +787,9 @@ export default function ClientSettingsPage() {
                                 Your account will be permanently deleted. This
                                 cannot be undone after the time expires.
                               </p>
-                              {settingsData.settings.account.deletionReason && (
+                              {deletionReason && (
                                 <p className="text-xs sm:text-sm text-gray-700 italic mt-2">
-                                  Reason:{" "}
-                                  {settingsData.settings.account.deletionReason}
+                                  Reason: {deletionReason}
                                 </p>
                               )}
                             </div>
@@ -726,14 +805,15 @@ export default function ClientSettingsPage() {
                                   isMobile ? "text-3xl" : "text-4xl sm:text-5xl"
                                 } font-bold text-red-600 font-mono mb-1 sm:mb-2`}
                               >
-                                {timeRemaining || "Calculating..."}
+                                <DeletionCountdown
+                                  scheduledAt={deletionScheduledAt}
+                                  serverTimeOffsetMs={serverTimeOffsetMs}
+                                  onExpired={handleDeletionExpired}
+                                />
                               </div>
                               <p className="text-xs text-gray-500">
                                 Scheduled:{" "}
-                                {new Date(
-                                  settingsData.settings.account
-                                    .deletionScheduledAt,
-                                ).toLocaleString()}
+                                {new Date(deletionScheduledAt).toLocaleString()}
                               </p>
                             </div>
                           </div>

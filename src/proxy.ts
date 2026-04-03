@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { hasClientAccess } from "@/lib/auth/clientAccess";
 import { NextResponse } from "next/server";
 
 type ProxyRateLimitEntry = {
@@ -395,6 +396,11 @@ export default auth((req) => {
 
   const hasCompletedOnboarding = req.auth?.user?.onboardingCompleted;
   const userRole = req.auth?.user?.role;
+  const userRoles = req.auth?.user?.roles as string[] | undefined;
+  const hasClientWorkspaceAccess = hasClientAccess({
+    role: userRole,
+    roles: userRoles,
+  });
   const emailVerified = req.auth?.user?.emailVerified;
   const authProvider = req.auth?.user?.authProvider;
   const isGoogleUser = authProvider === "google";
@@ -446,9 +452,17 @@ export default auth((req) => {
     }
 
     // Role-based dashboard access
-    const userRoles = req.auth?.user?.roles as string[] | undefined;
     const effectivelyClientOnly =
       userRole === "CLIENT" && !userRoles?.includes("PROVIDER");
+
+    if (isOnClientDashboard && !hasClientWorkspaceAccess) {
+      if (userRole === "PROVIDER" || userRoles?.includes("PROVIDER")) {
+        return NextResponse.redirect(new URL("/dashboard", nextUrl));
+      }
+
+      return NextResponse.redirect(new URL("/onboarding", nextUrl));
+    }
+
     if (isOnProviderDashboard && effectivelyClientOnly) {
       return NextResponse.redirect(new URL("/onboarding", nextUrl));
     }

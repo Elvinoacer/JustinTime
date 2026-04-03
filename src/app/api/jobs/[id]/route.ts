@@ -8,6 +8,42 @@ import {
   recordJobLifecycleEvent,
 } from "@/lib/jobs/lifecycleTimeline";
 
+const geocodeCache = new Map<string, { lat: number; lon: number } | null>();
+
+async function geocodeLocation(
+  location: string,
+): Promise<{ lat: number; lon: number } | null> {
+  if (geocodeCache.has(location)) {
+    return geocodeCache.get(location)!;
+  }
+
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}&limit=1`,
+      {
+        headers: {
+          "User-Agent": "JustInTime-Job-Platform",
+        },
+      },
+    );
+    const data = await response.json();
+
+    if (Array.isArray(data) && data.length > 0) {
+      const coords = {
+        lat: parseFloat(data[0].lat),
+        lon: parseFloat(data[0].lon),
+      };
+      geocodeCache.set(location, coords);
+      return coords;
+    }
+  } catch {
+    // Ignore geocoding errors to avoid blocking update flows.
+  }
+
+  geocodeCache.set(location, null);
+  return null;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -139,6 +175,25 @@ export async function PUT(
     const existingBudgetValue =
       existingJob.budget === null ? null : Number(existingJob.budget);
 
+    let nextLatitude = body.latitude;
+    let nextLongitude = body.longitude;
+
+    if (
+      body.location !== undefined &&
+      body.location !== existingJob.location &&
+      (body.latitude === undefined || body.longitude === undefined)
+    ) {
+      const coords = await geocodeLocation(body.location);
+      if (coords) {
+        if (body.latitude === undefined) {
+          nextLatitude = coords.lat;
+        }
+        if (body.longitude === undefined) {
+          nextLongitude = coords.lon;
+        }
+      }
+    }
+
     const updatedJob = await prisma.$transaction(async (tx) => {
       const updated = await tx.job.update({
         where: { id },
@@ -147,6 +202,12 @@ export async function PUT(
           description: body.description,
           budget: body.budget,
           location: body.location,
+          ...(nextLatitude !== undefined && {
+            latitude: nextLatitude,
+          }),
+          ...(nextLongitude !== undefined && {
+            longitude: nextLongitude,
+          }),
           categoryId,
           ...(body.images && { images: body.images }),
           ...(body.status && { status: body.status }),

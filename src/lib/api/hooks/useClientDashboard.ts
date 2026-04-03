@@ -5,8 +5,8 @@ import apiClient from "@/lib/api/client";
 export interface DashboardStat {
   title: string;
   value: string;
-  change: string;
-  isPositive: boolean;
+  change?: string;
+  isPositive?: boolean;
   icon: string;
   color: string;
 }
@@ -37,7 +37,9 @@ export const useClientStats = () => {
   return useQuery({
     queryKey: ["client", "dashboard", "stats"],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ stats: DashboardStat[] }>("/client/dashboard/stats");
+      const { data } = await apiClient.get<{ stats: DashboardStat[] }>(
+        "/client/dashboard/stats",
+      );
       return data.stats;
     },
   });
@@ -47,7 +49,9 @@ export const useClientActivity = () => {
   return useQuery({
     queryKey: ["client", "dashboard", "activity"],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ activities: DashboardActivity[] }>("/client/dashboard/activity");
+      const { data } = await apiClient.get<{ activities: DashboardActivity[] }>(
+        "/client/dashboard/activity",
+      );
       return data.activities;
     },
   });
@@ -57,7 +61,9 @@ export const useClientJobs = (limit = 5) => {
   return useQuery({
     queryKey: ["client", "dashboard", "jobs", limit],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ jobs: DashboardJob[] }>(`/client/jobs?limit=${limit}`);
+      const { data } = await apiClient.get<{ jobs: DashboardJob[] }>(
+        `/client/jobs?limit=${limit}`,
+      );
       return data.jobs;
     },
   });

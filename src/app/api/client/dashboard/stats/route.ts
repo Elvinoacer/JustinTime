@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { handleError, successResponse } from "@/lib/middleware/errorHandler";
-import { hasAnyRole } from "@/lib/auth/roles";
+import { handleError } from "@/lib/middleware/errorHandler";
+import { hasClientAccess } from "@/lib/auth/clientAccess";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,9 +12,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Allow both CLIENT and PROVIDER roles to access client dashboard
-    if (!hasAnyRole(session.user, ["CLIENT", "PROVIDER"])) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!hasClientAccess(session.user)) {
+      return NextResponse.json(
+        { error: "Client profile required" },
+        { status: 403 },
+      );
     }
 
     const userId = session.user.id;
@@ -79,32 +81,24 @@ export async function GET(request: NextRequest) {
       {
         title: "Total Spent",
         value: `KES ${spending._sum.amount?.toString() || "0"}`,
-        change: "+0%", // Placeholder for now, would need historical data
-        isPositive: true,
         icon: "account_balance_wallet",
         color: "bg-emerald-500",
       },
       {
         title: "Active Jobs",
         value: activeJobs.toString(),
-        change: "0",
-        isPositive: true,
         icon: "work",
         color: "bg-blue-500",
       },
       {
         title: "Proposals",
         value: totalProposals.toString(),
-        change: "+0",
-        isPositive: true,
         icon: "description",
         color: "bg-amber-500",
       },
       {
         title: "Hired Pros",
         value: hiredPros.toString(),
-        change: "+0",
-        isPositive: true,
         icon: "group",
         color: "bg-purple-500",
       },

@@ -1,6 +1,18 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { hasClientAccess } from "@/lib/auth/clientAccess";
+import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
+
+const CLIENT_PROFILE_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  image: true,
+  phone: true,
+  clientInterests: true,
+  createdAt: true,
+} as const;
 
 export async function GET(req: Request) {
   try {
@@ -9,17 +21,16 @@ export async function GET(req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    if (!hasClientAccess(session.user)) {
+      return NextResponse.json(
+        { error: "Client profile required" },
+        { status: 403 },
+      );
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        image: true,
-        phone: true,
-        clientInterests: true,
-        // Add other client-specific fields here if needed
-      },
+      select: CLIENT_PROFILE_SELECT,
     });
 
     if (!user) {
@@ -40,34 +51,45 @@ export async function PUT(req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    if (!hasClientAccess(session.user)) {
+      return NextResponse.json(
+        { error: "Client profile required" },
+        { status: 403 },
+      );
+    }
+
     const body = await req.json();
     const { name, phone, image, clientInterests } = body;
 
-    // Get current user data
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { phone: true },
-    });
+    const normalizedPhone =
+      phone === undefined
+        ? undefined
+        : phone === null
+          ? null
+          : (() => {
+              const trimmed = String(phone).trim();
+              if (!trimmed) {
+                return null;
+              }
 
-    // If phone is being updated and it's different from current phone
-    if (phone !== undefined && phone !== null && phone !== "" && phone !== currentUser?.phone) {
-      // Check if phone already exists for another user
-      const existingUser = await prisma.user.findFirst({
-        where: {
-          phone: phone,
-          id: { not: session.user.id },
+              const normalized = normalizeKenyanPhone(trimmed);
+              if (!isValidKenyanPhone(normalized)) {
+                throw new Error("INVALID_PHONE");
+              }
+
+              return normalized;
+            })();
+
+    if (normalizedPhone === undefined && phone !== undefined) {
+      return NextResponse.json(
+        {
+          error:
+            "Use a valid Kenyan phone number format, for example 254712345678.",
         },
-      });
-
-      if (existingUser) {
-        return NextResponse.json(
-          { error: "This phone number is already in use by another account" },
-          { status: 400 }
-        );
-      }
+        { status: 400 },
+      );
     }
 
-    // Build update object with only defined fields
     const updateData: {
       name?: string;
       phone?: string | null;
@@ -75,25 +97,54 @@ export async function PUT(req: Request) {
       clientInterests?: string[];
     } = {};
 
-    if (name !== undefined) updateData.name = name;
-    // Only include phone if it's different from current value
-    if (phone !== undefined && phone !== currentUser?.phone) {
-      updateData.phone = phone || null;
+    if (typeof name === "string") {
+      updateData.name = name.trim();
     }
-    if (image !== undefined) updateData.image = image;
-    if (clientInterests !== undefined) updateData.clientInterests = clientInterests;
+    if (normalizedPhone !== undefined) {
+      updateData.phone = normalizedPhone;
+    }
+    if (typeof image === "string") {
+      updateData.image = image.trim();
+    }
+    if (Array.isArray(clientInterests)) {
+      updateData.clientInterests = clientInterests
+        .map((interest) => String(interest).trim())
+        .filter((interest) => Boolean(interest));
+    }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
-      data: updateData,
-    });
+    try {
+      const updatedUser = await prisma.user.update({
+        where: { id: session.user.id },
+        data: updateData,
+        select: CLIENT_PROFILE_SELECT,
+      });
 
-    return NextResponse.json(updatedUser);
+      return NextResponse.json(updatedUser);
+    } catch (error: any) {
+      if (error?.code === "P2002") {
+        return NextResponse.json(
+          { error: "This phone number is already in use by another account" },
+          { status: 400 },
+        );
+      }
+
+      throw error;
+    }
   } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_PHONE") {
+      return NextResponse.json(
+        {
+          error:
+            "Use a valid Kenyan phone number format, for example 254712345678.",
+        },
+        { status: 400 },
+      );
+    }
+
     console.error("[CLIENT_PROFILE_UPDATE]", error);
     return NextResponse.json(
       { error: "Failed to update profile. Please try again." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
+import { hasClientAccess } from "@/lib/auth/clientAccess";
 
 // Generate a unique referral code
 function generateReferralCode(): string {
@@ -13,6 +14,32 @@ function generateReferralCode(): string {
   return code;
 }
 
+async function createUniqueReferralCode(userId: string): Promise<string> {
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const candidate = generateReferralCode();
+
+    try {
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: { referralCode: candidate },
+        select: { referralCode: true },
+      });
+
+      return updated.referralCode as string;
+    } catch (error: unknown) {
+      const code =
+        typeof error === "object" && error !== null && "code" in error
+          ? (error as { code?: string }).code
+          : undefined;
+      if (code !== "P2002") {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error("Failed to allocate unique referral code");
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -21,103 +48,96 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (!hasClientAccess(session.user)) {
+      return NextResponse.json(
+        { error: "Client profile required" },
+        { status: 403 },
+      );
+    }
+
     const userId = session.user.id;
 
-    // Get or create referral code for user
-    let user = await prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         referralCode: true,
       },
     });
 
-    // If no referral code, generate one
-    if (!user?.referralCode) {
-      let referralCode = generateReferralCode();
-      let isUnique = false;
-
-      // Ensure uniqueness
-      while (!isUnique) {
-        const existing = await prisma.user.findUnique({
-          where: { referralCode },
-        });
-        if (!existing) {
-          isUnique = true;
-        } else {
-          referralCode = generateReferralCode();
-        }
-      }
-
-      // Update user with referral code
-      user = await prisma.user.update({
-        where: { id: userId },
-        data: { referralCode },
-        select: { referralCode: true },
-      });
-    }
-
-    const referralCode = user.referralCode!;
-
-    // Get referral statistics
-    const referrals = await prisma.referral.findMany({
-      where: { referrerId: userId },
-      include: {
-        referredUser: {
-          select: {
-            name: true,
-            createdAt: true,
+    const [referralStats, completedReferrals, pendingRewards, recentReferrals] =
+      await Promise.all([
+        prisma.referral.aggregate({
+          where: { referrerId: userId },
+          _count: { _all: true },
+          _sum: { points: true },
+        }),
+        prisma.referral.count({
+          where: { referrerId: userId, status: "COMPLETED" },
+        }),
+        prisma.referral.count({
+          where: { referrerId: userId, status: "PENDING" },
+        }),
+        prisma.referral.findMany({
+          where: { referrerId: userId },
+          include: {
+            referredUser: {
+              select: {
+                name: true,
+              },
+            },
           },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        }),
+      ]);
 
-    const totalReferrals = referrals.length;
-    const completedReferrals = referrals.filter(
-      (r) => r.status === "COMPLETED",
-    ).length;
-    const totalPoints = referrals.reduce((sum, r) => sum + r.points, 0);
-    const pendingRewards = referrals.filter(
-      (r) => r.status === "PENDING",
-    ).length;
-
-    // Calculate redeemable value (e.g., 100 points = $1)
+    const referralCode = user?.referralCode || null;
+    const totalReferrals = referralStats._count._all;
+    const totalPoints = referralStats._sum.points || 0;
     const redeemableValue = (totalPoints / 100).toFixed(2);
 
-    // Recent referrals (last 5)
-    const recentReferrals = referrals.slice(0, 5).map((r) => ({
+    const recentReferralItems = recentReferrals.map((r) => ({
       name: r.referredUser.name || "New User",
       date: r.createdAt,
       points: r.points,
       status: r.status,
     }));
 
-    // Tier progress
     const tiers = [
-      { referrals: 5, reward: "$5 credit", completed: totalReferrals >= 5 },
+      {
+        referrals: 5,
+        reward: "KES 500 service credit",
+        completed: totalReferrals >= 5,
+      },
       {
         referrals: 10,
-        reward: "$15 credit + premium badge",
+        reward: "KES 1,500 credit + premium badge",
         completed: totalReferrals >= 10,
       },
       {
         referrals: 25,
-        reward: "$50 credit + priority support",
+        reward: "KES 5,000 credit + priority support",
         completed: totalReferrals >= 25,
       },
       {
         referrals: 50,
-        reward: "$150 credit + featured listing",
+        reward: "KES 15,000 credit + featured listing",
         completed: totalReferrals >= 50,
       },
     ];
 
-    const baseUrl = process.env.NEXTAUTH_URL || "https://justintime.com";
-    const referralLink = `${baseUrl}/auth/signup?ref=${encodeURIComponent(referralCode)}`;
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXTAUTH_URL ||
+      new URL(request.url).origin;
+    const referralLink = referralCode
+      ? `${baseUrl}/auth/signup?ref=${encodeURIComponent(referralCode)}`
+      : null;
 
     const responseData = {
       referralCode,
       referralLink,
+      needsInitialization: !referralCode,
       stats: {
         totalPoints,
         redeemableValue,
@@ -125,11 +145,49 @@ export async function GET(request: NextRequest) {
         completedReferrals,
         pendingRewards,
       },
-      recentReferrals,
+      recentReferrals: recentReferralItems,
       tiers,
     };
 
     return successResponse(responseData);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth();
+
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!hasClientAccess(session.user)) {
+      return NextResponse.json(
+        { error: "Client profile required" },
+        { status: 403 },
+      );
+    }
+
+    const userId = session.user.id;
+    const current = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { referralCode: true },
+    });
+
+    const referralCode =
+      current?.referralCode || (await createUniqueReferralCode(userId));
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXTAUTH_URL ||
+      new URL(request.url).origin;
+
+    return successResponse({
+      referralCode,
+      referralLink: `${baseUrl}/auth/signup?ref=${encodeURIComponent(referralCode)}`,
+      initialized: true,
+    });
   } catch (error) {
     return handleError(error);
   }

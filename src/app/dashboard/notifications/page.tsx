@@ -43,6 +43,12 @@ interface NotificationListResponse {
 
 const PAGE_SIZE = 20;
 
+type NotificationRoleOverride = "CLIENT" | "PROVIDER" | "ADMIN";
+
+interface NotificationsPageProps {
+  roleOverride?: NotificationRoleOverride;
+}
+
 async function fetchNotificationsPage(
   page: number,
 ): Promise<NotificationListResponse> {
@@ -60,7 +66,7 @@ async function fetchNotificationsPage(
   return response.json() as Promise<NotificationListResponse>;
 }
 
-const NotificationsPage = () => {
+const NotificationsPage = ({ roleOverride }: NotificationsPageProps) => {
   const router = useRouter();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
@@ -247,9 +253,16 @@ const NotificationsPage = () => {
   };
 
   const openNotification = async (notification: NotificationItem) => {
+    const roleSource = roleOverride
+      ? { role: roleOverride }
+      : {
+          role: session?.user?.role,
+          roles: session?.user?.roles,
+        };
+
     const actionUrl = getNotificationActionUrl(
       notification.type,
-      session?.user?.role,
+      roleSource,
       notification.actionUrl,
     );
 

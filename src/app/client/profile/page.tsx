@@ -6,6 +6,7 @@ import {
   useUpdateClientProfile,
 } from "@/lib/api/hooks/useClientProfile";
 import Image from "next/image";
+import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -20,6 +21,7 @@ export default function ClientProfilePage() {
     phone: "",
     clientInterests: [] as string[],
   });
+  const [isPristine, setIsPristine] = useState(true);
 
   const [showImageCropper, setShowImageCropper] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -35,7 +37,7 @@ export default function ClientProfilePage() {
   }, []);
 
   useEffect(() => {
-    if (profile) {
+    if (profile && isPristine) {
       setFormData({
         name: profile.name || "",
         email: profile.email || "",
@@ -43,16 +45,21 @@ export default function ClientProfilePage() {
         clientInterests: profile.clientInterests || [],
       });
     }
-  }, [profile]);
+  }, [profile, isPristine]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    setIsPristine(false);
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfileMutation.mutate(formData);
+    updateProfileMutation.mutate(formData, {
+      onSuccess: () => {
+        setIsPristine(true);
+      },
+    });
   };
 
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -236,7 +243,7 @@ export default function ClientProfilePage() {
                     {profile?.createdAt
                       ? new Date(profile.createdAt).toLocaleDateString(
                           "en-US",
-                          { month: "short", year: "numeric" }
+                          { month: "short", year: "numeric" },
                         )
                       : "N/A"}
                   </span>
@@ -248,40 +255,6 @@ export default function ClientProfilePage() {
                   <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
                     Active
                   </span>
-                </div>
-              </div>
-            )}
-
-            {/* Desktop: Stats Grid */}
-            {!isMobile && (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-4 border-t border-gray-100">
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-lg sm:text-xl font-bold text-gray-900">
-                    24
-                  </div>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    Jobs Posted
-                  </div>
-                </div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-lg sm:text-xl font-bold text-emerald-600">
-                    18
-                  </div>
-                  <div className="text-xs text-gray-500 mt-0.5">Completed</div>
-                </div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-lg sm:text-xl font-bold text-gray-900">
-                    4.8
-                  </div>
-                  <div className="text-xs text-gray-500 mt-0.5">Avg Rating</div>
-                </div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-lg sm:text-xl font-bold text-gray-900">
-                    6
-                  </div>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    Active Jobs
-                  </div>
                 </div>
               </div>
             )}
@@ -330,103 +303,24 @@ export default function ClientProfilePage() {
         </div>
       </div>
 
-      {/* Mobile: Quick Actions */}
-      {isMobile && (
-        <div className="grid grid-cols-2 gap-3">
-          <button className="px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-            <span className="material-symbols-outlined text-base">shield</span>
-            Security
-          </button>
-          <button className="px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-            <span className="material-symbols-outlined text-base">
-              notifications
-            </span>
-            Notifications
-          </button>
-        </div>
-      )}
-
-      {/* Desktop: Additional Profile Sections */}
-      {!isMobile && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-          {/* Security Settings */}
-          <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-xs sm:shadow-sm border border-gray-200 p-4 sm:p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="material-symbols-outlined text-emerald-600">
-                shield
-              </span>
-              <h3 className="text-base sm:text-lg font-bold text-gray-900">
-                Security Settings
-              </h3>
-            </div>
-            <div className="space-y-3">
-              <button className="w-full px-4 py-2.5 text-left bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-medium text-gray-700 transition-colors flex items-center justify-between">
-                <span>Change Password</span>
-                <span className="material-symbols-outlined text-gray-400 text-sm">
-                  chevron_right
-                </span>
-              </button>
-              <button className="w-full px-4 py-2.5 text-left bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-medium text-gray-700 transition-colors flex items-center justify-between">
-                <span>Two-Factor Authentication</span>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
-                  Active
-                </span>
-              </button>
-              <button className="w-full px-4 py-2.5 text-left bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-medium text-gray-700 transition-colors flex items-center justify-between">
-                <span>Login Activity</span>
-                <span className="material-symbols-outlined text-gray-400 text-sm">
-                  chevron_right
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* Notification Preferences */}
-          <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-xs sm:shadow-sm border border-gray-200 p-4 sm:p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="material-symbols-outlined text-emerald-600">
-                notifications
-              </span>
-              <h3 className="text-base sm:text-lg font-bold text-gray-900">
-                Notification Preferences
-              </h3>
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Job Updates</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    defaultChecked
-                  />
-                  <div className="w-10 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                </label>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">
-                  Proposal Notifications
-                </span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    defaultChecked
-                  />
-                  <div className="w-10 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                </label>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Marketing Emails</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" />
-                  <div className="w-10 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <Link
+          href="/client/settings"
+          className="px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+        >
+          <span className="material-symbols-outlined text-base">shield</span>
+          Security & Privacy
+        </Link>
+        <Link
+          href="/client/settings?tab=notifications"
+          className="px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+        >
+          <span className="material-symbols-outlined text-base">
+            notifications
+          </span>
+          Notification Settings
+        </Link>
+      </div>
 
       {showImageCropper && selectedImage && (
         <ImageCropper

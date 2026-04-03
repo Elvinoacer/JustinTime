@@ -2,8 +2,9 @@ import { useQuery, UseQueryResult } from "@tanstack/react-query";
 import apiClient from "../client";
 
 export interface ReferralData {
-  referralCode: string;
-  referralLink: string;
+  referralCode: string | null;
+  referralLink: string | null;
+  needsInitialization?: boolean;
   stats: {
     totalPoints: number;
     redeemableValue: string;

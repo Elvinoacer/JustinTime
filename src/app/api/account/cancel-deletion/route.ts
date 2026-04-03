@@ -7,10 +7,7 @@ export async function POST(req: NextRequest) {
     const session = await auth();
 
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Cancel deletion by clearing the scheduled time
@@ -37,12 +34,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       message: "Account deletion cancelled successfully",
+      serverTime: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Error cancelling account deletion:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

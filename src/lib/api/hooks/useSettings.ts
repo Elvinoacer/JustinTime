@@ -1,5 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
+type SettingsScope = "global" | "client";
+
+function settingsEndpoint(scope: SettingsScope) {
+  return scope === "client" ? "/api/client/settings" : "/api/settings";
+}
+
+function settingsQueryKey(scope: SettingsScope) {
+  return scope === "client"
+    ? (["client", "settings"] as const)
+    : (["settings"] as const);
+}
+
 interface Settings {
   account: {
     name: string;
@@ -56,11 +68,17 @@ interface UpdateSettingsResponse {
 }
 
 // Fetch user settings
-export const useSettings = () => {
-  return useQuery<{ settings: Settings; twoFactorEnabled: boolean }>({
-    queryKey: ["settings"],
+export const useSettings = (scope: SettingsScope = "global") => {
+  const endpoint = settingsEndpoint(scope);
+
+  return useQuery<{
+    settings: Settings;
+    twoFactorEnabled: boolean;
+    serverTime?: string;
+  }>({
+    queryKey: settingsQueryKey(scope),
     queryFn: async () => {
-      const response = await fetch("/api/settings");
+      const response = await fetch(endpoint);
       if (!response.ok) {
         throw new Error("Failed to fetch settings");
       }
@@ -74,12 +92,14 @@ export const useSettings = () => {
 };
 
 // Update settings
-export const useUpdateSettings = () => {
+export const useUpdateSettings = (scope: SettingsScope = "global") => {
   const queryClient = useQueryClient();
+  const endpoint = settingsEndpoint(scope);
+  const queryKey = settingsQueryKey(scope);
 
   return useMutation<UpdateSettingsResponse, Error, UpdateSettingsParams>({
     mutationFn: async (data) => {
-      const response = await fetch("/api/settings", {
+      const response = await fetch(endpoint, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -95,7 +115,10 @@ export const useUpdateSettings = () => {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      queryClient.invalidateQueries({ queryKey });
+      if (scope === "client") {
+        queryClient.invalidateQueries({ queryKey: ["settings"] });
+      }
     },
   });
 };

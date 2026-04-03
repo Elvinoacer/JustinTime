@@ -3,5 +3,5 @@
 import NotificationsPage from "@/app/dashboard/notifications/page";
 
 export default function ClientNotificationsPage() {
-  return <NotificationsPage />;
+  return <NotificationsPage roleOverride="CLIENT" />;
 }

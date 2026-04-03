@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Copy,
   Share2,
@@ -17,8 +18,12 @@ import { toast } from "sonner";
 import { useReferralData } from "@/lib/api/hooks/useReferral";
 
 export default function ReferralPage() {
+  const queryClient = useQueryClient();
   const [isMobile, setIsMobile] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedTarget, setCopiedTarget] = useState<"code" | "link" | null>(
+    null,
+  );
+  const [isPreparingShare, setIsPreparingShare] = useState(false);
   const { data: referralData, isLoading } = useReferralData();
 
   // Check for mobile
@@ -29,31 +34,90 @@ export default function ReferralPage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const copyToClipboard = async (text: string) => {
+  const copyToClipboard = async (text: string, target: "code" | "link") => {
+    if (!text) {
+      toast.error("Referral data is not ready yet");
+      return;
+    }
+
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
+      setCopiedTarget(target);
       toast.success("Copied to clipboard!");
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+      setTimeout(() => setCopiedTarget(null), 2000);
+    } catch {
       toast.error("Failed to copy");
     }
   };
 
+  const ensureReferralShareData = async (): Promise<{
+    referralCode: string;
+    referralLink: string;
+  } | null> => {
+    if (referralData?.referralCode && referralData?.referralLink) {
+      return {
+        referralCode: referralData.referralCode,
+        referralLink: referralData.referralLink,
+      };
+    }
+
+    setIsPreparingShare(true);
+
+    try {
+      const response = await fetch("/api/client/referral", {
+        method: "POST",
+      });
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(result?.error || "Failed to initialize referral code");
+      }
+
+      const payload = result?.data ?? result;
+      const initializedCode = payload?.referralCode;
+      const initializedLink = payload?.referralLink;
+
+      if (!initializedCode || !initializedLink) {
+        throw new Error("Referral data is still unavailable");
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["referral-data"] });
+
+      return {
+        referralCode: initializedCode,
+        referralLink: initializedLink,
+      };
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Unable to prepare referral share details",
+      );
+      return null;
+    } finally {
+      setIsPreparingShare(false);
+    }
+  };
+
   const shareReferral = async () => {
+    const payload = await ensureReferralShareData();
+    if (!payload) {
+      return;
+    }
+
     if (navigator.share) {
       try {
         await navigator.share({
           title: "Join JustInTime Services",
           text: "Get professional services at amazing rates! Use my referral code for special benefits.",
-          url: referralLink,
+          url: payload.referralLink,
         });
         toast.success("Shared successfully!");
       } catch (err) {
         console.error("Error sharing:", err);
       }
     } else {
-      copyToClipboard(referralLink);
+      await copyToClipboard(payload.referralLink, "link");
     }
   };
 
@@ -61,7 +125,7 @@ export default function ReferralPage() {
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-6 lg:py-8">
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-100">
           <div className="w-10 h-10 sm:w-12 sm:h-12 border-3 sm:border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
         </div>
       </div>
@@ -78,7 +142,60 @@ export default function ReferralPage() {
     );
   }
 
-  const { referralCode, referralLink, stats, recentReferrals, tiers } = referralData;
+  const {
+    referralCode,
+    referralLink,
+    stats,
+    recentReferrals,
+    tiers,
+    needsInitialization,
+  } = referralData;
+  const redeemableKes = Number(stats.redeemableValue || 0);
+  const shareMessage =
+    "Get professional services at amazing rates on JustInTime. Use my referral link to sign up:";
+  const codeLabel = referralCode || "Generate link to create code";
+  const linkLabel = referralLink || "Tap Share to generate your referral link";
+
+  const openExternalShare = (url: string) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const shareViaPlatform = async (platform: string) => {
+    const payload = await ensureReferralShareData();
+    if (!payload) {
+      return;
+    }
+
+    const encodedLink = encodeURIComponent(payload.referralLink);
+    const encodedMessage = encodeURIComponent(
+      `${shareMessage} ${payload.referralLink}`,
+    );
+
+    switch (platform) {
+      case "WhatsApp":
+        openExternalShare(`https://wa.me/?text=${encodedMessage}`);
+        return;
+      case "Facebook":
+        openExternalShare(
+          `https://www.facebook.com/sharer/sharer.php?u=${encodedLink}`,
+        );
+        return;
+      case "X":
+        openExternalShare(
+          `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage)}&url=${encodedLink}`,
+        );
+        return;
+      case "Email":
+        window.location.href = `mailto:?subject=${encodeURIComponent("Join JustInTime Services")}&body=${encodedMessage}`;
+        return;
+      case "SMS":
+        window.location.href = `sms:?body=${encodedMessage}`;
+        return;
+      case "Copy Link":
+      default:
+        await copyToClipboard(payload.referralLink, "link");
+    }
+  };
 
   const rewards = [
     {
@@ -91,7 +208,10 @@ export default function ReferralPage() {
     },
     {
       title: "Redeemable Value",
-      value: `$${stats.redeemableValue}`,
+      value: `KES ${redeemableKes.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`,
       icon: <Gift className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />,
       change: "Available now",
       color: "from-blue-50 to-blue-100",
@@ -120,7 +240,7 @@ export default function ReferralPage() {
   const shareMethods = [
     { platform: "WhatsApp", icon: "💬", color: "bg-green-100 text-green-700" },
     { platform: "Facebook", icon: "📘", color: "bg-blue-100 text-blue-700" },
-    { platform: "Twitter", icon: "🐦", color: "bg-sky-100 text-sky-700" },
+    { platform: "X", icon: "🐦", color: "bg-sky-100 text-sky-700" },
     { platform: "Email", icon: "✉️", color: "bg-gray-100 text-gray-700" },
     { platform: "SMS", icon: "💬", color: "bg-purple-100 text-purple-700" },
     { platform: "Copy Link", icon: "📋", color: "bg-amber-100 text-amber-700" },
@@ -130,13 +250,13 @@ export default function ReferralPage() {
     <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-6 lg:py-8">
       {/* Header */}
       <div className="text-center mb-6 sm:mb-8 lg:mb-12">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 sm:py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-full text-xs sm:text-sm font-semibold mb-3 sm:mb-4">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 sm:py-2 bg-linear-to-r from-emerald-500 to-teal-500 text-white rounded-full text-xs sm:text-sm font-semibold mb-3 sm:mb-4">
           <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
           Exclusive Rewards Program
         </div>
         <h1 className="text-2xl xs:text-3xl sm:text-4xl font-bold text-gray-900 mb-2 sm:mb-3">
           Invite Friends &{" "}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-blue-600">
+          <span className="text-transparent bg-clip-text bg-linear-to-r from-emerald-600 to-blue-600">
             Earn Rewards
           </span>
         </h1>
@@ -151,7 +271,7 @@ export default function ReferralPage() {
         {/* Left Column: Referral Card */}
         <div className="space-y-4 sm:space-y-6">
           {/* Referral Code Card */}
-          <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg sm:rounded-xl lg:rounded-2xl shadow-xs sm:shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-linear-to-br from-white to-gray-50 rounded-lg sm:rounded-xl lg:rounded-2xl shadow-xs sm:shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-4 sm:p-6 text-center">
               <div className="flex items-center justify-center gap-2 mb-3 sm:mb-4">
                 <GiftIcon className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
@@ -162,41 +282,57 @@ export default function ReferralPage() {
 
               {/* Code Display */}
               <div className="mb-4 sm:mb-6">
-                <div className="inline-block bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-lg sm:rounded-xl px-4 sm:px-6 py-3 sm:py-4">
+                <div className="inline-block bg-linear-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-lg sm:rounded-xl px-4 sm:px-6 py-3 sm:py-4">
                   <div className="text-xl sm:text-2xl lg:text-3xl font-mono font-bold text-emerald-700 tracking-wider">
-                    {referralCode}
+                    {codeLabel}
                   </div>
                   <p className="text-xs sm:text-sm text-gray-500 mt-1.5">
                     Share this code or link
                   </p>
+                  {needsInitialization ? (
+                    <p className="text-[11px] text-amber-600 mt-1">
+                      First share will generate your referral code.
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
               {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <button
-                  onClick={() => copyToClipboard(referralCode)}
+                  onClick={async () => {
+                    const payload = await ensureReferralShareData();
+                    if (!payload) {
+                      return;
+                    }
+
+                    await copyToClipboard(payload.referralCode, "code");
+                  }}
+                  disabled={isPreparingShare}
                   className={`px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-medium transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
-                    copied
+                    copiedTarget === "code"
                       ? "bg-emerald-600 text-white"
                       : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
                   }`}
                 >
                   <Copy
                     className={`w-4 h-4 ${
-                      copied ? "text-white" : "text-gray-500"
+                      copiedTarget === "code" ? "text-white" : "text-gray-500"
                     }`}
                   />
                   <span className="text-sm sm:text-base">
-                    {copied ? "Copied!" : "Copy Code"}
+                    {copiedTarget === "code" ? "Copied!" : "Copy Code"}
                   </span>
                 </button>
                 <button
                   onClick={shareReferral}
-                  className="px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg sm:rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm"
+                  disabled={isPreparingShare}
+                  className="px-3 sm:px-4 py-2.5 sm:py-3 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg sm:rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm disabled:opacity-60"
                 >
                   <Share2 className="w-4 h-4" />
-                  <span className="text-sm sm:text-base">Share</span>
+                  <span className="text-sm sm:text-base">
+                    {isPreparingShare ? "Preparing..." : "Share"}
+                  </span>
                 </button>
               </div>
 
@@ -209,7 +345,7 @@ export default function ReferralPage() {
                       <button
                         key={method.platform}
                         className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${method.color}`}
-                        onClick={() => copyToClipboard(referralLink)}
+                        onClick={() => void shareViaPlatform(method.platform)}
                       >
                         {method.icon} {method.platform}
                       </button>
@@ -227,13 +363,21 @@ export default function ReferralPage() {
                 </label>
                 <div className="flex gap-1.5 sm:gap-2">
                   <div className="flex-1 bg-white border border-gray-200 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-600 truncate">
-                    {referralLink}
+                    {linkLabel}
                   </div>
                   <button
-                    onClick={() => copyToClipboard(referralLink)}
+                    onClick={async () => {
+                      const payload = await ensureReferralShareData();
+                      if (!payload) {
+                        return;
+                      }
+
+                      await copyToClipboard(payload.referralLink, "link");
+                    }}
+                    disabled={isPreparingShare}
                     className="px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg sm:rounded-xl font-medium transition-colors text-xs sm:text-sm"
                   >
-                    Copy
+                    {copiedTarget === "link" ? "Copied!" : "Copy"}
                   </button>
                 </div>
               </div>
@@ -275,7 +419,7 @@ export default function ReferralPage() {
                 },
               ].map((item) => (
                 <div key={item.step} className="flex items-start gap-3">
-                  <div className="w-6 h-6 sm:w-7 sm:h-7 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0">
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 bg-linear-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm shrink-0">
                     {item.step}
                   </div>
                   <div>
@@ -299,7 +443,7 @@ export default function ReferralPage() {
             {rewards.map((reward, idx) => (
               <div
                 key={idx}
-                className={`bg-gradient-to-br ${reward.color} border ${reward.border} rounded-lg sm:rounded-xl p-3 sm:p-4`}
+                className={`bg-linear-to-br ${reward.color} border ${reward.border} rounded-lg sm:rounded-xl p-3 sm:p-4`}
               >
                 <div className="flex items-center gap-2 mb-2">
                   {reward.icon}
@@ -333,8 +477,10 @@ export default function ReferralPage() {
             <div className="mb-4 sm:mb-6">
               <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3 mb-2">
                 <div
-                  className="bg-gradient-to-r from-emerald-400 to-teal-500 h-2 sm:h-3 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min((stats.totalReferrals / 25) * 100, 100)}%` }}
+                  className="bg-linear-to-r from-emerald-400 to-teal-500 h-2 sm:h-3 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min((stats.totalReferrals / 25) * 100, 100)}%`,
+                  }}
                 ></div>
               </div>
               <div className="flex justify-between text-xs text-gray-500">
@@ -408,7 +554,7 @@ export default function ReferralPage() {
                   <button
                     key={method.platform}
                     className={`p-2.5 sm:p-3 rounded-lg sm:rounded-xl text-sm font-medium transition-colors flex flex-col items-center justify-center gap-1.5 ${method.color}`}
-                    onClick={() => copyToClipboard(referralLink)}
+                    onClick={() => void shareViaPlatform(method.platform)}
                   >
                     <span className="text-lg">{method.icon}</span>
                     <span>{method.platform}</span>
@@ -432,7 +578,7 @@ export default function ReferralPage() {
                       className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg"
                     >
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                        <div className="w-8 h-8 bg-linear-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
                           {referral.name.charAt(0)}
                         </div>
                         <div>
@@ -474,10 +620,13 @@ export default function ReferralPage() {
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
           <button
             onClick={shareReferral}
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-md"
+            disabled={isPreparingShare}
+            className="w-full bg-linear-to-r from-emerald-500 to-teal-500 text-white py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 shadow-md disabled:opacity-60"
           >
             <Share2 className="w-4 h-4" />
-            Invite Friends & Earn Rewards
+            {isPreparingShare
+              ? "Preparing Referral Link..."
+              : "Invite Friends & Earn Rewards"}
           </button>
         </div>
       )}

@@ -413,6 +413,8 @@ export async function POST(request: Request) {
       description: string;
       budget: number;
       location: string;
+      latitude?: number | null;
+      longitude?: number | null;
       deadline?: Date;
       images: string[];
       maxApplicants?: number;
@@ -448,6 +450,8 @@ export async function POST(request: Request) {
           "Quick post created. Add full details to improve proposal quality.",
         budget: quickData.budget,
         location: quickData.location,
+        latitude: quickData.latitude ?? null,
+        longitude: quickData.longitude ?? null,
         images: [],
       };
     } else {
@@ -486,6 +490,8 @@ export async function POST(request: Request) {
         description: validatedData.description,
         budget: validatedData.budget,
         location: validatedData.location,
+        latitude: validatedData.latitude ?? null,
+        longitude: validatedData.longitude ?? null,
         deadline: deadlineDate,
         images: validatedData.images || [],
         maxApplicants: validatedData.maxApplicants,
@@ -493,10 +499,10 @@ export async function POST(request: Request) {
       };
     }
 
-    // Geocode location before saving
-    let latitude = null;
-    let longitude = null;
-    if (normalizedData.location) {
+    // Use client-captured coordinates when present; geocode only as fallback.
+    let latitude = normalizedData.latitude ?? null;
+    let longitude = normalizedData.longitude ?? null;
+    if ((latitude == null || longitude == null) && normalizedData.location) {
       try {
         const coords = await geocodeLocation(normalizedData.location);
         if (coords) {

@@ -8,7 +8,7 @@ import {
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import Image from "next/image";
+import { useMemo } from "react";
 
 export default function ClientDashboardPage() {
   const { data: session } = useSession();
@@ -16,48 +16,55 @@ export default function ClientDashboardPage() {
   const { data: activities, isLoading: activityLoading } = useClientActivity();
   const { data: jobs, isLoading: jobsLoading } = useClientJobs();
 
-  const activeJobsCount =
-    jobs?.filter(
-      (job) => job.status !== "COMPLETED" && job.status !== "CANCELLED",
-    ).length || 0;
-  const hasUnreadActivity = (activities?.length || 0) > 0;
-  const jobsWithProposalsCount =
-    jobs?.filter((job) => (job?._count?.proposals || 0) > 0).length || 0;
+  const activeJobsCount = useMemo(() => {
+    const value = stats?.find((item) => item.title === "Active Jobs")?.value;
+    const parsed = Number.parseInt(value || "0", 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, [stats]);
 
-  const recommendedAction = jobsLoading
-    ? {
-        href: "/client/bookings",
-        label: "Next Step",
-        title: "Preparing your dashboard",
-        icon: "hourglass_top",
-      }
-    : activeJobsCount === 0
+  const incomingProposalsCount = useMemo(() => {
+    const value = stats?.find((item) => item.title === "Proposals")?.value;
+    const parsed = Number.parseInt(value || "0", 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, [stats]);
+
+  const hasRecentActivity = (activities?.length || 0) > 0;
+
+  const recommendedAction =
+    jobsLoading || statsLoading
       ? {
-          href: "/client/post-job",
-          label: "Recommended",
-          title: "Create your first request",
-          icon: "add_circle",
+          href: "/client/jobs",
+          label: "Next Step",
+          title: "Preparing your dashboard",
+          icon: "hourglass_top",
         }
-      : jobsWithProposalsCount > 0
+      : activeJobsCount === 0
         ? {
-            href: "/client/proposals",
+            href: "/client/post-job",
             label: "Recommended",
-            title: `Review ${jobsWithProposalsCount} job proposal${jobsWithProposalsCount > 1 ? "s" : ""}`,
-            icon: "fact_check",
+            title: "Create your first request",
+            icon: "add_circle",
           }
-        : hasUnreadActivity
+        : incomingProposalsCount > 0
           ? {
-              href: "/client/notifications",
+              href: "/client/proposals",
               label: "Recommended",
-              title: "Check your latest updates",
-              icon: "notifications_active",
+              title: `Review ${incomingProposalsCount} incoming proposal${incomingProposalsCount > 1 ? "s" : ""}`,
+              icon: "fact_check",
             }
-          : {
-              href: "/client/bookings",
-              label: "Next Step",
-              title: "Track your active jobs",
-              icon: "assignment",
-            };
+          : hasRecentActivity
+            ? {
+                href: "/client/notifications",
+                label: "Recommended",
+                title: "Check your recent updates",
+                icon: "notifications_active",
+              }
+            : {
+                href: "/client/jobs",
+                label: "Next Step",
+                title: "Track your active jobs",
+                icon: "assignment",
+              };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -138,7 +145,7 @@ export default function ClientDashboardPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              Here's what's happening with your projects today.
+              Here&apos;s what&apos;s happening with your projects today.
             </motion.p>
           </div>
 
@@ -215,7 +222,7 @@ export default function ClientDashboardPage() {
             </p>
           </Link>
           <Link
-            href="/client/bookings"
+            href="/client/jobs"
             className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 hover:border-emerald-200 hover:bg-emerald-50 transition-colors"
           >
             <p className="text-[11px] text-gray-500 font-medium">In Progress</p>
@@ -229,9 +236,9 @@ export default function ClientDashboardPage() {
           >
             <p className="text-[11px] text-gray-500 font-medium">Attention</p>
             <p className="text-sm font-semibold text-gray-900 mt-0.5">
-              {hasUnreadActivity
-                ? "New updates available"
-                : "No pending updates"}
+              {hasRecentActivity
+                ? "Recent updates available"
+                : "No recent updates"}
             </p>
           </Link>
         </div>
@@ -399,7 +406,7 @@ export default function ClientDashboardPage() {
               </p>
             </div>
             <Link
-              href="/client/bookings"
+              href="/client/jobs"
               className="text-xs md:text-sm font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
             >
               <span>View All</span>

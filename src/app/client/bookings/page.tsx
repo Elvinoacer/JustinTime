@@ -6,7 +6,7 @@ import InsuranceClaimModal from "@/components/bookings/InsuranceClaimModal";
 import apiClient from "@/lib/api/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import SecureCallButton from "@/components/communication/SecureCallButton"; // Imported
 
@@ -58,6 +58,16 @@ interface Booking {
   } | null;
 }
 
+type ApiErrorLike = {
+  response?: {
+    data?: {
+      error?: unknown;
+      message?: unknown;
+    };
+  };
+  message?: unknown;
+};
+
 const statusColors: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-800 border-amber-300",
   CONFIRMED: "bg-blue-100 text-blue-800 border-blue-300",
@@ -82,7 +92,10 @@ const statusIcons: Record<string, string> = {
 export default function ClientBookingsPage() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
@@ -95,18 +108,28 @@ export default function ClientBookingsPage() {
   const [isInsuranceClaimModalOpen, setIsInsuranceClaimModalOpen] =
     useState(false);
 
-  const getErrorMessage = (error: any, fallback: string) => {
-    const zodErrors = error?.response?.data?.error;
+  const getErrorMessage = (error: unknown, fallback: string) => {
+    const maybeError = error as ApiErrorLike;
+    const zodErrors = maybeError.response?.data?.error;
     if (Array.isArray(zodErrors) && zodErrors[0]?.message) {
       return zodErrors[0].message;
     }
 
-    return (
-      error?.response?.data?.message ||
-      error?.response?.data?.error ||
-      error?.message ||
-      fallback
-    );
+    const responseMessage = maybeError.response?.data?.message;
+    if (typeof responseMessage === "string") {
+      return responseMessage;
+    }
+
+    const responseError = maybeError.response?.data?.error;
+    if (typeof responseError === "string") {
+      return responseError;
+    }
+
+    if (typeof maybeError.message === "string") {
+      return maybeError.message;
+    }
+
+    return fallback;
   };
 
   const canCancelBooking = (status: string) =>
@@ -144,10 +167,42 @@ export default function ClientBookingsPage() {
     setIsInsuranceClaimModalOpen(true);
   };
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["client-bookings"],
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+      setPage(1);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: [
+      "client-bookings",
+      page,
+      pageSize,
+      statusFilter,
+      debouncedSearchQuery,
+    ],
     queryFn: async () => {
-      const response = await apiClient.get("/bookings");
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+      });
+
+      if (statusFilter !== "all") {
+        params.set("status", statusFilter);
+      }
+
+      if (debouncedSearchQuery) {
+        params.set("search", debouncedSearchQuery);
+      }
+
+      const response = await apiClient.get(`/bookings?${params.toString()}`);
       return response.data;
     },
   });
@@ -178,7 +233,7 @@ export default function ClientBookingsPage() {
       setCancellationError("");
       setSelectedBooking(null);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getErrorMessage(error, "Failed to cancel booking"));
     },
   });
@@ -203,7 +258,7 @@ export default function ClientBookingsPage() {
       setIsViewModalOpen(false);
       setSelectedBooking(null);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error(getErrorMessage(error, "Failed to file dispute"));
     },
   });
@@ -219,8 +274,8 @@ export default function ClientBookingsPage() {
       setIsDeleteModalOpen(false);
       setSelectedBooking(null);
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "Failed to delete booking");
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "Failed to delete booking"));
     },
   });
 
@@ -237,38 +292,18 @@ export default function ClientBookingsPage() {
       setIsViewModalOpen(false);
       setSelectedBooking(null);
     },
-    onError: (error: any) => {
-      toast.error(
-        error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Failed to confirm completion",
-      );
+    onError: (error: unknown) => {
+      toast.error(getErrorMessage(error, "Failed to confirm completion"));
     },
   });
 
-  const bookings = data?.items || [];
-
-  const filteredBookings = useMemo(() => {
-    return bookings.filter((booking: Booking) => {
-      const matchesSearch =
-        booking.provider.name
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        (booking.job?.title || booking.service?.title || "")
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" || booking.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [bookings, searchQuery, statusFilter]);
-
-  const statusCounts = useMemo(() => {
-    return bookings.reduce((acc: Record<string, number>, booking: Booking) => {
-      acc[booking.status] = (acc[booking.status] || 0) + 1;
-      return acc;
-    }, {});
-  }, [bookings]);
+  const bookings = (data?.items || []) as Booking[];
+  const total = Number(data?.total || 0);
+  const hasMore = Boolean(data?.hasMore);
+  const statusCounts =
+    (data?.meta?.statusCounts as Record<string, number> | undefined) || {};
+  const allCount =
+    Number(statusCounts.ALL) || Number(data?.meta?.totalCount) || total;
 
   const handleCancelBooking = () => {
     if (selectedBooking) {
@@ -329,35 +364,41 @@ export default function ClientBookingsPage() {
           }`}
         >
           <div className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900">
-            {bookings.length}
+            {allCount}
           </div>
           <div className="text-xs md:text-sm text-gray-600 truncate">All</div>
         </button>
-        {Object.entries(statusCounts).map(([status, count]) => (
-          <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
-            className={`p-3 md:p-4 rounded-lg md:rounded-xl border-2 transition-all touch-manipulation ${
-              statusFilter === status
-                ? "bg-emerald-50 border-emerald-500 ring-1 md:ring-2 ring-emerald-200"
-                : "bg-white border-gray-200 hover:border-emerald-300 active:bg-gray-50"
-            }`}
-          >
-            <div className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900">
-              {count as number}
-            </div>
-            <div className="text-[10px] xs:text-xs text-gray-600 truncate">
-              {status
-                .replace("_", " ")
-                .split(" ")
-                .map(
-                  (word) =>
-                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
-                )
-                .join(" ")}
-            </div>
-          </button>
-        ))}
+        {Object.entries(statusCounts)
+          .filter(([status]) => status !== "ALL")
+          .map(([status, count]) => (
+            <button
+              key={status}
+              onClick={() => {
+                setStatusFilter(status);
+                setPage(1);
+              }}
+              className={`p-3 md:p-4 rounded-lg md:rounded-xl border-2 transition-all touch-manipulation ${
+                statusFilter === status
+                  ? "bg-emerald-50 border-emerald-500 ring-1 md:ring-2 ring-emerald-200"
+                  : "bg-white border-gray-200 hover:border-emerald-300 active:bg-gray-50"
+              }`}
+            >
+              <div className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900">
+                {count as number}
+              </div>
+              <div className="text-[10px] xs:text-xs text-gray-600 truncate">
+                {status
+                  .replace("_", " ")
+                  .split(" ")
+                  .map(
+                    (word) =>
+                      word.charAt(0).toUpperCase() +
+                      word.slice(1).toLowerCase(),
+                  )
+                  .join(" ")}
+              </div>
+            </button>
+          ))}
       </div>
 
       {/* Search and Filters */}
@@ -386,19 +427,19 @@ export default function ClientBookingsPage() {
             </p>
           </div>
         </div>
-      ) : filteredBookings.length === 0 ? (
+      ) : bookings.length === 0 ? (
         <div className="bg-white shadow-sm rounded-xl md:rounded-2xl p-6 md:p-8 lg:p-12">
           <div className="text-center">
             <span className="material-symbols-outlined text-4xl md:text-5xl lg:text-6xl text-gray-300 mb-3 md:mb-4">
               event_busy
             </span>
             <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-1 md:mb-2">
-              {searchQuery || statusFilter !== "all"
+              {debouncedSearchQuery || statusFilter !== "all"
                 ? "No matching bookings"
                 : "No bookings yet"}
             </h3>
             <p className="text-xs md:text-sm text-gray-600 px-4 md:px-0">
-              {searchQuery || statusFilter !== "all"
+              {debouncedSearchQuery || statusFilter !== "all"
                 ? "Try adjusting your search or filters"
                 : "When you hire professionals, your bookings will appear here."}
             </p>
@@ -408,7 +449,7 @@ export default function ClientBookingsPage() {
         <div className="bg-white shadow-sm rounded-xl md:rounded-2xl overflow-hidden border border-gray-100">
           <ul className="divide-y divide-gray-100">
             <AnimatePresence>
-              {filteredBookings.map((booking: Booking, index: number) => (
+              {bookings.map((booking: Booking, index: number) => (
                 <motion.li
                   key={booking.id}
                   initial={{ opacity: 0, y: 10 }}
@@ -649,6 +690,28 @@ export default function ClientBookingsPage() {
               ))}
             </AnimatePresence>
           </ul>
+
+          {total > pageSize && (
+            <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 sm:px-6">
+              <button
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={page <= 1}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <p className="text-xs text-gray-600 sm:text-sm">
+                Page {page} of {Math.max(1, Math.ceil(total / pageSize))}
+              </p>
+              <button
+                onClick={() => setPage((prev) => prev + 1)}
+                disabled={!hasMore}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -784,7 +847,7 @@ export default function ClientBookingsPage() {
                 </div>
                 {selectedBooking.slots && selectedBooking.slots.length > 0 ? (
                   <div className="space-y-1.5 md:space-y-2">
-                    {selectedBooking.slots.map((slot: any, i: number) => (
+                    {selectedBooking.slots.map((slot, i: number) => (
                       <div
                         key={i}
                         className="flex items-center gap-2 text-xs md:text-sm text-gray-900 bg-white p-1.5 md:p-2 rounded-lg"

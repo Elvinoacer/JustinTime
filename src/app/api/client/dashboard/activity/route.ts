@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { handleError, successResponse } from "@/lib/middleware/errorHandler";
-import { hasAnyRole } from "@/lib/auth/roles";
+import { handleError } from "@/lib/middleware/errorHandler";
+import { hasClientAccess } from "@/lib/auth/clientAccess";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,9 +12,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Allow both CLIENT and PROVIDER roles to access client dashboard
-    if (!hasAnyRole(session.user, ["CLIENT", "PROVIDER"])) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!hasClientAccess(session.user)) {
+      return NextResponse.json(
+        { error: "Client profile required" },
+        { status: 403 },
+      );
     }
 
     const userId = session.user.id;
@@ -84,11 +86,32 @@ export async function GET(request: NextRequest) {
       ...payments.map((p) => ({
         id: p.id,
         type: "PAYMENT",
-        title: "Payment Sent",
-        desc: `Paid KES ${p.amount} to ${p.booking.provider.name}`,
+        title:
+          p.status === "COMPLETED"
+            ? "Payment Completed"
+            : p.status === "PENDING"
+              ? "Payment Pending"
+              : p.status === "REFUNDED"
+                ? "Payment Refunded"
+                : "Payment Update",
+        desc:
+          p.status === "COMPLETED"
+            ? `Paid KES ${Number(p.amount).toLocaleString()} to ${p.booking.provider.name}`
+            : p.status === "PENDING"
+              ? `Payment of KES ${Number(p.amount).toLocaleString()} is pending for ${p.booking.provider.name}`
+              : p.status === "REFUNDED"
+                ? `Refunded KES ${Number(p.amount).toLocaleString()} for ${p.booking.provider.name}`
+                : `Payment status updated for ${p.booking.provider.name}`,
         time: p.createdAt,
         icon: "payments",
-        color: "bg-amber-100 text-amber-600",
+        color:
+          p.status === "COMPLETED"
+            ? "bg-amber-100 text-amber-600"
+            : p.status === "PENDING"
+              ? "bg-blue-100 text-blue-600"
+              : p.status === "REFUNDED"
+                ? "bg-emerald-100 text-emerald-600"
+                : "bg-gray-100 text-gray-600",
       })),
     ]
       .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())

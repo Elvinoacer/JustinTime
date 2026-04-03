@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
-import { hasAnyRole } from "@/lib/auth/roles";
+import { hasClientAccess } from "@/lib/auth/clientAccess";
 import type { Prisma } from "@/generated/prisma/client";
 import { JobStatus } from "@/generated/prisma/client";
 
@@ -14,9 +14,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Allow both CLIENT and PROVIDER roles to access client dashboard
-    if (!hasAnyRole(session.user, ["CLIENT", "PROVIDER"])) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!hasClientAccess(session.user)) {
+      return NextResponse.json(
+        { error: "Client profile required" },
+        { status: 403 },
+      );
     }
 
     const userId = session.user.id;

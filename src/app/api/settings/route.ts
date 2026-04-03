@@ -6,6 +6,7 @@ import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   normalizeNotificationPreferences,
 } from "@/lib/notifications/preferences";
+import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
 
 // Default preferences for new users
 const defaultNotifications = DEFAULT_NOTIFICATION_PREFERENCES;
@@ -120,6 +121,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       settings,
       twoFactorEnabled: user.isTwoFactorEnabled || false,
+      serverTime: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Error fetching settings:", error);
@@ -144,10 +146,27 @@ export async function PUT(req: NextRequest) {
     // Build update data object
     const updateData: Prisma.UserUpdateInput = {};
 
+    const normalizedPhone =
+      phone === undefined
+        ? undefined
+        : phone === null
+          ? null
+          : (() => {
+              const trimmed = String(phone).trim();
+              if (!trimmed) {
+                return null;
+              }
+
+              const normalized = normalizeKenyanPhone(trimmed);
+              if (!isValidKenyanPhone(normalized)) {
+                throw new Error("INVALID_PHONE");
+              }
+
+              return normalized;
+            })();
+
     if (phone !== undefined) {
-      if (phone === null || typeof phone === "string") {
-        updateData.phone = phone;
-      }
+      updateData.phone = normalizedPhone;
     }
 
     if (notifications !== undefined) {
@@ -177,10 +196,26 @@ export async function PUT(req: NextRequest) {
     }
 
     // Update user with new settings
-    const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
-      data: updateData,
-    });
+    let updatedUser;
+    try {
+      updatedUser = await prisma.user.update({
+        where: { id: session.user.id },
+        data: updateData,
+      });
+    } catch (error: unknown) {
+      const code =
+        typeof error === "object" && error !== null && "code" in error
+          ? (error as { code?: string }).code
+          : undefined;
+      if (code === "P2002") {
+        return NextResponse.json(
+          { error: "This phone number is already in use by another account" },
+          { status: 400 },
+        );
+      }
+
+      throw error;
+    }
 
     return NextResponse.json({
       message: "Settings updated successfully",
@@ -197,6 +232,16 @@ export async function PUT(req: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_PHONE") {
+      return NextResponse.json(
+        {
+          error:
+            "Use a valid Kenyan phone number format, for example 254712345678.",
+        },
+        { status: 400 },
+      );
+    }
+
     console.error("Error updating settings:", error);
     return NextResponse.json(
       { error: "Internal server error" },

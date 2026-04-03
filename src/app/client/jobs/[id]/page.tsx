@@ -7,6 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PromptModal } from "@/components/Modal";
 import PaymentTimelineCard from "@/components/jobs/PaymentTimelineCard";
 import JobLifecycleTimeline from "@/components/jobs/JobLifecycleTimeline";
 import { parseFulfillmentPreference } from "@/lib/proposals/fulfillmentMode";
@@ -230,6 +231,20 @@ export default function JobDetailsPage() {
   const [expandedRecommendation, setExpandedRecommendation] = useState<
     string | null
   >(null);
+  const [decisionPrompt, setDecisionPrompt] = useState<{
+    action: "accept" | "review" | "dispute";
+    proposalId?: string;
+    bookingId?: string | null;
+    title: string;
+    description: string;
+    placeholder: string;
+    submitText: string;
+    required?: boolean;
+  } | null>(null);
+  const [brokenJobImageIndices, setBrokenJobImageIndices] = useState<
+    Set<number>
+  >(() => new Set());
+  const [isDisputeSubmitting, setIsDisputeSubmitting] = useState(false);
   const [bookingTimelineById, setBookingTimelineById] = useState<
     Record<string, BookingTimelineResponse>
   >({});
@@ -241,15 +256,20 @@ export default function JobDetailsPage() {
   } = useQuery({
     queryKey: ["job", jobId],
     queryFn: async () => {
-      const response = await apiClient.get(`/jobs/${jobId}`);
+      const response = await apiClient.get(`/client/jobs/${jobId}`);
       return response.data as Job;
     },
   });
 
-  const { data: proposalsData } = useQuery({
+  const {
+    data: proposalsData,
+    isLoading: proposalsLoading,
+    error: proposalsError,
+    refetch: refetchProposals,
+  } = useQuery({
     queryKey: ["job", jobId, "proposals"],
     queryFn: async () => {
-      const response = await apiClient.get(`/jobs/${jobId}/proposals`);
+      const response = await apiClient.get(`/client/jobs/${jobId}/proposals`);
       return response.data as Proposal[];
     },
     enabled: !!job,
@@ -264,7 +284,7 @@ export default function JobDetailsPage() {
       proposalId: string;
       reason?: string;
     }) => {
-      await apiClient.patch(`/jobs/${jobId}/proposals/${proposalId}`, {
+      await apiClient.patch(`/client/jobs/${jobId}/proposals/${proposalId}`, {
         status: "ACCEPTED",
         reason,
       });
@@ -287,7 +307,7 @@ export default function JobDetailsPage() {
       proposalId: string;
       reason?: string;
     }) => {
-      await apiClient.patch(`/jobs/${jobId}/proposals/${proposalId}`, {
+      await apiClient.patch(`/client/jobs/${jobId}/proposals/${proposalId}`, {
         status: "PENDING",
         reason,
       });
@@ -305,10 +325,23 @@ export default function JobDetailsPage() {
   // Close job mutation
   const closeJobMutation = useMutation({
     mutationFn: async () => {
-      await apiClient.put(`/jobs/${jobId}`, { status: "CANCELLED" });
+      await apiClient.put(`/client/jobs/${jobId}`, { status: "CANCELLED" });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["job", jobId] });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["job", jobId] }),
+        queryClient.invalidateQueries({ queryKey: ["client-jobs-list"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["client", "dashboard", "jobs"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["client", "dashboard", "stats"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["client", "dashboard", "activity"],
+        }),
+      ]);
+
       showToastMessage("Job closed successfully!");
     },
     onError: () => {
@@ -324,8 +357,26 @@ export default function JobDetailsPage() {
 
   const handleShareJob = () => {
     const jobUrl = `${window.location.origin}/jobs/${jobId}`;
-    navigator.clipboard.writeText(jobUrl);
-    showToastMessage("Job link copied to clipboard!");
+
+    void (async () => {
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: job?.title || "Job details",
+            url: jobUrl,
+          });
+          showToastMessage("Job shared successfully!");
+          return;
+        }
+
+        await navigator.clipboard.writeText(jobUrl);
+        showToastMessage("Job link copied to clipboard!");
+      } catch {
+        showToastMessage(
+          "Unable to share right now. Please copy the URL manually.",
+        );
+      }
+    })();
   };
 
   const handleEditJob = () => {
@@ -341,62 +392,103 @@ export default function JobDetailsPage() {
   };
 
   const handleAcceptProposal = (proposalId: string) => {
-    const reason = window.prompt(
-      "Add a reason to share with the provider (optional). Click Cancel to abort acceptance.",
-    );
-
-    if (reason === null) {
-      return;
-    }
-
-    acceptProposalMutation.mutate({
+    setDecisionPrompt({
+      action: "accept",
       proposalId,
-      reason: reason.trim() || undefined,
+      title: "Accept Proposal",
+      description:
+        "Add an optional message to share with the provider before acceptance.",
+      placeholder: "Optional acceptance note",
+      submitText: "Accept Proposal",
     });
   };
 
   const handleInReviewProposal = (proposalId: string) => {
-    const reason = window.prompt(
-      "Share a quick in-review update (optional). Click Cancel to stop.",
-    );
-
-    if (reason === null) {
-      return;
-    }
-
-    inReviewProposalMutation.mutate({
+    setDecisionPrompt({
+      action: "review",
       proposalId,
-      reason: reason.trim() || undefined,
+      title: "Keep In Review",
+      description: "Share an optional in-review update for the provider.",
+      placeholder: "Optional in-review note",
+      submitText: "Send Update",
     });
   };
 
-  const handleDispute = async (bookingId?: string | null) => {
+  const handleDispute = (bookingId?: string | null) => {
     if (!bookingId) {
       showToastMessage("No booking found for this proposal yet.");
       return;
     }
 
-    const reason = window.prompt(
-      "Please describe the issue in at least 20 characters:",
-    );
+    setDecisionPrompt({
+      action: "dispute",
+      bookingId,
+      title: "Report Issue",
+      description: "Please describe the issue in at least 20 characters.",
+      placeholder: "Explain what happened and the support you need",
+      submitText: "Submit Dispute",
+      required: true,
+    });
+  };
 
-    if (!reason) {
+  const handleDecisionSubmit = async (value: string) => {
+    if (!decisionPrompt) {
       return;
     }
 
-    if (reason.trim().length < 20) {
+    if (decisionPrompt.action === "accept" && decisionPrompt.proposalId) {
+      try {
+        await acceptProposalMutation.mutateAsync({
+          proposalId: decisionPrompt.proposalId,
+          reason: value.trim() || undefined,
+        });
+        setDecisionPrompt(null);
+      } catch {
+        // onError handler already provides user feedback
+      }
+      return;
+    }
+
+    if (decisionPrompt.action === "review" && decisionPrompt.proposalId) {
+      try {
+        await inReviewProposalMutation.mutateAsync({
+          proposalId: decisionPrompt.proposalId,
+          reason: value.trim() || undefined,
+        });
+        setDecisionPrompt(null);
+      } catch {
+        // onError handler already provides user feedback
+      }
+      return;
+    }
+
+    if (decisionPrompt.action !== "dispute" || !decisionPrompt.bookingId) {
+      setDecisionPrompt(null);
+      return;
+    }
+
+    if (!value.trim()) {
+      return;
+    }
+
+    if (value.trim().length < 20) {
       showToastMessage("Dispute reason must be at least 20 characters.");
       return;
     }
 
+    setIsDisputeSubmitting(true);
+
     try {
-      await apiClient.post(`/bookings/${bookingId}/dispute`, {
-        reason: reason.trim(),
+      await apiClient.post(`/bookings/${decisionPrompt.bookingId}/dispute`, {
+        reason: value.trim(),
       });
       showToastMessage("Dispute submitted. Our team will review it shortly.");
       queryClient.invalidateQueries({ queryKey: ["job", jobId, "proposals"] });
     } catch {
       showToastMessage("Failed to submit dispute. Please try again.");
+    } finally {
+      setIsDisputeSubmitting(false);
+      setDecisionPrompt(null);
     }
   };
 
@@ -409,6 +501,16 @@ export default function JobDetailsPage() {
     Number(job?.maxAcceptedProviders || 1) || 1;
   const hasReachedAcceptedProvidersLimit =
     acceptedProposalsCount >= effectiveMaxAcceptedProviders;
+
+  const isDecisionSubmitting =
+    (decisionPrompt?.action === "accept" && acceptProposalMutation.isPending) ||
+    (decisionPrompt?.action === "review" &&
+      inReviewProposalMutation.isPending) ||
+    (decisionPrompt?.action === "dispute" && isDisputeSubmitting);
+
+  useEffect(() => {
+    setBrokenJobImageIndices(new Set());
+  }, [job?.id, job?.images]);
 
   useEffect(() => {
     const acceptedBookingIds = Array.from(
@@ -800,14 +902,36 @@ export default function JobDetailsPage() {
                     transition={{ delay: index * 0.1 }}
                     className="relative aspect-square rounded-lg sm:rounded-xl overflow-hidden group cursor-pointer"
                   >
-                    <Image
-                      src={image}
-                      alt={`Job photo ${index + 1}`}
-                      width={640}
-                      height={640}
-                      className="w-full h-full object-cover transition-transform group-hover:scale-110"
-                      loading="lazy"
-                    />
+                    {brokenJobImageIndices.has(index) ? (
+                      <div className="h-full w-full bg-gray-100 text-gray-500 flex flex-col items-center justify-center gap-1.5 px-3 text-center">
+                        <span className="material-symbols-outlined text-xl sm:text-2xl">
+                          broken_image
+                        </span>
+                        <span className="text-[11px] sm:text-xs font-medium">
+                          Image unavailable
+                        </span>
+                      </div>
+                    ) : (
+                      <Image
+                        src={image}
+                        alt={`Job photo ${index + 1}`}
+                        width={640}
+                        height={640}
+                        className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                        loading="lazy"
+                        onError={() => {
+                          setBrokenJobImageIndices((prev) => {
+                            if (prev.has(index)) {
+                              return prev;
+                            }
+
+                            const next = new Set(prev);
+                            next.add(index);
+                            return next;
+                          });
+                        }}
+                      />
+                    )}
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                       <span className="material-symbols-outlined text-white opacity-0 group-hover:opacity-100 transition-opacity text-lg sm:text-xl">
                         zoom_in
@@ -837,7 +961,30 @@ export default function JobDetailsPage() {
                 : " (You can still accept more)"}
             </div>
 
-            {proposals.length === 0 ? (
+            {proposalsLoading ? (
+              <div className="py-8 sm:py-10 md:py-12 flex flex-col items-center justify-center text-center">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-3" />
+                <p className="text-sm sm:text-base text-gray-600">
+                  Loading proposals...
+                </p>
+              </div>
+            ) : proposalsError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
+                <p className="text-sm sm:text-base text-red-800 mb-3">
+                  Failed to load proposals. Please try again.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => refetchProposals()}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm"
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    refresh
+                  </span>
+                  Retry
+                </button>
+              </div>
+            ) : proposals.length === 0 ? (
               <div className="text-center py-6 sm:py-8 md:py-12">
                 <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
                   <span className="material-symbols-outlined text-gray-400 text-xl sm:text-2xl">
@@ -1382,6 +1529,23 @@ export default function JobDetailsPage() {
           </div>
         </div>
       </div>
+
+      <PromptModal
+        isOpen={Boolean(decisionPrompt)}
+        onClose={() => {
+          if (!isDecisionSubmitting) {
+            setDecisionPrompt(null);
+          }
+        }}
+        onSubmit={handleDecisionSubmit}
+        title={decisionPrompt?.title || "Update Proposal"}
+        description={decisionPrompt?.description}
+        placeholder={decisionPrompt?.placeholder}
+        submitText={decisionPrompt?.submitText}
+        cancelText="Cancel"
+        isLoading={Boolean(isDecisionSubmitting)}
+        required={Boolean(decisionPrompt?.required)}
+      />
     </div>
   );
 }

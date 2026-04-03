@@ -4,15 +4,12 @@ import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import {
   Star,
   ArrowLeft,
   MessageSquare,
   Calendar,
   CheckCircle,
-  X,
   Smile,
   Meh,
   Frown,
@@ -22,14 +19,237 @@ import {
 
 interface Booking {
   id: string;
-  service: {
-    title: string;
-    provider: {
-      name: string;
-      image: string | null;
-    };
-  };
+  status: string;
+  startTime?: string | null;
+  review?: {
+    id: string;
+    authorId?: string;
+  } | null;
+  dispute?: {
+    status?: string | null;
+  } | null;
+  service?: {
+    title?: string | null;
+    provider?: {
+      name?: string | null;
+      image?: string | null;
+    } | null;
+  } | null;
+  job?: {
+    title?: string | null;
+  } | null;
+  provider?: {
+    name?: string | null;
+    image?: string | null;
+  } | null;
   date: string;
+  subjectTitle: string;
+  providerProfile: {
+    name: string;
+    image: string | null;
+  };
+}
+
+function createReviewIdempotencyKey() {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+
+  return `review-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizeBooking(raw: unknown): Booking | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const bookingRecord = raw as Record<string, unknown>;
+
+  if (typeof bookingRecord.id !== "string" || !bookingRecord.id) {
+    return null;
+  }
+
+  const service =
+    bookingRecord.service && typeof bookingRecord.service === "object"
+      ? (bookingRecord.service as Record<string, unknown>)
+      : {};
+  const serviceProvider =
+    service.provider && typeof service.provider === "object"
+      ? (service.provider as Record<string, unknown>)
+      : {};
+  const job =
+    bookingRecord.job && typeof bookingRecord.job === "object"
+      ? (bookingRecord.job as Record<string, unknown>)
+      : {};
+  const bookingProvider =
+    bookingRecord.provider && typeof bookingRecord.provider === "object"
+      ? (bookingRecord.provider as Record<string, unknown>)
+      : {};
+
+  const serviceTitle =
+    typeof service.title === "string" && service.title.trim().length > 0
+      ? service.title.trim()
+      : null;
+  const jobTitle =
+    typeof job.title === "string" && job.title.trim().length > 0
+      ? job.title.trim()
+      : null;
+
+  const providerNameFromService =
+    typeof serviceProvider.name === "string" &&
+    serviceProvider.name.trim().length > 0
+      ? serviceProvider.name.trim()
+      : null;
+  const providerNameFromBooking =
+    typeof bookingProvider.name === "string" &&
+    bookingProvider.name.trim().length > 0
+      ? bookingProvider.name.trim()
+      : null;
+
+  const providerImageFromService =
+    typeof serviceProvider.image === "string" && serviceProvider.image
+      ? serviceProvider.image
+      : null;
+  const providerImageFromBooking =
+    typeof bookingProvider.image === "string" && bookingProvider.image
+      ? bookingProvider.image
+      : null;
+
+  const subjectTitle = serviceTitle || jobTitle || "Booked Service";
+  const providerName =
+    providerNameFromService || providerNameFromBooking || "Service Provider";
+  const providerImage = providerImageFromService || providerImageFromBooking;
+
+  return {
+    id: bookingRecord.id,
+    status:
+      typeof bookingRecord.status === "string"
+        ? bookingRecord.status
+        : "UNKNOWN",
+    startTime:
+      typeof bookingRecord.startTime === "string"
+        ? bookingRecord.startTime
+        : null,
+    date:
+      typeof bookingRecord.date === "string"
+        ? bookingRecord.date
+        : new Date().toISOString(),
+    subjectTitle,
+    providerProfile: {
+      name: providerName,
+      image: providerImage,
+    },
+    review:
+      bookingRecord.review && typeof bookingRecord.review === "object"
+        ? {
+            id: String(
+              (bookingRecord.review as Record<string, unknown>).id || "",
+            ),
+            authorId:
+              typeof (bookingRecord.review as Record<string, unknown>)
+                .authorId === "string"
+                ? ((bookingRecord.review as Record<string, unknown>)
+                    .authorId as string)
+                : undefined,
+          }
+        : null,
+    dispute:
+      bookingRecord.dispute && typeof bookingRecord.dispute === "object"
+        ? {
+            status:
+              typeof (bookingRecord.dispute as Record<string, unknown>)
+                .status === "string"
+                ? ((bookingRecord.dispute as Record<string, unknown>)
+                    .status as string)
+                : null,
+          }
+        : null,
+    service:
+      Object.keys(service).length > 0
+        ? {
+            title: typeof service.title === "string" ? service.title : null,
+            provider:
+              Object.keys(serviceProvider).length > 0
+                ? {
+                    name:
+                      typeof serviceProvider.name === "string"
+                        ? serviceProvider.name
+                        : null,
+                    image:
+                      typeof serviceProvider.image === "string"
+                        ? serviceProvider.image
+                        : null,
+                  }
+                : null,
+          }
+        : null,
+    job:
+      Object.keys(job).length > 0
+        ? {
+            title: typeof job.title === "string" ? job.title : null,
+          }
+        : null,
+    provider:
+      Object.keys(bookingProvider).length > 0
+        ? {
+            name:
+              typeof bookingProvider.name === "string"
+                ? bookingProvider.name
+                : null,
+            image:
+              typeof bookingProvider.image === "string"
+                ? bookingProvider.image
+                : null,
+          }
+        : null,
+  };
+}
+
+function getReviewEligibility(booking: Booking): {
+  eligible: boolean;
+  reason?: string;
+} {
+  if (booking.review?.id) {
+    return {
+      eligible: false,
+      reason: "You have already submitted a review for this booking.",
+    };
+  }
+
+  const bookingDate = new Date(booking.date);
+  const scheduledStart = new Date(bookingDate);
+
+  if (booking.startTime) {
+    const [hours, minutes] = booking.startTime
+      .split(":")
+      .map((value) => Number(value));
+
+    if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+      scheduledStart.setHours(hours, minutes, 0, 0);
+    }
+  }
+
+  const cancelledAfterStart =
+    booking.status === "CANCELLED" && scheduledStart.getTime() <= Date.now();
+  const disputeResolved = Boolean(
+    booking.dispute?.status &&
+    ["RESOLVED", "CLOSED"].includes(booking.dispute.status),
+  );
+  const eligible =
+    booking.status === "COMPLETED" || cancelledAfterStart || disputeResolved;
+
+  if (!eligible) {
+    return {
+      eligible: false,
+      reason:
+        "Review is available only after completion, qualifying cancellation, or resolved dispute.",
+    };
+  }
+
+  return { eligible: true };
 }
 
 export default function ReviewSubmissionPage({
@@ -42,15 +262,9 @@ export default function ReviewSubmissionPage({
   const [booking, setBooking] = useState<Booking | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [idempotencyKey] = useState(() => {
-    if (
-      typeof crypto !== "undefined" &&
-      typeof crypto.randomUUID === "function"
-    ) {
-      return crypto.randomUUID();
-    }
-    return `review-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  });
+  const [idempotencyKey, setIdempotencyKey] = useState(() =>
+    createReviewIdempotencyKey(),
+  );
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [comment, setComment] = useState("");
@@ -71,14 +285,35 @@ export default function ReviewSubmissionPage({
         const response = await fetch(`/api/bookings/${bookingId}`);
         if (response.ok) {
           const data = await response.json();
-          setBooking(data);
+          const normalizedBooking = normalizeBooking(data);
+
+          if (!normalizedBooking) {
+            throw new Error("Unable to load booking details");
+          }
+
+          const eligibility = getReviewEligibility(normalizedBooking);
+          if (!eligibility.eligible) {
+            toast.error(
+              eligibility.reason || "This booking cannot be reviewed",
+            );
+            router.push("/client/bookings");
+            return;
+          }
+
+          setBooking(normalizedBooking);
         } else {
-          toast.error("Failed to load booking details");
+          const data = await response.json().catch(() => null);
+          toast.error(
+            data?.message || data?.error || "Failed to load booking details",
+          );
           router.push("/client/bookings");
         }
       } catch (error) {
         console.error("Error fetching booking:", error);
-        toast.error("Something went wrong");
+        toast.error(
+          error instanceof Error ? error.message : "Something went wrong",
+        );
+        router.push("/client/bookings");
       } finally {
         setIsLoading(false);
       }
@@ -118,15 +353,28 @@ export default function ReviewSubmissionPage({
       });
 
       if (response.ok) {
-        toast.success("Review submitted successfully!");
+        const data = await response.json().catch(() => null);
+        if (data?.idempotent) {
+          toast.success("Review already submitted for this booking.");
+        } else {
+          toast.success("Review submitted successfully!");
+        }
         router.push("/client/bookings");
       } else {
         const data = await response.json().catch(() => null);
+        if (response.status === 409) {
+          toast.success("Review already submitted for this booking.");
+          router.push("/client/bookings");
+          return;
+        }
+
         toast.error(data?.message || data?.error || "Failed to submit review");
+        setIdempotencyKey(createReviewIdempotencyKey());
       }
     } catch (error) {
       console.error("Error submitting review:", error);
       toast.error("Something went wrong");
+      setIdempotencyKey(createReviewIdempotencyKey());
     } finally {
       setIsSubmitting(false);
     }
@@ -148,27 +396,32 @@ export default function ReviewSubmissionPage({
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex flex-col">
-        <Header />
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="w-10 h-10 sm:w-12 sm:h-12 border-3 sm:border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
         </div>
-        <Footer />
       </div>
     );
   }
 
   if (!booking) return null;
 
+  const formattedBookingDate = (() => {
+    const parsedDate = new Date(booking.date);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return "Unknown date";
+    }
+
+    return parsedDate.toLocaleDateString();
+  })();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex flex-col">
-      <Header />
-
       <main className="flex-1 py-4 sm:py-6 lg:py-8 px-3 xs:px-4 sm:px-5 lg:px-8">
         <div className="max-w-lg mx-auto">
           {/* Mobile Back Button */}
           {isMobile && (
             <button
-              onClick={() => router.back()}
+              onClick={() => router.push("/client/bookings")}
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 text-sm font-medium"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -191,7 +444,7 @@ export default function ReviewSubmissionPage({
                 Rate Your Service
               </h1>
               <p className="text-xs sm:text-sm text-emerald-100 opacity-90">
-                How was your experience with {booking.service.provider.name}?
+                How was your experience with {booking.providerProfile.name}?
               </p>
             </div>
 
@@ -204,18 +457,17 @@ export default function ReviewSubmissionPage({
                   } rounded-full bg-gray-200 bg-cover bg-center flex-shrink-0 border-2 border-white shadow-sm`}
                   style={{
                     backgroundImage: `url(${
-                      booking.service.provider.image ||
-                      "/placeholder-avatar.png"
+                      booking.providerProfile.image || "/placeholder-avatar.png"
                     })`,
                   }}
                 />
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm sm:text-base font-bold text-gray-900 truncate">
-                    {booking.service.title}
+                    {booking.subjectTitle}
                   </h3>
                   <p className="text-xs sm:text-sm text-gray-500 flex items-center gap-1 mt-0.5">
                     <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
-                    Completed on {new Date(booking.date).toLocaleDateString()}
+                    Completed on {formattedBookingDate}
                   </p>
                 </div>
               </div>
@@ -299,7 +551,7 @@ export default function ReviewSubmissionPage({
                   <div className="flex items-center justify-between mb-2">
                     <label
                       htmlFor="comment"
-                      className="block text-sm font-medium text-gray-700 flex items-center gap-1.5"
+                      className="text-sm font-medium text-gray-700 flex items-center gap-1.5"
                     >
                       <MessageSquare className="w-4 h-4" />
                       Share your experience (optional)
@@ -335,11 +587,12 @@ export default function ReviewSubmissionPage({
                     <ul className="text-xs sm:text-sm text-blue-700 space-y-1">
                       <li className="flex items-start gap-1.5">
                         <CheckCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                        Be specific about what you liked or didn't like
+                        Be specific about what you liked or didn&apos;t like
                       </li>
                       <li className="flex items-start gap-1.5">
                         <CheckCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                        Mention the provider's punctuality and professionalism
+                        Mention the provider&apos;s punctuality and
+                        professionalism
                       </li>
                       <li className="flex items-start gap-1.5">
                         <CheckCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
@@ -356,7 +609,7 @@ export default function ReviewSubmissionPage({
                   {!isMobile && (
                     <button
                       type="button"
-                      onClick={() => router.back()}
+                      onClick={() => router.push("/client/bookings")}
                       className="flex-1 px-4 py-3 sm:py-3.5 bg-white border border-gray-300 text-gray-700 rounded-lg sm:rounded-xl hover:bg-gray-50 transition-all font-medium text-sm sm:text-base"
                     >
                       Cancel
@@ -448,8 +701,6 @@ export default function ReviewSubmissionPage({
           )}
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 }

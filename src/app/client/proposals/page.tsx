@@ -24,17 +24,14 @@ import {
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  getClientProposals,
-  acceptProposal,
-  rejectProposal,
-  markProposalInReview,
-} from "@/app/actions/proposals";
+import { getClientProposals } from "@/app/actions/proposals";
 import { useJobsEvents } from "@/hooks/useJobsEvents";
 import Image from "next/image";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { PromptModal } from "@/components/Modal";
+import apiClient from "@/lib/api/client";
 import {
   parseFulfillmentPreference,
   stripFulfillmentMetadata,
@@ -59,6 +56,17 @@ type RecommendationLabel =
   | "FASTEST_DELIVERY"
   | "MOST_RELIABLE"
   | "LOWEST_COST";
+
+type ProposalDecisionAction = "accept" | "reject" | "review";
+
+type IncomingProposal = Partial<Proposal> & {
+  provider?:
+    | (Partial<Proposal["provider"]> & {
+        profile?: Proposal["provider"]["profile"];
+      })
+    | null;
+  job?: Partial<Proposal["job"]> | null;
+};
 
 const sortHelperText: Record<ProposalSortOption, string> = {
   HIGHEST_MATCH:
@@ -391,6 +399,16 @@ export default function ClientProposalsPage() {
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const [sortBy, setSortBy] = useState<ProposalSortOption>("HIGHEST_MATCH");
+  const [decisionPrompt, setDecisionPrompt] = useState<{
+    action: ProposalDecisionAction;
+    proposalId: string;
+    title: string;
+    description: string;
+    placeholder: string;
+    submitText: string;
+    required?: boolean;
+  } | null>(null);
+  const [isDecisionSubmitting, setIsDecisionSubmitting] = useState(false);
 
   // Check for mobile
   useEffect(() => {
@@ -405,25 +423,26 @@ export default function ClientProposalsPage() {
     try {
       const data = await getClientProposals(selectedJob || undefined);
       const normalizedData: Proposal[] = Array.isArray(data)
-        ? data.map((proposal: any) => {
-            const providerProfile = proposal?.provider?.profile;
+        ? data.map((proposal) => {
+            const candidate = proposal as IncomingProposal;
+            const providerProfile = candidate.provider?.profile;
 
             return {
-              ...proposal,
-              price: Number(proposal?.price ?? 0),
+              ...candidate,
+              price: Number(candidate.price ?? 0),
               createdAt:
-                proposal?.createdAt instanceof Date
-                  ? proposal.createdAt
-                  : new Date(proposal?.createdAt ?? Date.now()),
+                candidate.createdAt instanceof Date
+                  ? candidate.createdAt
+                  : new Date(candidate.createdAt ?? Date.now()),
               job: {
-                ...proposal?.job,
+                ...(candidate.job || {}),
                 budget:
-                  proposal?.job?.budget == null
+                  candidate.job?.budget == null
                     ? null
-                    : Number(proposal.job.budget),
+                    : Number(candidate.job.budget),
               },
               provider: {
-                ...proposal?.provider,
+                ...(candidate.provider || {}),
                 profile: providerProfile
                   ? {
                       ...providerProfile,
@@ -449,33 +468,16 @@ export default function ClientProposalsPage() {
     loadProposals();
   }, [loadProposals]);
 
-  const handleAccept = async (proposalId: string) => {
-    const reason = window.prompt(
-      "Share a reason with the provider (optional). Click Cancel to stop.",
-    );
-
-    if (reason === null) {
-      return;
-    }
-
-    try {
-      await acceptProposal(proposalId, reason.trim() || undefined);
-      const accepted = proposals.find((proposal) => proposal.id === proposalId);
-      trackEvent("proposal_accepted", {
-        userRole: "CLIENT",
-        sourcePage: "/client/proposals",
-        experimentVariant: recommendationsVariant,
-        proposalId,
-        jobId: accepted?.jobId,
-        jobCategory: accepted?.job?.category?.name,
-      });
-      toast.success("Proposal accepted! The provider has been notified.");
-      loadProposals();
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : "Failed to accept proposal";
-      toast.error(message);
-    }
+  const handleAccept = (proposalId: string) => {
+    setDecisionPrompt({
+      action: "accept",
+      proposalId,
+      title: "Accept Proposal",
+      description:
+        "Add an optional message for the provider before accepting this proposal.",
+      placeholder: "Optional acceptance note",
+      submitText: "Accept Proposal",
+    });
   };
 
   useEffect(() => {
@@ -488,45 +490,116 @@ export default function ClientProposalsPage() {
     }
   }, [compareIds, recommendationsVariant, trackEvent]);
 
-  const handleReject = async (proposalId: string) => {
-    const reason = window.prompt(
-      "Please provide a rejection reason to help the provider improve (optional). Click Cancel to stop.",
-    );
-
-    if (reason === null) {
-      return;
-    }
-
-    try {
-      await rejectProposal(proposalId, reason.trim() || undefined);
-      toast.success("Proposal rejected");
-      loadProposals();
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : "Failed to reject proposal";
-      toast.error(message);
-    }
+  const handleReject = (proposalId: string) => {
+    setDecisionPrompt({
+      action: "reject",
+      proposalId,
+      title: "Reject Proposal",
+      description:
+        "Add an optional reason to help the provider understand your decision.",
+      placeholder: "Optional rejection note",
+      submitText: "Reject Proposal",
+    });
   };
 
-  const handleInReview = async (proposalId: string) => {
-    const reason = window.prompt(
-      "Add your review update for the provider (optional). Click Cancel to stop.",
-    );
+  const handleInReview = (proposalId: string) => {
+    setDecisionPrompt({
+      action: "review",
+      proposalId,
+      title: "Keep Proposal In Review",
+      description: "Share an optional in-review update with the provider.",
+      placeholder: "Optional in-review note",
+      submitText: "Send Update",
+    });
+  };
 
-    if (reason === null) {
+  const handleDecisionSubmit = async (rawValue: string) => {
+    if (!decisionPrompt) {
       return;
     }
 
+    const reason = rawValue.trim();
+    setIsDecisionSubmitting(true);
+
     try {
-      await markProposalInReview(proposalId, reason.trim() || undefined);
-      toast.success("Provider notified: proposal remains in review");
-      loadProposals();
+      if (decisionPrompt.action === "accept") {
+        const targetProposal = proposals.find(
+          (proposal) => proposal.id === decisionPrompt.proposalId,
+        );
+
+        if (!targetProposal) {
+          throw new Error("Proposal not found");
+        }
+
+        await apiClient.patch(
+          `/client/jobs/${targetProposal.jobId}/proposals/${decisionPrompt.proposalId}`,
+          {
+            status: "ACCEPTED",
+            reason: reason || undefined,
+          },
+        );
+        const accepted = proposals.find(
+          (proposal) => proposal.id === decisionPrompt.proposalId,
+        );
+        trackEvent("proposal_accepted", {
+          userRole: "CLIENT",
+          sourcePage: "/client/proposals",
+          experimentVariant: recommendationsVariant,
+          proposalId: decisionPrompt.proposalId,
+          jobId: accepted?.jobId,
+          jobCategory: accepted?.job?.category?.name,
+        });
+        toast.success("Proposal accepted! The provider has been notified.");
+      } else if (decisionPrompt.action === "reject") {
+        const targetProposal = proposals.find(
+          (proposal) => proposal.id === decisionPrompt.proposalId,
+        );
+
+        if (!targetProposal) {
+          throw new Error("Proposal not found");
+        }
+
+        await apiClient.patch(
+          `/client/jobs/${targetProposal.jobId}/proposals/${decisionPrompt.proposalId}`,
+          {
+            status: "REJECTED",
+            reason: reason || undefined,
+          },
+        );
+        toast.success("Proposal rejected");
+      } else {
+        const targetProposal = proposals.find(
+          (proposal) => proposal.id === decisionPrompt.proposalId,
+        );
+
+        if (!targetProposal) {
+          throw new Error("Proposal not found");
+        }
+
+        await apiClient.patch(
+          `/client/jobs/${targetProposal.jobId}/proposals/${decisionPrompt.proposalId}`,
+          {
+            status: "PENDING",
+            reason: reason || undefined,
+          },
+        );
+        toast.success("Provider notified: proposal remains in review");
+      }
+
+      setDecisionPrompt(null);
+      await loadProposals();
     } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Failed to update in-review status";
+      const defaultMessage =
+        decisionPrompt.action === "accept"
+          ? "Failed to accept proposal"
+          : decisionPrompt.action === "reject"
+            ? "Failed to reject proposal"
+            : "Failed to update in-review status";
+
+      const message = error instanceof Error ? error.message : defaultMessage;
       toast.error(message);
+    } finally {
+      setIsDecisionSubmitting(false);
     }
   };
 
@@ -1619,25 +1692,28 @@ export default function ClientProposalsPage() {
                             >
                               <button
                                 onClick={() => handleReject(proposal.id)}
+                                disabled={isDecisionSubmitting}
                                 className={`${
                                   isMobile ? "w-full" : ""
-                                } px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-gray-200 text-gray-700 rounded-lg sm:rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all font-medium text-xs sm:text-sm`}
+                                } px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-gray-200 text-gray-700 rounded-lg sm:rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all font-medium text-xs sm:text-sm disabled:opacity-50`}
                               >
                                 Reject
                               </button>
                               <button
                                 onClick={() => handleInReview(proposal.id)}
+                                disabled={isDecisionSubmitting}
                                 className={`${
                                   isMobile ? "w-full" : ""
-                                } px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg sm:rounded-xl hover:bg-amber-100 hover:border-amber-300 transition-all font-medium text-xs sm:text-sm`}
+                                } px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg sm:rounded-xl hover:bg-amber-100 hover:border-amber-300 transition-all font-medium text-xs sm:text-sm disabled:opacity-50`}
                               >
                                 In Review Note
                               </button>
                               <button
                                 onClick={() => handleAccept(proposal.id)}
+                                disabled={isDecisionSubmitting}
                                 className={`${
                                   isMobile ? "w-full" : ""
-                                } px-3 sm:px-4 py-1.5 sm:py-2 bg-linear-to-r from-emerald-600 to-teal-600 text-white rounded-lg sm:rounded-xl hover:shadow-md hover:shadow-emerald-500/30 transition-all font-medium text-xs sm:text-sm flex items-center justify-center gap-1 sm:gap-2`}
+                                } px-3 sm:px-4 py-1.5 sm:py-2 bg-linear-to-r from-emerald-600 to-teal-600 text-white rounded-lg sm:rounded-xl hover:shadow-md hover:shadow-emerald-500/30 transition-all font-medium text-xs sm:text-sm flex items-center justify-center gap-1 sm:gap-2 disabled:opacity-50`}
                               >
                                 <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                 Accept Proposal
@@ -1700,6 +1776,23 @@ export default function ClientProposalsPage() {
             </AnimatePresence>
           </div>
         )}
+
+        <PromptModal
+          isOpen={Boolean(decisionPrompt)}
+          onClose={() => {
+            if (!isDecisionSubmitting) {
+              setDecisionPrompt(null);
+            }
+          }}
+          onSubmit={handleDecisionSubmit}
+          title={decisionPrompt?.title || "Update Proposal"}
+          description={decisionPrompt?.description}
+          placeholder={decisionPrompt?.placeholder}
+          submitText={decisionPrompt?.submitText}
+          cancelText="Cancel"
+          isLoading={isDecisionSubmitting}
+          required={Boolean(decisionPrompt?.required)}
+        />
       </div>
     </div>
   );

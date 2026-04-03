@@ -65,12 +65,18 @@ export default function ClientAnalyticsPage() {
 
   const { data: overview, isLoading: overviewLoading } = useAnalyticsOverview(
     startDate,
-    endDate
+    endDate,
   );
+  const interval = useMemo<"day" | "week" | "month">(() => {
+    if (timeRange === "7d" || timeRange === "30d") return "day";
+    if (timeRange === "90d") return "week";
+    return "month";
+  }, [timeRange]);
+
   const { data: trends, isLoading: trendsLoading } = useAnalyticsTrends(
     startDate,
     endDate,
-    "day"
+    interval,
   );
 
   const timeRanges: { value: TimeRange; label: string }[] = [
@@ -99,7 +105,7 @@ export default function ClientAnalyticsPage() {
             <button
               key={range.value}
               onClick={() => setTimeRange(range.value)}
-              className={`px-3 py-2 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium md:font-bold transition-all whitespace-nowrap min-w-[60px] md:min-w-0 touch-manipulation ${
+              className={`px-3 py-2 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium md:font-bold transition-all whitespace-nowrap min-w-15 md:min-w-0 touch-manipulation ${
                 timeRange === range.value
                   ? "bg-emerald-600 text-white shadow-md"
                   : "text-gray-600 hover:bg-gray-100 active:bg-gray-200"
@@ -301,7 +307,7 @@ export default function ClientAnalyticsPage() {
                             (name.length > 10 ? "..." : "")
                           : name;
                       return `${displayName}: ${((percent || 0) * 100).toFixed(
-                        0
+                        0,
                       )}%`;
                     }}
                     outerRadius={80}
@@ -385,7 +391,7 @@ export default function ClientAnalyticsPage() {
                       className="flex items-center justify-between p-3 md:p-4 bg-gray-50 rounded-lg md:rounded-xl hover:bg-gray-100 transition-colors"
                     >
                       <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
-                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-emerald-100 flex items-center justify-center font-bold text-emerald-600 text-sm md:text-base flex-shrink-0">
+                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-emerald-100 flex items-center justify-center font-bold text-emerald-600 text-sm md:text-base shrink-0">
                           #{index + 1}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -397,7 +403,7 @@ export default function ClientAnalyticsPage() {
                           </p>
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0 ml-2">
+                      <div className="text-right shrink-0 ml-2">
                         <div className="flex items-center gap-1">
                           <span className="text-yellow-500 text-sm md:text-base">
                             ⭐
@@ -454,7 +460,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
     >
       <div className="flex items-center gap-3 md:gap-4">
         <div
-          className={`p-2 md:p-3 rounded-lg md:rounded-xl ${colorClasses[color]} flex-shrink-0`}
+          className={`p-2 md:p-3 rounded-lg md:rounded-xl ${colorClasses[color]} shrink-0`}
         >
           <span className="material-symbols-outlined text-xl md:text-2xl">
             {icon}

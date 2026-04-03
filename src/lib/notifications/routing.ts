@@ -1,9 +1,33 @@
+import { hasClientAccess } from "@/lib/auth/clientAccess";
+
 type NotificationRole = string | null | undefined;
+type NotificationRoleSource =
+  | NotificationRole
+  | {
+      role?: NotificationRole;
+      roles?: string[] | null;
+    };
 
 function normalizeRole(
-  role: NotificationRole,
+  roleSource: NotificationRoleSource,
 ): "CLIENT" | "PROVIDER" | "ADMIN" {
-  const normalized = (role || "").toUpperCase();
+  const roleValue =
+    typeof roleSource === "object" && roleSource !== null
+      ? roleSource.role
+      : roleSource;
+
+  if (
+    typeof roleSource === "object" &&
+    roleSource !== null &&
+    hasClientAccess({
+      role: roleSource.role,
+      roles: roleSource.roles ?? undefined,
+    })
+  ) {
+    return "CLIENT";
+  }
+
+  const normalized = (roleValue || "").toUpperCase();
 
   if (normalized === "CLIENT") {
     return "CLIENT";
@@ -32,7 +56,7 @@ export function getNotificationCenterPath(role: NotificationRole): string {
 
 export function getNotificationActionUrl(
   type: string,
-  role: NotificationRole,
+  role: NotificationRoleSource,
   explicitActionUrl?: string | null,
 ): string {
   if (explicitActionUrl) {

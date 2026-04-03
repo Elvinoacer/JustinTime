@@ -8,10 +8,7 @@ export async function POST(req: NextRequest) {
     const session = await auth();
 
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
@@ -24,10 +21,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // Schedule deletion for 24 hours from now
@@ -59,7 +53,7 @@ export async function POST(req: NextRequest) {
         user.email,
         user.name,
         deletionDate,
-        reason
+        reason,
       );
       console.log(`Deletion scheduled email sent to ${user.email}`);
     }
@@ -68,12 +62,13 @@ export async function POST(req: NextRequest) {
       message: "Account deletion scheduled",
       deletionScheduledAt: deletionDate,
       hoursRemaining: 24,
+      serverTime: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Error scheduling account deletion:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

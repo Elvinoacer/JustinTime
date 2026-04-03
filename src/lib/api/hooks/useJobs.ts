@@ -103,6 +103,12 @@ export const useCreateJob = () => {
       queryClient.invalidateQueries({
         queryKey: ["client", "dashboard", "stats"],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["client", "dashboard", "activity"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["client-jobs-list"],
+      });
     },
   });
 };

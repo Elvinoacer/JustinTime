@@ -33,12 +33,22 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const pageSize = parseInt(searchParams.get("pageSize") || "10");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const pageSize = Math.min(
+      100,
+      Math.max(1, parseInt(searchParams.get("pageSize") || "10", 10)),
+    );
     const skip = (page - 1) * pageSize;
+    const search = searchParams.get("search")?.trim();
 
-    // Get bookings where user is the client
-    const where: Prisma.BookingWhereInput = { clientId: session.user.id };
+    const baseWhere: Prisma.BookingWhereInput = {
+      clientId: session.user.id,
+    };
+
+    const where: Prisma.BookingWhereInput = {
+      ...baseWhere,
+    };
+
     const statusParam = searchParams.get("status");
     if (
       statusParam &&
@@ -47,7 +57,69 @@ export async function GET(request: Request) {
       where.status = statusParam as BookingStatus;
     }
 
-    const [bookings, total] = await Promise.all([
+    if (search) {
+      const normalized = search.toUpperCase();
+      const searchOr: Prisma.BookingWhereInput[] = [
+        {
+          provider: {
+            name: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          provider: {
+            email: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          job: {
+            title: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          service: {
+            title: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+        },
+        {
+          location: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          notes: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          clientAddress: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+      ];
+
+      if ((Object.values(BookingStatus) as string[]).includes(normalized)) {
+        searchOr.push({ status: normalized as BookingStatus });
+      }
+
+      where.OR = searchOr;
+    }
+
+    const [bookings, total, totalCount, statusGroupCounts] = await Promise.all([
       prisma.booking.findMany({
         where,
         skip,
@@ -93,7 +165,23 @@ export async function GET(request: Request) {
         orderBy: { createdAt: "desc" },
       }),
       prisma.booking.count({ where }),
+      prisma.booking.count({ where: baseWhere }),
+      prisma.booking.groupBy({
+        by: ["status"],
+        where: baseWhere,
+        _count: { _all: true },
+      }),
     ]);
+
+    const statusCounts = statusGroupCounts.reduce(
+      (acc, row) => {
+        acc[row.status] = row._count._all;
+        return acc;
+      },
+      {
+        ALL: totalCount,
+      } as Record<string, number>,
+    );
 
     return NextResponse.json({
       items: bookings,
@@ -101,6 +189,10 @@ export async function GET(request: Request) {
       page,
       pageSize,
       hasMore: skip + bookings.length < total,
+      meta: {
+        totalCount,
+        statusCounts,
+      },
     });
   } catch (error) {
     console.error("[BOOKINGS_GET]", error);

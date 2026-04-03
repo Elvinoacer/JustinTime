@@ -45,11 +45,32 @@ type JobUpsertPayload = {
   description: string;
   budget: number;
   location: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  locationSource?: "GPS" | "IP" | "MANUAL";
+  locationAccuracy?: number | null;
   deadline?: string;
   images: string[];
   maxApplicants?: number;
   maxAcceptedProviders?: number;
 };
+
+function extractCloudinaryPublicId(url: string): string {
+  const marker = "/upload/";
+  const uploadIndex = url.indexOf(marker);
+  if (uploadIndex === -1) {
+    return "";
+  }
+
+  const afterUpload = url.slice(uploadIndex + marker.length);
+  const withoutTransform = afterUpload.replace(/^v\d+\//, "");
+  const dotIndex = withoutTransform.lastIndexOf(".");
+  if (dotIndex === -1) {
+    return withoutTransform;
+  }
+
+  return withoutTransform.slice(0, dotIndex);
+}
 
 function PostJobPageContent() {
   const router = useRouter();
@@ -64,7 +85,7 @@ function PostJobPageContent() {
     message: string;
   }>({
     title: `Job ${isEditMode ? "updated" : "created"} successfully!`,
-    message: "Redirecting to dashboard...",
+    message: "Redirecting to your job...",
   });
   const quickPostEnabled =
     (process.env.NEXT_PUBLIC_FF_QUICK_POST || "").toLowerCase() === "true";
@@ -158,7 +179,7 @@ function PostJobPageContent() {
   const { data: existingJob, isLoading: isLoadingJob } = useQuery({
     queryKey: ["job", editJobId],
     queryFn: async () => {
-      const response = await apiClient.get(`/jobs/${editJobId}`);
+      const response = await apiClient.get(`/client/jobs/${editJobId}`);
       return response.data;
     },
     enabled: isEditMode,
@@ -167,10 +188,23 @@ function PostJobPageContent() {
   // Update job mutation for edit mode
   const updateJobMutation = useMutation({
     mutationFn: async (data: JobUpsertPayload) => {
-      await apiClient.put(`/jobs/${editJobId}`, data);
+      await apiClient.put(`/client/jobs/${editJobId}`, data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["job", editJobId] });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["job", editJobId] }),
+        queryClient.invalidateQueries({ queryKey: ["client-jobs-list"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["client", "dashboard", "jobs"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["client", "dashboard", "stats"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["client", "dashboard", "activity"],
+        }),
+      ]);
+
       setShowSuccessToast(true);
       setTimeout(() => router.push(`/client/jobs/${editJobId}`), 2000);
     },
@@ -195,7 +229,10 @@ function PostJobPageContent() {
       // Prefill images if they exist
       if (existingJob.images && existingJob.images.length > 0) {
         setUploadedImages(
-          existingJob.images.map((url: string) => ({ url, publicId: "" })),
+          existingJob.images.map((url: string) => ({
+            url,
+            publicId: extractCloudinaryPublicId(url),
+          })),
         );
       }
     }
@@ -495,6 +532,10 @@ function PostJobPageContent() {
           title: formData.title.trim(),
           budget: Number(formData.budget),
           location: formData.location.trim(),
+          latitude: postLocation.location.latitude,
+          longitude: postLocation.location.longitude,
+          locationSource: postLocation.location.source,
+          locationAccuracy: postLocation.location.accuracy,
         });
 
         trackEvent("job_post_minimal_submitted", {
@@ -533,6 +574,10 @@ function PostJobPageContent() {
         category: formData.category,
         budget: Number(formData.budget),
         location: formData.location,
+        latitude: postLocation.location.latitude,
+        longitude: postLocation.location.longitude,
+        locationSource: postLocation.location.source,
+        locationAccuracy: postLocation.location.accuracy,
         deadline: formData.date || undefined,
         images: uploadedImages.map((img) => img.url),
         maxApplicants: formData.maxApplicants
@@ -555,10 +600,17 @@ function PostJobPageContent() {
         });
         setSuccessMeta({
           title: "Job created successfully!",
-          message: "Redirecting to dashboard...",
+          message: "Redirecting to your job details...",
         });
         setShowSuccessToast(true);
-        setTimeout(() => router.push("/client/dashboard"), 2000);
+        setTimeout(() => {
+          if (created?.id) {
+            router.push(`/client/jobs/${created.id}`);
+            return;
+          }
+
+          router.push("/client/jobs");
+        }, 2000);
       }
     } catch (error) {
       console.error("Failed to submit job:", error);

@@ -32,6 +32,17 @@ export async function POST(req: Request) {
       });
     }
 
+    const normalizedComment = typeof comment === "string" ? comment.trim() : "";
+
+    if (normalizedComment.length > 0 && normalizedComment.length < 10) {
+      return new NextResponse(
+        "Comment must be at least 10 characters when provided",
+        {
+          status: 400,
+        },
+      );
+    }
+
     // Fetch booking to verify ownership and status
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
@@ -121,7 +132,7 @@ export async function POST(req: Request) {
           authorId: session.user.id,
           targetId: targetUserId,
           rating: numericRating,
-          comment,
+          comment: normalizedComment || null,
         },
       });
     } catch (createError) {

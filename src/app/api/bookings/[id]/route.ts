@@ -399,6 +399,17 @@ export async function GET(
     const booking = await prisma.booking.findUnique({
       where: { id },
       include: {
+        review: {
+          select: {
+            id: true,
+            authorId: true,
+          },
+        },
+        dispute: {
+          select: {
+            status: true,
+          },
+        },
         service: {
           select: {
             title: true,
@@ -411,6 +422,20 @@ export async function GET(
                 image: true,
               },
             },
+          },
+        },
+        job: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+        provider: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            email: true,
           },
         },
         client: {

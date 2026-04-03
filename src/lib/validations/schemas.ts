@@ -58,6 +58,10 @@ export const createJobSchema = z.object({
   category: z.string().min(1, "Category is required"),
   budget: z.number().positive("Budget must be positive"),
   location: z.string().min(1, "Location is required"),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
+  locationSource: z.enum(["GPS", "IP", "MANUAL"]).optional(),
+  locationAccuracy: z.number().positive().nullable().optional(),
   deadline: z.string().optional(),
   maxApplicants: z
     .number()
@@ -76,6 +80,10 @@ export const quickCreateJobSchema = z.object({
   title: z.string().min(5, "Title must be at least 5 characters"),
   budget: z.number().positive("Budget must be positive"),
   location: z.string().min(1, "Location is required"),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
+  locationSource: z.enum(["GPS", "IP", "MANUAL"]).optional(),
+  locationAccuracy: z.number().positive().nullable().optional(),
 });
 
 export const updateJobSchema = z.object({
@@ -84,6 +92,10 @@ export const updateJobSchema = z.object({
   category: z.string().optional(),
   budget: z.number().positive().optional(),
   location: z.string().optional(),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
+  locationSource: z.enum(["GPS", "IP", "MANUAL"]).optional(),
+  locationAccuracy: z.number().positive().nullable().optional(),
   deadline: z.string().optional(),
   maxApplicants: z.number().int().positive().optional(),
   maxAcceptedProviders: z.number().int().positive().optional(),
@@ -107,7 +119,15 @@ export const createServiceSchema = z.object({
 
 export const createReviewSchema = z.object({
   rating: z.number().min(1).max(5, "Rating must be between 1 and 5"),
-  comment: z.string().min(10, "Comment must be at least 10 characters"),
+  comment: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (value) =>
+        value === undefined || value.length === 0 || value.length >= 10,
+      "Comment must be at least 10 characters",
+    ),
 });
 
 // Wallet validation schemas

@@ -2,7 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
-import { hasAnyRole } from "@/lib/auth/roles";
+import { hasClientAccess } from "@/lib/auth/clientAccess";
+import { Prisma } from "@/generated/prisma/client";
+
+function parseDateRange(
+  startDate?: string | null,
+  endDate?: string | null,
+): { start: Date | null; end: Date | null } {
+  if (!startDate || !endDate) {
+    return { start: null, end: null };
+  }
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw new Error("INVALID_DATE_RANGE");
+  }
+
+  return { start, end };
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,9 +31,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Allow both CLIENT and PROVIDER roles to access client analytics
-    if (!hasAnyRole(session.user, ["CLIENT", "PROVIDER"])) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!hasClientAccess(session.user)) {
+      return NextResponse.json(
+        { error: "Client profile required" },
+        { status: 403 },
+      );
     }
 
     const userId = session.user.id;
@@ -22,281 +43,294 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    // Build date filter
-    const dateFilter =
-      startDate && endDate
+    const { start, end } = parseDateRange(startDate, endDate);
+
+    const jobDateFilter =
+      start && end
         ? {
             createdAt: {
-              gte: new Date(startDate),
-              lte: new Date(endDate),
+              gte: start,
+              lte: end,
             },
           }
         : {};
 
-    // Fetch spending analytics
-    const payments = await prisma.payment.findMany({
-      where: {
-        booking: {
-          clientId: userId,
+    // Payments do not expose completedAt, so updatedAt is the best settlement proxy.
+    const paymentDateFilter =
+      start && end
+        ? {
+            updatedAt: {
+              gte: start,
+              lte: end,
+            },
+          }
+        : {};
+
+    const bookingDateFilter =
+      start && end
+        ? {
+            updatedAt: {
+              gte: start,
+              lte: end,
+            },
+          }
+        : {};
+
+    const activeProviderStatuses = [
+      "CONFIRMED",
+      "IN_PROGRESS",
+      "AWAITING_CLIENT_CONFIRMATION",
+      "COMPLETED",
+    ] as const;
+
+    const [
+      completedSpending,
+      paymentStatusGroups,
+      spendingByCategoryRows,
+      totalJobs,
+      jobsByStatusGroups,
+      totalProposals,
+      hireSnapshots,
+      providerHireCounts,
+      topProviderCounts,
+      ratingsAverage,
+    ] = await Promise.all([
+      prisma.payment.aggregate({
+        where: {
+          booking: { clientId: userId },
+          status: "COMPLETED",
+          ...paymentDateFilter,
         },
-        ...dateFilter,
-      },
-      include: {
-        booking: {
-          include: {
-            job: {
-              include: {
-                category: true,
-              },
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+      prisma.payment.groupBy({
+        by: ["status"],
+        where: {
+          booking: { clientId: userId },
+          ...paymentDateFilter,
+        },
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+      prisma.$queryRaw<
+        Array<{
+          category: string;
+          amount: Prisma.Decimal | number | string;
+        }>
+      >(Prisma.sql`
+        SELECT
+          COALESCE(c."name", 'Uncategorized') AS category,
+          COALESCE(SUM(p."amount"), 0) AS amount
+        FROM "Payment" p
+        INNER JOIN "Booking" b ON b."id" = p."bookingId"
+        LEFT JOIN "Job" j ON j."id" = b."jobId"
+        LEFT JOIN "Category" c ON c."id" = j."categoryId"
+        WHERE b."clientId" = ${userId}
+          AND p."status" = 'COMPLETED'
+          ${
+            start && end
+              ? Prisma.sql`AND p."updatedAt" >= ${start} AND p."updatedAt" <= ${end}`
+              : Prisma.empty
+          }
+        GROUP BY COALESCE(c."name", 'Uncategorized')
+        ORDER BY amount DESC
+      `),
+      prisma.job.count({
+        where: {
+          clientId: userId,
+          ...jobDateFilter,
+        },
+      }),
+      prisma.job.groupBy({
+        by: ["status"],
+        where: {
+          clientId: userId,
+          ...jobDateFilter,
+        },
+        _count: { _all: true },
+      }),
+      prisma.proposal.count({
+        where: {
+          job: {
+            clientId: userId,
+            ...jobDateFilter,
+          },
+        },
+      }),
+      prisma.booking.findMany({
+        where: {
+          clientId: userId,
+          status: { in: activeProviderStatuses },
+          jobId: { not: null },
+          job: jobDateFilter,
+        },
+        select: {
+          jobId: true,
+          createdAt: true,
+          job: {
+            select: {
+              createdAt: true,
             },
           },
         },
-      },
-    });
-
-    const totalSpent = payments
-      .filter((p) => p.status === "COMPLETED")
-      .reduce((sum, p) => sum + Number(p.amount), 0);
-
-    const avgSpent = payments.length > 0 ? totalSpent / payments.length : 0;
-
-    // Group by category
-    const spendingByCategory = payments
-      .filter((p) => p.status === "COMPLETED")
-      .reduce(
-        (acc, p) => {
-          const category = p.booking.job?.category?.name || "Uncategorized";
-          if (!acc[category]) {
-            acc[category] = 0;
-          }
-          acc[category] += Number(p.amount);
-          return acc;
-        },
-        {} as Record<string, number>,
-      );
-
-    const spendingByCategoryArray = Object.entries(spendingByCategory).map(
-      ([category, amount]) => ({
-        category,
-        amount,
       }),
-    );
-
-    // Group by status
-    const spendingByStatus = payments.reduce(
-      (acc, p) => {
-        if (!acc[p.status]) {
-          acc[p.status] = { amount: 0, count: 0 };
-        }
-        acc[p.status].amount += Number(p.amount);
-        acc[p.status].count += 1;
-        return acc;
-      },
-      {} as Record<string, { amount: number; count: number }>,
-    );
-
-    const spendingByStatusArray = Object.entries(spendingByStatus).map(
-      ([status, data]) => ({
-        status,
-        ...data,
-      }),
-    );
-
-    // Fetch job analytics
-    const jobs = await prisma.job.findMany({
-      where: {
-        clientId: userId,
-        ...dateFilter,
-      },
-      include: {
-        _count: {
-          select: { proposals: true },
+      prisma.booking.groupBy({
+        by: ["providerId"],
+        where: {
+          clientId: userId,
+          status: { in: activeProviderStatuses },
+          ...bookingDateFilter,
         },
-        proposals: {
-          select: {
-            id: true,
-            status: true,
-            createdAt: true,
+        _count: { providerId: true },
+      }),
+      prisma.booking.groupBy({
+        by: ["providerId"],
+        where: {
+          clientId: userId,
+          status: "COMPLETED",
+          ...bookingDateFilter,
+        },
+        _count: { providerId: true },
+        orderBy: {
+          _count: {
+            providerId: "desc",
           },
         },
-      },
-    });
-
-    const totalJobs = jobs.length;
-
-    // Jobs by status
-    const jobsByStatus = jobs.reduce(
-      (acc, job) => {
-        if (!acc[job.status]) {
-          acc[job.status] = 0;
-        }
-        acc[job.status] += 1;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
-
-    const jobsByStatusArray = Object.entries(jobsByStatus).map(
-      ([status, count]) => ({
-        status,
-        count,
+        take: 5,
       }),
-    );
+      prisma.review.aggregate({
+        where: {
+          authorId: userId,
+          booking: {
+            clientId: userId,
+            ...bookingDateFilter,
+          },
+        },
+        _avg: { rating: true },
+      }),
+    ]);
 
-    const avgProposals =
-      jobs.length > 0
-        ? jobs.reduce((sum, job) => sum + job._count.proposals, 0) / jobs.length
-        : 0;
+    const totalSpent = Number(completedSpending._sum.amount || 0);
+    const completedPaymentCount = completedSpending._count._all;
+    const avgSpent =
+      completedPaymentCount > 0 ? totalSpent / completedPaymentCount : 0;
 
-    const completedJobs = jobs.filter((j) => j.status === "COMPLETED").length;
+    const spendingByCategory = spendingByCategoryRows.map((row) => ({
+      category: row.category,
+      amount: Number(row.amount || 0),
+    }));
+
+    const spendingByStatusArray = paymentStatusGroups.map((group) => ({
+      status: group.status,
+      amount: Number(group._sum.amount || 0),
+      count: group._count._all,
+    }));
+
+    const jobsByStatusArray = jobsByStatusGroups.map((group) => ({
+      status: group.status,
+      count: group._count._all,
+    }));
+
+    const completedJobs =
+      jobsByStatusGroups.find((group) => group.status === "COMPLETED")?._count
+        ._all || 0;
     const completionRate =
       totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
+    const avgProposals = totalJobs > 0 ? totalProposals / totalJobs : 0;
 
-    // Calculate avg time to hire (from proposal acceptance to booking confirmation)
-    // Fetch jobs that have bookings, including their proposals
-    const jobsWithBookings = await prisma.job.findMany({
-      where: {
-        clientId: userId,
-        bookings: {
-          some: {}, // Has at least one booking
-        },
-        ...dateFilter,
-      },
-      select: {
-        bookings: {
-          select: {
-            providerId: true,
-            createdAt: true,
-          },
-        },
-        proposals: {
-          where: {
-            status: "ACCEPTED",
-          },
-          select: {
-            providerId: true,
-            createdAt: true,
-          },
-        },
-      },
-    });
+    const firstHireByJob = new Map<
+      string,
+      {
+        jobCreatedAt: Date;
+        firstBookingAt: Date;
+      }
+    >();
 
-    const timeToHireValues = jobsWithBookings.flatMap((job) => {
-      // For each booking, find the corresponding accepted proposal from the same provider
-      return job.bookings
-        .map((booking) => {
-          const proposal = job.proposals.find(
-            (p) => p.providerId === booking.providerId,
-          );
-          if (proposal) {
-            const proposalDate = new Date(proposal.createdAt);
-            const bookingDate = new Date(booking.createdAt);
-            const diffInHours =
-              (bookingDate.getTime() - proposalDate.getTime()) /
-              (1000 * 60 * 60);
-            return diffInHours;
-          }
-          return null;
-        })
-        .filter((v): v is number => v !== null && v > 0);
-    });
+    for (const snapshot of hireSnapshots) {
+      const jobId = snapshot.jobId;
+      if (!jobId || !snapshot.job?.createdAt) {
+        continue;
+      }
+
+      const current = firstHireByJob.get(jobId);
+      if (!current || snapshot.createdAt < current.firstBookingAt) {
+        firstHireByJob.set(jobId, {
+          jobCreatedAt: snapshot.job.createdAt,
+          firstBookingAt: snapshot.createdAt,
+        });
+      }
+    }
+
+    const timeToHireValues = Array.from(firstHireByJob.values())
+      .map((entry) => {
+        const diffHours =
+          (entry.firstBookingAt.getTime() - entry.jobCreatedAt.getTime()) /
+          (1000 * 60 * 60);
+        return diffHours >= 0 ? diffHours : null;
+      })
+      .filter((value): value is number => value !== null);
 
     const avgTimeToHire =
       timeToHireValues.length > 0
-        ? timeToHireValues.reduce((sum, v) => sum + v, 0) /
+        ? timeToHireValues.reduce((sum, value) => sum + value, 0) /
           timeToHireValues.length
         : 0;
 
-    // Fetch provider analytics
-    const bookings = await prisma.booking.findMany({
-      where: {
-        clientId: userId,
-        status: {
-          in: [
-            "CONFIRMED",
-            "IN_PROGRESS",
-            "AWAITING_CLIENT_CONFIRMATION",
-            "COMPLETED",
-          ],
-        },
-        ...dateFilter,
-      },
-      include: {
-        provider: true,
-        review: true,
-      },
-    });
-
-    const uniqueProviders = new Set(bookings.map((b) => b.providerId)).size;
-
-    // Calculate repeat hire rate
-    const providerHireCounts = bookings.reduce(
-      (acc, b) => {
-        if (!acc[b.providerId]) {
-          acc[b.providerId] = 0;
-        }
-        acc[b.providerId] += 1;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
-
-    const repeatHires = Object.values(providerHireCounts).filter(
-      (count) => count > 1,
+    const uniqueProviders = providerHireCounts.length;
+    const repeatHires = providerHireCounts.filter(
+      (group) => group._count.providerId > 1,
     ).length;
     const repeatHireRate =
       uniqueProviders > 0 ? (repeatHires / uniqueProviders) * 100 : 0;
 
-    // Average rating
-    const ratings = bookings
-      .map((b) => b.review?.rating)
-      .filter((r) => r !== null && r !== undefined) as number[];
-    const avgRating =
-      ratings.length > 0
-        ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length
-        : 0;
+    const topProviderIds = topProviderCounts.map((group) => group.providerId);
+    const [topProviderUsers, topProviderRatings] = await Promise.all([
+      topProviderIds.length > 0
+        ? prisma.user.findMany({
+            where: { id: { in: topProviderIds } },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([]),
+      topProviderIds.length > 0
+        ? prisma.review.groupBy({
+            by: ["targetId"],
+            where: {
+              authorId: userId,
+              targetId: { in: topProviderIds },
+            },
+            _avg: { rating: true },
+          })
+        : Promise.resolve([]),
+    ]);
 
-    // Top providers
-    const providerStats = await Promise.all(
-      Array.from(new Set(bookings.map((b) => b.providerId))).map(
-        async (providerId) => {
-          const providerBookings = bookings.filter(
-            (b) => b.providerId === providerId,
-          );
-          const completedCount = providerBookings.filter(
-            (b) => b.status === "COMPLETED",
-          ).length;
-          const providerRatings = providerBookings
-            .map((b) => b.review?.rating)
-            .filter((r) => r !== null && r !== undefined) as number[];
-          const avgProviderRating =
-            providerRatings.length > 0
-              ? providerRatings.reduce((sum, r) => sum + r, 0) /
-                providerRatings.length
-              : 0;
-
-          const provider = providerBookings[0]?.provider;
-
-          return {
-            id: providerId,
-            name: provider?.name || "Unknown",
-            jobsCompleted: completedCount,
-            avgRating: avgProviderRating,
-          };
-        },
-      ),
+    const providerNameById = new Map(
+      topProviderUsers.map((provider) => [
+        provider.id,
+        provider.name || "Unknown",
+      ]),
+    );
+    const providerRatingById = new Map(
+      topProviderRatings.map((rating) => [
+        rating.targetId,
+        Number(rating._avg.rating || 0),
+      ]),
     );
 
-    const topProviders = providerStats
-      .sort((a, b) => b.jobsCompleted - a.jobsCompleted)
-      .slice(0, 5);
+    const topProviders = topProviderCounts.map((provider) => ({
+      id: provider.providerId,
+      name: providerNameById.get(provider.providerId) || "Unknown",
+      jobsCompleted: provider._count.providerId,
+      avgRating: Number(
+        (providerRatingById.get(provider.providerId) || 0).toFixed(1),
+      ),
+    }));
 
-    // Build response
     const analytics = {
       spending: {
         total: totalSpent,
         average: avgSpent,
-        byCategory: spendingByCategoryArray,
+        byCategory: spendingByCategory,
         byStatus: spendingByStatusArray,
       },
       jobs: {
@@ -309,13 +343,21 @@ export async function GET(request: NextRequest) {
       providers: {
         unique: uniqueProviders,
         repeatHireRate: Math.round(repeatHireRate * 10) / 10,
-        avgRating: Math.round(avgRating * 10) / 10,
+        avgRating:
+          Math.round(Number(ratingsAverage._avg.rating || 0) * 10) / 10,
         topProviders,
       },
     };
 
     return NextResponse.json(analytics);
   } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_DATE_RANGE") {
+      return NextResponse.json(
+        { error: "Invalid startDate/endDate" },
+        { status: 400 },
+      );
+    }
+
     return handleError(error);
   }
 }
