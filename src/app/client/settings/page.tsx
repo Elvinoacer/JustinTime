@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSettings, useUpdateSettings } from "@/lib/api/hooks/useSettings";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,6 +9,7 @@ import { ConfirmModal, PromptModal } from "@/components/Modal";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toggleTwoFactor } from "@/app/actions/twoFactor";
 import {
+  type LucideIcon,
   User,
   Lock,
   Bell,
@@ -23,13 +24,10 @@ import {
   Smartphone,
   Monitor,
   CheckCircle2,
-  XCircle,
   ChevronRight,
   Menu,
   X,
   Home,
-  LogOut,
-  HelpCircle,
   ShieldCheck,
   Key,
   Trash2,
@@ -185,8 +183,12 @@ function TwoFactorToggle({ initialEnabled }: { initialEnabled: boolean }) {
           ? "Two-Factor Authentication enabled! You'll receive a code via email during login."
           : "Two-Factor Authentication disabled.",
       );
-    } catch (error: any) {
-      toast.error(error.message || "Failed to update 2FA settings");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to update 2FA settings",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -210,7 +212,7 @@ function TwoFactorToggle({ initialEnabled }: { initialEnabled: boolean }) {
   );
 }
 
-export default function ClientSettingsPage() {
+function ClientSettingsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -459,7 +461,12 @@ export default function ClientSettingsPage() {
     );
   }
 
-  const tabs = [
+  const tabs: Array<{
+    id: SettingsTab;
+    label: string;
+    icon: LucideIcon;
+    color: string;
+  }> = [
     {
       id: "account",
       label: "Account",
@@ -557,7 +564,7 @@ export default function ClientSettingsPage() {
                   <button
                     key={tab.id}
                     onClick={() => {
-                      setActiveTab(tab.id as any);
+                      setActiveTab(tab.id);
                       setShowMobileMenu(false);
                     }}
                     className={`w-full flex items-center justify-between px-4 py-3 rounded-lg mb-1 transition-all ${
@@ -621,7 +628,7 @@ export default function ClientSettingsPage() {
                     return (
                       <button
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
+                        onClick={() => setActiveTab(tab.id)}
                         className={`w-full flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-200 font-medium group ${
                           isActive
                             ? `bg-gradient-to-r ${tab.color} text-white shadow-md`
@@ -1234,5 +1241,19 @@ export default function ClientSettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ClientSettingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[60vh] px-4">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 border-3 sm:border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <ClientSettingsPageContent />
+    </Suspense>
   );
 }
