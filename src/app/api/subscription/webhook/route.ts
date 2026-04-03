@@ -1,12 +1,68 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendSubscriptionActivationEmail } from "@/lib/email";
-import { verifyWebhookSignature } from "@/lib/intasend";
+import { verifyWebhookChallenge, verifyWebhookSignature } from "@/lib/intasend";
+import { SubscriptionPlan } from "@/generated/prisma/client";
+
+function parseSubscriptionRef(apiRef: string) {
+  const normalized = String(apiRef || "").trim();
+  if (!normalized) {
+    return {
+      userId: null as string | null,
+      plan: null as SubscriptionPlan | null,
+    };
+  }
+
+  // New format: SUB-PLAN-userid-timestamp
+  const hyphenParts = normalized.split("-");
+  if (hyphenParts.length >= 4 && hyphenParts[0] === "SUB") {
+    const possiblePlan = hyphenParts[1]?.toUpperCase();
+    const possibleUserId = hyphenParts[2];
+    if (
+      possibleUserId &&
+      (possiblePlan === "PRO" || possiblePlan === "BUSINESS")
+    ) {
+      return {
+        userId: possibleUserId,
+        plan: possiblePlan as SubscriptionPlan,
+      };
+    }
+  }
+
+  // Legacy format: SUB_userid_PLAN_timestamp
+  const underscoreParts = normalized.split("_");
+  if (underscoreParts.length >= 4 && underscoreParts[0] === "SUB") {
+    const possibleUserId = underscoreParts[1];
+    const possiblePlan = underscoreParts[2]?.toUpperCase();
+    if (
+      possibleUserId &&
+      (possiblePlan === "PRO" || possiblePlan === "BUSINESS")
+    ) {
+      return {
+        userId: possibleUserId,
+        plan: possiblePlan as SubscriptionPlan,
+      };
+    }
+  }
+
+  return {
+    userId: null as string | null,
+    plan: null as SubscriptionPlan | null,
+  };
+}
 
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
     const body = JSON.parse(rawBody);
+
+    if (body.challenge) {
+      if (verifyWebhookChallenge(body.challenge)) {
+        return NextResponse.json({ challenge: body.challenge });
+      }
+
+      return NextResponse.json({ error: "Invalid challenge" }, { status: 401 });
+    }
 
     // Verify webhook signature (IntaSend sends signature in headers)
     const signature = req.headers.get("x-intasend-signature");
@@ -22,39 +78,18 @@ export async function POST(req: NextRequest) {
     console.log("=== IntaSend Webhook Received ===");
     console.log("Payload:", JSON.stringify(body, null, 2));
 
-    const {
-      state,
-      checkout_id,
-      invoice_id,
-      api_ref,
-      value,
-      account,
-      failed_reason,
-      meta,
-      challenge,
-    } = body;
+    const { state, invoice_id, api_ref, value, failed_reason, meta } = body;
+    const canonicalRef = String(api_ref || "").trim();
 
-    // CRITICAL: Validate challenge token
-    const expectedChallenge = process.env.INTASEND_WEBHOOK_CHALLENGE;
-
-    if (!expectedChallenge) {
-      console.error("INTASEND_WEBHOOK_CHALLENGE not configured in environment");
-      return NextResponse.json(
-        { error: "Webhook not properly configured" },
-        { status: 500 },
-      );
+    if (!canonicalRef) {
+      return NextResponse.json({
+        received: true,
+        requiresManualResolution: true,
+        skipped: true,
+        reason: "missing_api_ref",
+        invoiceId: invoice_id ? String(invoice_id) : null,
+      });
     }
-
-    if (challenge !== expectedChallenge) {
-      console.error("Invalid challenge token received");
-      console.error(`Expected: ${expectedChallenge}, Received: ${challenge}`);
-      return NextResponse.json(
-        { error: "Invalid challenge token" },
-        { status: 401 },
-      );
-    }
-
-    console.log("✅ Challenge token validated successfully");
 
     // Only process completed payments
     if (state !== "COMPLETE") {
@@ -65,17 +100,55 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Payment not complete", state });
     }
 
-    // Extract metadata - IntaSend uses 'meta' field
-    const metadata = meta || {};
-    const userId = metadata.userId;
-    const plan = metadata.plan;
+    const metadata = (meta || body.invoice?.meta || {}) as {
+      userId?: string;
+      plan?: string;
+    };
+    const parsedApiRef = parseSubscriptionRef(String(api_ref || ""));
+    const pendingProviderRef = `INTASEND:SUBSCRIPTION:PENDING:${canonicalRef}`;
+    const pendingSubscription = await prisma.transaction.findFirst({
+      where: {
+        type: "PAYMENT",
+        providerRef: pendingProviderRef,
+      },
+      include: {
+        wallet: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (!pendingSubscription) {
+      return NextResponse.json({
+        received: true,
+        requiresManualResolution: true,
+        skipped: true,
+        reason: "missing_pending_provider_reference",
+        apiRef: canonicalRef,
+      });
+    }
+
+    const userId =
+      metadata.userId ||
+      parsedApiRef.userId ||
+      pendingSubscription?.wallet.userId;
+    const normalizedPlan = (metadata.plan || parsedApiRef.plan || "")
+      .toString()
+      .toUpperCase();
+    const plan =
+      normalizedPlan === "PRO" || normalizedPlan === "BUSINESS"
+        ? (normalizedPlan as SubscriptionPlan)
+        : null;
 
     if (!userId || !plan) {
       console.error("Missing userId or plan in webhook metadata:", metadata);
-      return NextResponse.json(
-        { error: "Invalid webhook data - missing userId or plan" },
-        { status: 400 },
-      );
+      return NextResponse.json({
+        received: true,
+        requiresManualResolution: true,
+        error: "Missing userId or plan in webhook payload",
+      });
     }
 
     console.log(`Processing subscription for user ${userId}, plan: ${plan}`);
@@ -91,59 +164,126 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Calculate subscription end date (30 days from now)
+    const amount = Number(value || body.invoice?.value || body.amount || 0);
+
     const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 30); // 1 month = 30 days
+    const endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + 1);
 
     console.log(
       `Subscription period: ${startDate.toISOString()} to ${endDate.toISOString()}`,
     );
 
-    // Check if subscription already exists and is active to prevent duplicate processing
-    const existingSubscription = await prisma.subscription.findUnique({
-      where: { userId },
-    });
+    const subscription = await prisma.$transaction(async (tx) => {
+      const lockRef = canonicalRef;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockRef}, 0))`;
+      const refForKeys = lockRef;
+      const pendingSubscriptionProviderRef = `INTASEND:SUBSCRIPTION:PENDING:${refForKeys}`;
+      const settledSubscriptionProviderRef = `INTASEND:SUBSCRIPTION:SETTLED:${refForKeys}`;
 
-    if (existingSubscription?.plan === plan && existingSubscription?.isActive) {
-      console.log(
-        `⚠️  Subscription already active for user ${userId} with plan ${plan}. Skipping duplicate webhook.`,
-      );
-      return NextResponse.json({
-        message: "Subscription already active - webhook already processed",
-        subscription: existingSubscription,
+      let wallet = await tx.wallet.findUnique({
+        where: { userId },
       });
-    }
 
-    // Update or create subscription
-    const subscription = await prisma.subscription.upsert({
-      where: { userId },
-      update: {
-        plan: plan,
-        startDate: startDate,
-        endDate: endDate,
-        isActive: true,
-      },
-      create: {
-        userId,
-        plan: plan,
-        startDate: startDate,
-        endDate: endDate,
-        isActive: true,
-      },
+      if (!wallet) {
+        wallet = await tx.wallet.create({
+          data: {
+            userId,
+            balance: 0,
+          },
+        });
+      }
+
+      const settledDescription = `Subscription payment settled (${plan}) [Ref:${refForKeys}]`;
+      const existingSettled = await tx.transaction.findFirst({
+        where: {
+          walletId: wallet.id,
+          type: "PAYMENT",
+          providerRef: settledSubscriptionProviderRef,
+        },
+      });
+
+      if (existingSettled) {
+        return tx.subscription.upsert({
+          where: { userId },
+          update: {
+            plan,
+            startDate,
+            endDate,
+            isActive: true,
+          },
+          create: {
+            userId,
+            plan,
+            startDate,
+            endDate,
+            isActive: true,
+          },
+        });
+      }
+
+      const subscriptionRecord = await tx.subscription.upsert({
+        where: { userId },
+        update: {
+          plan,
+          startDate,
+          endDate,
+          isActive: true,
+        },
+        create: {
+          userId,
+          plan,
+          startDate,
+          endDate,
+          isActive: true,
+        },
+      });
+
+      const pendingRecord = await tx.transaction.findFirst({
+        where: {
+          walletId: wallet.id,
+          type: "PAYMENT",
+          providerRef: pendingSubscriptionProviderRef,
+        },
+      });
+
+      if (pendingRecord) {
+        await tx.transaction.update({
+          where: { id: pendingRecord.id },
+          data: {
+            amount:
+              Number.isFinite(amount) && amount > 0
+                ? amount
+                : pendingRecord.amount,
+            providerRef: settledSubscriptionProviderRef,
+            description: settledDescription,
+          },
+        });
+      } else {
+        await tx.transaction.create({
+          data: {
+            walletId: wallet.id,
+            amount: Number.isFinite(amount) && amount > 0 ? amount : 0,
+            type: "PAYMENT",
+            providerRef: settledSubscriptionProviderRef,
+            description: settledDescription,
+          },
+        });
+      }
+
+      await tx.notification.create({
+        data: {
+          userId,
+          title: "Subscription Activated",
+          message: `Your ${plan} subscription has been activated successfully! Enjoy premium features for one month.`,
+          type: "PAYMENT",
+        },
+      });
+
+      return subscriptionRecord;
     });
 
     console.log(`Subscription updated successfully:`, subscription);
-
-    // Create notification for user
-    await prisma.notification.create({
-      data: {
-        userId,
-        title: "Subscription Activated",
-        message: `Your ${plan} subscription has been activated successfully! Enjoy premium features for 30 days.`,
-        type: "PAYMENT",
-      },
-    });
 
     // Send activation email
     if (user.email && user.name) {

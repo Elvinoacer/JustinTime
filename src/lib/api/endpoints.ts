@@ -50,17 +50,15 @@ export const API_ENDPOINTS = {
   wallet: {
     balance: "/wallet/balance",
     transactions: "/wallet/transactions",
-    topUp: "/wallet/top-up",
-    withdraw: "/wallet/withdraw",
-    paymentMethods: "/wallet/payment-methods",
-    addPaymentMethod: "/wallet/payment-methods",
-    deletePaymentMethod: (id: string) => `/wallet/payment-methods/${id}`,
+    topUp: "/wallet/topup",
+    details: "/wallet",
   },
 
   // Messages
   messages: {
     conversations: "/messages/conversations",
-    byConversation: (conversationId: string) => `/messages/conversations/${conversationId}`,
+    byConversation: (conversationId: string) =>
+      `/messages/conversations/${conversationId}`,
     send: "/messages/send",
     markAsRead: (messageId: string) => `/messages/${messageId}/read`,
   },

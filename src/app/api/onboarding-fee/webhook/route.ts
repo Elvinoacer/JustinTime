@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import {
   verifyWebhookChallenge,
   verifyWebhookSignature,
   PAYMENT_AMOUNTS,
 } from "@/lib/intasend";
+
+async function resolveSystemAdminId(tx: Prisma.TransactionClient) {
+  const actor = await tx.user.findFirst({
+    where: { role: "ADMIN" },
+    select: { id: true },
+  });
+
+  return actor?.id ?? null;
+}
 
 export async function POST(req: Request) {
   try {
@@ -41,12 +51,24 @@ export async function POST(req: Request) {
     const amount = Number(
       body.value || body.invoice?.value || body.amount || 0,
     );
+    const canonicalRef = String(apiRef || "").trim();
 
-    if (Number.isFinite(amount) && amount < PAYMENT_AMOUNTS.ONBOARDING_FEE) {
-      return NextResponse.json(
-        { error: "Invalid payment amount" },
-        { status: 400 },
-      );
+    if (!canonicalRef) {
+      return NextResponse.json({
+        received: true,
+        requiresManualResolution: true,
+        skipped: true,
+        reason: "missing_api_ref",
+        invoiceId: invoiceId ? String(invoiceId) : null,
+      });
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return NextResponse.json({
+        received: true,
+        skipped: true,
+        reason: "invalid_amount",
+      });
     }
 
     console.log(
@@ -59,67 +81,69 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true, state });
     }
 
-    // Check if this is an onboarding fee payment
-    // New format: ONBOARD-xxxxxxxx-timestamp
-    // Old format: ONBOARDING-xxxxxxxx-timestamp or ONBOARDING_xxxx_timestamp
-    const isOnboardingPayment =
-      apiRef.startsWith("ONBOARD-") ||
-      apiRef.startsWith("ONBOARDING-") ||
-      apiRef.startsWith("ONBOARDING_");
+    const pendingProviderRef = `INTASEND:ONBOARDING:PENDING:${canonicalRef}`;
+    const pendingOnboarding = await prisma.transaction.findFirst({
+      where: {
+        type: "ONBOARDING_FEE",
+        providerRef: pendingProviderRef,
+      },
+      include: {
+        wallet: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+    });
 
-    if (!isOnboardingPayment) {
+    if (!pendingOnboarding) {
       console.log(
-        `Not an onboarding payment (api_ref: ${apiRef}), skipping...`,
+        `No pending onboarding transaction found for providerRef ${pendingProviderRef}; skipping auto-settlement`,
       );
-      return NextResponse.json({ received: true, skipped: true });
-    }
-
-    // Extract user ID from api_ref
-    // Format: PREFIX-userIdPart-timestamp
-    const parts = apiRef.split(/[-_]/);
-    const userIdPart = parts[1]; // Second part is the user ID portion
-
-    if (!userIdPart || userIdPart.length < 16) {
-      console.error("Could not extract userId from api_ref:", apiRef);
       return NextResponse.json({
         received: true,
-        error: "Invalid api_ref format",
+        requiresManualResolution: true,
+        skipped: true,
+        reason: "missing_pending_provider_reference",
+        apiRef: canonicalRef,
       });
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: userIdPart },
+      where: { id: pendingOnboarding.wallet.userId },
       include: { profile: true },
     });
 
     if (!user) {
-      console.error(`User not found for userIdPart: ${userIdPart}`);
-      return NextResponse.json({ received: true, error: "User not found" });
-    }
-
-    // Check if already processed
-    if (
-      user.profile?.hasPaidOnboardingFee ||
-      user.profile?.onboardingFeeWaived
-    ) {
-      console.log(`Onboarding already paid for user: ${user.id}`);
+      console.error(
+        `User not found for pending onboarding ref: ${canonicalRef}`,
+      );
       return NextResponse.json({
         received: true,
-        message: "Already processed",
+        requiresManualResolution: true,
+        error: "User not found",
       });
     }
 
     // Process the payment
     await prisma.$transaction(async (tx) => {
-      const idempotencyRef = String(invoiceId || apiRef);
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${idempotencyRef}))`;
+      const lockRef = canonicalRef;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockRef}, 0))`;
+      const refForKeys = lockRef;
+
+      const successfulDescription = `Onboarding Fee Payment Settled [Ref:${refForKeys}]`;
+      const partialDescription = `Onboarding Fee Partial Payment [Ref:${refForKeys}]`;
+      const pendingPaymentProviderRef = `INTASEND:ONBOARDING:PENDING:${refForKeys}`;
+      const partialPaymentProviderRef = `INTASEND:ONBOARDING:PARTIAL:${refForKeys}`;
+      const settledPaymentProviderRef = `INTASEND:ONBOARDING:SETTLED:${refForKeys}`;
 
       const existingTx = await tx.transaction.findFirst({
         where: {
-          description: {
-            contains: `Ref: ${idempotencyRef}`,
-          },
           type: "ONBOARDING_FEE",
+          OR: [
+            { providerRef: settledPaymentProviderRef },
+            { providerRef: partialPaymentProviderRef },
+          ],
         },
       });
 
@@ -127,21 +151,96 @@ export async function POST(req: Request) {
         return;
       }
 
-      // 1. Update profile to mark fee as paid and fully activated
+      const pendingPayment = await tx.transaction.findFirst({
+        where: {
+          type: "ONBOARDING_FEE",
+          providerRef: pendingPaymentProviderRef,
+        },
+      });
+
+      // Check if already processed
+      const existingProfile = await tx.profile.findUnique({
+        where: { userId: user.id },
+        select: {
+          hasPaidOnboardingFee: true,
+          onboardingFeeWaived: true,
+        },
+      });
+
+      if (
+        existingProfile?.hasPaidOnboardingFee ||
+        existingProfile?.onboardingFeeWaived
+      ) {
+        return;
+      }
+
+      const systemAdminId = await resolveSystemAdminId(tx);
+
+      if (amount < PAYMENT_AMOUNTS.ONBOARDING_FEE) {
+        let wallet = await tx.wallet.findUnique({
+          where: { userId: user.id },
+        });
+
+        if (!wallet) {
+          wallet = await tx.wallet.create({
+            data: {
+              userId: user.id,
+              balance: 0,
+            },
+          });
+        }
+
+        if (pendingPayment) {
+          await tx.transaction.update({
+            where: { id: pendingPayment.id },
+            data: {
+              amount,
+              providerRef: partialPaymentProviderRef,
+              description: partialDescription,
+            },
+          });
+        } else {
+          await tx.transaction.create({
+            data: {
+              walletId: wallet.id,
+              amount,
+              type: "ONBOARDING_FEE",
+              providerRef: partialPaymentProviderRef,
+              description: partialDescription,
+            },
+          });
+        }
+
+        if (systemAdminId) {
+          await tx.adminLog.create({
+            data: {
+              adminId: systemAdminId,
+              action: "ONBOARDING_FEE_PARTIAL_PAYMENT_REQUIRES_RESOLUTION",
+              targetId: user.id,
+              details: {
+                source: "intasend_webhook",
+                invoiceId: String(lockRef),
+                apiRef,
+                expectedAmount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+                paidAmount: amount,
+                actorUserId: user.id,
+              },
+            },
+          });
+        }
+
+        return;
+      }
+
+      // Mark payment state only; verification must be granted by Trust & Safety review.
       await tx.profile.upsert({
         where: { userId: user.id },
         create: {
           userId: user.id,
           hasPaidOnboardingFee: true,
-          verificationStatus: "VERIFIED",
-          premiumPricingEnabled: true,
-          premiumMultiplier: 1.1,
         },
         update: {
           hasPaidOnboardingFee: true,
-          verificationStatus: "VERIFIED",
-          premiumPricingEnabled: true,
-          premiumMultiplier: 1.1,
         },
       });
 
@@ -159,29 +258,43 @@ export async function POST(req: Request) {
         });
       }
 
-      // 3. Record the transaction
-      await tx.transaction.create({
-        data: {
-          walletId: wallet.id,
-          amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
-          type: "ONBOARDING_FEE",
-          description: `Provider Onboarding Fee Payment (Ref: ${idempotencyRef})`,
-        },
-      });
-
-      // 4. Record access grant in audit log for admin filtering/traceability
-      await tx.adminLog.create({
-        data: {
-          adminId: user.id,
-          action: "ONBOARDING_FEE_PAID_ACCESS_GRANTED",
-          targetId: user.id,
-          details: {
-            source: "intasend_webhook",
-            invoiceId: String(idempotencyRef),
-            apiRef,
+      // 3. Mark pending transaction as settled, or create one if pending is missing.
+      if (pendingPayment) {
+        await tx.transaction.update({
+          where: { id: pendingPayment.id },
+          data: {
+            amount,
+            providerRef: settledPaymentProviderRef,
+            description: successfulDescription,
           },
-        },
-      });
+        });
+      } else {
+        await tx.transaction.create({
+          data: {
+            walletId: wallet.id,
+            amount,
+            type: "ONBOARDING_FEE",
+            providerRef: settledPaymentProviderRef,
+            description: successfulDescription,
+          },
+        });
+      }
+
+      if (systemAdminId) {
+        await tx.adminLog.create({
+          data: {
+            adminId: systemAdminId,
+            action: "ONBOARDING_FEE_PAID_ACCESS_GRANTED",
+            targetId: user.id,
+            details: {
+              source: "intasend_webhook",
+              invoiceId: String(lockRef),
+              apiRef,
+              actorUserId: user.id,
+            },
+          },
+        });
+      }
     });
 
     console.log(

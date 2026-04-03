@@ -3,6 +3,7 @@
  * Uses the official intasend-node SDK
  */
 import crypto from "crypto";
+import { PAYMENT_AMOUNTS } from "@/lib/constants/pricing";
 
 const IntaSend = require("intasend-node");
 
@@ -92,7 +93,4 @@ export const generateApiRef = (prefix: string, userId: string): string => {
   return `${prefix}-${userPart}-${timestamp}`;
 };
 
-export const PAYMENT_AMOUNTS = {
-  ONBOARDING_FEE: 500, // KES 500
-  MIN_TOPUP: 10, // KES 10
-};
+export { PAYMENT_AMOUNTS };

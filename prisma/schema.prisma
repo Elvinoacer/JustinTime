@@ -112,8 +112,8 @@ model User {
   verificationAudits VerificationAudit[]
 
   // TaaS Premium Verification
-  verificationBadges VerificationBadge[]
-  trustScore         TrustScore?
+  verificationBadges                   VerificationBadge[]
+  trustScore                           TrustScore?
   identityVerificationRequests         IdentityVerificationRequest[] @relation("IdentityVerificationSubject")
   reviewedIdentityVerificationRequests IdentityVerificationRequest[] @relation("IdentityVerificationReviewer")
 
@@ -729,6 +729,7 @@ model Transaction {
   walletId    String
   amount      Decimal         @db.Decimal(10, 2)
   type        TransactionType
+  providerRef String?         @unique
   description String?
   createdAt   DateTime        @default(now())
 

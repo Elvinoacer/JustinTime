@@ -1,9 +1,5 @@
 "use client";
-import {
-  useTopUpWallet,
-  useVerifyTopUp,
-  useWallet,
-} from "@/lib/api/hooks/useWallet";
+import { useTopUpWallet, useWallet } from "@/lib/api/hooks/useWallet";
 import { motion } from "framer-motion";
 import {
   ArrowDownRight,
@@ -18,16 +14,12 @@ import {
   Send,
   Wallet,
 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 function ClientWalletPageContent() {
   const { data: wallet, isLoading } = useWallet();
   const topUpMutation = useTopUpWallet();
-  const verifyMutation = useVerifyTopUp();
-  const searchParams = useSearchParams();
-  const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
   const [activeFilter, setActiveFilter] = useState<"all" | "credit" | "debit">(
     "all",
@@ -44,26 +36,20 @@ function ClientWalletPageContent() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  useEffect(() => {
-    const paymentStatus = searchParams.get("payment_status");
-    const apiRef = searchParams.get("ref");
-
-    if (paymentStatus === "success" && apiRef) {
-      verifyMutation.mutate({ apiRef });
-      router.replace("/client/wallet");
-    }
-  }, [searchParams, router, verifyMutation]);
-
   const handleTopUp = () => {
     const amount = parseInt(topUpAmount);
     if (!amount || amount < 10) {
       toast.error("Minimum top-up is KES 10");
       return;
     }
-    topUpMutation.mutate({ amount });
+    topUpMutation.mutate({
+      amount,
+      returnUrl: "/client/wallet/topup-complete",
+    });
   };
 
-  const transactions = wallet?.transactions || [];
+  const transactions =
+    (wallet?.transactions as Array<{ type: string }> | undefined) || [];
 
   const filteredTransactions =
     activeFilter === "all"
@@ -98,34 +84,13 @@ function ClientWalletPageContent() {
       : "text-red-600 bg-red-50";
   };
 
-  return (
-    <div className="relative min-h-[calc(100vh-4rem)]">
-      {/* Coming Soon Overlay */}
-      <div className="absolute inset-0 z-50 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white p-8 rounded-2xl shadow-xl text-center max-w-md mx-4 border border-gray-100"
-        >
-          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Wallet className="w-8 h-8" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Coming Soon</h2>
-          <p className="text-gray-500 mb-6">
-            We are working hard to bring you a secure and seamless wallet
-            experience. This feature will be available in the next update.
-          </p>
-          <button
-            onClick={() => router.back()}
-            className="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-gray-800 transition-colors"
-          >
-            Go Back
-          </button>
-        </motion.div>
-      </div>
+  const showUnavailable = (feature: string) => {
+    toast.info(`${feature} is not available yet.`);
+  };
 
-      {/* Disabled Content */}
-      <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6 lg:space-y-8 opacity-50 pointer-events-none select-none grayscale-[0.5]">
+  return (
+    <div className="min-h-[calc(100vh-4rem)]">
+      <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6 lg:space-y-8">
         {/* Header */}
         <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3">
           <div>
@@ -148,7 +113,7 @@ function ClientWalletPageContent() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Balance Card - Takes full width on mobile, 2/3 on desktop */}
           <div className="lg:col-span-2">
-            <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 lg:p-8 text-white shadow-lg relative overflow-hidden">
+            <div className="bg-linear-to-br from-emerald-600 to-teal-700 rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 lg:p-8 text-white shadow-lg relative overflow-hidden">
               {/* Background Pattern */}
               <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-5">
                 <Wallet className="w-16 h-16 sm:w-24 sm:h-24" />
@@ -229,11 +194,19 @@ function ClientWalletPageContent() {
                   {/* Mobile Action Buttons */}
                   {isMobile && (
                     <div className="grid grid-cols-2 gap-2 pt-3 border-t border-emerald-500/30">
-                      <button className="bg-emerald-500/30 text-white px-3 py-2 rounded-lg font-medium hover:bg-emerald-500/40 transition-colors flex items-center justify-center gap-1.5 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => showUnavailable("Withdraw")}
+                        className="bg-emerald-500/30 text-white px-3 py-2 rounded-lg font-medium hover:bg-emerald-500/40 transition-colors flex items-center justify-center gap-1.5 text-sm"
+                      >
                         <Send className="w-4 h-4" />
                         Withdraw
                       </button>
-                      <button className="bg-emerald-500/30 text-white px-3 py-2 rounded-lg font-medium hover:bg-emerald-500/40 transition-colors flex items-center justify-center gap-1.5 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => showUnavailable("QR payments")}
+                        className="bg-emerald-500/30 text-white px-3 py-2 rounded-lg font-medium hover:bg-emerald-500/40 transition-colors flex items-center justify-center gap-1.5 text-sm"
+                      >
                         <QrCode className="w-4 h-4" />
                         Pay with QR
                       </button>
@@ -246,11 +219,19 @@ function ClientWalletPageContent() {
             {/* Desktop Action Buttons */}
             {!isMobile && (
               <div className="mt-3 sm:mt-4 flex gap-2">
-                <button className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl font-medium transition-colors border border-gray-200 flex items-center justify-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => showUnavailable("Withdraw funds")}
+                  className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl font-medium transition-colors border border-gray-200 flex items-center justify-center gap-1.5"
+                >
                   <Send className="w-4 h-4" />
                   Withdraw Funds
                 </button>
-                <button className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl font-medium transition-colors border border-gray-200 flex items-center justify-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => showUnavailable("QR payments")}
+                  className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl font-medium transition-colors border border-gray-200 flex items-center justify-center gap-1.5"
+                >
                   <QrCode className="w-4 h-4" />
                   Generate QR
                 </button>
@@ -276,7 +257,7 @@ function ClientWalletPageContent() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                    <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                       <span className="text-white font-bold text-xs">MP</span>
                     </div>
                     <div>
@@ -297,7 +278,7 @@ function ClientWalletPageContent() {
             </div>
 
             {/* Stats Card */}
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg sm:rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-6 text-white">
+            <div className="bg-linear-to-br from-blue-600 to-indigo-700 rounded-lg sm:rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-6 text-white">
               <h3 className="text-sm sm:text-base font-bold mb-2 sm:mb-3">
                 This Month
               </h3>
@@ -405,7 +386,7 @@ function ClientWalletPageContent() {
                             {getTransactionIcon(transaction.type)}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-gray-900 truncate max-w-[150px]">
+                            <p className="text-sm font-medium text-gray-900 truncate max-w-37.5">
                               {transaction.description || "Transaction"}
                             </p>
                             <p className="text-xs text-gray-500">
@@ -467,7 +448,7 @@ function ClientWalletPageContent() {
               </div>
             ) : (
               /* Desktop Transaction Table */
-              <table className="w-full min-w-[640px]">
+              <table className="w-full min-w-160">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -512,7 +493,7 @@ function ClientWalletPageContent() {
                             >
                               {getTransactionIcon(transaction.type)}
                             </div>
-                            <span className="text-sm font-medium text-gray-900 truncate max-w-[200px]">
+                            <span className="text-sm font-medium text-gray-900 truncate max-w-50">
                               {transaction.description || "Transaction"}
                             </span>
                           </div>

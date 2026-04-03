@@ -1,4 +1,7 @@
-import { getPaymentLifecycleReconciliation } from "@/app/actions/admin";
+import {
+  getPaymentLifecycleReconciliation,
+  resolveReconciliationEventAction,
+} from "@/app/actions/admin";
 import { AlertTriangle, CircleAlert, Scale, Wallet } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +20,11 @@ function formatDate(value: Date | string) {
     return "Unknown";
   }
   return parsed.toLocaleString();
+}
+
+async function handleReconciliationFormAction(formData: FormData) {
+  "use server";
+  await resolveReconciliationEventAction(formData);
 }
 
 export default async function AdminReconciliationPage() {
@@ -162,7 +170,9 @@ export default async function AdminReconciliationPage() {
                       {row.issue}
                     </p>
                     <p className="text-xs text-rose-700 mt-1">
-                      Booking {row.bookingId} • Payment {row.paymentId}
+                      {row.entityType === "PAYMENT"
+                        ? `Booking ${row.bookingId} • Payment ${row.paymentId}`
+                        : `Ledger Event • Transaction ${row.paymentId}`}
                     </p>
                     <p className="text-xs text-rose-700 mt-1">
                       Job: {row.jobTitle || row.jobId || "N/A"}
@@ -171,6 +181,11 @@ export default async function AdminReconciliationPage() {
                       Status: Booking {row.bookingStatus || "N/A"} / Payment{" "}
                       {row.paymentStatus}
                     </p>
+                    {row.description && (
+                      <p className="text-xs text-rose-700 mt-1">
+                        Ref: {row.description}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-rose-900">
@@ -184,8 +199,202 @@ export default async function AdminReconciliationPage() {
                     </p>
                   </div>
                 </div>
+
+                {row.entityType === "PAYMENT" ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <form action={handleReconciliationFormAction}>
+                      <input
+                        type="hidden"
+                        name="paymentId"
+                        value={row.paymentId}
+                      />
+                      <input
+                        type="hidden"
+                        name="bookingId"
+                        value={row.bookingId || ""}
+                      />
+                      <input
+                        type="hidden"
+                        name="reason"
+                        value="Admin force-settled from reconciliation dashboard"
+                      />
+                      <button
+                        type="submit"
+                        name="resolutionAction"
+                        value="FORCE_SETTLE"
+                        className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                      >
+                        Force Settle
+                      </button>
+                    </form>
+
+                    <form action={handleReconciliationFormAction}>
+                      <input
+                        type="hidden"
+                        name="paymentId"
+                        value={row.paymentId}
+                      />
+                      <input
+                        type="hidden"
+                        name="bookingId"
+                        value={row.bookingId || ""}
+                      />
+                      <input
+                        type="hidden"
+                        name="reason"
+                        value="Admin refunded from reconciliation dashboard"
+                      />
+                      <button
+                        type="submit"
+                        name="resolutionAction"
+                        value="REFUND"
+                        className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+                      >
+                        Refund
+                      </button>
+                    </form>
+
+                    <form action={handleReconciliationFormAction}>
+                      <input
+                        type="hidden"
+                        name="paymentId"
+                        value={row.paymentId}
+                      />
+                      <input
+                        type="hidden"
+                        name="bookingId"
+                        value={row.bookingId || ""}
+                      />
+                      <input
+                        type="hidden"
+                        name="reason"
+                        value="Admin voided from reconciliation dashboard"
+                      />
+                      <button
+                        type="submit"
+                        name="resolutionAction"
+                        value="VOID"
+                        className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                      >
+                        Void
+                      </button>
+                    </form>
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-lg border border-rose-300 bg-white/60 px-3 py-2 text-xs text-rose-700">
+                    Review this pending ledger event in webhook and payment
+                    logs. Settlement actions are available for payment lifecycle
+                    items above.
+                  </div>
+                )}
               </div>
             ))}
+          </div>
+        )}
+      </section>
+
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="border-b border-slate-200 px-5 py-4 flex items-center justify-between gap-2">
+          <h2 className="font-semibold text-slate-900">
+            Wallet Debits & Promo Impact
+          </h2>
+          <p className="text-xs text-slate-500">
+            Last {data.promoImpactSummary.evaluationWindowDays} days
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 border-b border-slate-100 bg-slate-50">
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Debit Events
+            </p>
+            <p className="mt-1 text-lg font-bold text-slate-900">
+              {data.promoImpactSummary.totalWalletDebitEvents}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Debit Amount
+            </p>
+            <p className="mt-1 text-lg font-bold text-slate-900">
+              {formatCurrency(data.promoImpactSummary.totalWalletDebitAmount)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Promo-Tagged Events
+            </p>
+            <p className="mt-1 text-lg font-bold text-slate-900">
+              {data.promoImpactSummary.promoAppliedEvents}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Promo-Tagged Amount
+            </p>
+            <p className="mt-1 text-lg font-bold text-slate-900">
+              {formatCurrency(data.promoImpactSummary.promoAppliedAmount)}
+            </p>
+          </div>
+        </div>
+
+        {data.walletDebitActivities.length === 0 ? (
+          <div className="p-6 text-sm text-slate-500">
+            No wallet debit activity captured for the configured window.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  <th className="text-left px-4 py-3">Type</th>
+                  <th className="text-left px-4 py-3">User</th>
+                  <th className="text-left px-4 py-3">Amount</th>
+                  <th className="text-left px-4 py-3">Promo</th>
+                  <th className="text-left px-4 py-3">Description</th>
+                  <th className="text-left px-4 py-3">Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.walletDebitActivities.map((row) => (
+                  <tr key={row.id} className="border-t border-slate-100">
+                    <td className="px-4 py-3">
+                      <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                        {row.type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">
+                      <div className="flex flex-col">
+                        <span>{row.userName}</span>
+                        <span className="text-xs text-slate-500">
+                          {row.userEmail}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-slate-900">
+                      {formatCurrency(row.amount)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {row.promoApplied ? (
+                        <span className="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
+                          Applied
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
+                          None
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-600">
+                      {row.description || "-"}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-500">
+                      {formatDate(row.createdAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

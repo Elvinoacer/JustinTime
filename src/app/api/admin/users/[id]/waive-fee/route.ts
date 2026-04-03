@@ -31,33 +31,59 @@ export async function POST(
       );
     }
 
-    // Update the waiver status
-    const updatedProfile = await prisma.profile.update({
-      where: { userId },
-      data: {
-        onboardingFeeWaived: waive,
-        onboardingFeeWaivedBy: waive ? session.user.id : null,
-        onboardingFeeWaivedAt: waive ? new Date() : null,
-        hasPaidOnboardingFee: waive ? true : profile.hasPaidOnboardingFee,
-        verificationStatus: waive ? "VERIFIED" : profile.verificationStatus,
-        premiumPricingEnabled: waive ? true : profile.premiumPricingEnabled,
-        premiumMultiplier: waive ? 1.1 : profile.premiumMultiplier,
-      },
-    });
-
-    // Log the admin action
-    await prisma.adminLog.create({
-      data: {
-        adminId: session.user.id,
-        action: waive ? "WAIVED_ONBOARDING_FEE" : "REVOKED_FEE_WAIVER",
-        targetId: userId,
-        details: {
-          userName: profile.user.name,
-          userEmail: profile.user.email,
-          autoVerified: waive,
-          waivedAt: waive ? new Date().toISOString() : null,
+    const updatedProfile = await prisma.$transaction(async (tx) => {
+      const profileUpdate = await tx.profile.update({
+        where: { userId },
+        data: {
+          onboardingFeeWaived: waive,
+          onboardingFeeWaivedBy: waive ? session.user.id : null,
+          onboardingFeeWaivedAt: waive ? new Date() : null,
+          hasPaidOnboardingFee: waive ? true : profile.hasPaidOnboardingFee,
+          verificationStatus: waive ? "VERIFIED" : profile.verificationStatus,
+          premiumPricingEnabled: waive ? true : profile.premiumPricingEnabled,
+          premiumMultiplier: waive ? 1.1 : profile.premiumMultiplier,
         },
-      },
+      });
+
+      if (waive && !profile.onboardingFeeWaived) {
+        let wallet = await tx.wallet.findUnique({
+          where: { userId },
+        });
+
+        if (!wallet) {
+          wallet = await tx.wallet.create({
+            data: {
+              userId,
+              balance: 0,
+            },
+          });
+        }
+
+        await tx.transaction.create({
+          data: {
+            walletId: wallet.id,
+            amount: 0,
+            type: "ONBOARDING_FEE",
+            description: `Onboarding Fee Waiver [Admin:${session.user.id}]`,
+          },
+        });
+      }
+
+      await tx.adminLog.create({
+        data: {
+          adminId: session.user.id,
+          action: waive ? "WAIVED_ONBOARDING_FEE" : "REVOKED_FEE_WAIVER",
+          targetId: userId,
+          details: {
+            userName: profile.user.name,
+            userEmail: profile.user.email,
+            autoVerified: waive,
+            waivedAt: waive ? new Date().toISOString() : null,
+          },
+        },
+      });
+
+      return profileUpdate;
     });
 
     return NextResponse.json({

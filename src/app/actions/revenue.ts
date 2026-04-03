@@ -3,7 +3,13 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
-import { TransactionType } from "@/generated/prisma/client";
+import { Prisma, TransactionType } from "@/generated/prisma/client";
+import {
+  LEADS_PACKAGES,
+  PAYMENT_AMOUNTS,
+  PROMOTION_PLANS,
+} from "@/lib/constants/pricing";
+import { validatePromoCode } from "@/lib/promo";
 
 // --- Types ---
 export interface PurchaseCreditsResult {
@@ -18,19 +24,78 @@ export interface PromotionResult {
   error?: string;
 }
 
-// --- Constants ---
-const ONBOARDING_FEE_AMOUNT = 500; // KES 500
-const CREDIT_COST_PER_UNIT = 100; // Example: 1 Credit = 100 KES
-const LEADS_PACKAGES = [
-  { id: "starter", credits: 5, price: 450, discount: "10%" }, // 450 KES
-  { id: "growth", credits: 20, price: 1600, discount: "20%" }, // 1600 KES
-  { id: "pro", credits: 50, price: 3500, discount: "30%" }, // 3500 KES
-];
-
-const PROMOTION_PLANS = {
-  STANDARD: { days: 7, price: 1000 },
-  PREMIUM: { days: 30, price: 3000 },
+type LockedWallet = {
+  id: string;
+  balance: Prisma.Decimal;
+  creditBalance: number;
 };
+
+async function lockWalletForUpdate(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<LockedWallet | null> {
+  const rows = await tx.$queryRaw<LockedWallet[]>`
+    SELECT id, balance, "creditBalance"
+    FROM "Wallet"
+    WHERE "userId" = ${userId}
+    FOR UPDATE
+  `;
+
+  return rows[0] ?? null;
+}
+
+async function resolveSystemAdminId(
+  tx: Prisma.TransactionClient,
+): Promise<string | null> {
+  const systemActor = await tx.user.findFirst({
+    where: { role: "ADMIN" },
+    select: { id: true },
+  });
+
+  return systemActor?.id ?? null;
+}
+
+async function resolvePromoDiscount(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  baseAmount: number,
+  promoCode?: string,
+) {
+  const normalizedPromoCode = promoCode?.trim().toUpperCase();
+
+  if (!normalizedPromoCode) {
+    return {
+      appliedPromoCode: null as string | null,
+      discountAmount: 0,
+    };
+  }
+
+  const promoResult = await validatePromoCode(
+    normalizedPromoCode,
+    userId,
+    baseAmount,
+  );
+
+  if (!promoResult.isValid) {
+    throw new Error(promoResult.error || "Invalid promo code");
+  }
+
+  if (promoResult.promoCodeId) {
+    await tx.promoCode.update({
+      where: { id: promoResult.promoCodeId },
+      data: {
+        usageCount: {
+          increment: 1,
+        },
+      },
+    });
+  }
+
+  return {
+    appliedPromoCode: normalizedPromoCode,
+    discountAmount: promoResult.discountAmount,
+  };
+}
 
 // --- Actions ---
 
@@ -42,6 +107,7 @@ const PROMOTION_PLANS = {
  */
 export async function purchaseCredits(
   packageId: string,
+  promoCode?: string,
 ): Promise<PurchaseCreditsResult> {
   const session = await auth();
   if (!session?.user?.id) {
@@ -55,47 +121,52 @@ export async function purchaseCredits(
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Get Wallet
-      const wallet = await tx.wallet.findUnique({
-        where: { userId: session.user.id },
-      });
+      const wallet = await lockWalletForUpdate(tx, session.user.id);
 
       if (!wallet) {
         throw new Error("Wallet not found");
       }
 
-      // 2. Check Balance (Assuming we pay with wallet balance for now)
-      // In production, this might trigger an M-Pesa STK Push instead.
-      if (Number(wallet.balance) < pack.price) {
+      const promo = await resolvePromoDiscount(
+        tx,
+        session.user.id,
+        pack.price,
+        promoCode,
+      );
+      const finalPrice = Math.max(0, pack.price - promo.discountAmount);
+
+      if (Number(wallet.balance) < finalPrice) {
         throw new Error("Insufficient wallet balance. Please top up first.");
       }
 
-      // 3. Deduct Cost
-      const newBalance = Number(wallet.balance) - pack.price;
-
-      // 4. Add Credits
-      const newCreditBalance = (wallet.creditBalance || 0) + pack.credits;
-
-      // 5. Update Wallet
       await tx.wallet.update({
         where: { id: wallet.id },
         data: {
-          balance: newBalance,
-          creditBalance: newCreditBalance,
+          balance: {
+            decrement: finalPrice,
+          },
+          creditBalance: {
+            increment: pack.credits,
+          },
         },
       });
 
-      // 6. Record Transaction
       await tx.transaction.create({
         data: {
           walletId: wallet.id,
-          amount: pack.price,
+          amount: finalPrice,
           type: TransactionType.CREDIT_PURCHASE,
-          description: `Purchased ${pack.credits} lead credits (${pack.id})`,
+          description:
+            `Purchased ${pack.credits} lead credits (${pack.id})` +
+            (promo.appliedPromoCode
+              ? ` with promo ${promo.appliedPromoCode}`
+              : ""),
         },
       });
 
-      return { newCreditBalance };
+      return {
+        newCreditBalance: wallet.creditBalance + pack.credits,
+      };
     });
 
     revalidatePath("/wallet");
@@ -120,63 +191,58 @@ export async function payOnboardingFee(): Promise<{
 
   try {
     await prisma.$transaction(async (tx) => {
-      // 1. Get User Wallet
-      const wallet = await tx.wallet.findUnique({
-        where: { userId: session.user.id },
-      });
+      const wallet = await lockWalletForUpdate(tx, session.user.id);
 
       if (!wallet) {
-        // Create wallet if missing?
         throw new Error("Wallet setup required.");
       }
 
-      // 2. Check Balance
-      if (Number(wallet.balance) < ONBOARDING_FEE_AMOUNT) {
+      if (Number(wallet.balance) < PAYMENT_AMOUNTS.ONBOARDING_FEE) {
         throw new Error(
-          `Insufficient funds. Fee is KES ${ONBOARDING_FEE_AMOUNT}`,
+          `Insufficient funds. Fee is KES ${PAYMENT_AMOUNTS.ONBOARDING_FEE}`,
         );
       }
 
-      // 3. Deduct
       await tx.wallet.update({
         where: { id: wallet.id },
-        data: { balance: { decrement: ONBOARDING_FEE_AMOUNT } },
+        data: { balance: { decrement: PAYMENT_AMOUNTS.ONBOARDING_FEE } },
       });
 
-      // 4. Update Profile
-      await tx.profile.update({
+      await tx.profile.upsert({
         where: { userId: session.user.id },
-        data: {
+        create: {
+          userId: session.user.id,
           hasPaidOnboardingFee: true,
-          verificationStatus: "VERIFIED",
-          isVerified: true,
-          premiumPricingEnabled: true,
-          premiumMultiplier: 1.1,
+        },
+        update: {
+          hasPaidOnboardingFee: true,
         },
       });
 
-      // 5. Record Transaction
       await tx.transaction.create({
         data: {
           walletId: wallet.id,
-          amount: ONBOARDING_FEE_AMOUNT,
+          amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
           type: TransactionType.ONBOARDING_FEE,
           description: "Paid Provider Onboarding Fee",
         },
       });
 
-      // Track access grants in admin audit logs for reporting/filtering.
-      await tx.adminLog.create({
-        data: {
-          adminId: session.user.id,
-          action: "ONBOARDING_FEE_PAID_ACCESS_GRANTED",
-          targetId: session.user.id,
-          details: {
-            source: "wallet",
-            amount: ONBOARDING_FEE_AMOUNT,
+      const systemAdminId = await resolveSystemAdminId(tx);
+      if (systemAdminId) {
+        await tx.adminLog.create({
+          data: {
+            adminId: systemAdminId,
+            action: "ONBOARDING_FEE_PAID_ACCESS_GRANTED",
+            targetId: session.user.id,
+            details: {
+              source: "wallet",
+              amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+              actorUserId: session.user.id,
+            },
           },
-        },
-      });
+        });
+      }
     });
 
     revalidatePath("/profile");
@@ -192,6 +258,7 @@ export async function payOnboardingFee(): Promise<{
 export async function promoteService(
   serviceId: string,
   plan: "STANDARD" | "PREMIUM",
+  promoCode?: string,
 ): Promise<PromotionResult> {
   const session = await auth();
   if (!session?.user?.id) {
@@ -205,7 +272,6 @@ export async function promoteService(
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Check Service ownership
       const service = await tx.service.findUnique({
         where: { id: serviceId },
       });
@@ -213,26 +279,26 @@ export async function promoteService(
         throw new Error("Service not found or unauthorized");
       }
 
-      // 2. Get Wallet
-      const wallet = await tx.wallet.findUnique({
-        where: { userId: session.user.id },
-      });
+      const wallet = await lockWalletForUpdate(tx, session.user.id);
       if (!wallet) throw new Error("Wallet not found");
 
-      // 3. Check Balance
-      if (Number(wallet.balance) < planDetails.price) {
-        throw new Error(`Insufficient funds. Cost: KES ${planDetails.price}`);
+      const promo = await resolvePromoDiscount(
+        tx,
+        session.user.id,
+        planDetails.price,
+        promoCode,
+      );
+      const finalPrice = Math.max(0, planDetails.price - promo.discountAmount);
+
+      if (Number(wallet.balance) < finalPrice) {
+        throw new Error(`Insufficient funds. Cost: KES ${finalPrice}`);
       }
 
-      // 4. Deduct
       await tx.wallet.update({
         where: { id: wallet.id },
-        data: { balance: { decrement: planDetails.price } },
+        data: { balance: { decrement: finalPrice } },
       });
 
-      // 5. Update Service
-      // Calculate new end date. If already active, extend it? Or just set from now?
-      // Let's simpler: Set from now (or extend if currently promotedUntil > now)
       let start = new Date();
       if (service.promotedUntil && service.promotedUntil > new Date()) {
         start = service.promotedUntil;
@@ -249,13 +315,16 @@ export async function promoteService(
         },
       });
 
-      // 6. Record Transaction
       await tx.transaction.create({
         data: {
           walletId: wallet.id,
-          amount: planDetails.price,
+          amount: finalPrice,
           type: TransactionType.PROMOTION_PAYMENT,
-          description: `Promoted service '${service.title}' (${plan} Plan)`,
+          description:
+            `Promoted service '${service.title}' (${plan} Plan)` +
+            (promo.appliedPromoCode
+              ? ` with promo ${promo.appliedPromoCode}`
+              : ""),
         },
       });
 

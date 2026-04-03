@@ -3,6 +3,11 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import { hasRole } from "@/lib/auth/roles";
+import { calculateBookingBreakdown } from "@/lib/financials";
+
+function roundCurrency(value: number) {
+  return Math.round(value * 100) / 100;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,6 +24,7 @@ export async function GET(request: NextRequest) {
     // Calculate date range
     const now = new Date();
     let startDate = new Date();
+    let endDate: Date | undefined;
 
     switch (range) {
       case "this-week":
@@ -29,8 +35,7 @@ export async function GET(request: NextRequest) {
         break;
       case "last-month":
         startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const endDate = new Date(now.getFullYear(), now.getMonth(), 0);
-        // TODO: Handle end date filtering if needed
+        endDate = new Date(now.getFullYear(), now.getMonth(), 1);
         break;
       case "this-year":
         startDate = new Date(now.getFullYear(), 0, 1);
@@ -39,14 +44,22 @@ export async function GET(request: NextRequest) {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     }
 
-    // Fetch completed bookings (earnings)
+    const createdAtFilter: {
+      gte: Date;
+      lt?: Date;
+    } = {
+      gte: startDate,
+    };
+
+    if (endDate) {
+      createdAtFilter.lt = endDate;
+    }
+
     const bookings = await prisma.booking.findMany({
       where: {
         providerId: userId,
         status: "COMPLETED",
-        createdAt: {
-          gte: startDate,
-        },
+        createdAt: createdAtFilter,
       },
       include: {
         service: true,
@@ -54,37 +67,62 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Calculate total earnings
-    const totalEarnings = bookings.reduce((sum, booking) => {
-      // Assuming price is stored in service or job.
-      // Adjust based on your actual schema if price is stored directly on booking or payment.
-      // For now, using service price or job price.
-      const price = booking.service?.price || booking.job?.budget || 0;
-      return sum + Number(price);
-    }, 0);
-
-    // Calculate breakdown by service
+    let totalEarningsAmount = 0;
     const breakdownMap = new Map<string, number>();
+
     bookings.forEach((booking) => {
       const name =
         booking.service?.title || booking.job?.title || "Unknown Service";
-      const price = Number(booking.service?.price || booking.job?.budget || 0);
-      breakdownMap.set(name, (breakdownMap.get(name) || 0) + price);
+
+      const baseAmount = Number(
+        booking.basePrice ||
+          booking.service?.price ||
+          booking.job?.budget ||
+          booking.totalAmount ||
+          0,
+      );
+      const discountAmount = Number(booking.discountAmount || 0);
+
+      const computed = calculateBookingBreakdown(baseAmount, discountAmount);
+      const netAmount = Number(booking.netAmount || computed.netAmount || 0);
+
+      totalEarningsAmount += netAmount;
+      breakdownMap.set(name, (breakdownMap.get(name) || 0) + netAmount);
     });
 
     const breakdown = Array.from(breakdownMap.entries()).map(
       ([service, amount]) => ({
         service,
-        amount: `KES ${amount.toLocaleString()}`,
+        amount: roundCurrency(amount),
+        amountDisplay: `KES ${roundCurrency(amount).toLocaleString()}`,
       }),
     );
 
-    // Fetch payouts (mocked for now as Payment model might not be fully set up for payouts)
-    // In a real app, you'd query the Payment model where type is PAYOUT
-    const payouts: any[] = [];
+    const payoutRows = await prisma.transaction.findMany({
+      where: {
+        wallet: {
+          userId,
+        },
+        type: "WITHDRAWAL",
+        createdAt: createdAtFilter,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 50,
+    });
+
+    const payouts = payoutRows.map((payout) => ({
+      id: payout.id,
+      date: payout.createdAt.toISOString(),
+      amount: Number(payout.amount),
+      amountDisplay: `KES ${Number(payout.amount).toLocaleString()}`,
+      description: payout.description,
+    }));
 
     return successResponse({
-      total: `KES ${totalEarnings.toLocaleString()}`,
+      total: roundCurrency(totalEarningsAmount),
+      totalDisplay: `KES ${roundCurrency(totalEarningsAmount).toLocaleString()}`,
       breakdown,
       payouts,
     });

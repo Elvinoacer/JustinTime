@@ -1,32 +1,47 @@
-
 "use client";
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useProviderEarnings } from "@/lib/api/hooks/useProvider";
+import {
+  useProviderEarnings,
+  useProviderEarningsChart,
+  useProviderStats,
+} from "@/lib/api/hooks/useProvider";
 import { toast } from "sonner";
 
 const EarningsPage = () => {
   const [dateRange, setDateRange] = useState("this-month");
   const { data: earningsData, isLoading } = useProviderEarnings(dateRange);
+  const { data: chartResponse } = useProviderEarningsChart();
+  const { data: statsResponse } = useProviderStats();
 
   const earnings = earningsData?.data || {
-    total: "KES 0",
+    total: 0,
+    totalDisplay: "KES 0",
     breakdown: [],
     payouts: [],
   };
 
+  const formatKes = (amount: number) =>
+    `KES ${Math.round(amount).toLocaleString()}`;
+
   // Calculate summary metrics
-  const totalEarnings = earnings.total;
+  const totalEarnings = Number(earnings.total || 0);
+  const totalEarningsDisplay =
+    earnings.totalDisplay || formatKes(totalEarnings);
   const totalPayouts = earnings.payouts.reduce((sum: number, payout: any) => {
-    const amount = parseFloat(payout.amount.replace(/[^0-9.-]+/g, ""));
-    return sum + amount;
+    return sum + Number(payout.amount || 0);
   }, 0);
 
-  const numericTotalEarnings = parseFloat(
-    totalEarnings.replace(/[^0-9.-]+/g, "")
+  const pendingAmount = totalEarnings - totalPayouts;
+  const chartData = Array.isArray(chartResponse?.data)
+    ? chartResponse.data
+    : [];
+  const maxChartEarnings = Math.max(
+    1,
+    ...chartData.map((item: any) => Number(item.earnings || 0)),
   );
-  const pendingAmount = numericTotalEarnings - totalPayouts;
+  const stats = Array.isArray(statsResponse?.stats) ? statsResponse.stats : [];
 
   const handleExport = () => {
     if (earnings.breakdown.length === 0 && earnings.payouts.length === 0) {
@@ -39,16 +54,22 @@ const EarningsPage = () => {
       const rows = [
         ["Earnings Report"],
         [`Date Range: ${dateRange}`],
-        [`Total Earnings: ${totalEarnings}`],
+        [`Total Earnings: ${totalEarningsDisplay}`],
         [`Total Payouts: KES ${totalPayouts.toLocaleString()}`],
         [],
         ["Breakdown"],
         ["Service", "Amount"],
-        ...earnings.breakdown.map((item: any) => [item.service, item.amount]),
+        ...earnings.breakdown.map((item: any) => [
+          item.service,
+          formatKes(Number(item.amount || 0)),
+        ]),
         [],
         ["Payout History"],
         ["Date", "Amount"],
-        ...earnings.payouts.map((item: any) => [item.date, item.amount]),
+        ...earnings.payouts.map((item: any) => [
+          new Date(item.date).toLocaleString(),
+          formatKes(Number(item.amount || 0)),
+        ]),
       ];
 
       const csvContent =
@@ -60,7 +81,7 @@ const EarningsPage = () => {
       link.setAttribute("href", encodedUri);
       link.setAttribute(
         "download",
-        `earnings_report_${new Date().toISOString().split("T")[0]}.csv`
+        `earnings_report_${new Date().toISOString().split("T")[0]}.csv`,
       );
       document.body.appendChild(link);
       link.click();
@@ -75,7 +96,7 @@ const EarningsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[300px] sm:min-h-[400px]">
+      <div className="flex flex-col items-center justify-center min-h-75 sm:min-h-100">
         <div
           role="status"
           aria-label="Loading earnings"
@@ -130,7 +151,7 @@ const EarningsPage = () => {
         {[
           {
             label: "Total Earnings",
-            amount: totalEarnings,
+            amount: totalEarningsDisplay,
             icon: "payments",
             color: "emerald",
             gradient: "from-emerald-500 to-emerald-600",
@@ -138,7 +159,7 @@ const EarningsPage = () => {
           },
           {
             label: "Total Payouts",
-            amount: `KES ${totalPayouts.toLocaleString()}`,
+            amount: formatKes(totalPayouts),
             icon: "account_balance",
             color: "blue",
             gradient: "from-blue-500 to-blue-600",
@@ -146,7 +167,7 @@ const EarningsPage = () => {
           },
           {
             label: "Pending Balance",
-            amount: `KES ${pendingAmount.toLocaleString()}`,
+            amount: formatKes(Math.max(0, pendingAmount)),
             icon: "schedule",
             color: "amber",
             gradient: "from-amber-500 to-amber-600",
@@ -163,7 +184,7 @@ const EarningsPage = () => {
           >
             <div className="flex items-start justify-between mb-3 sm:mb-4">
               <div
-                className={`w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-lg sm:rounded-xl bg-gradient-to-br ${metric.gradient} flex items-center justify-center shadow-md sm:shadow-lg`}
+                className={`w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-lg sm:rounded-xl bg-linear-to-br ${metric.gradient} flex items-center justify-center shadow-md sm:shadow-lg`}
               >
                 <span className="material-symbols-outlined text-white text-lg sm:text-xl md:text-2xl">
                   {metric.icon}
@@ -187,6 +208,69 @@ const EarningsPage = () => {
             </p>
           </motion.div>
         ))}
+      </div>
+
+      {/* Activity Snapshot */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-xs sm:shadow-sm border border-gray-200 p-4 sm:p-5">
+          <h2 className="text-sm sm:text-base font-bold text-gray-900 mb-3">
+            Last 7 Days
+          </h2>
+          {chartData.length === 0 ? (
+            <p className="text-xs sm:text-sm text-gray-500">
+              No chart data available yet.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {chartData.map((entry: any) => {
+                const amount = Number(entry.earnings || 0);
+                const width = Math.max(8, (amount / maxChartEarnings) * 100);
+                return (
+                  <div
+                    key={entry.name}
+                    className="flex items-center gap-2 text-xs sm:text-sm"
+                  >
+                    <span className="w-10 text-gray-600 font-medium">
+                      {entry.name}
+                    </span>
+                    <div className="h-2.5 flex-1 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className="h-full bg-linear-to-r from-emerald-500 to-teal-500"
+                        style={{ width: `${width}%` }}
+                      />
+                    </div>
+                    <span className="w-16 text-right text-gray-700 font-semibold">
+                      {Math.round(amount).toLocaleString()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-xs sm:shadow-sm border border-gray-200 p-4 sm:p-5">
+          <h2 className="text-sm sm:text-base font-bold text-gray-900 mb-3">
+            Provider Stats
+          </h2>
+          {stats.length === 0 ? (
+            <p className="text-xs sm:text-sm text-gray-500">
+              No provider stats available.
+            </p>
+          ) : (
+            <div className="space-y-2.5">
+              {stats.slice(0, 4).map((item: any) => (
+                <div
+                  key={item.title}
+                  className="flex items-center justify-between text-xs sm:text-sm"
+                >
+                  <span className="text-gray-600">{item.title}</span>
+                  <span className="font-bold text-gray-900">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Breakdown and Payouts */}
@@ -232,7 +316,7 @@ const EarningsPage = () => {
                     className="flex items-center justify-between p-2.5 sm:p-3 md:p-4 bg-gray-50 rounded-lg sm:rounded-xl hover:bg-emerald-50/50 transition-colors border border-transparent hover:border-emerald-100"
                   >
                     <div className="flex items-center gap-2 sm:gap-3 md:gap-4 min-w-0">
-                      <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-white border border-gray-200 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-white border border-gray-200 rounded-lg flex items-center justify-center shadow-sm shrink-0">
                         <span className="material-symbols-outlined text-emerald-600 text-base sm:text-lg md:text-xl">
                           construction
                         </span>
@@ -247,7 +331,7 @@ const EarningsPage = () => {
                       </div>
                     </div>
                     <p className="font-bold text-gray-900 text-xs sm:text-sm md:text-base truncate ml-2">
-                      {item.amount}
+                      {formatKes(Number(item.amount || 0))}
                     </p>
                   </motion.div>
                 ))
@@ -259,7 +343,7 @@ const EarningsPage = () => {
                   Total Earnings
                 </p>
                 <p className="font-bold text-lg sm:text-xl md:text-2xl text-emerald-600 truncate">
-                  {earnings.total}
+                  {totalEarningsDisplay}
                 </p>
               </div>
             </div>
@@ -300,14 +384,14 @@ const EarningsPage = () => {
               ) : (
                 earnings.payouts.map((payout: any, index: number) => (
                   <motion.div
-                    key={payout.date}
+                    key={payout.id || payout.date}
                     initial={{ opacity: 0, x: 5 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.15, delay: 0.2 + index * 0.02 }}
                     className="flex items-center justify-between p-2.5 sm:p-3 md:p-4 bg-gray-50 rounded-lg sm:rounded-xl hover:bg-blue-50/50 transition-colors border border-transparent hover:border-blue-100"
                   >
                     <div className="flex items-center gap-2 sm:gap-3 md:gap-4 min-w-0">
-                      <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-green-100 rounded-full flex items-center justify-center shadow-sm border border-green-200 flex-shrink-0">
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 bg-green-100 rounded-full flex items-center justify-center shadow-sm border border-green-200 shrink-0">
                         <span className="material-symbols-outlined text-green-600 text-base sm:text-lg">
                           check
                         </span>
@@ -320,12 +404,12 @@ const EarningsPage = () => {
                           <span className="material-symbols-outlined text-[10px]">
                             calendar_today
                           </span>
-                          {payout.date}
+                          {new Date(payout.date).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
                     <p className="font-bold text-green-600 text-xs sm:text-sm md:text-base truncate ml-2">
-                      {payout.amount}
+                      {formatKes(Number(payout.amount || 0))}
                     </p>
                   </motion.div>
                 ))
@@ -350,10 +434,10 @@ const EarningsPage = () => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2, delay: 0.2 }}
-        className="mt-4 sm:mt-6 md:mt-8 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6 shadow-xs"
+        className="mt-4 sm:mt-6 md:mt-8 bg-linear-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6 shadow-xs"
       >
         <div className="flex items-start gap-2 sm:gap-3 md:gap-4">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-white rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-blue-100">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-white rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 shadow-sm border border-blue-100">
             <span className="material-symbols-outlined text-blue-600 text-lg sm:text-xl md:text-2xl">
               info
             </span>

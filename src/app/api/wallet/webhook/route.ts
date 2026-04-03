@@ -34,9 +34,24 @@ export async function POST(req: Request) {
     const amount = Number(
       body.value || body.invoice?.value || body.amount || 0,
     );
+    const canonicalRef = String(apiRef || "").trim();
+
+    if (!canonicalRef) {
+      return NextResponse.json({
+        received: true,
+        requiresManualResolution: true,
+        skipped: true,
+        reason: "missing_api_ref",
+        invoiceId: invoiceId ? String(invoiceId) : null,
+      });
+    }
 
     if (!Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+      return NextResponse.json({
+        received: true,
+        skipped: true,
+        reason: "invalid_amount",
+      });
     }
 
     console.log(
@@ -50,52 +65,73 @@ export async function POST(req: Request) {
     }
 
     // Check if this is a topup payment
-    const isTopupPayment =
-      apiRef.startsWith("TOPUP-") || apiRef.startsWith("TOPUP_");
+    const pendingProviderRef = `INTASEND:WALLET:PENDING:${canonicalRef}`;
+    const pendingTopup = await prisma.transaction.findFirst({
+      where: {
+        type: "DEPOSIT",
+        providerRef: pendingProviderRef,
+      },
+      include: {
+        wallet: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+    });
 
-    if (!isTopupPayment) {
-      console.log(`Not a topup payment (api_ref: ${apiRef}), skipping...`);
-      return NextResponse.json({ received: true, skipped: true });
-    }
-
-    // Extract user ID from api_ref
-    // Format: TOPUP-userIdPart-timestamp
-    const parts = apiRef.split(/[-_]/);
-    const userIdPart = parts[1];
-
-    if (!userIdPart || userIdPart.length < 16) {
-      console.error("Could not extract userId from api_ref:", apiRef);
+    if (!pendingTopup) {
+      console.log(
+        `No pending top-up found for providerRef ${pendingProviderRef}; skipping auto-settlement`,
+      );
       return NextResponse.json({
         received: true,
-        error: "Invalid api_ref format",
+        requiresManualResolution: true,
+        skipped: true,
+        reason: "missing_pending_provider_reference",
+        apiRef: canonicalRef,
       });
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: userIdPart },
+      where: { id: pendingTopup.wallet.userId },
     });
 
     if (!user) {
-      console.error(`User not found for userIdPart: ${userIdPart}`);
-      return NextResponse.json({ received: true, error: "User not found" });
+      console.error(`User not found for pending topup ref: ${canonicalRef}`);
+      return NextResponse.json({
+        received: true,
+        requiresManualResolution: true,
+        error: "User not found",
+      });
     }
 
     // Process the topup
     await prisma.$transaction(async (tx) => {
-      const idempotencyRef = String(invoiceId || apiRef);
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${idempotencyRef}))`;
+      const lockRef = canonicalRef;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockRef}, 0))`;
+      const refForKeys = lockRef;
+      const topupSettledDescription = `Wallet Top-up Settled [Ref:${refForKeys}]`;
+      const topupPendingProviderRef = `INTASEND:WALLET:PENDING:${refForKeys}`;
+      const topupSettledProviderRef = `INTASEND:WALLET:SETTLED:${refForKeys}`;
 
       const alreadyProcessed = await tx.transaction.findFirst({
         where: {
-          description: {
-            contains: `Ref: ${idempotencyRef}`,
-          },
+          providerRef: topupSettledProviderRef,
+          type: "DEPOSIT",
         },
       });
 
       if (alreadyProcessed) {
         return;
       }
+
+      const pendingEntry = await tx.transaction.findFirst({
+        where: {
+          type: "DEPOSIT",
+          providerRef: topupPendingProviderRef,
+        },
+      });
 
       // 1. Get or create wallet
       let wallet = await tx.wallet.findUnique({
@@ -119,15 +155,27 @@ export async function POST(req: Request) {
         },
       });
 
-      // 3. Record the transaction
-      await tx.transaction.create({
-        data: {
-          walletId: wallet.id,
-          amount: amount,
-          type: "DEPOSIT",
-          description: `Wallet Top-up (Ref: ${idempotencyRef})`,
-        },
-      });
+      // 3. Update pending record to settled, or create settled record if missing.
+      if (pendingEntry) {
+        await tx.transaction.update({
+          where: { id: pendingEntry.id },
+          data: {
+            amount,
+            providerRef: topupSettledProviderRef,
+            description: topupSettledDescription,
+          },
+        });
+      } else {
+        await tx.transaction.create({
+          data: {
+            walletId: wallet.id,
+            amount,
+            type: "DEPOSIT",
+            providerRef: topupSettledProviderRef,
+            description: topupSettledDescription,
+          },
+        });
+      }
     });
 
     console.log(

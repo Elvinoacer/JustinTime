@@ -1052,7 +1052,8 @@ export async function resolveDispute(
           assignedAdminId: admin.id,
           resolutionType: status === "CLOSED" ? "REFUND_CLIENT" : "OTHER",
           internalNotes: resolution,
-          resolvedAt: status === "RESOLVED" || status === "CLOSED" ? new Date() : null,
+          resolvedAt:
+            status === "RESOLVED" || status === "CLOSED" ? new Date() : null,
         },
       });
 
@@ -1934,6 +1935,7 @@ export async function getPaymentLifecycleReconciliation(limit = 100) {
       );
 
       return {
+        entityType: "PAYMENT",
         paymentId: payment.id,
         bookingId: payment.bookingId,
         jobId: payment.booking?.jobId || null,
@@ -1957,17 +1959,289 @@ export async function getPaymentLifecycleReconciliation(limit = 100) {
       };
     });
 
+    const stalePendingLedgerTransactions = await prisma.transaction.findMany({
+      where: {
+        createdAt: {
+          lte: staleBefore,
+        },
+        OR: [
+          {
+            providerRef: {
+              startsWith: "INTASEND:WALLET:PENDING:",
+            },
+          },
+          {
+            providerRef: {
+              startsWith: "INTASEND:ONBOARDING:PENDING:",
+            },
+          },
+          {
+            providerRef: {
+              startsWith: "INTASEND:SUBSCRIPTION:PENDING:",
+            },
+          },
+        ],
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+      take: safeLimit,
+      include: {
+        wallet: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const unresolvedLedgerEvents = stalePendingLedgerTransactions.map((tx) => {
+      const hoursOpen = Math.floor(
+        (Date.now() - new Date(tx.createdAt).getTime()) / (60 * 60 * 1000),
+      );
+
+      const description = tx.description || "Pending financial ledger event";
+      const providerRef = tx.providerRef || "";
+      const eventKind = providerRef.startsWith("INTASEND:WALLET:PENDING:")
+        ? "wallet_topup"
+        : providerRef.startsWith("INTASEND:ONBOARDING:PENDING:")
+          ? "onboarding_fee"
+          : "subscription";
+
+      return {
+        entityType: "TRANSACTION",
+        paymentId: tx.id,
+        bookingId: null,
+        jobId: null,
+        jobTitle: null,
+        bookingStatus: null,
+        paymentStatus: "PENDING",
+        amount: Number(tx.amount),
+        method: "LEDGER",
+        transactionId: tx.id,
+        createdAt: tx.createdAt,
+        hoursOpen,
+        issue: `Pending ${eventKind.replace("_", " ")} event has been open for ${hoursOpen}h without settlement confirmation.`,
+        clientName: tx.wallet.user.name || tx.wallet.user.email || null,
+        providerName: null,
+        description,
+      };
+    });
+
+    const walletDebitWindowDays = 30;
+    const walletDebitSince = new Date(
+      Date.now() - walletDebitWindowDays * 24 * 60 * 60 * 1000,
+    );
+
+    const walletDebitTransactions = await prisma.transaction.findMany({
+      where: {
+        createdAt: {
+          gte: walletDebitSince,
+        },
+        type: {
+          in: ["CREDIT_PURCHASE", "PROMOTION_PAYMENT"],
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: safeLimit * 2,
+      include: {
+        wallet: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const walletDebitActivities = walletDebitTransactions.map((tx) => {
+      const normalizedDescription = tx.description || "";
+      const promoApplied = /\bwith promo\b/i.test(normalizedDescription);
+
+      return {
+        id: tx.id,
+        type: tx.type,
+        amount: Number(tx.amount),
+        createdAt: tx.createdAt,
+        description: tx.description,
+        promoApplied,
+        userName: tx.wallet.user.name || tx.wallet.user.email || "Unknown user",
+        userEmail: tx.wallet.user.email,
+      };
+    });
+
+    const totalWalletDebitAmount = walletDebitActivities.reduce(
+      (sum, row) => sum + row.amount,
+      0,
+    );
+    const promoAppliedActivities = walletDebitActivities.filter(
+      (row) => row.promoApplied,
+    );
+    const promoAppliedAmount = promoAppliedActivities.reduce(
+      (sum, row) => sum + row.amount,
+      0,
+    );
+
+    const promoImpactSummary = {
+      evaluationWindowDays: walletDebitWindowDays,
+      totalWalletDebitEvents: walletDebitActivities.length,
+      totalWalletDebitAmount,
+      promoAppliedEvents: promoAppliedActivities.length,
+      promoAppliedAmount,
+      creditPurchaseEvents: walletDebitActivities.filter(
+        (row) => row.type === "CREDIT_PURCHASE",
+      ).length,
+      promotionPaymentEvents: walletDebitActivities.filter(
+        (row) => row.type === "PROMOTION_PAYMENT",
+      ).length,
+    };
+
+    const allUnresolvedFinancialEvents = [
+      ...unresolvedFinancialEvents,
+      ...unresolvedLedgerEvents,
+    ]
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      )
+      .slice(0, safeLimit * 2);
+
     return {
       generatedAt: new Date().toISOString(),
       staleThresholdHours,
       mismatchCount: mismatches.length,
-      unresolvedCount: unresolvedFinancialEvents.length,
+      unresolvedCount: allUnresolvedFinancialEvents.length,
       mismatches,
-      unresolvedFinancialEvents,
+      unresolvedFinancialEvents: allUnresolvedFinancialEvents,
+      walletDebitActivities,
+      promoImpactSummary,
     };
   } catch (error) {
     console.error("Error fetching payment lifecycle reconciliation:", error);
     throw new Error("Failed to fetch reconciliation data");
+  }
+}
+
+export async function resolveReconciliationEventAction(formData: FormData) {
+  try {
+    const admin = await checkAdmin();
+
+    const paymentId = String(formData.get("paymentId") || "").trim();
+    const bookingId = String(formData.get("bookingId") || "").trim();
+    const requestedAction = String(formData.get("resolutionAction") || "")
+      .trim()
+      .toUpperCase();
+    const reason = String(
+      formData.get("reason") || "Manual reconciliation",
+    ).trim();
+
+    if (!paymentId) {
+      return { success: false, error: "Missing payment id" };
+    }
+
+    if (!["FORCE_SETTLE", "REFUND", "VOID"].includes(requestedAction)) {
+      return { success: false, error: "Unsupported reconciliation action" };
+    }
+
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        booking: true,
+      },
+    });
+
+    if (!payment) {
+      return { success: false, error: "Payment not found" };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (requestedAction === "FORCE_SETTLE") {
+        await tx.payment.update({
+          where: { id: paymentId },
+          data: {
+            status: "COMPLETED",
+            transactionId:
+              payment.transactionId || `manual-settle-${Date.now()}`,
+          },
+        });
+
+        if (payment.bookingId && payment.booking?.status === "PENDING") {
+          await tx.booking.update({
+            where: { id: payment.bookingId },
+            data: {
+              status: "CONFIRMED",
+            },
+          });
+        }
+      }
+
+      if (requestedAction === "REFUND") {
+        await tx.payment.update({
+          where: { id: paymentId },
+          data: {
+            status: "REFUNDED",
+          },
+        });
+
+        if (payment.bookingId) {
+          await tx.booking.update({
+            where: { id: payment.bookingId },
+            data: {
+              status: "CANCELLED",
+              refundAmount: payment.amount,
+              cancellationReason: `[Admin Reconciliation Refund] ${reason}`,
+              cancelledAt: new Date(),
+              cancelledBy: admin.id,
+            },
+          });
+        }
+      }
+
+      if (requestedAction === "VOID") {
+        await tx.payment.update({
+          where: { id: paymentId },
+          data: {
+            status: "FAILED",
+          },
+        });
+      }
+
+      await tx.adminLog.create({
+        data: {
+          adminId: admin.id,
+          action: `RECONCILIATION_${requestedAction}`,
+          targetId: paymentId,
+          details: {
+            bookingId: bookingId || payment.bookingId,
+            reason,
+            previousStatus: payment.status,
+            newStatus:
+              requestedAction === "FORCE_SETTLE"
+                ? "COMPLETED"
+                : requestedAction === "REFUND"
+                  ? "REFUNDED"
+                  : "FAILED",
+          },
+        },
+      });
+    });
+
+    revalidatePath("/admin/reconciliation");
+    return { success: true };
+  } catch (error) {
+    console.error("Error resolving reconciliation event:", error);
+    return { success: false, error: "Failed to resolve reconciliation event" };
   }
 }
 

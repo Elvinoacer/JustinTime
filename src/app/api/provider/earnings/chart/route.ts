@@ -1,10 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
 import { hasRole } from "@/lib/auth/roles";
+import { calculateBookingBreakdown } from "@/lib/financials";
 
-export async function GET(request: NextRequest) {
+const EARNINGS_TIMEZONE = "Africa/Nairobi";
+
+export async function GET() {
   try {
     const session = await auth();
 
@@ -18,47 +21,74 @@ export async function GET(request: NextRequest) {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const payments = await prisma.payment.findMany({
+    const bookings = await prisma.booking.findMany({
       where: {
-        booking: {
-          providerId: userId,
-        },
+        providerId: userId,
         status: "COMPLETED",
         createdAt: {
           gte: sevenDaysAgo,
         },
       },
       select: {
-        amount: true,
         createdAt: true,
+        basePrice: true,
+        discountAmount: true,
+        totalAmount: true,
+        netAmount: true,
+        service: {
+          select: {
+            price: true,
+          },
+        },
+        job: {
+          select: {
+            budget: true,
+          },
+        },
       },
       orderBy: {
         createdAt: "asc",
       },
     });
 
-    // Group by day
-    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const earningsByDay: Record<string, number> = {};
-
-    // Initialize all days
-    for (let i = 0; i < 7; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() - (6 - i));
-      const dayName = dayNames[date.getDay()];
-      earningsByDay[dayName] = 0;
-    }
-
-    // Aggregate payments by day
-    payments.forEach((payment) => {
-      const dayName = dayNames[new Date(payment.createdAt).getDay()];
-      earningsByDay[dayName] += Number(payment.amount);
+    const dayFormatter = new Intl.DateTimeFormat("en-US", {
+      weekday: "short",
+      timeZone: EARNINGS_TIMEZONE,
     });
 
-    // Format for chart
-    const chartData = Object.entries(earningsByDay).map(([name, earnings]) => ({
+    const orderedDayKeys: string[] = [];
+    const earningsByDay = new Map<string, number>();
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dayKey = dayFormatter.format(date);
+      orderedDayKeys.push(dayKey);
+      earningsByDay.set(dayKey, 0);
+    }
+
+    bookings.forEach((booking) => {
+      const dayKey = dayFormatter.format(new Date(booking.createdAt));
+      const baseAmount = Number(
+        booking.basePrice ||
+          booking.service?.price ||
+          booking.job?.budget ||
+          booking.totalAmount ||
+          0,
+      );
+      const discountAmount = Number(booking.discountAmount || 0);
+      const computed = calculateBookingBreakdown(baseAmount, discountAmount);
+      const netAmount = Number(booking.netAmount || computed.netAmount || 0);
+
+      if (!earningsByDay.has(dayKey)) {
+        earningsByDay.set(dayKey, 0);
+      }
+      earningsByDay.set(dayKey, (earningsByDay.get(dayKey) || 0) + netAmount);
+    });
+
+    const chartData = orderedDayKeys.map((name) => ({
       name,
-      earnings: Math.round(earnings),
+      earnings: Math.round(earningsByDay.get(name) || 0),
     }));
 
     return NextResponse.json({ data: chartData });

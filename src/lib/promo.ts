@@ -16,13 +16,15 @@ export async function validatePromoCode(
   userId: string,
   orderAmount: number,
 ): Promise<PromoValidationResult> {
-  if (!code) {
+  const normalizedCode = code?.trim().toUpperCase();
+
+  if (!normalizedCode) {
     return { isValid: false, discountAmount: 0, error: "Code is required" };
   }
 
   try {
     const promo = await prisma.promoCode.findUnique({
-      where: { code },
+      where: { code: normalizedCode },
     });
 
     if (!promo) {

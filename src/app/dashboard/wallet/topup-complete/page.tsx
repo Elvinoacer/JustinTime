@@ -9,14 +9,17 @@ export default function TopupCompletePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Show success message
-    toast.success("💰 Wallet top-up successful!", {
-      duration: 5000,
-    });
+    // Webhooks are the source of truth; this page confirms processing, not settlement.
+    toast.info(
+      "Payment received. We are confirming settlement with the payment gateway.",
+      {
+        duration: 5000,
+      },
+    );
 
     // Redirect to wallet page after a short delay
     const timeout = setTimeout(() => {
-      router.replace("/dashboard/earnings");
+      router.replace("/wallet");
     }, 2000);
 
     return () => clearTimeout(timeout);
@@ -31,10 +34,11 @@ export default function TopupCompletePage() {
         </div>
       </div>
       <h1 className="text-2xl font-bold text-gray-900 mb-2">
-        Top-up Successful!
+        Top-up Processing
       </h1>
       <p className="text-gray-600 mb-6">
-        Your wallet has been credited. The balance will be updated shortly.
+        We are waiting for secure webhook confirmation. Your wallet balance will
+        update automatically.
       </p>
       <div className="flex items-center gap-2 text-gray-500">
         <Loader2 className="h-4 w-4 animate-spin" />

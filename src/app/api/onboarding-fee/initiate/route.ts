@@ -63,19 +63,41 @@ export async function POST(req: Request) {
 
     console.log("IntaSend checkout response:", response);
 
-    // Ensure wallet exists for the user (create if not)
-    const wallet = await prisma.wallet.findUnique({
-      where: { userId: session.user.id },
-    });
+    await prisma.$transaction(async (tx) => {
+      let wallet = await tx.wallet.findUnique({
+        where: { userId: session.user.id },
+      });
 
-    if (!wallet) {
-      await prisma.wallet.create({
-        data: {
-          userId: session.user.id,
-          balance: 0,
+      if (!wallet) {
+        wallet = await tx.wallet.create({
+          data: {
+            userId: session.user.id,
+            balance: 0,
+          },
+        });
+      }
+
+      const pendingProviderRef = `INTASEND:ONBOARDING:PENDING:${apiRef}`;
+      const existingPending = await tx.transaction.findFirst({
+        where: {
+          walletId: wallet.id,
+          type: "ONBOARDING_FEE",
+          providerRef: pendingProviderRef,
         },
       });
-    }
+
+      if (!existingPending) {
+        await tx.transaction.create({
+          data: {
+            walletId: wallet.id,
+            amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+            type: "ONBOARDING_FEE",
+            providerRef: pendingProviderRef,
+            description: `Onboarding Fee Payment Pending [Ref:${apiRef}]`,
+          },
+        });
+      }
+    });
 
     // Store the pending payment reference for webhook matching
     // The SDK returns the checkout URL in response.url

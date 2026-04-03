@@ -1,29 +1,32 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   useInitiateSubscription,
   useSubscriptionStatus,
 } from "@/lib/api/hooks/useSubscription";
 
 const PremiumPage = () => {
-  const router = useRouter();
-  const { data: subscriptionData, isLoading: isLoadingSubscription } =
-    useSubscriptionStatus();
+  const { data: subscriptionData } = useSubscriptionStatus();
   const initiateSubscription = useInitiateSubscription();
   const [selectedPlan, setSelectedPlan] = useState<"PRO" | "BUSINESS" | null>(
-    null
+    null,
   );
   const [isMobile, setIsMobile] = useState(false);
 
-  // Check if mobile on client side
-  if (typeof window !== "undefined") {
-    useState(() => {
+  useEffect(() => {
+    const updateViewport = () => {
       setIsMobile(window.innerWidth < 768);
-    });
-  }
+    };
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+
+    return () => {
+      window.removeEventListener("resize", updateViewport);
+    };
+  }, []);
 
   const currentPlan = subscriptionData?.subscription?.plan || "FREE";
 
@@ -127,11 +130,11 @@ const PremiumPage = () => {
         <motion.div
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-3 sm:p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0`}
+          className={`bg-linear-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-3 sm:p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0`}
         >
           <div className="flex items-center gap-2 sm:gap-3">
             <div
-              className={`bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0 ${
+              className={`bg-emerald-100 rounded-full flex items-center justify-center shrink-0 ${
                 isMobile ? "w-8 h-8" : "w-10 h-10"
               }`}
             >
@@ -191,7 +194,7 @@ const PremiumPage = () => {
             {tier.recommended && (
               <div className="absolute -top-3 sm:-top-4 left-1/2 transform -translate-x-1/2">
                 <span
-                  className={`bg-gradient-to-r from-emerald-600 to-teal-500 text-white px-3 py-0.5 sm:px-4 sm:py-1 rounded-full font-semibold shadow-lg ${
+                  className={`bg-linear-to-r from-emerald-600 to-teal-500 text-white px-3 py-0.5 sm:px-4 sm:py-1 rounded-full font-semibold shadow-lg ${
                     isMobile ? "text-xs" : "text-sm"
                   }`}
                 >
@@ -247,12 +250,12 @@ const PremiumPage = () => {
                     className="flex items-start gap-2 sm:gap-3"
                   >
                     <span
-                      className={`material-symbols-outlined flex-shrink-0 ${
+                      className={`material-symbols-outlined shrink-0 ${
                         tier.color === "emerald"
                           ? "text-emerald-600"
                           : tier.color === "amber"
-                          ? "text-amber-600"
-                          : "text-gray-400"
+                            ? "text-amber-600"
+                            : "text-gray-400"
                       } ${isMobile ? "text-sm mt-0.5" : "text-sm mt-0.5"}`}
                     >
                       check_circle
@@ -279,10 +282,10 @@ const PremiumPage = () => {
               disabled={tier.disabled || initiateSubscription.isPending}
               className={`w-full rounded-lg sm:rounded-xl font-semibold transition-all flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation ${
                 tier.recommended
-                  ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                  ? "bg-linear-to-r from-emerald-600 to-teal-500 text-white hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
                   : tier.color === "amber"
-                  ? "bg-gradient-to-r from-amber-600 to-orange-500 text-white hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
-                  : "bg-gray-100 text-gray-600 cursor-not-allowed"
+                    ? "bg-linear-to-r from-amber-600 to-orange-500 text-white hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                    : "bg-gray-100 text-gray-600 cursor-not-allowed"
               } ${
                 isMobile
                   ? "py-2.5 px-4 text-xs sm:text-sm"
@@ -328,7 +331,7 @@ const PremiumPage = () => {
           Feature Comparison
         </h2>
         <div className="overflow-x-auto -mx-2 sm:mx-0">
-          <div className="min-w-[600px] sm:min-w-0">
+          <div className="min-w-150 sm:min-w-0">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
@@ -497,7 +500,7 @@ const PremiumPage = () => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className={`bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 lg:p-8`}
+        className={`bg-linear-to-r from-gray-50 to-gray-100 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 lg:p-8`}
       >
         <h2
           className={`font-bold text-gray-900 mb-4 sm:mb-5 md:mb-6 text-center ${
