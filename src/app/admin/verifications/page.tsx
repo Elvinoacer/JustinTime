@@ -3,7 +3,15 @@ import { getExpiringChecks } from "@/app/actions/verification";
 import { prisma } from "@/lib/prisma";
 import VerificationsGrid from "@/components/admin/VerificationsGrid";
 import BackgroundChecksList from "@/components/admin/BackgroundChecksList";
-import { Clock, CheckCircle2, XCircle, Users, Filter, ShieldCheck, UserCheck } from "lucide-react";
+import {
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Users,
+  Filter,
+  ShieldCheck,
+  UserCheck,
+} from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +29,12 @@ async function getVerificationStats() {
 export default async function AdminVerificationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string; status?: string; view?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    search?: string;
+    status?: string;
+    view?: string;
+  }>;
 }) {
   const params = await searchParams;
   const page = Number(params.page) || 1;
@@ -29,12 +42,37 @@ export default async function AdminVerificationsPage({
   const status = params.status || "PENDING";
   const view = params.view || "IDENTITY"; // IDENTITY or BACKGROUND
 
-  const [{ users, total, totalPages, currentPage }, stats, backgroundChecks] = await Promise.all([
-    getUsers(page, 12, search, "PROVIDER", status),
+  const mappedBackgroundStatus =
+    status === "PENDING"
+      ? "PENDING"
+      : status === "VERIFIED"
+        ? "APPROVED"
+        : status === "REJECTED"
+          ? "REJECTED"
+          : undefined;
+
+  const [
+    { users, total, totalPages, currentPage },
+    stats,
+    backgroundChecks,
+    expiringCount,
+  ] = await Promise.all([
+    getUsers(page, 12, search, "PROVIDER", status === "EXPIRING" ? "" : status),
     getVerificationStats(),
-    status === 'EXPIRING' 
-        ? getExpiringChecks() 
-        : getBackgroundChecks(status === 'PENDING' ? 'SUBMITTED' : status === 'VERIFIED' ? 'CLEARED' : status === 'REJECTED' ? 'REJECTED' : undefined),
+    view === "BACKGROUND"
+      ? status === "EXPIRING"
+        ? getExpiringChecks()
+        : getBackgroundChecks(mappedBackgroundStatus)
+      : Promise.resolve([]),
+    prisma.backgroundCheck.count({
+      where: {
+        status: "APPROVED",
+        expiresAt: {
+          lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          not: null,
+        },
+      },
+    }),
   ]);
 
   const statCards = [
@@ -121,7 +159,7 @@ export default async function AdminVerificationsPage({
     {
       status: "EXPIRING",
       label: "Expiring Soon",
-      count: 0, // We could fetch this count separately if needed
+      count: expiringCount,
       color: "orange",
       activeBg: "bg-orange-600",
       inactiveBg: "bg-orange-50",
@@ -234,45 +272,49 @@ export default async function AdminVerificationsPage({
             Showing {total} provider{total !== 1 ? "s" : ""}
           </p>
         </div>
-          
+
         {/* Toggle View */}
         <div className="flex bg-slate-100 p-1 rounded-lg">
-            <a 
-                href={`?view=IDENTITY&status=${status}`}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${view === 'IDENTITY' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                <UserCheck className="w-4 h-4" />
-                Identity
-            </a>
-            <a 
-                href={`?view=BACKGROUND&status=${status}`}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${view === 'BACKGROUND' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-                <ShieldCheck className="w-4 h-4" />
-                Background Checks
-            </a>
+          <a
+            href={`?view=IDENTITY&status=${status}`}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${view === "IDENTITY" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
+          >
+            <UserCheck className="w-4 h-4" />
+            Identity
+          </a>
+          <a
+            href={`?view=BACKGROUND&status=${status}`}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${view === "BACKGROUND" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            Background Checks
+          </a>
         </div>
       </div>
 
-      {view === 'IDENTITY' ? (
+      {view === "IDENTITY" ? (
         <>
-            <div className="flex flex-col sm:flex-row items-center justify-between">
-                <p className="text-sm text-slate-500">Showing {total} identity verification requests</p>
-            </div>
-            <VerificationsGrid
-                users={users}
-                total={total}
-                currentPage={currentPage}
-                totalPages={totalPages}
-                currentStatus={status}
-            />
+          <div className="flex flex-col sm:flex-row items-center justify-between">
+            <p className="text-sm text-slate-500">
+              Showing {total} identity verification requests
+            </p>
+          </div>
+          <VerificationsGrid
+            users={users}
+            total={total}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            currentStatus={status}
+          />
         </>
       ) : (
         <>
-            <div className="flex flex-col sm:flex-row items-center justify-between">
-                <p className="text-sm text-slate-500">Showing {backgroundChecks.length} background check requests</p>
-            </div>
-            <BackgroundChecksList checks={backgroundChecks} />
+          <div className="flex flex-col sm:flex-row items-center justify-between">
+            <p className="text-sm text-slate-500">
+              Showing {backgroundChecks.length} background check requests
+            </p>
+          </div>
+          <BackgroundChecksList checks={backgroundChecks} />
         </>
       )}
 

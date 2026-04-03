@@ -3,7 +3,8 @@ type RealtimeEvent =
   | "messages_read"
   | "message_delivered"
   | "message_deleted"
-  | "conversation_cleared";
+  | "conversation_cleared"
+  | "sos_alert_update";
 
 interface RealtimeBroadcastPayload {
   event: RealtimeEvent;

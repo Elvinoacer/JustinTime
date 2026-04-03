@@ -5,6 +5,7 @@ import { submitProposal } from "@/lib/proposals/submitProposal";
 import { toSubmitProposalErrorResponse } from "@/lib/proposals/errorResponses";
 import { z } from "zod";
 import { hasRole } from "@/lib/auth/roles";
+import { isPubliclyVerified } from "@/lib/trust/publicTrust";
 
 const createJobProposalSchema = z
   .object({
@@ -73,10 +74,15 @@ export async function GET(
             image: true,
             profile: {
               select: {
-                isVerified: true,
                 verificationStatus: true,
                 skills: true,
                 certifications: true,
+              },
+            },
+            trustScore: {
+              select: {
+                tier: true,
+                overallScore: true,
               },
             },
             receivedReviews: {
@@ -103,8 +109,13 @@ export async function GET(
               select: {
                 profile: {
                   select: {
-                    isVerified: true,
                     verificationStatus: true,
+                  },
+                },
+                trustScore: {
+                  select: {
+                    tier: true,
+                    overallScore: true,
                   },
                 },
               },
@@ -137,9 +148,13 @@ export async function GET(
       acceptedHistory.length > 0
         ? acceptedHistory.filter(
             (acceptedProposal) =>
-              Boolean(acceptedProposal.provider.profile?.isVerified) ||
-              acceptedProposal.provider.profile?.verificationStatus ===
-                "VERIFIED",
+              isPubliclyVerified({
+                verificationStatus:
+                  acceptedProposal.provider.profile?.verificationStatus,
+                trustTier: acceptedProposal.provider.trustScore?.tier,
+                overallScore:
+                  acceptedProposal.provider.trustScore?.overallScore,
+              }),
           ).length / acceptedHistory.length
         : 0;
 
@@ -325,9 +340,11 @@ export async function GET(
           : "UNKNOWN";
 
       const clientFitHints: string[] = [];
-      const providerIsVerified =
-        Boolean(proposal.provider.profile?.isVerified) ||
-        proposal.provider.profile?.verificationStatus === "VERIFIED";
+      const providerIsVerified = isPubliclyVerified({
+        verificationStatus: proposal.provider.profile?.verificationStatus,
+        trustTier: proposal.provider.trustScore?.tier,
+        overallScore: proposal.provider.trustScore?.overallScore,
+      });
 
       if (hasEnoughClientHistory && avgAcceptedPrice !== null) {
         const priceDeltaRatio =
@@ -378,9 +395,7 @@ export async function GET(
           image: proposal.provider.image,
           avgRating,
           reviewCount,
-          isVerified:
-            Boolean(providerProfile?.isVerified) ||
-            providerProfile?.verificationStatus === "VERIFIED",
+          isVerified: providerIsVerified,
           skills: (providerProfile?.skills ?? []).map(
             (skillId) => skillCategoryMap.get(skillId) || skillId,
           ),

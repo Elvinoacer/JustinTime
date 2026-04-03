@@ -14,7 +14,12 @@ import {
 
 const createDisputeSchema = z.object({
   reason: z.string().trim().min(20, "Reason must be at least 20 characters"),
+  category: z.string().trim().max(64).optional(),
+  requestedResolution: z.string().trim().max(500).optional(),
+  evidenceUrls: z.array(z.string().url()).max(10).optional(),
 });
+
+const POST_COMPLETION_DISPUTE_WINDOW_DAYS = 14;
 
 export async function POST(
   request: Request,
@@ -35,6 +40,8 @@ export async function POST(
       select: {
         id: true,
         jobId: true,
+        date: true,
+        totalAmount: true,
         clientId: true,
         providerId: true,
         status: true,
@@ -65,10 +72,32 @@ export async function POST(
       );
     }
 
-    if (booking.status === "COMPLETED") {
-      return new NextResponse("Completed bookings cannot be disputed", {
+    const disputableStatuses = new Set([
+      "CONFIRMED",
+      "IN_PROGRESS",
+      "AWAITING_CLIENT_CONFIRMATION",
+      "COMPLETED",
+      "CANCELLED",
+      "DISPUTED",
+    ]);
+
+    if (!disputableStatuses.has(booking.status)) {
+      return new NextResponse("This booking status cannot be disputed", {
         status: 400,
       });
+    }
+
+    if (booking.status === "COMPLETED" || booking.status === "CANCELLED") {
+      const disputeWindowMs =
+        POST_COMPLETION_DISPUTE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+      const bookingTimeMs = new Date(booking.date).getTime();
+
+      if (Date.now() - bookingTimeMs > disputeWindowMs) {
+        return new NextResponse(
+          `Disputes for ${booking.status.toLowerCase()} bookings must be filed within ${POST_COMPLETION_DISPUTE_WINDOW_DAYS} days`,
+          { status: 400 },
+        );
+      }
     }
 
     const defendantId = isClient ? booking.providerId : booking.clientId;
@@ -80,6 +109,14 @@ export async function POST(
           creatorId: session.user.id,
           defendantId,
           reason: validated.reason,
+          category: validated.category,
+          requestedResolution: validated.requestedResolution,
+          evidenceUrls: validated.evidenceUrls || [],
+          refundPreview: {
+            bookingTotalAmount: Number(booking.totalAmount || 0),
+            previewGeneratedAt: new Date().toISOString(),
+            source: "DISPUTE_SUBMISSION",
+          },
         },
       });
 
@@ -105,6 +142,8 @@ export async function POST(
           metadata: {
             disputeId: createdDispute.id,
             defendantId,
+            category: validated.category,
+            evidenceCount: validated.evidenceUrls?.length || 0,
           },
           idempotencyKey: `booking:${booking.id}:dispute:${createdDispute.id}`,
         },
@@ -126,6 +165,8 @@ export async function POST(
             metadata: {
               disputeId: createdDispute.id,
               defendantId,
+              category: validated.category,
+              evidenceCount: validated.evidenceUrls?.length || 0,
             },
             idempotencyKey: `booking:${booking.id}:job-dispute:${createdDispute.id}`,
           },

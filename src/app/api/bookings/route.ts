@@ -71,6 +71,16 @@ export async function GET(request: Request) {
           invoice: {
             select: { id: true },
           },
+          insuranceClaim: {
+            select: {
+              id: true,
+              status: true,
+              amount: true,
+              approvedAmount: true,
+              adminNotes: true,
+              createdAt: true,
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
       }),

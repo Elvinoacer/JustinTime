@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { reportUser } from '@/app/actions/reporting';
-import { toast } from 'sonner';
-import { Loader2, ShieldAlert, X } from 'lucide-react';
+import React, { useState } from "react";
+import { blockUser, reportUser } from "@/app/actions/reporting";
+import { toast } from "sonner";
+import { Loader2, ShieldAlert, X } from "lucide-react";
 
 interface ReportUserModalProps {
   isOpen: boolean;
@@ -18,8 +18,16 @@ export function ReportUserModal({
   reportedId,
   partnerName,
 }: ReportUserModalProps) {
-  const [reason, setReason] = useState<'HARASSMENT' | 'SCAM' | 'INAPPROPRIATE_CONTENT' | 'SAFETY_CONCERN' | 'SPAM' | 'OTHER'>('HARASSMENT');
-  const [details, setDetails] = useState('');
+  const [reason, setReason] = useState<
+    | "HARASSMENT"
+    | "SCAM"
+    | "INAPPROPRIATE_CONTENT"
+    | "SAFETY_CONCERN"
+    | "SPAM"
+    | "OTHER"
+  >("HARASSMENT");
+  const [details, setDetails] = useState("");
+  const [alsoBlock, setAlsoBlock] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -36,14 +44,28 @@ export function ReportUserModal({
       });
 
       if (result.success) {
-        toast.success(`Report submitted successfully for ${partnerName}. Our team will review it shortly.`);
+        if (alsoBlock) {
+          const blockResult = await blockUser(
+            reportedId,
+            `Blocked from report flow: ${reason}`,
+          );
+          if (!blockResult.success) {
+            toast.warning(
+              "Report submitted, but blocking failed. You can retry from Safety Center.",
+            );
+          }
+        }
+
+        toast.success(
+          `Report submitted successfully for ${partnerName}. Our team will review it shortly.`,
+        );
         onClose();
       } else {
-        toast.error(result.error || 'Failed to submit report');
+        toast.error(result.error || "Failed to submit report");
       }
     } catch (error) {
       console.error(error);
-      toast.error('An unexpected error occurred. Please try again.');
+      toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -51,30 +73,32 @@ export function ReportUserModal({
 
   return (
     <>
-      <div 
+      <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
-      
+
       <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-md bg-white rounded-2xl shadow-xl z-[101] overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100">
           <div className="flex items-center gap-2 sm:gap-3 text-red-600">
             <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6" />
             <h2 className="text-lg sm:text-xl font-bold">Report User</h2>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors touch-manipulation"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        
+
         <div className="p-4 sm:p-5 overflow-y-auto">
           <p className="text-sm text-gray-600 mb-5">
-            You are reporting <span className="font-semibold text-gray-900">{partnerName}</span>. 
-            This information will be kept strictly confidential and reviewed by our Trust & Safety team.
+            You are reporting{" "}
+            <span className="font-semibold text-gray-900">{partnerName}</span>.
+            This information will be kept strictly confidential and reviewed by
+            our Trust & Safety team.
           </p>
 
           <form id="report-form" onSubmit={handleSubmit} className="space-y-4">
@@ -84,19 +108,25 @@ export function ReportUserModal({
               </label>
               <div className="space-y-2">
                 {[
-                  { value: 'HARASSMENT', label: 'Harassment or abusive behavior' },
-                  { value: 'SCAM', label: 'Suspected scam or fraud' },
-                  { value: 'INAPPROPRIATE_CONTENT', label: 'Inappropriate content' },
-                  { value: 'SAFETY_CONCERN', label: 'Safety concern' },
-                  { value: 'SPAM', label: 'Spam' },
-                  { value: 'OTHER', label: 'Other' },
+                  {
+                    value: "HARASSMENT",
+                    label: "Harassment or abusive behavior",
+                  },
+                  { value: "SCAM", label: "Suspected scam or fraud" },
+                  {
+                    value: "INAPPROPRIATE_CONTENT",
+                    label: "Inappropriate content",
+                  },
+                  { value: "SAFETY_CONCERN", label: "Safety concern" },
+                  { value: "SPAM", label: "Spam" },
+                  { value: "OTHER", label: "Other" },
                 ].map((option) => (
-                  <label 
-                    key={option.value} 
+                  <label
+                    key={option.value}
                     className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-colors ${
-                      reason === option.value 
-                        ? 'border-red-500 bg-red-50' 
-                        : 'border-gray-200 hover:border-red-200 hover:bg-gray-50'
+                      reason === option.value
+                        ? "border-red-500 bg-red-50"
+                        : "border-gray-200 hover:border-red-200 hover:bg-gray-50"
                     }`}
                   >
                     <input
@@ -107,7 +137,9 @@ export function ReportUserModal({
                       onChange={(e) => setReason(e.target.value as any)}
                       className="text-red-600 focus:ring-red-500 w-4 h-4 touch-manipulation"
                     />
-                    <span className={`text-sm ${reason === option.value ? 'font-medium text-red-900' : 'text-gray-700'}`}>
+                    <span
+                      className={`text-sm ${reason === option.value ? "font-medium text-red-900" : "text-gray-700"}`}
+                    >
                       {option.label}
                     </span>
                   </label>
@@ -116,7 +148,10 @@ export function ReportUserModal({
             </div>
 
             <div>
-              <label htmlFor="details" className="block text-sm font-semibold text-gray-900 mb-2">
+              <label
+                htmlFor="details"
+                className="block text-sm font-semibold text-gray-900 mb-2"
+              >
                 Additional Details (Optional)
               </label>
               <textarea
@@ -128,6 +163,18 @@ export function ReportUserModal({
                 className="w-full text-sm rounded-xl border-gray-300 focus:border-red-500 focus:ring-red-500 p-3"
               />
             </div>
+
+            <label className="flex items-start gap-3 p-3 rounded-xl border border-red-100 bg-red-50/40">
+              <input
+                type="checkbox"
+                checked={alsoBlock}
+                onChange={(event) => setAlsoBlock(event.target.checked)}
+                className="mt-0.5 h-4 w-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
+              />
+              <span className="text-sm text-gray-700">
+                Also block this user to stop new messages immediately.
+              </span>
+            </label>
           </form>
         </div>
 
@@ -152,7 +199,7 @@ export function ReportUserModal({
                 Submitting...
               </>
             ) : (
-              'Submit Report'
+              "Submit Report"
             )}
           </button>
         </div>

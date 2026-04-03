@@ -825,13 +825,13 @@ export async function getBackgroundChecks(status?: string) {
     const checks = await prisma.backgroundCheck.findMany({
       where,
       include: {
-        provider: {
+        user: {
           include: {
             profile: true,
           },
         },
       },
-      orderBy: { submittedAt: "desc" },
+      orderBy: { createdAt: "desc" },
     });
     return checks;
   } catch (error) {
@@ -1049,6 +1049,10 @@ export async function resolveDispute(
         data: {
           status,
           resolution,
+          assignedAdminId: admin.id,
+          resolutionType: status === "CLOSED" ? "REFUND_CLIENT" : "OTHER",
+          internalNotes: resolution,
+          resolvedAt: status === "RESOLVED" || status === "CLOSED" ? new Date() : null,
         },
       });
 
@@ -1120,6 +1124,267 @@ export async function resolveDispute(
   } catch (error) {
     console.error("Error resolving dispute:", error);
     return { success: false, error: "Failed to resolve dispute" };
+  }
+}
+
+function roundCurrencyAmount(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+export async function resolveDisputeWithSettlement(params: {
+  disputeId: string;
+  resolution: string;
+  settlement: "REFUND_CLIENT" | "RELEASE_PROVIDER" | "SPLIT_ESCROW";
+  clientSharePercent?: number;
+}) {
+  try {
+    const admin = await checkAdmin();
+    const resolution = params.resolution?.trim();
+
+    if (!resolution) {
+      return { success: false, error: "Resolution notes are required" };
+    }
+
+    const dispute = await prisma.dispute.findUnique({
+      where: { id: params.disputeId },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            status: true,
+            totalAmount: true,
+            clientId: true,
+            providerId: true,
+            payment: {
+              select: {
+                id: true,
+                status: true,
+              },
+            },
+          },
+        },
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        defendant: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!dispute) {
+      return { success: false, error: "Dispute not found" };
+    }
+
+    if (dispute.status !== "OPEN") {
+      return { success: false, error: "Only open disputes can be settled" };
+    }
+
+    const totalAmount = Number(dispute.booking.totalAmount || 0);
+    if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+      return { success: false, error: "Invalid booking amount for settlement" };
+    }
+
+    let clientSharePercent = 0;
+    if (params.settlement === "REFUND_CLIENT") {
+      clientSharePercent = 100;
+    } else if (params.settlement === "RELEASE_PROVIDER") {
+      clientSharePercent = 0;
+    } else {
+      clientSharePercent = Number(params.clientSharePercent ?? 50);
+      if (
+        !Number.isFinite(clientSharePercent) ||
+        clientSharePercent < 0 ||
+        clientSharePercent > 100
+      ) {
+        return {
+          success: false,
+          error: "Client share must be between 0 and 100 percent",
+        };
+      }
+    }
+
+    const clientAmount = roundCurrencyAmount(
+      (totalAmount * clientSharePercent) / 100,
+    );
+    const providerAmount = roundCurrencyAmount(
+      Math.max(totalAmount - clientAmount, 0),
+    );
+
+    if (clientAmount <= 0 && providerAmount <= 0) {
+      return {
+        success: false,
+        error: "Settlement could not be calculated from booking amount",
+      };
+    }
+
+    const settlementLabel =
+      params.settlement === "REFUND_CLIENT"
+        ? "Full refund to client"
+        : params.settlement === "RELEASE_PROVIDER"
+          ? "Full release to provider"
+          : `Split escrow (${clientSharePercent}% client / ${100 - clientSharePercent}% provider)`;
+
+    const bookingStatusAfterSettlement =
+      dispute.booking.status === "CANCELLED"
+        ? "CANCELLED"
+        : clientAmount === totalAmount
+          ? "CANCELLED"
+          : "COMPLETED";
+    const isCancelledAfterSettlement =
+      bookingStatusAfterSettlement === "CANCELLED";
+
+    await prisma.$transaction(async (tx) => {
+      if (clientAmount > 0) {
+        const clientWallet = await tx.wallet.upsert({
+          where: { userId: dispute.booking.clientId },
+          update: {
+            balance: {
+              increment: clientAmount,
+            },
+          },
+          create: {
+            userId: dispute.booking.clientId,
+            balance: clientAmount,
+          },
+        });
+
+        await tx.transaction.create({
+          data: {
+            walletId: clientWallet.id,
+            amount: clientAmount,
+            type: "REFUND",
+            description: `Dispute settlement refund for booking ${dispute.booking.id}`,
+          },
+        });
+      }
+
+      if (providerAmount > 0) {
+        const providerWallet = await tx.wallet.upsert({
+          where: { userId: dispute.booking.providerId },
+          update: {
+            balance: {
+              increment: providerAmount,
+            },
+          },
+          create: {
+            userId: dispute.booking.providerId,
+            balance: providerAmount,
+          },
+        });
+
+        await tx.transaction.create({
+          data: {
+            walletId: providerWallet.id,
+            amount: providerAmount,
+            type: "EARNING",
+            description: `Dispute settlement release for booking ${dispute.booking.id}`,
+          },
+        });
+      }
+
+      if (dispute.booking.payment?.id) {
+        await tx.payment.update({
+          where: { id: dispute.booking.payment.id },
+          data: {
+            status: clientAmount === totalAmount ? "REFUNDED" : "COMPLETED",
+          },
+        });
+      }
+
+      await tx.booking.update({
+        where: { id: dispute.booking.id },
+        data: {
+          status: bookingStatusAfterSettlement,
+          refundAmount: clientAmount > 0 ? clientAmount : null,
+          cancelledAt: isCancelledAfterSettlement ? new Date() : null,
+          cancelledBy: isCancelledAfterSettlement ? admin.id : null,
+          cancellationReason: isCancelledAfterSettlement
+            ? `[Dispute Settlement] ${resolution}`
+            : null,
+        },
+      });
+
+      await tx.dispute.update({
+        where: { id: params.disputeId },
+        data: {
+          status: "RESOLVED",
+          assignedAdminId: admin.id,
+          resolutionType: params.settlement,
+          internalNotes: resolution,
+          resolvedAt: new Date(),
+          refundPreview: {
+            bookingTotalAmount: totalAmount,
+            settlement: params.settlement,
+            clientAmount,
+            providerAmount,
+            clientSharePercent,
+          },
+          resolution: `${resolution}\n\nSettlement: ${settlementLabel}. Client: KES ${clientAmount.toLocaleString()}, Provider: KES ${providerAmount.toLocaleString()}.`,
+        },
+      });
+
+      await tx.adminLog.create({
+        data: {
+          adminId: admin.id,
+          action: "RESOLVED_DISPUTE_SETTLEMENT",
+          targetId: params.disputeId,
+          details: {
+            settlement: params.settlement,
+            clientSharePercent,
+            clientAmount,
+            providerAmount,
+          },
+        },
+      });
+    });
+
+    await Promise.all([
+      sendComprehensiveNotification({
+        userId: dispute.creator.id,
+        title: "Dispute resolved with settlement",
+        message: `Your dispute has been resolved. Client settlement: KES ${clientAmount.toLocaleString()}, provider settlement: KES ${providerAmount.toLocaleString()}.`,
+        type: "SYSTEM",
+        emailSubject: "Dispute settlement completed - JustInTime",
+        emailHtml: `<p>Hello ${dispute.creator.name || "there"},</p><p>Your dispute has been resolved with this settlement:</p><ul><li>Client allocation: <strong>KES ${clientAmount.toLocaleString()}</strong></li><li>Provider allocation: <strong>KES ${providerAmount.toLocaleString()}</strong></li></ul><p><strong>Resolution notes:</strong> ${resolution}</p>`,
+      }),
+      sendComprehensiveNotification({
+        userId: dispute.defendant.id,
+        title: "Dispute resolved with settlement",
+        message: `A dispute involving your booking has been resolved. Client settlement: KES ${clientAmount.toLocaleString()}, provider settlement: KES ${providerAmount.toLocaleString()}.`,
+        type: "SYSTEM",
+        emailSubject: "Dispute settlement completed - JustInTime",
+        emailHtml: `<p>Hello ${dispute.defendant.name || "there"},</p><p>A dispute involving your booking has been resolved with this settlement:</p><ul><li>Client allocation: <strong>KES ${clientAmount.toLocaleString()}</strong></li><li>Provider allocation: <strong>KES ${providerAmount.toLocaleString()}</strong></li></ul><p><strong>Resolution notes:</strong> ${resolution}</p>`,
+      }),
+    ]);
+
+    revalidatePath("/admin/disputes");
+    revalidatePath("/admin/bookings");
+    revalidatePath("/client/bookings");
+    revalidatePath("/dashboard/bookings");
+
+    return {
+      success: true,
+      settlement: {
+        clientAmount,
+        providerAmount,
+        clientSharePercent,
+      },
+    };
+  } catch (error) {
+    console.error("Error resolving dispute with settlement:", error);
+    return {
+      success: false,
+      error: "Failed to resolve dispute settlement",
+    };
   }
 }
 

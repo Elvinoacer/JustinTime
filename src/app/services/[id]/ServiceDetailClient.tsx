@@ -85,7 +85,7 @@ export default function ServiceDetailClient({
     ["PRO", "BUSINESS"].includes(provider.subscription.plan) &&
     provider.subscription.isActive;
 
-  const showVerified = Boolean(profile?.isVerified || isProProvider);
+  const showVerified = Boolean(provider.isVerified || isProProvider);
 
   const listDate = useCallback((iso: string) => {
     return new Date(iso).toLocaleDateString("en-US", {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { successResponse, handleError } from "@/lib/middleware/errorHandler";
 import { calculateDistance } from "@/lib/utils/geolocation";
+import { isPubliclyVerified } from "@/lib/trust/publicTrust";
 
 /**
  * GET /api/services
@@ -41,9 +42,20 @@ export async function GET(request: NextRequest) {
 
     if (verified === "true") {
       where.provider = {
-        profile: {
-          isVerified: true,
-        },
+        OR: [
+          {
+            profile: {
+              verificationStatus: "VERIFIED",
+            },
+          },
+          {
+            trustScore: {
+              tier: {
+                in: ["VERIFIED", "PREMIUM", "ELITE"],
+              },
+            },
+          },
+        ],
       };
     }
 
@@ -100,10 +112,16 @@ export async function GET(request: NextRequest) {
               image: true,
               profile: {
                 select: {
-                  isVerified: true,
+                  verificationStatus: true,
                   latitude: true,
                   longitude: true,
                   location: true,
+                },
+              },
+              trustScore: {
+                select: {
+                  tier: true,
+                  overallScore: true,
                 },
               },
               subscription: {
@@ -184,6 +202,12 @@ export async function GET(request: NextRequest) {
       const isPromoted =
         service.promotedUntil && service.promotedUntil > new Date();
 
+      const providerIsVerified = isPubliclyVerified({
+        verificationStatus: service.provider.profile?.verificationStatus,
+        trustTier: service.provider.trustScore?.tier,
+        overallScore: service.provider.trustScore?.overallScore,
+      });
+
       return {
         id: service.id,
         title: service.title,
@@ -201,7 +225,7 @@ export async function GET(request: NextRequest) {
           id: service.provider.id,
           name: service.provider.name || "Unknown Provider",
           image: service.provider.image,
-          isVerified: service.provider.profile?.isVerified || false,
+          isVerified: providerIsVerified,
           latitude: service.provider.profile?.latitude ?? null,
           longitude: service.provider.profile?.longitude ?? null,
           location: service.provider.profile?.location,

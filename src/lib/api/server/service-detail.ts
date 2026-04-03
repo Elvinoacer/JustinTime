@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import type { Service } from "@/lib/api/hooks/useServices";
+import { isPubliclyVerified } from "@/lib/trust/publicTrust";
 
 async function fetchPublicServiceDetail(id: string): Promise<Service | null> {
   const service = await prisma.service.findUnique({
@@ -10,6 +11,12 @@ async function fetchPublicServiceDetail(id: string): Promise<Service | null> {
       provider: {
         include: {
           profile: true,
+          trustScore: {
+            select: {
+              tier: true,
+              overallScore: true,
+            },
+          },
           subscription: true,
           receivedReviews: {
             orderBy: { createdAt: "desc" },
@@ -66,6 +73,11 @@ async function fetchPublicServiceDetail(id: string): Promise<Service | null> {
   const reviewCount = reviewAgg._count._all;
 
   const provider = service.provider;
+  const providerVerified = isPubliclyVerified({
+    verificationStatus: provider.profile?.verificationStatus,
+    trustTier: provider.trustScore?.tier,
+    overallScore: provider.trustScore?.overallScore,
+  });
 
   return {
     id: service.id,
@@ -91,6 +103,7 @@ async function fetchPublicServiceDetail(id: string): Promise<Service | null> {
       phone: provider.phone,
       createdAt: provider.createdAt.toISOString(),
       role: provider.role,
+      isVerified: providerVerified,
       profile: provider.profile
         ? {
             bio: provider.profile.bio,
@@ -99,7 +112,7 @@ async function fetchPublicServiceDetail(id: string): Promise<Service | null> {
               ? Number(provider.profile.hourlyRate)
               : null,
             portfolio: provider.profile.portfolio || [],
-            isVerified: provider.profile.isVerified,
+            verificationStatus: provider.profile.verificationStatus,
           }
         : null,
       subscription: {

@@ -300,7 +300,10 @@ export const POST = auth(async (req) => {
 
     // If provider, create or update profile
     if (role === "PROVIDER") {
-      const { verificationStatus, idDocument } = body;
+      const { idDocument } = body;
+      const idDocumentUrl =
+        typeof idDocument === "string" ? idDocument.trim() : "";
+      const selfieUrl = typeof image === "string" ? image.trim() : "";
 
       const verificationFields = {
         ...(faceMatchScore !== undefined && {
@@ -328,8 +331,7 @@ export const POST = auth(async (req) => {
           bio,
           hourlyRate: hourlyRate ? Number(hourlyRate) : null,
           verificationStatus: "PENDING",
-          idDocument,
-          isVerified: false,
+          idDocument: idDocumentUrl || null,
           ...(faceMatchScore !== undefined && {
             faceMatchScore: Number(faceMatchScore),
           }),
@@ -351,11 +353,67 @@ export const POST = auth(async (req) => {
           bio,
           hourlyRate: hourlyRate ? Number(hourlyRate) : null,
           verificationStatus: "PENDING",
-          idDocument,
-          isVerified: false,
+          idDocument: idDocumentUrl || null,
           ...verificationFields,
         },
       });
+
+      if (idDocumentUrl) {
+        const existingOpenIdentityRequest =
+          await prisma.identityVerificationRequest.findFirst({
+            where: {
+              userId: actingUser.id,
+              status: {
+                in: ["SUBMITTED", "UNDER_REVIEW"],
+              },
+            },
+            select: { id: true },
+            orderBy: { createdAt: "desc" },
+          });
+
+        if (existingOpenIdentityRequest) {
+          await prisma.identityVerificationRequest.update({
+            where: { id: existingOpenIdentityRequest.id },
+            data: {
+              status: "SUBMITTED",
+              idDocumentUrl,
+              selfieUrl: selfieUrl || null,
+              faceMatchScore:
+                faceMatchScore !== undefined
+                  ? Number(faceMatchScore)
+                  : undefined,
+              idDocumentType: idDocumentType || null,
+              reviewNotes: null,
+              reviewedAt: null,
+              reviewedById: null,
+              submittedAt: new Date(),
+            },
+          });
+        } else {
+          await prisma.identityVerificationRequest.create({
+            data: {
+              userId: actingUser.id,
+              status: "SUBMITTED",
+              idDocumentUrl,
+              selfieUrl: selfieUrl || null,
+              faceMatchScore:
+                faceMatchScore !== undefined
+                  ? Number(faceMatchScore)
+                  : undefined,
+              idDocumentType: idDocumentType || null,
+            },
+          });
+        }
+
+        await prisma.verificationAudit.create({
+          data: {
+            userId: actingUser.id,
+            action: "IDENTITY_REQUEST_SUBMITTED",
+            newValue: "SUBMITTED",
+            performedBy: actingUser.id,
+          },
+        });
+      }
     } else if (role === "CLIENT") {
       // Persist client location metadata for consistent location-driven experiences.
       await prisma.profile.upsert({

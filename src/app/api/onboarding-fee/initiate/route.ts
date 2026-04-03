@@ -23,8 +23,7 @@ export async function POST(req: Request) {
     if (
       profile?.hasPaidOnboardingFee ||
       profile?.onboardingFeeWaived ||
-      profile?.verificationStatus === "VERIFIED" ||
-      profile?.isVerified
+      profile?.verificationStatus === "VERIFIED"
     ) {
       return NextResponse.json(
         {

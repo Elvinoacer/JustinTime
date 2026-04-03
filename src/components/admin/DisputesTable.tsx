@@ -20,7 +20,10 @@ import {
   MessageSquare,
   MoreVertical,
 } from "lucide-react";
-import { resolveDispute } from "@/app/actions/admin";
+import {
+  resolveDispute,
+  resolveDisputeWithSettlement,
+} from "@/app/actions/admin";
 
 interface Dispute {
   id: string;
@@ -46,6 +49,10 @@ interface EnhancedDisputesTableProps {
   totalPages: number;
 }
 
+type SettlementDecision = "REFUND_CLIENT" | "RELEASE_PROVIDER" | "SPLIT_ESCROW";
+
+const DEFAULT_CLIENT_SPLIT_PERCENT = 50;
+
 export default function EnhancedDisputesTable({
   disputes,
   total,
@@ -57,6 +64,11 @@ export default function EnhancedDisputesTable({
   const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
   const [resolutionText, setResolutionText] = useState("");
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [settlementDecision, setSettlementDecision] =
+    useState<SettlementDecision>("REFUND_CLIENT");
+  const [clientSharePercent, setClientSharePercent] = useState(
+    DEFAULT_CLIENT_SPLIT_PERCENT,
+  );
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -103,6 +115,36 @@ export default function EnhancedDisputesTable({
     setSelectedDispute(dispute);
     setResolutionText(dispute.resolution || "");
     setActiveMenu(null);
+    setSettlementDecision("REFUND_CLIENT");
+    setClientSharePercent(DEFAULT_CLIENT_SPLIT_PERCENT);
+  };
+
+  const computeSettlementPreview = (bookingTotalAmount: number) => {
+    const total = Number(bookingTotalAmount || 0);
+    if (!Number.isFinite(total) || total <= 0) {
+      return {
+        clientAmount: 0,
+        providerAmount: 0,
+        clientPercent: 0,
+      };
+    }
+
+    const clientPercent =
+      settlementDecision === "REFUND_CLIENT"
+        ? 100
+        : settlementDecision === "RELEASE_PROVIDER"
+          ? 0
+          : Math.min(100, Math.max(0, clientSharePercent));
+
+    const clientAmount =
+      Math.round(((total * clientPercent) / 100) * 100) / 100;
+    const providerAmount = Math.round((total - clientAmount) * 100) / 100;
+
+    return {
+      clientAmount,
+      providerAmount,
+      clientPercent,
+    };
   };
 
   const handleResolve = async (status: "RESOLVED" | "CLOSED") => {
@@ -112,7 +154,7 @@ export default function EnhancedDisputesTable({
       const result = await resolveDispute(
         selectedDispute.id,
         resolutionText,
-        status
+        status,
       );
       if (result.success) {
         setSelectedDispute(null);
@@ -120,6 +162,37 @@ export default function EnhancedDisputesTable({
         router.refresh();
       } else {
         alert("Failed to resolve dispute");
+      }
+    });
+  };
+
+  const handleResolveWithSettlement = async () => {
+    if (!selectedDispute) return;
+
+    if (!resolutionText.trim()) {
+      alert("Please provide resolution notes before applying settlement.");
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await resolveDisputeWithSettlement({
+        disputeId: selectedDispute.id,
+        resolution: resolutionText.trim(),
+        settlement: settlementDecision,
+        clientSharePercent:
+          settlementDecision === "SPLIT_ESCROW"
+            ? clientSharePercent
+            : undefined,
+      });
+
+      if (result.success) {
+        setSelectedDispute(null);
+        setResolutionText("");
+        setSettlementDecision("REFUND_CLIENT");
+        setClientSharePercent(DEFAULT_CLIENT_SPLIT_PERCENT);
+        router.refresh();
+      } else {
+        alert(result.error || "Failed to resolve dispute settlement");
       }
     });
   };
@@ -141,7 +214,7 @@ export default function EnhancedDisputesTable({
     const StatusIcon = statusConfig.icon;
     const daysSinceCreated = Math.floor(
       (new Date().getTime() - new Date(dispute.createdAt).getTime()) /
-        (1000 * 60 * 60 * 24)
+        (1000 * 60 * 60 * 24),
     );
 
     return (
@@ -176,7 +249,7 @@ export default function EnhancedDisputesTable({
             </div>
           </div>
           <span
-            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${statusConfig.bg} ${statusConfig.text} border ${statusConfig.border} flex-shrink-0`}
+            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${statusConfig.bg} ${statusConfig.text} border ${statusConfig.border} shrink-0`}
           >
             <StatusIcon className="w-3 h-3" />
             {dispute.status}
@@ -256,7 +329,7 @@ export default function EnhancedDisputesTable({
     <>
       <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm sm:shadow-lg border border-slate-100 sm:border-slate-100 overflow-hidden">
         {/* Table Header */}
-        <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-red-50/30">
+        <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-linear-to-r from-slate-50 to-red-50/30">
           <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 xs:gap-0">
             <div className="flex items-center gap-2">
               <h2 className="text-base xs:text-lg font-bold text-slate-900">
@@ -268,7 +341,7 @@ export default function EnhancedDisputesTable({
             </div>
             <button
               onClick={handleExport}
-              className="flex items-center gap-1.5 px-3 py-1.5 xs:px-4 xs:py-2 bg-white border border-slate-200 rounded-lg text-xs xs:text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all flex-shrink-0 self-start xs:self-auto"
+              className="flex items-center gap-1.5 px-3 py-1.5 xs:px-4 xs:py-2 bg-white border border-slate-200 rounded-lg text-xs xs:text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shrink-0 self-start xs:self-auto"
             >
               <Download className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
               <span className="hidden xs:inline">Export</span>
@@ -333,7 +406,7 @@ export default function EnhancedDisputesTable({
                 const daysSinceCreated = Math.floor(
                   (new Date().getTime() -
                     new Date(dispute.createdAt).getTime()) /
-                    (1000 * 60 * 60 * 24)
+                    (1000 * 60 * 60 * 24),
                 );
 
                 return (
@@ -348,7 +421,7 @@ export default function EnhancedDisputesTable({
                     {/* Dispute Info */}
                     <td className="px-4 xl:px-6 py-3">
                       <div className="flex items-start gap-3">
-                        <div className="p-2 bg-red-100 rounded-lg group-hover:bg-red-200 transition-colors flex-shrink-0">
+                        <div className="p-2 bg-red-100 rounded-lg group-hover:bg-red-200 transition-colors shrink-0">
                           <Scale className="w-4 h-4 text-red-700" />
                         </div>
                         <div className="min-w-0">
@@ -392,7 +465,7 @@ export default function EnhancedDisputesTable({
                     <td className="px-4 xl:px-6 py-3">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-rose-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                          <div className="w-8 h-8 bg-linear-to-br from-red-500 to-rose-500 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0">
                             {(dispute.creator.name || "C")[0].toUpperCase()}
                           </div>
                           <div className="min-w-0">
@@ -405,7 +478,7 @@ export default function EnhancedDisputesTable({
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-gradient-to-br from-slate-400 to-slate-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                          <div className="w-8 h-8 bg-linear-to-br from-slate-400 to-slate-500 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0">
                             {(dispute.defendant.name || "D")[0].toUpperCase()}
                           </div>
                           <div className="min-w-0">
@@ -475,7 +548,7 @@ export default function EnhancedDisputesTable({
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-gradient-to-r from-slate-50 to-red-50/30">
+          <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-linear-to-r from-slate-50 to-red-50/30">
             <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-0">
               <p className="text-xs xs:text-sm text-slate-600 text-center xs:text-left">
                 Showing{" "}
@@ -560,7 +633,7 @@ export default function EnhancedDisputesTable({
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="sticky top-0 bg-gradient-to-r from-red-600 to-rose-600 text-white p-4 sm:p-6 rounded-t-xl sm:rounded-t-2xl">
+              <div className="sticky top-0 bg-linear-to-r from-red-600 to-rose-600 text-white p-4 sm:p-6 rounded-t-xl sm:rounded-t-2xl">
                 <div className="flex items-start justify-between">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -575,7 +648,7 @@ export default function EnhancedDisputesTable({
                   </div>
                   <button
                     onClick={() => setSelectedDispute(null)}
-                    className="p-1 sm:p-2 hover:bg-white/20 rounded-lg transition-colors flex-shrink-0 ml-2"
+                    className="p-1 sm:p-2 hover:bg-white/20 rounded-lg transition-colors shrink-0 ml-2"
                   >
                     <XCircle className="w-5 h-5" />
                   </button>
@@ -592,7 +665,7 @@ export default function EnhancedDisputesTable({
                       Complainant
                     </p>
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-red-500 to-rose-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-red-500 to-rose-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
                         {(selectedDispute.creator.name || "C")[0].toUpperCase()}
                       </div>
                       <div className="min-w-0">
@@ -615,7 +688,7 @@ export default function EnhancedDisputesTable({
                       Defendant
                     </p>
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-slate-400 to-slate-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-slate-400 to-slate-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
                         {(selectedDispute.defendant.name ||
                           "D")[0].toUpperCase()}
                       </div>
@@ -657,7 +730,7 @@ export default function EnhancedDisputesTable({
                       <p className="font-semibold text-emerald-700 text-sm sm:text-base">
                         KES{" "}
                         {Number(
-                          selectedDispute.booking.totalAmount
+                          selectedDispute.booking.totalAmount,
                         ).toLocaleString()}
                       </p>
                     </div>
@@ -709,18 +782,124 @@ export default function EnhancedDisputesTable({
                   <textarea
                     value={resolutionText}
                     onChange={(e) => setResolutionText(e.target.value)}
-                    className="w-full p-3 sm:p-4 border border-slate-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none min-h-[100px] text-sm"
+                    className="w-full p-3 sm:p-4 border border-slate-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none min-h-25 text-sm"
                     placeholder="Enter resolution details and any admin notes..."
                     disabled={selectedDispute.status !== "OPEN"}
                   />
                 </div>
+
+                {selectedDispute.status === "OPEN" && (
+                  <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4">
+                    <p className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                      Settlement Decision
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSettlementDecision("REFUND_CLIENT")}
+                        className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+                          settlementDecision === "REFUND_CLIENT"
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        Refund Client
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSettlementDecision("RELEASE_PROVIDER")
+                        }
+                        className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+                          settlementDecision === "RELEASE_PROVIDER"
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        Release Provider
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSettlementDecision("SPLIT_ESCROW")}
+                        className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+                          settlementDecision === "SPLIT_ESCROW"
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        Split Escrow
+                      </button>
+                    </div>
+
+                    {settlementDecision === "SPLIT_ESCROW" && (
+                      <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
+                        <div className="flex items-center justify-between text-xs text-slate-600">
+                          <span>Client Share</span>
+                          <span className="font-semibold text-slate-900">
+                            {clientSharePercent}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={5}
+                          value={clientSharePercent}
+                          onChange={(event) =>
+                            setClientSharePercent(Number(event.target.value))
+                          }
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+
+                    {(() => {
+                      const preview = computeSettlementPreview(
+                        Number(selectedDispute.booking.totalAmount),
+                      );
+                      const paymentStatusLabel =
+                        preview.clientAmount ===
+                        Number(selectedDispute.booking.totalAmount)
+                          ? "Payment status will be REFUNDED"
+                          : "Payment status will remain COMPLETED";
+                      const bookingStatusLabel =
+                        preview.clientAmount ===
+                        Number(selectedDispute.booking.totalAmount)
+                          ? "Booking status will become CANCELLED"
+                          : "Booking status will become COMPLETED";
+
+                      return (
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-1.5 text-xs">
+                          <p className="font-semibold text-emerald-800 uppercase tracking-wide">
+                            Settlement Preview
+                          </p>
+                          <p className="text-slate-700">
+                            Client wallet credit:{" "}
+                            <strong>
+                              KES {preview.clientAmount.toLocaleString()}
+                            </strong>
+                          </p>
+                          <p className="text-slate-700">
+                            Provider wallet release:{" "}
+                            <strong>
+                              KES {preview.providerAmount.toLocaleString()}
+                            </strong>
+                          </p>
+                          <p className="text-slate-600">{paymentStatusLabel}</p>
+                          <p className="text-slate-600">{bookingStatusLabel}</p>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
 
                 {/* Status & Actions */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t border-slate-200">
                   <div>
                     {(() => {
                       const statusConfig = getStatusConfig(
-                        selectedDispute.status
+                        selectedDispute.status,
                       );
                       const StatusIcon = statusConfig.icon;
                       return (
@@ -751,11 +930,13 @@ export default function EnhancedDisputesTable({
                           Close Without Resolution
                         </button>
                         <button
-                          onClick={() => handleResolve("RESOLVED")}
+                          onClick={handleResolveWithSettlement}
                           disabled={isPending || !resolutionText.trim()}
-                          className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:shadow-lg hover:shadow-emerald-500/30 rounded-lg text-sm font-bold transition-all disabled:opacity-50 order-1 xs:order-3"
+                          className="px-4 py-2.5 bg-linear-to-r from-emerald-600 to-teal-600 text-white hover:shadow-lg hover:shadow-emerald-500/30 rounded-lg text-sm font-bold transition-all disabled:opacity-50 order-1 xs:order-3"
                         >
-                          {isPending ? "Resolving..." : "Mark as Resolved"}
+                          {isPending
+                            ? "Applying..."
+                            : "Apply Settlement & Resolve"}
                         </button>
                       </>
                     )}

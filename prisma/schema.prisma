@@ -65,6 +65,7 @@ model User {
   proposals                     Proposal[]
   bookings                      Booking[]                  @relation("ClientBookings")
   providerBookings              Booking[]                  @relation("ProviderBookings")
+  assignedDisputes              Dispute[]                  @relation("AssignedDisputes")
   reviews                       Review[]                   @relation("WrittenReviews")
   receivedReviews               Review[]                   @relation("ReceivedReviews")
   sentMessages                  Message[]                  @relation("SentMessages")
@@ -108,10 +109,13 @@ model User {
   churnInterventions ChurnIntervention[]
   loyalty            UserLoyalty?
   taxSettings        TaxSettings?
+  verificationAudits VerificationAudit[]
 
   // TaaS Premium Verification
   verificationBadges VerificationBadge[]
   trustScore         TrustScore?
+  identityVerificationRequests         IdentityVerificationRequest[] @relation("IdentityVerificationSubject")
+  reviewedIdentityVerificationRequests IdentityVerificationRequest[] @relation("IdentityVerificationReviewer")
 
   // Solar & Green Tech Verticals
   verticalCertifications VerticalCertification[]
@@ -893,20 +897,41 @@ enum DisputeStatus {
   CLOSED
 }
 
-model Dispute {
-  id          String        @id @default(cuid())
-  bookingId   String        @unique
-  creatorId   String
-  defendantId String
-  reason      String        @db.Text
-  status      DisputeStatus @default(OPEN)
-  resolution  String?       @db.Text
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+enum DisputeResolutionType {
+  REFUND_CLIENT
+  RELEASE_PROVIDER
+  SPLIT_ESCROW
+  PARTIAL_REFUND
+  OTHER
+}
 
-  booking   Booking @relation(fields: [bookingId], references: [id])
-  creator   User    @relation("CreatedDisputes", fields: [creatorId], references: [id])
-  defendant User    @relation("DisputesAgainst", fields: [defendantId], references: [id])
+model Dispute {
+  id                  String                 @id @default(cuid())
+  bookingId           String                 @unique
+  creatorId           String
+  defendantId         String
+  assignedAdminId     String?
+  reason              String                 @db.Text
+  category            String?
+  requestedResolution String?                @db.Text
+  evidenceUrls        String[]               @default([])
+  status              DisputeStatus          @default(OPEN)
+  resolutionType      DisputeResolutionType?
+  resolution          String?                @db.Text
+  refundPreview       Json?
+  internalNotes       String?                @db.Text
+  resolvedAt          DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  booking       Booking @relation(fields: [bookingId], references: [id])
+  creator       User    @relation("CreatedDisputes", fields: [creatorId], references: [id])
+  defendant     User    @relation("DisputesAgainst", fields: [defendantId], references: [id])
+  assignedAdmin User?   @relation("AssignedDisputes", fields: [assignedAdminId], references: [id])
+
+  @@index([status])
+  @@index([assignedAdminId])
+  @@index([createdAt])
 }
 
 // Support Tickets
@@ -1731,9 +1756,44 @@ model VerificationAudit {
 
   createdAt DateTime @default(now())
 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+}
+
+enum IdentityVerificationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+model IdentityVerificationRequest {
+  id                String                     @id @default(cuid())
+  userId            String
+  reviewedById      String?
+  status            IdentityVerificationStatus @default(SUBMITTED)
+  idDocumentUrl     String
+  selfieUrl         String?
+  faceMatchScore    Float?
+  idDocumentType    String?
+  extractedMetadata Json?
+  submissionNotes   String?                    @db.Text
+  reviewNotes       String?                    @db.Text
+  submittedAt       DateTime                   @default(now())
+  reviewedAt        DateTime?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+
+  user       User  @relation("IdentityVerificationSubject", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("IdentityVerificationReviewer", fields: [reviewedById], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([submittedAt])
 }
 
 // ==========================================

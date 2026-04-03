@@ -89,12 +89,13 @@ interface Proposal {
     image: string | null;
     avgRating: number;
     reviewCount: number;
+    isVerified?: boolean;
     profile: {
       bio: string | null;
       location: string | null;
       hourlyRate: number | null;
       skills: string[];
-      isVerified: boolean;
+      verificationStatus?: string | null;
       certifications?: Array<{ name?: string; issuer?: string; date?: string }>;
       portfolio?: string[];
       socialLinks?: Array<{ platform?: string; url?: string }>;
@@ -144,7 +145,7 @@ function evaluateProposal(proposal: Proposal) {
     100,
     (proposal.provider.reviewCount > 0 ? 35 : 0) +
       proposal.provider.avgRating * 10 +
-      (proposal.provider.profile?.isVerified ? 15 : 0) +
+      (proposal.provider.isVerified ? 15 : 0) +
       Math.min((proposal.provider.profile?.skills?.length || 0) * 3, 20),
   );
 
@@ -1041,7 +1042,7 @@ export default function ClientProposalsPage() {
                                   </div>
                                 )}
                               </div>
-                              {proposal.provider.profile?.isVerified && (
+                              {proposal.provider.isVerified && (
                                 <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-emerald-500 rounded-full flex items-center justify-center ring-1 sm:ring-2 ring-white">
                                   <CheckCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
                                 </div>

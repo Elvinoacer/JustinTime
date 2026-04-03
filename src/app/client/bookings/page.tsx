@@ -2,6 +2,7 @@
 import { cancelBooking } from "@/app/actions/cancellation";
 import DisputeModal from "@/components/bookings/DisputeModal";
 import { Modal } from "@/components/Modal";
+import InsuranceClaimModal from "@/components/bookings/InsuranceClaimModal";
 import apiClient from "@/lib/api/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
@@ -47,6 +48,14 @@ interface Booking {
   invoice?: {
     id: string;
   };
+  insuranceClaim?: {
+    id: string;
+    status: string;
+    amount: number;
+    approvedAmount?: number | null;
+    adminNotes?: string | null;
+    createdAt?: string;
+  } | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -83,6 +92,8 @@ export default function ClientBookingsPage() {
   const [cancellationError, setCancellationError] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
+  const [isInsuranceClaimModalOpen, setIsInsuranceClaimModalOpen] =
+    useState(false);
 
   const getErrorMessage = (error: any, fallback: string) => {
     const zodErrors = error?.response?.data?.error;
@@ -102,7 +113,16 @@ export default function ClientBookingsPage() {
     status === "PENDING" || status === "CONFIRMED";
 
   const canDisputeBooking = (status: string) =>
-    ["CONFIRMED", "IN_PROGRESS"].includes(status);
+    [
+      "CONFIRMED",
+      "IN_PROGRESS",
+      "AWAITING_CLIENT_CONFIRMATION",
+      "COMPLETED",
+      "CANCELLED",
+    ].includes(status);
+
+  const canManageInsuranceClaim = (booking: Booking) =>
+    Number(booking.insuranceFee || 0) > 0;
 
   const handleInitiateCancel = (booking: Booking) => {
     setSelectedBooking(booking);
@@ -116,6 +136,12 @@ export default function ClientBookingsPage() {
     setSelectedBooking(booking);
     setIsViewModalOpen(false);
     setIsDisputeModalOpen(true);
+  };
+
+  const handleOpenInsuranceClaim = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setIsViewModalOpen(false);
+    setIsInsuranceClaimModalOpen(true);
   };
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -585,6 +611,22 @@ export default function ClientBookingsPage() {
                           </button>
                         )}
 
+                        {canManageInsuranceClaim(booking) && (
+                          <button
+                            onClick={() => handleOpenInsuranceClaim(booking)}
+                            className="flex-1 xs:flex-none px-3 py-2 md:px-4 md:py-2 bg-white border border-emerald-300 text-emerald-700 rounded-lg font-medium hover:bg-emerald-50 transition-colors flex items-center justify-center gap-1.5 text-sm md:text-base touch-manipulation"
+                          >
+                            <span className="material-symbols-outlined text-sm md:text-base">
+                              verified_user
+                            </span>
+                            <span>
+                              {booking.insuranceClaim
+                                ? `Claim: ${booking.insuranceClaim.status}`
+                                : "Insurance Claim"}
+                            </span>
+                          </button>
+                        )}
+
                         {(booking.status === "CANCELLED" ||
                           booking.status === "COMPLETED") && (
                           <button
@@ -653,6 +695,12 @@ export default function ClientBookingsPage() {
               <div className="rounded-lg border border-orange-300 bg-orange-50 px-4 py-3 text-sm text-orange-900">
                 This booking is currently disputed. Funds remain frozen while
                 admin support reviews the case.
+              </div>
+            )}
+
+            {selectedBooking.insuranceClaim && (
+              <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                Insurance claim status: {selectedBooking.insuranceClaim.status}
               </div>
             )}
 
@@ -844,6 +892,17 @@ export default function ClientBookingsPage() {
                 </button>
               )}
 
+              {canManageInsuranceClaim(selectedBooking) && (
+                <button
+                  onClick={() => handleOpenInsuranceClaim(selectedBooking)}
+                  className="px-4 py-2 md:px-6 md:py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-medium transition-colors text-sm md:text-base touch-manipulation"
+                >
+                  {selectedBooking.insuranceClaim
+                    ? `Claim: ${selectedBooking.insuranceClaim.status}`
+                    : "File Insurance Claim"}
+                </button>
+              )}
+
               {selectedBooking.invoice && (
                 <a
                   href={`/bookings/${selectedBooking.id}/invoice`}
@@ -974,6 +1033,39 @@ export default function ClientBookingsPage() {
         }}
         isSubmitting={disputeBookingMutation.isPending}
         title="File Booking Dispute"
+      />
+
+      <InsuranceClaimModal
+        isOpen={isInsuranceClaimModalOpen}
+        onClose={() => setIsInsuranceClaimModalOpen(false)}
+        booking={
+          selectedBooking
+            ? {
+                id: selectedBooking.id,
+                totalAmount: Number(selectedBooking.totalAmount || 0),
+                providerName: selectedBooking.provider.name,
+                title:
+                  selectedBooking.job?.title ||
+                  selectedBooking.service?.title ||
+                  "Service Booking",
+              }
+            : null
+        }
+        existingClaim={
+          selectedBooking?.insuranceClaim
+            ? {
+                id: selectedBooking.insuranceClaim.id,
+                status: selectedBooking.insuranceClaim.status,
+                amount: Number(selectedBooking.insuranceClaim.amount || 0),
+                approvedAmount: selectedBooking.insuranceClaim.approvedAmount,
+                adminNotes: selectedBooking.insuranceClaim.adminNotes,
+                createdAt: selectedBooking.insuranceClaim.createdAt,
+              }
+            : null
+        }
+        onSubmitted={() => {
+          queryClient.invalidateQueries({ queryKey: ["client-bookings"] });
+        }}
       />
 
       {/* Delete Confirmation Modal */}

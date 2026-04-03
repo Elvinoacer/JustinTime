@@ -3,6 +3,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import type { ProfessionalListItem } from "@/lib/api/contracts/public-listings";
+import { isPubliclyVerified } from "@/lib/trust/publicTrust";
 
 const MAX_PROVIDERS_RANK = 4000;
 const IMAGE_FILE_PATTERN =
@@ -72,10 +73,6 @@ export async function GET(request: NextRequest) {
     const conditions: Prisma.UserWhereInput[] = [{ role: "PROVIDER" }];
 
     const profileFilters: Prisma.ProfileWhereInput = {};
-    if (verifiedOnly) {
-      profileFilters.verificationStatus = "VERIFIED";
-      profileFilters.isVerified = true;
-    }
     if (minPrice !== undefined || maxPrice !== undefined) {
       profileFilters.hourlyRate = {};
       if (minPrice !== undefined) profileFilters.hourlyRate.gte = minPrice;
@@ -83,6 +80,15 @@ export async function GET(request: NextRequest) {
     }
     if (Object.keys(profileFilters).length > 0) {
       conditions.push({ profile: profileFilters });
+    }
+
+    if (verifiedOnly) {
+      conditions.push({
+        OR: [
+          { profile: { verificationStatus: "VERIFIED" } },
+          { trustScore: { tier: { in: ["VERIFIED", "PREMIUM", "ELITE"] } } },
+        ],
+      });
     }
 
     let skillIds: string[] = [];
@@ -146,6 +152,12 @@ export async function GET(request: NextRequest) {
         subscription: {
           select: { plan: true, isActive: true },
         },
+        trustScore: {
+          select: {
+            tier: true,
+            overallScore: true,
+          },
+        },
         _count: {
           select: {
             providerBookings: { where: { status: "COMPLETED" } },
@@ -185,6 +197,11 @@ export async function GET(request: NextRequest) {
     let formattedProviders: ProfessionalListItem[] = providers.map(
       (provider) => {
         const p = provider.profile;
+        const verified = isPubliclyVerified({
+          verificationStatus: p?.verificationStatus,
+          trustTier: provider.trustScore?.tier,
+          overallScore: provider.trustScore?.overallScore,
+        });
         const skills = Array.isArray(p?.skills)
           ? p!.skills.map((skillId) => categoryMap.get(skillId) || skillId)
           : [];
@@ -196,7 +213,7 @@ export async function GET(request: NextRequest) {
           Boolean(provider.subscription?.isActive);
         const visibilityBoostScore =
           (hasPaidOrWaivedAccess ? 35 : 0) +
-          (p?.isVerified || p?.verificationStatus === "VERIFIED" ? 20 : 0) +
+          (verified ? 20 : 0) +
           (isSubscriptionPremium ? 15 : 0) +
           Math.min(provider._count?.providerBookings || 0, 30) * 0.5 +
           Math.min(provider._count?.receivedReviews || 0, 20) * 0.5;
@@ -258,7 +275,7 @@ export async function GET(request: NextRequest) {
           reviews: provider._count?.receivedReviews || 0,
           completedJobs: provider._count?.providerBookings || 0,
           memberSince: provider.createdAt.toISOString(),
-          verified: p?.isVerified || false,
+          verified,
           verificationAccessGranted: hasPaidOrWaivedAccess,
           visibilityBoostScore,
           subscription: {

@@ -15,6 +15,7 @@ import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import { growthFeatureFlags } from "@/lib/growth/featureFlags";
 import { hasRole } from "@/lib/auth/roles";
 import type { JobListClient } from "@/lib/api/contracts/public-listings";
+import { isPubliclyVerified } from "@/lib/trust/publicTrust";
 
 // Haversine formula to calculate distance between two coordinates in kilometers
 function calculateDistance(
@@ -102,14 +103,20 @@ function serializeJobForList(
         isVerified: boolean;
         verificationStatus: string | null;
       } | null;
+      trustScore: {
+        tier: string;
+        overallScore: number;
+      } | null;
     };
     _count: { proposals: number };
   },
   distanceKm: number | null,
 ): JobListClient {
-  const prof = job.client.profile;
-  const isVerified =
-    Boolean(prof?.isVerified) || prof?.verificationStatus === "VERIFIED";
+  const isVerified = isPubliclyVerified({
+    verificationStatus: job.client.profile?.verificationStatus,
+    trustTier: job.client.trustScore?.tier,
+    overallScore: job.client.trustScore?.overallScore,
+  });
 
   let budget: number | null = null;
   if (job.budget != null) {
@@ -207,10 +214,20 @@ export async function GET(request: Request) {
     // Verified clients only filter
     if (searchParams.get("verifiedOnly") === "true") {
       where.client = {
-        profile: {
-          verificationStatus: "VERIFIED",
-          isVerified: true,
-        },
+        OR: [
+          {
+            profile: {
+              verificationStatus: "VERIFIED",
+            },
+          },
+          {
+            trustScore: {
+              tier: {
+                in: ["VERIFIED", "PREMIUM", "ELITE"],
+              },
+            },
+          },
+        ],
       };
     }
 
@@ -243,7 +260,13 @@ export async function GET(request: Request) {
               name: true,
               image: true,
               profile: {
-                select: { isVerified: true, verificationStatus: true },
+                select: { verificationStatus: true },
+              },
+              trustScore: {
+                select: {
+                  tier: true,
+                  overallScore: true,
+                },
               },
             },
           },

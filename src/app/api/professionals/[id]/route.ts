@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
+import { isPubliclyVerified } from "@/lib/trust/publicTrust";
 
 export async function GET(
   request: NextRequest,
@@ -36,6 +37,12 @@ export async function GET(
           select: {
             plan: true,
             isActive: true,
+          },
+        },
+        trustScore: {
+          select: {
+            tier: true,
+            overallScore: true,
           },
         },
       },
@@ -87,6 +94,12 @@ export async function GET(
 
     const totalReviews = distribution.reduce((sum, d) => sum + d.count, 0);
 
+    const isVerified = isPubliclyVerified({
+      verificationStatus: provider.profile?.verificationStatus,
+      trustTier: provider.trustScore?.tier,
+      overallScore: provider.trustScore?.overallScore,
+    });
+
     // Fetch all categories for skill mapping
     const categories = await prisma.category.findMany({
       select: { id: true, name: true }
@@ -107,7 +120,7 @@ export async function GET(
       bio: provider.profile?.bio,
       skills: (provider.profile?.skills || []).map(skillId => categoryMap.get(skillId) || skillId),
       hourlyRate: provider.profile?.hourlyRate || 0,
-      isVerified: provider.profile?.isVerified || false,
+      isVerified,
       certifications: provider.profile?.certifications || [],
       education: provider.profile?.education || [],
       socialLinks: provider.profile?.socialLinks || [],

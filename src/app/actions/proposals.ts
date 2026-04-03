@@ -7,6 +7,7 @@ import {
   applyProposalDecision,
   PROPOSAL_DECISION_ERRORS,
 } from "@/lib/proposals/decisionFlow";
+import { isPubliclyVerified } from "@/lib/trust/publicTrust";
 
 type ClientProposalsWhere = {
   job: { clientId: string };
@@ -53,10 +54,16 @@ export async function getClientProposals(jobId?: string) {
                 location: true,
                 hourlyRate: true,
                 skills: true,
-                isVerified: true,
+                verificationStatus: true,
                 certifications: true,
                 portfolio: true,
                 socialLinks: true,
+              },
+            },
+            trustScore: {
+              select: {
+                tier: true,
+                overallScore: true,
               },
             },
             receivedReviews: {
@@ -101,8 +108,13 @@ export async function getClientProposals(jobId?: string) {
           select: {
             profile: {
               select: {
-                isVerified: true,
                 verificationStatus: true,
+              },
+            },
+            trustScore: {
+              select: {
+                tier: true,
+                overallScore: true,
               },
             },
           },
@@ -140,8 +152,12 @@ export async function getClientProposals(jobId?: string) {
     if (acceptedHistory.length > 0) {
       const verifiedAcceptedCount = acceptedHistory.filter(
         (acceptedProposal) =>
-          Boolean(acceptedProposal.provider.profile?.isVerified) ||
-          acceptedProposal.provider.profile?.verificationStatus === "VERIFIED",
+          isPubliclyVerified({
+            verificationStatus:
+              acceptedProposal.provider.profile?.verificationStatus,
+            trustTier: acceptedProposal.provider.trustScore?.tier,
+            overallScore: acceptedProposal.provider.trustScore?.overallScore,
+          }),
       ).length;
 
       clientHiringProfile.verifiedPreferenceRate =
@@ -289,8 +305,11 @@ export async function getClientProposals(jobId?: string) {
           : "UNKNOWN";
 
       const clientFitHints: string[] = [];
-      const providerIsVerified =
-        Boolean(proposal.provider.profile?.isVerified) || false;
+      const providerIsVerified = isPubliclyVerified({
+        verificationStatus: proposal.provider.profile?.verificationStatus,
+        trustTier: proposal.provider.trustScore?.tier,
+        overallScore: proposal.provider.trustScore?.overallScore,
+      });
       if (
         clientHiringProfile.hasEnoughHistory &&
         clientHiringProfile.avgAcceptedPrice !== null
@@ -348,6 +367,7 @@ export async function getClientProposals(jobId?: string) {
         clientFitHints,
         provider: {
           ...proposal.provider,
+          isVerified: providerIsVerified,
           avgRating: Number(avgRating.toFixed(1)),
           reviewCount: reviews.length,
           metrics: {

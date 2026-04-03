@@ -42,6 +42,15 @@ export default function ReviewSubmissionPage({
   const [booking, setBooking] = useState<Booking | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [idempotencyKey] = useState(() => {
+    if (
+      typeof crypto !== "undefined" &&
+      typeof crypto.randomUUID === "function"
+    ) {
+      return crypto.randomUUID();
+    }
+    return `review-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  });
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [comment, setComment] = useState("");
@@ -104,6 +113,7 @@ export default function ReviewSubmissionPage({
           bookingId,
           rating,
           comment,
+          idempotencyKey,
         }),
       });
 
@@ -111,8 +121,8 @@ export default function ReviewSubmissionPage({
         toast.success("Review submitted successfully!");
         router.push("/client/bookings");
       } else {
-        const data = await response.json();
-        toast.error(data.message || "Failed to submit review");
+        const data = await response.json().catch(() => null);
+        toast.error(data?.message || data?.error || "Failed to submit review");
       }
     } catch (error) {
       console.error("Error submitting review:", error);

@@ -307,14 +307,9 @@ function OnboardingPageContent() {
       }
 
       // Upload Selfie (also used as avatar)
-      if (result.croppedSelfieBlob || result.selfieFile) {
+      if (result.selfieFile) {
         setSubmitStage("Uploading profile photo...");
-        const fileToUpload = result.croppedSelfieBlob
-          ? new File([result.croppedSelfieBlob], "avatar.jpg", {
-              type: "image/jpeg",
-            })
-          : result.selfieFile;
-        selfieUrl = await uploadFile(fileToUpload!, "avatars");
+        selfieUrl = await uploadFile(result.selfieFile, "avatars");
       }
 
       const payload = {

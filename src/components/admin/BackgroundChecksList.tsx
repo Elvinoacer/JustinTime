@@ -1,29 +1,46 @@
 "use client";
 import { BackgroundCheck, User, Profile } from "@/generated/prisma/client";
 import { formatDate } from "@/lib/utils";
-import { CheckCircle2, XCircle, FileText, User as UserIcon, Calendar, ExternalLink } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  FileText,
+  User as UserIcon,
+  Calendar,
+  ExternalLink,
+} from "lucide-react";
 import { useState, useTransition } from "react";
-import { approveBackgroundCheck, rejectBackgroundCheck } from "@/app/actions/verification";
+import {
+  approveBackgroundCheck,
+  rejectBackgroundCheck,
+} from "@/app/actions/verification";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-type BackgroundCheckWithProvider = BackgroundCheck & {
-  provider: User & {
+type BackgroundCheckWithUser = BackgroundCheck & {
+  user: User & {
     profile: Profile | null;
   };
 };
 
 interface BackgroundChecksListProps {
-  checks: BackgroundCheckWithProvider[];
+  checks: BackgroundCheckWithUser[];
 }
 
-export default function BackgroundChecksList({ checks }: BackgroundChecksListProps) {
+export default function BackgroundChecksList({
+  checks,
+}: BackgroundChecksListProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const handleAction = (checkId: string, action: "APPROVE" | "REJECT") => {
-    if (!confirm(`Are you sure you want to ${action.toLowerCase()} this background check?`)) return;
+    if (
+      !confirm(
+        `Are you sure you want to ${action.toLowerCase()} this background check?`,
+      )
+    )
+      return;
 
     setProcessingId(checkId);
     startTransition(async () => {
@@ -33,11 +50,18 @@ export default function BackgroundChecksList({ checks }: BackgroundChecksListPro
       } else {
         const reason = prompt("Enter rejection reason (optional):");
         if (reason === null) return; // Cancelled
-        result = await rejectBackgroundCheck(checkId, reason || "No reason provided");
+        result = await rejectBackgroundCheck(
+          checkId,
+          reason || "No reason provided",
+        );
       }
 
       if (result.success) {
-        toast.success(`Background check ${action.toLowerCase()}ed`);
+        toast.success(
+          action === "APPROVE"
+            ? "Background check approved"
+            : "Background check rejected",
+        );
         router.refresh();
       } else {
         toast.error(`Failed to ${action.toLowerCase()} check`);
@@ -50,8 +74,12 @@ export default function BackgroundChecksList({ checks }: BackgroundChecksListPro
     return (
       <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
         <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-slate-900">No Background Checks Found</h3>
-        <p className="text-slate-500 text-sm">There are no pending background checks to review.</p>
+        <h3 className="text-lg font-semibold text-slate-900">
+          No Background Checks Found
+        </h3>
+        <p className="text-slate-500 text-sm">
+          There are no pending background checks to review.
+        </p>
       </div>
     );
   }
@@ -59,52 +87,78 @@ export default function BackgroundChecksList({ checks }: BackgroundChecksListPro
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {checks.map((check) => (
-        <div key={check.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+        <div
+          key={check.id}
+          className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col"
+        >
           <div className="p-4 border-b border-slate-100 flex justify-between items-start">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
-                {check.provider.image ? (
-                  <img src={check.provider.image} alt={check.provider.name || ''} className="w-10 h-10 rounded-full object-cover" />
+                {check.user.image ? (
+                  <img
+                    src={check.user.image}
+                    alt={check.user.name || ""}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
                 ) : (
                   <UserIcon className="w-5 h-5 text-slate-500" />
                 )}
               </div>
               <div>
-                <h4 className="font-semibold text-slate-900">{check.provider.name || 'Unknown Provider'}</h4>
-                <p className="text-xs text-slate-500">{check.provider.email}</p>
+                <h4 className="font-semibold text-slate-900">
+                  {check.user.name || "Unknown Provider"}
+                </h4>
+                <p className="text-xs text-slate-500">{check.user.email}</p>
               </div>
             </div>
-            <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-              check.status === 'SUBMITTED' ? 'bg-amber-100 text-amber-700' :
-              check.status === 'CLEARED' ? 'bg-emerald-100 text-emerald-700' :
-              'bg-red-100 text-red-700'
-            }`}>
+            <span
+              className={`px-2 py-1 rounded-full text-xs font-bold ${
+                check.status === "PENDING"
+                  ? "bg-amber-100 text-amber-700"
+                  : check.status === "APPROVED"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-red-100 text-red-700"
+              }`}
+            >
               {check.status}
             </span>
           </div>
-          
+
           <div className="p-4 flex-1 space-y-4">
             <div className="text-sm">
-                <span className="text-slate-500 block mb-1">Document:</span>
-                <a 
-                    href={check.dciCertificateUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-blue-600 hover:underline font-medium p-2 bg-blue-50 rounded-lg"
+              <span className="text-slate-500 block mb-1">Document:</span>
+              {check.documents?.[0] ? (
+                <a
+                  href={check.documents[0]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-blue-600 hover:underline font-medium p-2 bg-blue-50 rounded-lg"
                 >
-                    <FileText className="w-4 h-4" />
-                    View Certificate
-                    <ExternalLink className="w-3 h-3 ml-auto" />
+                  <FileText className="w-4 h-4" />
+                  View Certificate
+                  <ExternalLink className="w-3 h-3 ml-auto" />
                 </a>
+              ) : (
+                <p className="text-xs text-slate-500 p-2 bg-slate-50 rounded-lg">
+                  No document URL attached
+                </p>
+              )}
             </div>
 
             <div className="flex items-center gap-2 text-xs text-slate-400">
-                <Calendar className="w-3 h-3" />
-                Submitted: {formatDate(check.submittedAt)}
+              <Calendar className="w-3 h-3" />
+              Submitted: {formatDate(check.createdAt)}
             </div>
+
+            {check.expiresAt ? (
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <Calendar className="w-3 h-3" />
+                Expires: {formatDate(check.expiresAt)}
+              </div>
+            ) : null}
           </div>
 
-          {check.status === 'SUBMITTED' && (
+          {check.status === "PENDING" && (
             <div className="p-3 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-2">
               <button
                 onClick={() => handleAction(check.id, "APPROVE")}

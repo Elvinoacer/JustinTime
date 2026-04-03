@@ -4,19 +4,20 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { BadgeType } from "@/generated/prisma/client";
-import { 
-  requestBadge, 
-  approveBadge, 
-  revokeBadge, 
+import { hasRole } from "@/lib/auth/roles";
+import {
+  requestBadge,
+  approveBadge,
+  revokeBadge,
   getUserBadges,
   getVerifiedBadges,
   checkAutomaticBadges,
-  getExpiringBadges
+  getExpiringBadges,
 } from "@/lib/taas/badge-manager";
-import { 
-  getTrustScore, 
+import {
+  getTrustScore,
   updateTrustScore,
-  TrustScoreBreakdown
+  TrustScoreBreakdown,
 } from "@/lib/taas/trust-score-calculator";
 
 // ============ USER ACTIONS ============
@@ -31,9 +32,16 @@ export async function getMyVerificationStatus() {
   }
 
   try {
-    const [badges, trustScore] = await Promise.all([
+    const [badges, trustScore, profile] = await Promise.all([
       getUserBadges(session.user.id),
-      getTrustScore(session.user.id)
+      getTrustScore(session.user.id),
+      prisma.profile.findUnique({
+        where: { userId: session.user.id },
+        select: {
+          premiumPricingEnabled: true,
+          premiumMultiplier: true,
+        },
+      }),
     ]);
 
     return {
@@ -41,10 +49,15 @@ export async function getMyVerificationStatus() {
       badges,
       trustScore,
       isGovernmentVerified: badges.some(
-        b => b.status === 'VERIFIED' && 
-        ['KRA_VERIFIED', 'GOOD_CONDUCT', 'IDENTITY_VERIFIED'].includes(b.type)
+        (b) =>
+          b.status === "VERIFIED" &&
+          ["KRA_VERIFIED", "GOOD_CONDUCT", "IDENTITY_VERIFIED"].includes(
+            b.type,
+          ),
       ),
-      isPremiumEligible: trustScore?.premiumEligible || false
+      isPremiumEligible: trustScore?.premiumEligible || false,
+      premiumPricingEnabled: profile?.premiumPricingEnabled || false,
+      currentPremiumMultiplier: profile?.premiumMultiplier || 1.0,
     };
   } catch (error) {
     console.error("[getMyVerificationStatus]", error);
@@ -58,7 +71,7 @@ export async function getMyVerificationStatus() {
 export async function requestVerificationBadge(
   type: BadgeType,
   documentUrl?: string,
-  metadata?: Record<string, any>
+  metadata?: Record<string, any>,
 ) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -70,10 +83,10 @@ export async function requestVerificationBadge(
       userId: session.user.id,
       type,
       documentUrl,
-      metadata
+      metadata,
     });
 
-    revalidatePath('/dashboard/verification');
+    revalidatePath("/dashboard/verification");
     return result;
   } catch (error) {
     console.error("[requestVerificationBadge]", error);
@@ -92,7 +105,7 @@ export async function checkMyAutomaticBadges() {
 
   try {
     const granted = await checkAutomaticBadges(session.user.id);
-    revalidatePath('/dashboard/verification');
+    revalidatePath("/dashboard/verification");
     return { success: true, grantedBadges: granted };
   } catch (error) {
     console.error("[checkMyAutomaticBadges]", error);
@@ -111,7 +124,7 @@ export async function refreshMyTrustScore() {
 
   try {
     const score = await updateTrustScore(session.user.id);
-    revalidatePath('/dashboard/verification');
+    revalidatePath("/dashboard/verification");
     return { success: true, score };
   } catch (error) {
     console.error("[refreshMyTrustScore]", error);
@@ -131,8 +144,17 @@ export async function togglePremiumPricing(enabled: boolean) {
   try {
     // Check eligibility
     const trustScore = await getTrustScore(session.user.id);
-    if (!trustScore?.premiumEligible) {
+    if (enabled && !trustScore?.premiumEligible) {
       return { success: false, error: "Not eligible for premium pricing yet" };
+    }
+
+    const profile = await prisma.profile.findUnique({
+      where: { userId: session.user.id },
+      select: { userId: true },
+    });
+
+    if (!profile) {
+      return { success: false, error: "Provider profile not found" };
     }
 
     // Update user profile with premium pricing status
@@ -140,12 +162,18 @@ export async function togglePremiumPricing(enabled: boolean) {
       where: { userId: session.user.id },
       data: {
         premiumPricingEnabled: enabled,
-        premiumMultiplier: enabled ? trustScore.premiumMultiplier : 1.0
-      }
+        premiumMultiplier: enabled ? trustScore.premiumMultiplier : 1.0,
+      },
     });
 
-    revalidatePath('/dashboard');
-    return { success: true, enabled, multiplier: enabled ? trustScore.premiumMultiplier : 1.0 };
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/verification");
+    revalidatePath("/dashboard/settings");
+    return {
+      success: true,
+      enabled,
+      multiplier: enabled ? trustScore.premiumMultiplier : 1.0,
+    };
   } catch (error) {
     console.error("[togglePremiumPricing]", error);
     return { success: false, error: "Failed to toggle premium pricing" };
@@ -159,17 +187,17 @@ export async function togglePremiumPricing(enabled: boolean) {
  */
 export async function getPendingBadgeRequests() {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
     return { success: false, error: "Unauthorized" };
   }
 
   try {
     const badges = await prisma.verificationBadge.findMany({
-      where: { status: 'PENDING' },
+      where: { status: "PENDING" },
       include: {
-        user: { select: { id: true, name: true, email: true, image: true } }
+        user: { select: { id: true, name: true, email: true, image: true } },
       },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: "asc" },
     });
 
     return { success: true, badges };
@@ -184,13 +212,13 @@ export async function getPendingBadgeRequests() {
  */
 export async function adminApproveBadge(badgeId: string, notes?: string) {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
     return { success: false, error: "Unauthorized" };
   }
 
   try {
     const result = await approveBadge(badgeId, session.user.id, notes);
-    revalidatePath('/admin/verification');
+    revalidatePath("/admin/verifications");
     return result;
   } catch (error) {
     console.error("[adminApproveBadge]", error);
@@ -203,13 +231,13 @@ export async function adminApproveBadge(badgeId: string, notes?: string) {
  */
 export async function adminRevokeBadge(badgeId: string, reason: string) {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
     return { success: false, error: "Unauthorized" };
   }
 
   try {
     const result = await revokeBadge(badgeId, session.user.id, reason);
-    revalidatePath('/admin/verification');
+    revalidatePath("/admin/verifications");
     return result;
   } catch (error) {
     console.error("[adminRevokeBadge]", error);
@@ -222,7 +250,7 @@ export async function adminRevokeBadge(badgeId: string, reason: string) {
  */
 export async function getExpiringBadgesAdmin(daysAhead: number = 30) {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
     return { success: false, error: "Unauthorized" };
   }
 
@@ -242,15 +270,15 @@ export async function getProviderVerification(userId: string) {
   try {
     const [badges, trustScore] = await Promise.all([
       getVerifiedBadges(userId),
-      getTrustScore(userId)
+      getTrustScore(userId),
     ]);
 
     return {
       success: true,
-      badges: badges.map(b => ({ type: b.type, verifiedAt: b.verifiedAt })),
-      tier: trustScore?.tier || 'UNVERIFIED',
+      badges: badges.map((b) => ({ type: b.type, verifiedAt: b.verifiedAt })),
+      tier: trustScore?.tier || "UNVERIFIED",
       overallScore: trustScore?.overallScore || 0,
-      isPremium: trustScore?.premiumEligible || false
+      isPremium: trustScore?.premiumEligible || false,
     };
   } catch (error) {
     console.error("[getProviderVerification]", error);
@@ -261,15 +289,15 @@ export async function getProviderVerification(userId: string) {
 /**
  * Filter providers by verification tier
  */
-export async function getVerifiedProviders(minTier: string = 'VERIFIED') {
+export async function getVerifiedProviders(minTier: string = "VERIFIED") {
   try {
-    const tiers = ['UNVERIFIED', 'BASIC', 'VERIFIED', 'PREMIUM', 'ELITE'];
+    const tiers = ["UNVERIFIED", "BASIC", "VERIFIED", "PREMIUM", "ELITE"];
     const minIndex = tiers.indexOf(minTier);
     const eligibleTiers = tiers.slice(minIndex);
 
     const providers = await prisma.trustScore.findMany({
       where: {
-        tier: { in: eligibleTiers }
+        tier: { in: eligibleTiers },
       },
       include: {
         user: {
@@ -278,12 +306,12 @@ export async function getVerifiedProviders(minTier: string = 'VERIFIED') {
             name: true,
             image: true,
             profile: {
-              select: { bio: true, location: true }
-            }
-          }
-        }
+              select: { bio: true, location: true },
+            },
+          },
+        },
       },
-      orderBy: { overallScore: 'desc' }
+      orderBy: { overallScore: "desc" },
     });
 
     return { success: true, providers };

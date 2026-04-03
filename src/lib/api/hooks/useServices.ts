@@ -70,12 +70,13 @@ export interface Service {
     phone: string | null;
     createdAt: string;
     role: string;
+    isVerified: boolean;
     profile: {
       bio: string | null;
       location: string | null;
       hourlyRate: number | null;
       portfolio: string[];
-      isVerified: boolean;
+      verificationStatus?: string | null;
     } | null;
     subscription: {
       plan: string;

@@ -40,7 +40,6 @@ export async function POST(
         onboardingFeeWaivedAt: waive ? new Date() : null,
         hasPaidOnboardingFee: waive ? true : profile.hasPaidOnboardingFee,
         verificationStatus: waive ? "VERIFIED" : profile.verificationStatus,
-        isVerified: waive ? true : profile.isVerified,
         premiumPricingEnabled: waive ? true : profile.premiumPricingEnabled,
         premiumMultiplier: waive ? 1.1 : profile.premiumMultiplier,
       },
@@ -64,7 +63,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       waived: updatedProfile.onboardingFeeWaived,
-      isVerified: updatedProfile.isVerified,
+      isVerified: updatedProfile.verificationStatus === "VERIFIED",
       verificationStatus: updatedProfile.verificationStatus,
       message: waive
         ? "Onboarding fee waived. Verification access and privileges granted."

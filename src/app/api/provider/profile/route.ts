@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import { z } from "zod";
 import { hasRole } from "@/lib/auth/roles";
+import { isPubliclyVerified } from "@/lib/trust/publicTrust";
 
 // Schema for profile update
 const updateProfileSchema = z.object({
@@ -60,6 +61,12 @@ export async function GET(request: NextRequest) {
       where: { id: userId },
       include: {
         profile: true,
+        trustScore: {
+          select: {
+            tier: true,
+            overallScore: true,
+          },
+        },
       },
     });
 
@@ -79,6 +86,12 @@ export async function GET(request: NextRequest) {
       user.profile?.hasPaidOnboardingFee || user.profile?.onboardingFeeWaived,
     );
 
+    const isVerified = isPubliclyVerified({
+      verificationStatus: user.profile?.verificationStatus,
+      trustTier: user.trustScore?.tier,
+      overallScore: user.trustScore?.overallScore,
+    });
+
     const profileData = {
       name: user.name,
       email: user.email,
@@ -90,7 +103,7 @@ export async function GET(request: NextRequest) {
         (skillId) => categoryMap.get(skillId) || skillId,
       ),
       hourlyRate: user.profile?.hourlyRate,
-      isVerified: user.profile?.isVerified || false,
+      isVerified,
       verificationStatus: user.profile?.verificationStatus || "PENDING",
       hasPaidOnboardingFee: user.profile?.hasPaidOnboardingFee || false,
       onboardingFeeWaived: user.profile?.onboardingFeeWaived || false,
