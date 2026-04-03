@@ -4,6 +4,37 @@ import { successResponse, handleError } from "@/lib/middleware/errorHandler";
 import { calculateDistance } from "@/lib/utils/geolocation";
 import { isPubliclyVerified } from "@/lib/trust/publicTrust";
 
+const PRICING_TIMEZONE = "Africa/Nairobi";
+
+function getDemandMultiplier(demandCount: number): number {
+  if (demandCount >= 40) return 0.35;
+  if (demandCount >= 20) return 0.2;
+  if (demandCount >= 10) return 0.1;
+  return 0;
+}
+
+function getCurrentPricingContext() {
+  const now = new Date(
+    new Date().toLocaleString("en-US", {
+      timeZone: PRICING_TIMEZONE,
+    }),
+  );
+
+  const hour = now.getHours();
+  const day = now.getDay();
+  const month = now.getMonth() + 1;
+  const rainySeasonMonths = new Set([3, 4, 5, 10, 11, 12]);
+
+  const timeMultiplier =
+    hour >= 20 || hour < 6 ? 0.2 : day === 0 || day === 6 ? 0.1 : 0;
+  const weatherMultiplier = rainySeasonMonths.has(month) ? 0.05 : 0;
+
+  return {
+    timeMultiplier,
+    weatherMultiplier,
+  };
+}
+
 /**
  * GET /api/services
  * Fetch all services with optional filtering and location-based sorting
@@ -116,12 +147,16 @@ export async function GET(request: NextRequest) {
                   latitude: true,
                   longitude: true,
                   location: true,
+                  premiumPricingEnabled: true,
+                  premiumMultiplier: true,
                 },
               },
               trustScore: {
                 select: {
                   tier: true,
                   overallScore: true,
+                  premiumEligible: true,
+                  premiumMultiplier: true,
                 },
               },
               subscription: {
@@ -154,6 +189,43 @@ export async function GET(request: NextRequest) {
       }),
       prisma.service.count({ where }),
     ]);
+
+    const serviceIds = services.map((service) => service.id);
+    const demandWindowStart = new Date();
+    demandWindowStart.setDate(demandWindowStart.getDate() - 30);
+
+    const demandCounts =
+      serviceIds.length > 0
+        ? await prisma.booking.groupBy({
+            by: ["serviceId"],
+            where: {
+              serviceId: { in: serviceIds },
+              createdAt: {
+                gte: demandWindowStart,
+              },
+              status: {
+                in: [
+                  "PENDING",
+                  "CONFIRMED",
+                  "IN_PROGRESS",
+                  "AWAITING_CLIENT_CONFIRMATION",
+                  "COMPLETED",
+                ],
+              },
+            },
+            _count: {
+              _all: true,
+            },
+          })
+        : [];
+
+    const demandMap = new Map(
+      demandCounts
+        .filter((row) => row.serviceId)
+        .map((row) => [row.serviceId as string, row._count._all]),
+    );
+
+    const pricingContext = getCurrentPricingContext();
 
     // Calculate distances, ratings and format response
     // Calculate distances, ratings and format response
@@ -208,6 +280,42 @@ export async function GET(request: NextRequest) {
         overallScore: service.provider.trustScore?.overallScore,
       });
 
+      const demandMultiplier = getDemandMultiplier(
+        demandMap.get(service.id) || 0,
+      );
+      const providerMultiplier =
+        service.provider.profile?.premiumPricingEnabled &&
+        (service.provider.profile?.premiumMultiplier || 1) > 1
+          ? Math.max((service.provider.profile?.premiumMultiplier || 1) - 1, 0)
+          : 0;
+      const trustMultiplier =
+        service.provider.trustScore?.premiumEligible &&
+        (service.provider.trustScore?.premiumMultiplier || 1) > 1
+          ? Math.max(
+              (service.provider.trustScore?.premiumMultiplier || 1) - 1,
+              0,
+            )
+          : 0;
+
+      const previewMultiplier = Number(
+        (
+          1 +
+          pricingContext.timeMultiplier +
+          demandMultiplier +
+          pricingContext.weatherMultiplier +
+          providerMultiplier +
+          trustMultiplier
+        ).toFixed(2),
+      );
+
+      const pricingReasons: string[] = [];
+      if (demandMultiplier > 0) pricingReasons.push("Service Demand");
+      if (pricingContext.timeMultiplier > 0) pricingReasons.push("Time Window");
+      if (providerMultiplier > 0) pricingReasons.push("Provider Premium");
+      if (trustMultiplier > 0) pricingReasons.push("Trust Tier");
+      if (pricingContext.weatherMultiplier > 0)
+        pricingReasons.push("Seasonal Conditions");
+
       return {
         id: service.id,
         title: service.title,
@@ -243,6 +351,16 @@ export async function GET(request: NextRequest) {
         reviews: ratings.length,
         rebookedCount,
         distance,
+        dynamicPricing: {
+          multiplier: previewMultiplier,
+          reason:
+            previewMultiplier > 1
+              ? pricingReasons.slice(0, 2).join(" + ") || "Dynamic Pricing"
+              : null,
+          finalPrice: Number(
+            (Number(service.price) * previewMultiplier).toFixed(2),
+          ),
+        },
       };
     });
 

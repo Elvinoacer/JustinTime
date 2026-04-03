@@ -2,6 +2,7 @@ import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import type { Service } from "@/lib/api/hooks/useServices";
 import { isPubliclyVerified } from "@/lib/trust/publicTrust";
+import { getDynamicPrice } from "@/lib/pricing-engine";
 
 async function fetchPublicServiceDetail(id: string): Promise<Service | null> {
   const service = await prisma.service.findUnique({
@@ -41,32 +42,34 @@ async function fetchPublicServiceDetail(id: string): Promise<Service | null> {
 
   const providerId = service.providerId;
 
-  const [otherServices, completedJobs, reviewAgg] = await Promise.all([
-    prisma.service.findMany({
-      where: {
-        providerId,
-        id: { not: id },
-        isActive: true,
-      },
-      select: {
-        id: true,
-        title: true,
-        price: true,
-        pricingUnit: true,
-        category: { select: { name: true, slug: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 8,
-    }),
-    prisma.booking.count({
-      where: { providerId, status: "COMPLETED" },
-    }),
-    prisma.review.aggregate({
-      where: { targetId: providerId },
-      _avg: { rating: true },
-      _count: { _all: true },
-    }),
-  ]);
+  const [otherServices, completedJobs, reviewAgg, dynamicPricing] =
+    await Promise.all([
+      prisma.service.findMany({
+        where: {
+          providerId,
+          id: { not: id },
+          isActive: true,
+        },
+        select: {
+          id: true,
+          title: true,
+          price: true,
+          pricingUnit: true,
+          category: { select: { name: true, slug: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+      }),
+      prisma.booking.count({
+        where: { providerId, status: "COMPLETED" },
+      }),
+      prisma.review.aggregate({
+        where: { targetId: providerId },
+        _avg: { rating: true },
+        _count: { _all: true },
+      }),
+      getDynamicPrice(service.id),
+    ]);
 
   const listReviews = service.provider.receivedReviews || [];
   const ratingAvg = reviewAgg._avg.rating ?? 0;
@@ -138,6 +141,14 @@ async function fetchPublicServiceDetail(id: string): Promise<Service | null> {
       pricingUnit: s.pricingUnit,
       category: { name: s.category.name, slug: s.category.slug },
     })),
+    dynamicPricing: {
+      multiplier: dynamicPricing.multiplier,
+      reason: dynamicPricing.reason,
+      finalPrice: Number(
+        (Number(service.price) * dynamicPricing.multiplier).toFixed(2),
+      ),
+      breakdown: dynamicPricing.breakdown,
+    },
   };
 }
 

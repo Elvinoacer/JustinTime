@@ -21,6 +21,9 @@ export async function getUserBadges(userId?: string) {
   const targetUserId = userId || session.user.id;
 
   try {
+    await syncBadgeDefinitions();
+    const evaluation = await checkAndAwardBadges(targetUserId);
+
     const badges = await prisma.badge.findMany({
       where: { isActive: true },
       include: {
@@ -33,6 +36,14 @@ export async function getUserBadges(userId?: string) {
 
     const earnedBadges = badges.filter((b) => b.userBadges.length > 0);
     const totalPoints = earnedBadges.reduce((sum, b) => sum + b.points, 0);
+    const progressMap = new Map(
+      evaluation.progress.map((item) => [item.badgeSlug, item]),
+    );
+
+    const completionPercentage =
+      badges.length > 0
+        ? Math.round((earnedBadges.length / badges.length) * 100)
+        : 0;
 
     return {
       success: true,
@@ -40,14 +51,15 @@ export async function getUserBadges(userId?: string) {
         ...b,
         earned: b.userBadges.length > 0,
         awardedAt: b.userBadges[0]?.awardedAt || null,
+        progress:
+          b.userBadges.length > 0 ? null : progressMap.get(b.slug) || null,
       })),
       stats: {
         totalBadges: badges.length,
         earnedBadges: earnedBadges.length,
         totalPoints,
-        completionPercentage: Math.round(
-          (earnedBadges.length / badges.length) * 100,
-        ),
+        completionPercentage,
+        newlyAwarded: evaluation.awarded.length,
       },
     };
   } catch (error) {
@@ -66,6 +78,7 @@ export async function getBadgeProgress() {
   }
 
   try {
+    await syncBadgeDefinitions();
     const result = await checkAndAwardBadges(session.user.id);
     revalidatePath("/dashboard/achievements");
 

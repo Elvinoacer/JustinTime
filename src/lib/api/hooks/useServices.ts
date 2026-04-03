@@ -43,6 +43,11 @@ export interface ServiceListItem {
   reviews: number;
   rebookedCount?: number;
   distance?: number;
+  dynamicPricing?: {
+    multiplier: number;
+    reason: string | null;
+    finalPrice: number;
+  };
 }
 
 /** Full payload from GET /api/services/[id] and server getPublicServiceDetail. */
@@ -104,6 +109,18 @@ export interface Service {
     pricingUnit: string;
     category: { name: string; slug: string };
   }[];
+  dynamicPricing?: {
+    multiplier: number;
+    reason: string | null;
+    finalPrice: number;
+    breakdown?: {
+      timeMultiplier: number;
+      demandMultiplier: number;
+      weatherMultiplier: number;
+      providerMultiplier?: number;
+      trustMultiplier?: number;
+    };
+  };
 }
 
 export interface ServicesResponse {

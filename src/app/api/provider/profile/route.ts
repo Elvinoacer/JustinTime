@@ -10,12 +10,16 @@ import { isPubliclyVerified } from "@/lib/trust/publicTrust";
 const updateProfileSchema = z.object({
   name: z.string().min(2).optional(),
   phone: z.string().optional(),
+  image: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
   location: z.string().optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
+  locationSource: z.enum(["GPS", "IP", "MANUAL"]).optional(),
+  locationAccuracy: z.number().min(0).optional(),
   bio: z.string().optional(),
   skills: z.array(z.string()).optional(),
   hourlyRate: z.number().optional(),
+  portfolio: z.array(z.string().trim().min(1).max(2048)).optional(),
   certifications: z
     .array(
       z.object({
@@ -47,7 +51,7 @@ const updateProfileSchema = z.object({
     .optional(),
 });
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const session = await auth();
 
@@ -74,12 +78,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Fetch all categories for skill mapping
+    // Fetch all categories for skill normalization/mapping
     const categories = await prisma.category.findMany({
       select: { id: true, name: true },
     });
 
     const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+    const categoryIdSet = new Set(categories.map((c) => c.id));
+    const categoryNameToId = new Map(
+      categories.map((c) => [c.name.toLowerCase().trim(), c.id]),
+    );
+
+    const rawSkills = Array.isArray(user.profile?.skills)
+      ? user.profile.skills
+      : [];
+
+    const normalizedSkills = rawSkills.map((value) => {
+      if (categoryIdSet.has(value)) return value;
+      const mappedId = categoryNameToId.get(value.toLowerCase().trim());
+      return mappedId || value;
+    });
+
+    const selectedSkillIds = normalizedSkills.filter((value) =>
+      categoryIdSet.has(value),
+    );
+    const legacySkills = normalizedSkills.filter(
+      (value) => !categoryIdSet.has(value),
+    );
 
     // Combine user and profile data
     const verificationAccessGranted = Boolean(
@@ -98,11 +123,19 @@ export async function GET(request: NextRequest) {
       image: user.image,
       phone: user.phone,
       location: user.profile?.location,
+      latitude: user.profile?.latitude,
+      longitude: user.profile?.longitude,
+      locationSource: user.profile?.locationSource,
+      locationAccuracy: user.profile?.locationAccuracy,
       bio: user.profile?.bio,
-      skills: (user.profile?.skills || []).map(
+      skills: normalizedSkills,
+      selectedSkillIds,
+      legacySkills,
+      skillLabels: normalizedSkills.map(
         (skillId) => categoryMap.get(skillId) || skillId,
       ),
       hourlyRate: user.profile?.hourlyRate,
+      portfolio: user.profile?.portfolio || [],
       isVerified,
       verificationStatus: user.profile?.verificationStatus || "PENDING",
       hasPaidOnboardingFee: user.profile?.hasPaidOnboardingFee || false,
@@ -155,13 +188,29 @@ export async function PUT(request: NextRequest) {
 
     const validatedData = updateProfileSchema.parse(body);
 
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        name: true,
+        phone: true,
+        image: true,
+        profile: {
+          select: {
+            certifications: true,
+          },
+        },
+      },
+    });
+
     // Update User model for basic info
     const userUpdateData: any = {};
     if (validatedData.name !== undefined)
       userUpdateData.name = validatedData.name;
     if (validatedData.phone !== undefined)
       userUpdateData.phone = validatedData.phone;
-    if (body.image !== undefined) userUpdateData.image = body.image;
+    if (validatedData.image !== undefined) {
+      userUpdateData.image = validatedData.image || null;
+    }
 
     if (Object.keys(userUpdateData).length > 0) {
       await prisma.user.update({
@@ -170,17 +219,49 @@ export async function PUT(request: NextRequest) {
       });
     }
 
+    let normalizedSkills = validatedData.skills;
+    if (validatedData.skills !== undefined) {
+      const categories = await prisma.category.findMany({
+        select: { id: true, name: true },
+      });
+      const categoryIdSet = new Set(categories.map((c) => c.id));
+      const categoryNameToId = new Map(
+        categories.map((c) => [c.name.toLowerCase().trim(), c.id]),
+      );
+
+      const deduped = new Set<string>();
+      normalizedSkills = [];
+
+      for (const value of validatedData.skills) {
+        const normalizedValue = categoryIdSet.has(value)
+          ? value
+          : categoryNameToId.get(value.toLowerCase().trim()) || value;
+
+        if (!deduped.has(normalizedValue)) {
+          deduped.add(normalizedValue);
+          normalizedSkills.push(normalizedValue);
+        }
+      }
+    }
+
     // Upsert Profile model for extended info
     const profileData: any = {};
-    if (validatedData.location) profileData.location = validatedData.location;
+    if (validatedData.location !== undefined)
+      profileData.location = validatedData.location;
     if (validatedData.latitude !== undefined)
       profileData.latitude = validatedData.latitude;
     if (validatedData.longitude !== undefined)
       profileData.longitude = validatedData.longitude;
-    if (validatedData.bio) profileData.bio = validatedData.bio;
-    if (validatedData.skills) profileData.skills = validatedData.skills;
-    if (validatedData.hourlyRate)
+    if (validatedData.locationSource !== undefined)
+      profileData.locationSource = validatedData.locationSource;
+    if (validatedData.locationAccuracy !== undefined)
+      profileData.locationAccuracy = validatedData.locationAccuracy;
+    if (validatedData.bio !== undefined) profileData.bio = validatedData.bio;
+    if (normalizedSkills !== undefined) profileData.skills = normalizedSkills;
+    if (validatedData.hourlyRate !== undefined)
       profileData.hourlyRate = validatedData.hourlyRate;
+    if (validatedData.portfolio !== undefined)
+      profileData.portfolio = validatedData.portfolio;
     if (validatedData.certifications !== undefined)
       profileData.certifications = validatedData.certifications;
     if (validatedData.education !== undefined)
@@ -188,13 +269,20 @@ export async function PUT(request: NextRequest) {
     if (validatedData.socialLinks !== undefined)
       profileData.socialLinks = validatedData.socialLinks;
 
-    // If critical fields are updated, reset verification status
-    if (
-      validatedData.name ||
-      validatedData.location ||
-      validatedData.bio ||
-      validatedData.certifications
-    ) {
+    const certificationsChanged =
+      validatedData.certifications !== undefined &&
+      JSON.stringify(validatedData.certifications || []) !==
+        JSON.stringify(currentUser?.profile?.certifications || []);
+
+    // Reset verification only when identity-sensitive fields change.
+    const shouldResetVerification =
+      (validatedData.name !== undefined &&
+        validatedData.name !== currentUser?.name) ||
+      (validatedData.phone !== undefined &&
+        validatedData.phone !== currentUser?.phone) ||
+      certificationsChanged;
+
+    if (shouldResetVerification) {
       profileData.verificationStatus = "PENDING";
       profileData.isVerified = false;
     }

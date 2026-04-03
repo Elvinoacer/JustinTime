@@ -423,10 +423,35 @@ function BookingPageContent() {
           : undefined,
       };
 
+      const quoteResponse = await fetch("/api/bookings/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          professionalId,
+          serviceId: selectedService,
+          slots,
+        }),
+      });
+
+      const quoteResult = await quoteResponse.json();
+
+      if (!quoteResponse.ok || !quoteResult?.quote?.id) {
+        throw new Error(
+          quoteResult?.error ||
+            quoteResult?.reason ||
+            "Failed to lock pricing quote",
+        );
+      }
+
+      const payloadWithQuote = {
+        ...payload,
+        pricingQuoteId: quoteResult.quote.id,
+      };
+
       const response = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payloadWithQuote),
       });
 
       const result = await response.json();

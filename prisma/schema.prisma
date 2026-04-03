@@ -79,6 +79,7 @@ model User {
   disputes                      Dispute[]                  @relation("CreatedDisputes")
   disputesAgainst               Dispute[]                  @relation("DisputesAgainst")
   supportTickets                SupportTicket[]
+  supportTicketMessages         SupportTicketMessage[]
   availability                  Availability[]
   availabilityExceptions        AvailabilityException[]
   initiatedNegotiations         BookingNegotiation[]       @relation("InitiatedNegotiations")
@@ -105,6 +106,7 @@ model User {
   insuranceClaims    InsuranceClaim[]
   expenses           Expense[]
   earnedBadges       UserBadge[]
+  pricingQuotes      PricingQuote[]
   churnScores        ChurnScore[]
   churnInterventions ChurnIntervention[]
   loyalty            UserLoyalty?
@@ -282,9 +284,10 @@ model Service {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  provider User      @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  category Category  @relation(fields: [categoryId], references: [id])
-  bookings Booking[]
+  provider      User           @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  category      Category       @relation(fields: [categoryId], references: [id])
+  bookings      Booking[]
+  pricingQuotes PricingQuote[]
 }
 
 // Service Categories
@@ -492,6 +495,7 @@ model Booking {
   surgeMultiplier Float?   @default(1.0)
   finalPrice      Decimal? @db.Decimal(10, 2)
   surgeReason     String?
+  pricingQuoteId  String?  @unique
 
   // Financial Breakdowns
   exciseDutyAmount Decimal? @db.Decimal(10, 2)
@@ -512,6 +516,7 @@ model Booking {
   client         User            @relation("ClientBookings", fields: [clientId], references: [id])
   provider       User            @relation("ProviderBookings", fields: [providerId], references: [id])
   service        Service?        @relation(fields: [serviceId], references: [id])
+  pricingQuote   PricingQuote?   @relation(fields: [pricingQuoteId], references: [id])
   job            Job?            @relation(fields: [jobId], references: [id])
   payment        Payment?
   review         Review?         @relation("BookingReview")
@@ -532,6 +537,30 @@ model Booking {
 
   @@index([clientId])
   @@index([providerId])
+}
+
+model PricingQuote {
+  id         String    @id @default(cuid())
+  userId     String
+  serviceId  String
+  slotDate   DateTime
+  slotCount  Int       @default(1)
+  basePrice  Decimal   @db.Decimal(10, 2)
+  multiplier Float
+  finalPrice Decimal   @db.Decimal(10, 2)
+  reason     String?
+  breakdown  Json?
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  service Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  booking Booking?
+
+  @@index([userId, expiresAt])
+  @@index([serviceId, expiresAt])
 }
 
 // Insurance Claims (Happiness Pledge)
@@ -935,11 +964,13 @@ model SupportTicket {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  subject     String
-  description String @db.Text
-  category    String // Account, Payments, Technical, Bookings, General
-  priority    String @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
-  status      String @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  subject           String
+  description       String  @db.Text
+  category          String // Account, Payments, Technical, Bookings, General
+  relatedEntityType String?
+  relatedEntityId   String?
+  priority          String  @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status            String  @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
 
   adminNotes String? @db.Text
   resolution String? @db.Text
@@ -948,8 +979,27 @@ model SupportTicket {
   updatedAt  DateTime  @updatedAt
   resolvedAt DateTime?
 
+  messages SupportTicketMessage[]
+
   @@index([userId])
   @@index([status])
+  @@index([relatedEntityType, relatedEntityId])
+}
+
+model SupportTicketMessage {
+  id         String   @id @default(cuid())
+  ticketId   String
+  authorId   String
+  authorRole String   @default("USER") // USER, ADMIN
+  message    String   @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@index([authorId])
 }
 
 // Provider Availability Schedule

@@ -1,5 +1,54 @@
 import prisma from "@/lib/prisma";
-import { Prisma } from "@/generated/prisma/client";
+
+const ACTIVE_BOOKING_STATUSES = [
+  "PENDING",
+  "CONFIRMED",
+  "IN_PROGRESS",
+  "AWAITING_CLIENT_CONFIRMATION",
+] as const;
+
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function hasOverlap(
+  startA: string,
+  endA: string,
+  startB: string,
+  endB: string,
+): boolean {
+  const aStart = timeToMinutes(startA);
+  const aEnd = timeToMinutes(endA);
+  const bStart = timeToMinutes(startB);
+  const bEnd = timeToMinutes(endB);
+
+  return aStart < bEnd && bStart < aEnd;
+}
+
+function isWithinWindow(
+  startTime: string,
+  endTime: string,
+  windowStart: string,
+  windowEnd: string,
+): boolean {
+  const start = timeToMinutes(startTime);
+  const end = timeToMinutes(endTime);
+  const windowStartMinutes = timeToMinutes(windowStart);
+  const windowEndMinutes = timeToMinutes(windowEnd);
+
+  return start >= windowStartMinutes && end <= windowEndMinutes;
+}
+
+function getDayRange(date: Date): { start: Date; end: Date } {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
 
 /**
  * Check if a provider is available at a specific date and time
@@ -9,31 +58,42 @@ export async function checkAvailability(
   date: Date,
   startTime: string,
   endTime: string,
-  serviceId?: string
+  serviceId?: string,
 ): Promise<{ available: boolean; reason?: string }> {
   try {
     // Get day of week (0 = Sunday, 6 = Saturday)
     const dayOfWeek = date.getDay();
 
-    // Check if provider has availability for this day of week
-    const weeklyAvailability = await prisma.availability.findFirst({
+    const { start: dayStart, end: dayEnd } = getDayRange(date);
+
+    // Check all matching provider availability slots for this day.
+    const weeklyAvailabilities = await prisma.availability.findMany({
       where: {
         providerId,
         dayOfWeek,
         isActive: true,
         ...(serviceId ? { OR: [{ serviceId }, { serviceId: null }] } : {}),
       },
+      orderBy: { startTime: "asc" },
     });
 
-    if (!weeklyAvailability) {
+    if (weeklyAvailabilities.length === 0) {
       return { available: false, reason: "Provider not available on this day" };
     }
 
-    // Check if requested time is within provider's schedule
-    if (startTime < weeklyAvailability.startTime || endTime > weeklyAvailability.endTime) {
-      return { 
-        available: false, 
-        reason: `Provider available only between ${weeklyAvailability.startTime} and ${weeklyAvailability.endTime}` 
+    // Requested window must fit within at least one active slot.
+    const matchesAnySlot = weeklyAvailabilities.some((slot) =>
+      isWithinWindow(startTime, endTime, slot.startTime, slot.endTime),
+    );
+
+    if (!matchesAnySlot) {
+      const formattedWindows = weeklyAvailabilities
+        .map((slot) => `${slot.startTime}-${slot.endTime}`)
+        .join(", ");
+
+      return {
+        available: false,
+        reason: `Provider is available during: ${formattedWindows}`,
       };
     }
 
@@ -42,33 +102,46 @@ export async function checkAvailability(
       where: {
         providerId,
         date: {
-          gte: new Date(date.setHours(0, 0, 0, 0)),
-          lt: new Date(date.setHours(23, 59, 59, 999)),
+          gte: dayStart,
+          lte: dayEnd,
         },
       },
+      orderBy: { createdAt: "desc" },
     });
 
     if (dateException) {
       if (!dateException.isAvailable) {
-        return { 
-          available: false, 
-          reason: dateException.reason || "Provider not available on this date" 
+        return {
+          available: false,
+          reason: dateException.reason || "Provider not available on this date",
         };
       }
 
       // If there's a special availability, check custom times
       if (dateException.startTime && dateException.endTime) {
-        if (startTime < dateException.startTime || endTime > dateException.endTime) {
-          return { 
-            available: false, 
-            reason: `Provider available only between ${dateException.startTime} and ${dateException.endTime} on this date` 
+        if (
+          !isWithinWindow(
+            startTime,
+            endTime,
+            dateException.startTime,
+            dateException.endTime,
+          )
+        ) {
+          return {
+            available: false,
+            reason: `Provider available only between ${dateException.startTime} and ${dateException.endTime} on this date`,
           };
         }
       }
     }
 
     // Check for booking conflicts
-    const hasConflict = await hasBookingConflict(providerId, date, startTime, endTime);
+    const hasConflict = await hasBookingConflict(
+      providerId,
+      date,
+      startTime,
+      endTime,
+    );
     if (hasConflict) {
       return { available: false, reason: "Time slot already booked" };
     }
@@ -87,35 +160,28 @@ export async function hasBookingConflict(
   providerId: string,
   date: Date,
   startTime: string,
-  endTime: string
+  endTime: string,
 ): Promise<boolean> {
+  const { start: dayStart, end: dayEnd } = getDayRange(date);
+
   // Check conflicts in BookingSlot table
   const conflictingSlots = await prisma.bookingSlot.findMany({
     where: {
       booking: {
         providerId,
         status: {
-          in: ["PENDING", "CONFIRMED", "IN_PROGRESS"],
+          in: [...ACTIVE_BOOKING_STATUSES],
         },
       },
       date: {
-        gte: new Date(date.setHours(0, 0, 0, 0)),
-        lt: new Date(date.setHours(23, 59, 59, 999)),
+        gte: dayStart,
+        lte: dayEnd,
       },
     },
   });
 
   for (const slot of conflictingSlots) {
-    const slotStart = slot.startTime;
-    const slotEnd = slot.endTime;
-
-    // Check if times overlap
-    const hasOverlap = 
-      (startTime >= slotStart && startTime < slotEnd) ||
-      (endTime > slotStart && endTime <= slotEnd) ||
-      (startTime <= slotStart && endTime >= slotEnd);
-
-    if (hasOverlap) {
+    if (hasOverlap(startTime, endTime, slot.startTime, slot.endTime)) {
       return true;
     }
   }
@@ -125,11 +191,11 @@ export async function hasBookingConflict(
     where: {
       providerId,
       date: {
-        gte: new Date(date.setHours(0, 0, 0, 0)),
-        lt: new Date(date.setHours(23, 59, 59, 999)),
+        gte: dayStart,
+        lte: dayEnd,
       },
       status: {
-        in: ["PENDING", "CONFIRMED", "IN_PROGRESS"],
+        in: [...ACTIVE_BOOKING_STATUSES],
       },
       // Only check bookings that don't have slots (if we want to be strict, but checking all is safer)
     },
@@ -138,15 +204,7 @@ export async function hasBookingConflict(
   for (const booking of legacyBookings) {
     if (!booking.startTime || !booking.endTime) continue;
 
-    const bookingStart = booking.startTime;
-    const bookingEnd = booking.endTime;
-
-    const hasOverlap = 
-      (startTime >= bookingStart && startTime < bookingEnd) ||
-      (endTime > bookingStart && endTime <= bookingEnd) ||
-      (startTime <= bookingStart && endTime >= bookingEnd);
-
-    if (hasOverlap) {
+    if (hasOverlap(startTime, endTime, booking.startTime, booking.endTime)) {
       return true;
     }
   }
@@ -161,46 +219,56 @@ export async function getAvailableSlots(
   providerId: string,
   date: Date,
   serviceDuration: number = 60, // in minutes
-  serviceId?: string
+  serviceId?: string,
 ): Promise<string[]> {
   try {
     const dayOfWeek = date.getDay();
+    const { start: dayStart, end: dayEnd } = getDayRange(date);
 
-    // Get provider's availability for this day
-    const weeklyAvailability = await prisma.availability.findFirst({
+    // Get all provider availability slots for this day
+    const weeklyAvailabilities = await prisma.availability.findMany({
       where: {
         providerId,
         dayOfWeek,
         isActive: true,
         ...(serviceId ? { OR: [{ serviceId }, { serviceId: null }] } : {}),
       },
+      orderBy: { startTime: "asc" },
     });
 
-    if (!weeklyAvailability) {
+    if (weeklyAvailabilities.length === 0) {
       return [];
     }
-
-    let availableStart = weeklyAvailability.startTime;
-    let availableEnd = weeklyAvailability.endTime;
 
     // Check for date exceptions
     const dateException = await prisma.availabilityException.findFirst({
       where: {
         providerId,
         date: {
-          gte: new Date(date.setHours(0, 0, 0, 0)),
-          lt: new Date(date.setHours(23, 59, 59, 999)),
+          gte: dayStart,
+          lte: dayEnd,
         },
       },
+      orderBy: { createdAt: "desc" },
     });
+
+    let availabilityWindows = weeklyAvailabilities.map((slot) => ({
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+    }));
 
     if (dateException) {
       if (!dateException.isAvailable) {
         return [];
       }
+
       if (dateException.startTime && dateException.endTime) {
-        availableStart = dateException.startTime;
-        availableEnd = dateException.endTime;
+        availabilityWindows = [
+          {
+            startTime: dateException.startTime,
+            endTime: dateException.endTime,
+          },
+        ];
       }
     }
 
@@ -209,11 +277,11 @@ export async function getAvailableSlots(
       where: {
         providerId,
         date: {
-          gte: new Date(date.setHours(0, 0, 0, 0)),
-          lt: new Date(date.setHours(23, 59, 59, 999)),
+          gte: dayStart,
+          lte: dayEnd,
         },
         status: {
-          in: ["PENDING", "CONFIRMED", "IN_PROGRESS"],
+          in: [...ACTIVE_BOOKING_STATUSES],
         },
       },
     });
@@ -224,85 +292,64 @@ export async function getAvailableSlots(
         booking: {
           providerId,
           status: {
-            in: ["PENDING", "CONFIRMED", "IN_PROGRESS"],
+            in: [...ACTIVE_BOOKING_STATUSES],
           },
         },
         date: {
-          gte: new Date(date.setHours(0, 0, 0, 0)),
-          lt: new Date(date.setHours(23, 59, 59, 999)),
+          gte: dayStart,
+          lte: dayEnd,
         },
       },
     });
 
+    const blockedRanges: Array<{ start: string; end: string }> = [
+      ...existingSlots.map((slot) => ({
+        start: slot.startTime,
+        end: slot.endTime,
+      })),
+      ...existingBookings
+        .filter((booking) => booking.startTime && booking.endTime)
+        .map((booking) => ({
+          start: booking.startTime as string,
+          end: booking.endTime as string,
+        })),
+    ];
+
     // Generate time slots
     const slots: string[] = [];
-    const [startHour, startMinute] = availableStart.split(":").map(Number);
-    const [endHour, endMinute] = availableEnd.split(":").map(Number);
+    for (const window of availabilityWindows) {
+      const windowStartMinutes = timeToMinutes(window.startTime);
+      const windowEndMinutes = timeToMinutes(window.endTime);
 
-    let currentMinutes = startHour * 60 + startMinute;
-    const endMinutes = endHour * 60 + endMinute;
+      let currentMinutes = windowStartMinutes;
 
-    while (currentMinutes + serviceDuration <= endMinutes) {
-      const hours = Math.floor(currentMinutes / 60);
-      const minutes = currentMinutes % 60;
-      const timeSlot = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-      
-      // Calculate end time for this slot
-      const slotEndMinutes = currentMinutes + serviceDuration;
-      const endHours = Math.floor(slotEndMinutes / 60);
-      const endMins = slotEndMinutes % 60;
-      const endTimeSlot = `${endHours.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")}`;
+      while (currentMinutes + serviceDuration <= windowEndMinutes) {
+        const hours = Math.floor(currentMinutes / 60);
+        const minutes = currentMinutes % 60;
+        const timeSlot = `${hours.toString().padStart(2, "0")}:${minutes
+          .toString()
+          .padStart(2, "0")}`;
 
-      // Check if this slot conflicts with existing bookings or slots
-      let hasConflict = false;
+        const slotEndMinutes = currentMinutes + serviceDuration;
+        const endHours = Math.floor(slotEndMinutes / 60);
+        const endMinutes = slotEndMinutes % 60;
+        const endTimeSlot = `${endHours.toString().padStart(2, "0")}:${endMinutes
+          .toString()
+          .padStart(2, "0")}`;
 
-      // Check legacy bookings
-      for (const booking of existingBookings) {
-        if (!booking.startTime || !booking.endTime) continue;
+        const conflicts = blockedRanges.some((range) =>
+          hasOverlap(timeSlot, endTimeSlot, range.start, range.end),
+        );
 
-        const [bookingStartH, bookingStartM] = booking.startTime.split(":").map(Number);
-        const [bookingEndH, bookingEndM] = booking.endTime.split(":").map(Number);
-        const bookingStartMinutes = bookingStartH * 60 + bookingStartM;
-        const bookingEndMinutes = bookingEndH * 60 + bookingEndM;
-
-        if (
-          (currentMinutes >= bookingStartMinutes && currentMinutes < bookingEndMinutes) ||
-          (slotEndMinutes > bookingStartMinutes && slotEndMinutes <= bookingEndMinutes) ||
-          (currentMinutes <= bookingStartMinutes && slotEndMinutes >= bookingEndMinutes)
-        ) {
-          hasConflict = true;
-          break;
+        if (!conflicts) {
+          slots.push(timeSlot);
         }
+
+        currentMinutes += 15;
       }
-
-      if (!hasConflict) {
-        // Check booking slots
-        for (const slot of existingSlots) {
-          const [slotStartH, slotStartM] = slot.startTime.split(":").map(Number);
-          const [slotEndH, slotEndM] = slot.endTime.split(":").map(Number);
-          const slotStartMinutes = slotStartH * 60 + slotStartM;
-          const slotEndMinutesVal = slotEndH * 60 + slotEndM;
-
-          if (
-            (currentMinutes >= slotStartMinutes && currentMinutes < slotEndMinutesVal) ||
-            (slotEndMinutes > slotStartMinutes && slotEndMinutes <= slotEndMinutesVal) ||
-            (currentMinutes <= slotStartMinutes && slotEndMinutes >= slotEndMinutesVal)
-          ) {
-            hasConflict = true;
-            break;
-          }
-        }
-      }
-
-      if (!hasConflict) {
-        slots.push(timeSlot);
-      }
-
-      // Move to next slot (15-minute increments)
-      currentMinutes += 15;
     }
 
-    return slots;
+    return Array.from(new Set(slots)).sort((a, b) => a.localeCompare(b));
   } catch (error) {
     console.error("[GET_AVAILABLE_SLOTS]", error);
     return [];
@@ -317,9 +364,9 @@ export async function isWithinSchedule(
   dayOfWeek: number,
   startTime: string,
   endTime: string,
-  serviceId?: string
+  serviceId?: string,
 ): Promise<boolean> {
-  const availability = await prisma.availability.findFirst({
+  const availabilities = await prisma.availability.findMany({
     where: {
       providerId,
       dayOfWeek,
@@ -328,9 +375,16 @@ export async function isWithinSchedule(
     },
   });
 
-  if (!availability) return false;
+  if (availabilities.length === 0) return false;
 
-  return startTime >= availability.startTime && endTime <= availability.endTime;
+  return availabilities.some((availability) =>
+    isWithinWindow(
+      startTime,
+      endTime,
+      availability.startTime,
+      availability.endTime,
+    ),
+  );
 }
 
 /**
@@ -340,16 +394,21 @@ export async function getNextAvailableSlot(
   providerId: string,
   fromDate: Date,
   serviceDuration: number = 60,
-  serviceId?: string
+  serviceId?: string,
 ): Promise<{ date: Date; startTime: string; endTime: string } | null> {
   const maxDaysToCheck = 30;
-  
+
   for (let i = 0; i < maxDaysToCheck; i++) {
     const checkDate = new Date(fromDate);
     checkDate.setDate(fromDate.getDate() + i);
 
-    const slots = await getAvailableSlots(providerId, checkDate, serviceDuration, serviceId);
-    
+    const slots = await getAvailableSlots(
+      providerId,
+      checkDate,
+      serviceDuration,
+      serviceId,
+    );
+
     if (slots.length > 0) {
       const startTime = slots[0];
       const [hours, minutes] = startTime.split(":").map(Number);

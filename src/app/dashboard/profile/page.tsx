@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   useProviderProfile,
@@ -63,7 +63,34 @@ const ProfilePage = () => {
     startYear: "",
     endYear: "",
   });
+  const [newPortfolioLink, setNewPortfolioLink] = useState("");
   const certFileInputRef = useRef<HTMLInputElement>(null);
+
+  const normalizeProfileData = useCallback(
+    (rawData: any) => {
+      const categoryIdSet = new Set(categoriesData.map((c: any) => c.id));
+      const allSkills = Array.isArray(rawData?.skills) ? rawData.skills : [];
+
+      const selectedSkillIds = Array.isArray(rawData?.selectedSkillIds)
+        ? rawData.selectedSkillIds
+        : allSkills.filter((skill: string) => categoryIdSet.has(skill));
+
+      const legacySkills = Array.isArray(rawData?.legacySkills)
+        ? rawData.legacySkills
+        : allSkills.filter((skill: string) => !categoryIdSet.has(skill));
+
+      return {
+        ...rawData,
+        skills: Array.from(new Set(selectedSkillIds)),
+        legacySkills: Array.from(new Set(legacySkills)),
+        portfolio: Array.isArray(rawData?.portfolio) ? rawData.portfolio : [],
+        certifications: rawData?.certifications || [],
+        education: rawData?.education || [],
+        socialLinks: rawData?.socialLinks || [],
+      };
+    },
+    [categoriesData],
+  );
 
   // Check if mobile
   useEffect(() => {
@@ -79,14 +106,24 @@ const ProfilePage = () => {
 
   useEffect(() => {
     if (profileData?.data) {
-      setFormData({
-        ...profileData.data,
-        certifications: profileData.data.certifications || [],
-        education: profileData.data.education || [],
-        socialLinks: profileData.data.socialLinks || [],
+      const normalized = normalizeProfileData(profileData.data);
+      setFormData((prev: any) => {
+        if (!prev) {
+          return normalized;
+        }
+
+        // Keep in-progress local edits while still refreshing server-sourced data in the background.
+        if (isEditing) {
+          return {
+            ...normalized,
+            ...prev,
+          };
+        }
+
+        return normalized;
       });
     }
-  }, [profileData]);
+  }, [profileData, normalizeProfileData, isEditing]);
 
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,13 +131,13 @@ const ProfilePage = () => {
 
     // Check file type
     if (!file.type.startsWith("image/")) {
-      alert("Please select an image file");
+      toast.error("Please select an image file");
       return;
     }
 
     // Check file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert("Image size should be less than 5MB");
+      toast.error("Image size should be less than 5MB");
       return;
     }
 
@@ -123,16 +160,22 @@ const ProfilePage = () => {
     setShowImageCropper(false);
 
     try {
-      const formData = new FormData();
-      formData.append("file", croppedBlob, "profile.jpg");
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", croppedBlob, "profile.jpg");
+      uploadFormData.append("folder", "avatars");
 
       const response = await fetch("/api/upload", {
         method: "POST",
-        body: formData,
+        body: uploadFormData,
       });
 
       if (!response.ok) throw new Error("Upload failed");
       const data = await response.json();
+
+      setFormData((prev: any) => ({
+        ...prev,
+        image: data.url,
+      }));
 
       // Update profile with new avatar URL
       await updateProfileMutation.mutateAsync({ image: data.url });
@@ -140,7 +183,7 @@ const ProfilePage = () => {
       setTimeout(() => setShowNotification(false), 3000);
     } catch (error) {
       console.error("Failed to upload avatar", error);
-      alert("Failed to upload image. Please try again.");
+      toast.error("Failed to upload image. Please try again.");
     } finally {
       setIsUploadingAvatar(false);
       setSelectedImage(null);
@@ -154,12 +197,43 @@ const ProfilePage = () => {
 
   const handleSave = async () => {
     try {
-      // Prepare data with proper type conversions
+      const selectedSkills = Array.isArray(formData.skills)
+        ? formData.skills
+        : [];
+      const legacySkills = Array.isArray(formData.legacySkills)
+        ? formData.legacySkills
+        : [];
+
+      const normalizedPortfolio = (formData.portfolio || [])
+        .map((link: string) => link.trim())
+        .filter(Boolean);
+
       const updateData = {
-        ...formData,
-        hourlyRate: formData.hourlyRate
-          ? Number(formData.hourlyRate)
-          : undefined,
+        name: formData.name,
+        phone: formData.phone,
+        image: formData.image,
+        location: formData.location,
+        latitude:
+          typeof formData.latitude === "number" ? formData.latitude : undefined,
+        longitude:
+          typeof formData.longitude === "number"
+            ? formData.longitude
+            : undefined,
+        locationSource: formData.locationSource,
+        locationAccuracy:
+          typeof formData.locationAccuracy === "number"
+            ? formData.locationAccuracy
+            : undefined,
+        bio: formData.bio,
+        skills: Array.from(new Set([...selectedSkills, ...legacySkills])),
+        hourlyRate:
+          formData.hourlyRate !== undefined && formData.hourlyRate !== ""
+            ? Number(formData.hourlyRate)
+            : undefined,
+        portfolio: normalizedPortfolio,
+        certifications: formData.certifications || [],
+        education: formData.education || [],
+        socialLinks: formData.socialLinks || [],
       };
 
       await updateProfileMutation.mutateAsync(updateData);
@@ -172,21 +246,64 @@ const ProfilePage = () => {
   };
 
   const handleCancel = () => {
-    setFormData(profileData?.data);
+    if (profileData?.data) {
+      setFormData(normalizeProfileData(profileData.data));
+    }
     setIsEditing(false);
   };
 
   const handleSkillToggle = (skillId: string) => {
-    setFormData({
-      ...formData,
-      skills: formData.skills.includes(skillId)
-        ? formData.skills.filter((id: string) => id !== skillId)
-        : [...formData.skills, skillId],
-    });
+    setFormData((prev: any) => ({
+      ...prev,
+      skills: prev.skills.includes(skillId)
+        ? prev.skills.filter((id: string) => id !== skillId)
+        : [...prev.skills, skillId],
+    }));
+  };
+
+  const handleLegacySkillRemove = (skill: string) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      legacySkills: (prev.legacySkills || []).filter(
+        (s: string) => s !== skill,
+      ),
+    }));
   };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });
+  };
+
+  const handleAddPortfolioLink = () => {
+    const trimmed = newPortfolioLink.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    const normalized = /^https?:\/\//i.test(trimmed)
+      ? trimmed
+      : `https://${trimmed}`;
+
+    try {
+      // Validate URL format before adding.
+      new URL(normalized);
+    } catch {
+      toast.error("Please enter a valid portfolio URL");
+      return;
+    }
+
+    setFormData((prev: any) => ({
+      ...prev,
+      portfolio: Array.from(new Set([...(prev.portfolio || []), normalized])),
+    }));
+    setNewPortfolioLink("");
+  };
+
+  const handleRemovePortfolioLink = (link: string) => {
+    setFormData((prev: any) => ({
+      ...prev,
+      portfolio: (prev.portfolio || []).filter((item: string) => item !== link),
+    }));
   };
 
   // Calculate profile completion
@@ -227,6 +344,23 @@ const ProfilePage = () => {
 
   const handleDownloadData = async () => {
     try {
+      if (isEditing) {
+        toast.info(
+          "Export includes your last saved profile data. Save changes first to include recent edits.",
+        );
+      }
+
+      const exportSource = profileData?.data
+        ? normalizeProfileData(profileData.data)
+        : formData;
+      const displaySkills = [
+        ...(exportSource.skills || []),
+        ...(exportSource.legacySkills || []),
+      ].map((skill: string) => {
+        const category = categoriesData.find((c) => c.id === skill);
+        return category?.name || skill;
+      });
+
       const doc = new jsPDF();
 
       // Title
@@ -237,17 +371,17 @@ const ProfilePage = () => {
       doc.setFontSize(16);
       doc.text("Personal Information", 20, 40);
       doc.setFontSize(12);
-      doc.text(`Name: ${formData.name || "N/A"}`, 20, 50);
-      doc.text(`Email: ${formData.email || "N/A"}`, 20, 58);
-      doc.text(`Phone: ${formData.phone || "N/A"}`, 20, 66);
-      doc.text(`Location: ${formData.location || "N/A"}`, 20, 74);
-      doc.text(`Hourly Rate: KES ${formData.hourlyRate || "N/A"}`, 20, 82);
+      doc.text(`Name: ${exportSource.name || "N/A"}`, 20, 50);
+      doc.text(`Email: ${exportSource.email || "N/A"}`, 20, 58);
+      doc.text(`Phone: ${exportSource.phone || "N/A"}`, 20, 66);
+      doc.text(`Location: ${exportSource.location || "N/A"}`, 20, 74);
+      doc.text(`Hourly Rate: KES ${exportSource.hourlyRate || "N/A"}`, 20, 82);
 
       // Bio
       doc.setFontSize(16);
       doc.text("Bio", 20, 100);
       doc.setFontSize(12);
-      const bioLines = doc.splitTextToSize(formData.bio || "N/A", 170);
+      const bioLines = doc.splitTextToSize(exportSource.bio || "N/A", 170);
       doc.text(bioLines, 20, 110);
 
       // Skills
@@ -256,10 +390,23 @@ const ProfilePage = () => {
       doc.text("Skills", 20, yPos);
       doc.setFontSize(12);
       yPos += 10;
-      (formData.skills || []).forEach((skill: string, index: number) => {
+      displaySkills.forEach((skill: string) => {
         doc.text(`• ${skill}`, 20, yPos);
         yPos += 7;
       });
+
+      if ((exportSource.portfolio || []).length > 0) {
+        yPos += 10;
+        doc.setFontSize(16);
+        doc.text("Portfolio", 20, yPos);
+        doc.setFontSize(12);
+        yPos += 10;
+        (exportSource.portfolio || []).forEach((link: string) => {
+          const lines = doc.splitTextToSize(`• ${link}`, 170);
+          doc.text(lines, 20, yPos);
+          yPos += lines.length * 6;
+        });
+      }
 
       // Statistics
       yPos += 10;
@@ -268,15 +415,15 @@ const ProfilePage = () => {
       doc.setFontSize(12);
       yPos += 10;
       doc.text(
-        `Member Since: ${formData.memberSince ? new Date(formData.memberSince).toLocaleDateString() : "N/A"}`,
+        `Member Since: ${exportSource.memberSince ? new Date(exportSource.memberSince).toLocaleDateString() : "N/A"}`,
         20,
         yPos,
       );
       yPos += 7;
-      doc.text(`Completed Jobs: ${formData.completedJobs || 0}`, 20, yPos);
+      doc.text(`Completed Jobs: ${exportSource.completedJobs || 0}`, 20, yPos);
       yPos += 7;
       doc.text(
-        `Average Rating: ${formData.averageRating ? Number(formData.averageRating).toFixed(1) : "N/A"}/5.0`,
+        `Average Rating: ${exportSource.averageRating ? Number(exportSource.averageRating).toFixed(1) : "N/A"}/5.0`,
         20,
         yPos,
       );
@@ -322,6 +469,16 @@ const ProfilePage = () => {
     }
   };
 
+  const persistProfilePatch = async (patch: any, successMessage: string) => {
+    try {
+      await updateProfileMutation.mutateAsync(patch);
+      toast.success(successMessage);
+    } catch (error) {
+      console.error("Failed to persist profile update", error);
+      toast.error("Failed to save update. Please try again.");
+    }
+  };
+
   // Certification handlers
   const handleCertUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -355,10 +512,15 @@ const ProfilePage = () => {
       newCertification.fileUrl
     ) {
       const certifications = formData.certifications || [];
+      const nextCertifications = [...certifications, newCertification];
       setFormData({
         ...formData,
-        certifications: [...certifications, newCertification],
+        certifications: nextCertifications,
       });
+      void persistProfilePatch(
+        { certifications: nextCertifications },
+        "Certification saved",
+      );
       setNewCertification({ name: "", issuer: "", date: "", fileUrl: "" });
       setShowCertModal(false);
     }
@@ -366,17 +528,26 @@ const ProfilePage = () => {
 
   const handleRemoveCertification = (index: number) => {
     const certifications = formData.certifications || [];
+    const nextCertifications = certifications.filter(
+      (_: any, i: number) => i !== index,
+    );
     setFormData({
       ...formData,
-      certifications: certifications.filter((_: any, i: number) => i !== index),
+      certifications: nextCertifications,
     });
+    void persistProfilePatch(
+      { certifications: nextCertifications },
+      "Certification removed",
+    );
   };
 
   // Education handlers
   const handleAddEducation = () => {
     if (newEducation.institution && newEducation.degree && newEducation.field) {
       const education = formData.education || [];
-      setFormData({ ...formData, education: [...education, newEducation] });
+      const nextEducation = [...education, newEducation];
+      setFormData({ ...formData, education: nextEducation });
+      void persistProfilePatch({ education: nextEducation }, "Education saved");
       setNewEducation({
         institution: "",
         degree: "",
@@ -390,15 +561,17 @@ const ProfilePage = () => {
 
   const handleRemoveEducation = (index: number) => {
     const education = formData.education || [];
+    const nextEducation = education.filter((_: any, i: number) => i !== index);
     setFormData({
       ...formData,
-      education: education.filter((_: any, i: number) => i !== index),
+      education: nextEducation,
     });
+    void persistProfilePatch({ education: nextEducation }, "Education removed");
   };
 
   if (isLoading || !formData) {
     return (
-      <div className="flex items-center justify-center min-h-[300px] sm:min-h-[400px]">
+      <div className="flex items-center justify-center min-h-75 sm:min-h-100">
         <div
           role="status"
           aria-label="Loading profile"
@@ -422,7 +595,7 @@ const ProfilePage = () => {
           role="alert"
           aria-live="polite"
         >
-          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-emerald-100 rounded-full flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
               check_circle
             </span>
@@ -523,7 +696,7 @@ const ProfilePage = () => {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl mb-4 sm:mb-5 md:mb-6 ${
+        className={`bg-linear-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl mb-4 sm:mb-5 md:mb-6 ${
           isMobile ? "p-4" : "p-5 sm:p-6"
         }`}
       >
@@ -586,7 +759,7 @@ const ProfilePage = () => {
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
-            className="bg-gradient-to-r from-emerald-600 to-teal-500 h-2 rounded-full transition-all duration-500"
+            className="bg-linear-to-r from-emerald-600 to-teal-500 h-2 rounded-full transition-all duration-500"
             style={{ width: `${completionPercentage}%` }}
             role="progressbar"
             aria-valuenow={completionPercentage}
@@ -964,66 +1137,93 @@ const ProfilePage = () => {
           {isEditing ? (
             <>
               {/* Selected Skills Display */}
-              {formData.skills.filter((s: string) =>
-                categoriesData.some((c) => c.id === s),
-              ).length > 0 && (
-                <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-lg sm:rounded-xl">
+              {(formData.skills || []).length > 0 && (
+                <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-linear-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-lg sm:rounded-xl">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
                       verified
                     </span>
                     <span className="text-xs sm:text-sm font-bold text-gray-700">
-                      Selected Services (
-                      {
-                        formData.skills.filter((s: string) =>
-                          categoriesData.some((c) => c.id === s),
-                        ).length
-                      }
-                      )
+                      Selected Services ({(formData.skills || []).length})
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                    {formData.skills
-                      .filter((s: string) =>
-                        categoriesData.some((c) => c.id === s),
-                      )
-                      .map((skillId) => {
-                        const category = categoriesData.find(
-                          (c) => c.id === skillId,
-                        );
-                        if (!category) return null;
-                        return (
-                          <div
-                            key={skillId}
-                            className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-white border border-emerald-200 rounded-md sm:rounded-lg shadow-sm group hover:shadow-md transition-all duration-200"
+                    {(formData.skills || []).map((skillId: string) => {
+                      const category = categoriesData.find(
+                        (c) => c.id === skillId,
+                      );
+                      if (!category) return null;
+                      return (
+                        <div
+                          key={skillId}
+                          className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-white border border-emerald-200 rounded-md sm:rounded-lg shadow-sm group hover:shadow-md transition-all duration-200"
+                        >
+                          <span className="material-symbols-outlined text-emerald-600 text-xs sm:text-sm">
+                            {category.icon}
+                          </span>
+                          <span className="text-xs sm:text-sm font-medium text-gray-700">
+                            {category.name}
+                          </span>
+                          <button
+                            onClick={() => handleSkillToggle(skillId)}
+                            className="ml-1 p-0.5 hover:bg-red-50 rounded-full transition-colors"
+                            aria-label={`Remove ${category.name}`}
                           >
-                            <span className="material-symbols-outlined text-emerald-600 text-xs sm:text-sm">
-                              {category.icon}
+                            <span className="material-symbols-outlined text-gray-400 hover:text-red-500 text-xs sm:text-sm">
+                              close
                             </span>
-                            <span className="text-xs sm:text-sm font-medium text-gray-700">
-                              {category.name}
-                            </span>
-                            <button
-                              onClick={() => handleSkillToggle(skillId)}
-                              className="ml-1 p-0.5 hover:bg-red-50 rounded-full transition-colors"
-                              aria-label={`Remove ${category.name}`}
-                            >
-                              <span className="material-symbols-outlined text-gray-400 hover:text-red-500 text-xs sm:text-sm">
-                                close
-                              </span>
-                            </button>
-                          </div>
-                        );
-                      })}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {(formData.legacySkills || []).length > 0 && (
+                <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-amber-50 border border-amber-200 rounded-lg sm:rounded-xl">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="material-symbols-outlined text-amber-600 text-sm sm:text-base">
+                      info
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold text-amber-900">
+                      Legacy Skills Preserved (
+                      {(formData.legacySkills || []).length})
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-amber-800 mb-2">
+                    These legacy/custom skills are kept to avoid data loss.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                    {(formData.legacySkills || []).map((skill: string) => (
+                      <div
+                        key={skill}
+                        className="inline-flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-white border border-amber-200 rounded-md sm:rounded-lg"
+                      >
+                        <span className="material-symbols-outlined text-amber-600 text-xs sm:text-sm">
+                          history
+                        </span>
+                        <span className="text-xs sm:text-sm font-medium text-gray-700">
+                          {skill}
+                        </span>
+                        <button
+                          onClick={() => handleLegacySkillRemove(skill)}
+                          className="ml-1 p-0.5 hover:bg-red-50 rounded-full transition-colors"
+                          aria-label={`Remove legacy skill ${skill}`}
+                        >
+                          <span className="material-symbols-outlined text-gray-400 hover:text-red-500 text-xs sm:text-sm">
+                            close
+                          </span>
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
               <CategorySelector
                 categories={categoriesData}
-                selectedIds={formData.skills.filter((s: string) =>
-                  categoriesData.some((c) => c.id === s),
-                )}
+                selectedIds={formData.skills || []}
                 onToggle={handleSkillToggle}
                 multiSelect={true}
                 isLoading={isLoadingCategories}
@@ -1032,7 +1232,12 @@ const ProfilePage = () => {
             </>
           ) : (
             <div className="flex flex-wrap gap-1.5 sm:gap-2">
-              {formData.skills.map((skill: string) => {
+              {Array.from(
+                new Set([
+                  ...(formData.skills || []),
+                  ...(formData.legacySkills || []),
+                ]),
+              ).map((skill: string) => {
                 // Check if skill is a category ID or legacy text
                 const category = categoriesData.find((c) => c.id === skill);
                 const displayName = category ? category.name : skill;
@@ -1225,15 +1430,15 @@ const ProfilePage = () => {
           transition={{ delay: 0.3 }}
           className={`rounded-xl sm:rounded-2xl shadow-lg border-2 mt-4 sm:mt-5 md:mt-6 ${
             subscriptionData.subscription.isPremium
-              ? "bg-gradient-to-br from-amber-50 via-orange-50 to-amber-50 border-amber-200"
-              : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
+              ? "bg-linear-to-br from-amber-50 via-orange-50 to-amber-50 border-amber-200"
+              : "bg-linear-to-br from-gray-50 to-gray-100 border-gray-200"
           } ${isMobile ? "p-4 sm:p-5" : "p-6 md:p-8"}`}
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 sm:gap-5 md:gap-6">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
                 <div
-                  className={`rounded-full flex items-center justify-center flex-shrink-0 ${
+                  className={`rounded-full flex items-center justify-center shrink-0 ${
                     subscriptionData.subscription.isPremium
                       ? "bg-amber-100"
                       : "bg-gray-200"
@@ -1347,7 +1552,7 @@ const ProfilePage = () => {
               <div className="flex flex-col gap-2 sm:gap-3 mt-3 sm:mt-0">
                 <button
                   onClick={() => router.push("/dashboard/premium")}
-                  className={`bg-gradient-to-r from-emerald-600 to-teal-500 text-white rounded-lg sm:rounded-xl font-semibold hover:shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap touch-manipulation ${
+                  className={`bg-linear-to-r from-emerald-600 to-teal-500 text-white rounded-lg sm:rounded-xl font-semibold hover:shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap touch-manipulation ${
                     isMobile
                       ? "px-4 py-2.5 text-xs sm:text-sm"
                       : "px-6 py-3 text-sm"
@@ -1458,7 +1663,7 @@ const ProfilePage = () => {
                 {isEditing && (
                   <button
                     onClick={() => handleRemoveCertification(index)}
-                    className="text-red-600 hover:bg-red-50 active:bg-red-100 p-1 rounded transition-colors ml-2 flex-shrink-0 touch-manipulation"
+                    className="text-red-600 hover:bg-red-50 active:bg-red-100 p-1 rounded transition-colors ml-2 shrink-0 touch-manipulation"
                     aria-label="Remove certification"
                   >
                     <span className="material-symbols-outlined text-sm">
@@ -1554,7 +1759,7 @@ const ProfilePage = () => {
                 {isEditing && (
                   <button
                     onClick={() => handleRemoveEducation(index)}
-                    className="text-red-600 hover:bg-red-50 active:bg-red-100 p-1 rounded transition-colors ml-2 flex-shrink-0 touch-manipulation"
+                    className="text-red-600 hover:bg-red-50 active:bg-red-100 p-1 rounded transition-colors ml-2 shrink-0 touch-manipulation"
                     aria-label="Remove education"
                   >
                     <span className="material-symbols-outlined text-sm">
@@ -1579,6 +1784,107 @@ const ProfilePage = () => {
               </p>
             </div>
           )}
+        </div>
+      </motion.div>
+
+      {/* Portfolio Links Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.45 }}
+        className={`bg-white rounded-xl shadow-sm border border-gray-100 mt-4 sm:mt-5 md:mt-6 ${
+          isMobile ? "p-4 sm:p-5" : "p-6 md:p-8"
+        }`}
+      >
+        <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2 sm:gap-3 mb-4 sm:mb-5 md:mb-6">
+          <h3
+            className={`font-bold text-gray-900 flex items-center gap-1.5 sm:gap-2 ${
+              isMobile ? "text-base sm:text-lg" : "text-lg"
+            }`}
+          >
+            <span className="material-symbols-outlined text-emerald-600 text-lg sm:text-xl">
+              link
+            </span>
+            Portfolio Links
+          </h3>
+        </div>
+
+        {isEditing ? (
+          <div className="mb-3 sm:mb-4">
+            <label
+              className={`block font-medium text-gray-700 mb-1.5 sm:mb-2 ${
+                isMobile ? "text-xs sm:text-sm" : "text-sm"
+              }`}
+            >
+              Add Portfolio URL
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={newPortfolioLink}
+                onChange={(e) => setNewPortfolioLink(e.target.value)}
+                className={`flex-1 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 text-gray-900 placeholder:text-gray-400 ${
+                  isMobile ? "px-3 py-2 text-sm" : "px-4 py-2.5"
+                }`}
+                placeholder="https://example.com/your-work"
+              />
+              <button
+                type="button"
+                onClick={handleAddPortfolioLink}
+                className={`bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors touch-manipulation ${
+                  isMobile ? "px-3 py-2 text-xs" : "px-4 py-2.5 text-sm"
+                }`}
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="space-y-2 sm:space-y-3">
+          {(formData.portfolio || []).map((link: string) => (
+            <div
+              key={link}
+              className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 p-3"
+            >
+              <a
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="min-w-0 flex-1 truncate text-emerald-700 hover:text-emerald-800 underline"
+                title={link}
+              >
+                {link}
+              </a>
+              {isEditing ? (
+                <button
+                  type="button"
+                  onClick={() => handleRemovePortfolioLink(link)}
+                  className="text-red-600 hover:bg-red-50 active:bg-red-100 p-1 rounded transition-colors"
+                  aria-label="Remove portfolio link"
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    delete
+                  </span>
+                </button>
+              ) : null}
+            </div>
+          ))}
+
+          {(formData.portfolio || []).length === 0 ? (
+            <div className="text-center py-6 sm:py-8 text-gray-500">
+              <span
+                className={`material-symbols-outlined text-gray-300 mb-2 ${
+                  isMobile ? "text-3xl sm:text-4xl" : "text-4xl"
+                }`}
+              >
+                link_off
+              </span>
+              <p className={`${isMobile ? "text-sm" : "text-base"}`}>
+                No portfolio links added yet
+              </p>
+            </div>
+          ) : null}
         </div>
       </motion.div>
 

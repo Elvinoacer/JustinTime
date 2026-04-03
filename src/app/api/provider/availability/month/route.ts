@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     if (!providerId || !monthStr) {
       return NextResponse.json(
         { error: "Missing providerId or month" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -29,10 +29,11 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Map day of week to availability (0 = Sunday)
-    const weeklyMap = new Map();
+    // Map day of week to all matching slots (0 = Sunday)
+    const weeklyMap = new Map<number, typeof weeklyAvailability>();
     weeklyAvailability.forEach((slot) => {
-      weeklyMap.set(slot.dayOfWeek, slot);
+      const existing = weeklyMap.get(slot.dayOfWeek) || [];
+      weeklyMap.set(slot.dayOfWeek, [...existing, slot]);
     });
 
     // 2. Get Date Exceptions for the month
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
       const dateStr = format(date, "yyyy-MM-dd");
       const dayOfWeek = date.getDay();
       const exception = exceptionMap.get(dateStr);
-      const weeklySlot = weeklyMap.get(dayOfWeek);
+      const weeklySlots = weeklyMap.get(dayOfWeek) || [];
 
       // Check exception first
       if (exception) {
@@ -71,23 +72,36 @@ export async function GET(request: NextRequest) {
         // If exception says available, it overrides weekly schedule (unless we want to handle partial availability here)
       } else {
         // Check weekly schedule
-        if (!weeklySlot) {
+        if (weeklySlots.length === 0) {
           disabledDates.push(dateStr);
           // reasons[dateStr] = "Not scheduled"; // Optional: don't clutter UI with "Not scheduled"
         }
       }
     });
 
+    const weeklyScheduleByDay = Object.fromEntries(
+      Array.from(weeklyMap.entries()).map(([day, slots]) => [
+        day,
+        slots.map((slot) => ({
+          id: slot.id,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          serviceId: slot.serviceId,
+        })),
+      ]),
+    );
+
     return NextResponse.json({
       disabledDates,
       reasons,
       weeklySchedule: weeklyAvailability,
+      weeklyScheduleByDay,
     });
   } catch (error) {
     console.error("[AVAILABILITY_MONTH]", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

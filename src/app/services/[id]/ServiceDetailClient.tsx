@@ -63,6 +63,12 @@ export default function ServiceDetailClient({
 
   const provider = service.provider;
   const profile = provider.profile;
+  const dynamicPricing = service.dynamicPricing;
+  const hasDynamicPricing =
+    Boolean(dynamicPricing) && (dynamicPricing?.multiplier || 1) > 1;
+  const displayPrice = hasDynamicPricing
+    ? (dynamicPricing?.finalPrice as number)
+    : service.price;
 
   const heroImage = service.images[0] ?? provider.image;
   const categoryHref = `/services?category=${encodeURIComponent(service.category.name)}`;
@@ -116,7 +122,7 @@ export default function ServiceDetailClient({
       {lightboxUrl ? (
         <button
           type="button"
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4"
+          className="fixed inset-0 z-100 flex items-center justify-center bg-black/85 p-4"
           onClick={() => setLightboxUrl(null)}
           aria-label="Close image preview"
         >
@@ -131,7 +137,7 @@ export default function ServiceDetailClient({
       ) : null}
 
       <main className="flex-1 pb-24 lg:pb-10">
-        <div className="relative overflow-hidden border-b border-zinc-200/80 bg-gradient-to-br from-white via-emerald-50/30 to-teal-50/40">
+        <div className="relative overflow-hidden border-b border-zinc-200/80 bg-linear-to-br from-white via-emerald-50/30 to-teal-50/40">
           <div
             className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl"
             aria-hidden
@@ -150,7 +156,7 @@ export default function ServiceDetailClient({
                       href={crumb.href}
                       className={
                         index === crumbs.length - 1
-                          ? "font-medium text-zinc-800 max-w-[200px] truncate sm:max-w-md"
+                          ? "font-medium text-zinc-800 max-w-50 truncate sm:max-w-md"
                           : "hover:text-emerald-700 transition-colors"
                       }
                     >
@@ -189,11 +195,20 @@ export default function ServiceDetailClient({
                       From
                     </span>
                     <span className="text-xl font-bold text-zinc-900 tabular-nums">
-                      KES {service.price.toLocaleString()}
+                      KES {displayPrice.toLocaleString()}
                     </span>
                     <span className="text-zinc-500">
                       · {service.pricingUnit}
                     </span>
+                    {hasDynamicPricing ? (
+                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-900">
+                        +
+                        {Math.round(
+                          ((dynamicPricing?.multiplier || 1) - 1) * 100,
+                        )}
+                        %
+                      </span>
+                    ) : null}
                   </div>
                   <InteractionBar
                     id={service.id}
@@ -203,7 +218,7 @@ export default function ServiceDetailClient({
                   />
                 </div>
 
-                <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl bg-zinc-100 shadow-md ring-1 ring-black/5 sm:aspect-[21/9]">
+                <div className="relative aspect-16/10 w-full overflow-hidden rounded-2xl bg-zinc-100 shadow-md ring-1 ring-black/5 sm:aspect-21/9">
                   {heroImage ? (
                     <Image
                       src={heroImage}
@@ -248,12 +263,12 @@ export default function ServiceDetailClient({
                         <span
                           className={`absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white text-[10px] shadow ${
                             isProProvider
-                              ? "bg-gradient-to-br from-amber-500 to-amber-600 text-white"
+                              ? "bg-linear-to-br from-amber-500 to-amber-600 text-white"
                               : "bg-emerald-500 text-white"
                           }`}
                           title={isProProvider ? "Pro provider" : "Verified"}
                         >
-                          <span className="material-symbols-outlined text-xs !text-[14px]">
+                          <span className="material-symbols-outlined text-xs text-[14px]!">
                             verified
                           </span>
                         </span>
@@ -278,7 +293,7 @@ export default function ServiceDetailClient({
                       className="flex items-center gap-1 rounded-lg bg-zinc-900 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white"
                       title="Background check approved"
                     >
-                      <span className="material-symbols-outlined text-emerald-400 !text-[14px]">
+                      <span className="material-symbols-outlined text-emerald-400 text-[14px]!">
                         shield_lock
                       </span>
                       Cleared
@@ -293,9 +308,15 @@ export default function ServiceDetailClient({
                     Reserve this service
                   </p>
                   <p className="mt-2 text-3xl font-bold tabular-nums text-zinc-900">
-                    KES {service.price.toLocaleString()}
+                    KES {displayPrice.toLocaleString()}
                   </p>
                   <p className="text-sm text-zinc-500">{service.pricingUnit}</p>
+                  {hasDynamicPricing ? (
+                    <p className="mt-2 text-xs text-amber-700">
+                      Dynamic pricing active:{" "}
+                      {dynamicPricing?.reason || "Demand and timing factors"}
+                    </p>
+                  ) : null}
                   <div className="mt-5 flex flex-col gap-2">
                     <Link
                       href={`/booking?professional=${provider.id}&service=${service.id}`}
@@ -421,9 +442,23 @@ export default function ServiceDetailClient({
                       <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3">
                         <span className="text-sm text-zinc-600">Service</span>
                         <span className="font-semibold tabular-nums">
-                          KES {service.price.toLocaleString()}
+                          KES {displayPrice.toLocaleString()}
                         </span>
                       </div>
+                      {hasDynamicPricing ? (
+                        <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                          <span className="text-sm text-amber-900">
+                            Dynamic uplift
+                          </span>
+                          <span className="font-semibold tabular-nums text-amber-900">
+                            +
+                            {Math.round(
+                              ((dynamicPricing?.multiplier || 1) - 1) * 100,
+                            )}
+                            %
+                          </span>
+                        </div>
+                      ) : null}
                       {profile?.hourlyRate ? (
                         <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3">
                           <span className="text-sm text-zinc-600">
@@ -532,7 +567,7 @@ export default function ServiceDetailClient({
                             src={service.video}
                             controls
                             preload="metadata"
-                            className="max-h-[420px] w-full"
+                            className="max-h-105 w-full"
                           />
                         </div>
                       ) : null}

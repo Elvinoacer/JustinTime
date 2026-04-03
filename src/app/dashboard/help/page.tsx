@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { toast } from "sonner";
 
 interface FAQItem {
   id: string;
@@ -18,12 +19,31 @@ interface SupportTicket {
   category: string;
   priority: string;
   status: string;
+  relatedEntityType?: string | null;
+  relatedEntityId?: string | null;
   adminNotes?: string;
   resolution?: string;
   createdAt: string;
   updatedAt: string;
   resolvedAt?: string;
+  _count?: {
+    messages: number;
+  };
+  messages?: Array<{
+    id: string;
+    message: string;
+    authorId: string;
+    authorRole: string;
+    createdAt: string;
+  }>;
 }
+
+type TicketUpdateAction =
+  | "ADD_REPLY"
+  | "REOPEN"
+  | "CANCEL"
+  | "ACK_RESOLVED"
+  | "EDIT";
 
 const faqs: FAQItem[] = [
   {
@@ -37,7 +57,7 @@ const faqs: FAQItem[] = [
     id: "2",
     question: "How do I update my profile information?",
     answer:
-      "Go to Profile from the sidebar menu. You can update your bio, skills, work experience, education, portfolio items, and profile picture. All changes are saved automatically.",
+      "Go to Profile from the sidebar menu. You can update your bio, skills, work experience, education, portfolio items, and profile picture, then save your changes from the profile editor.",
     category: "Getting Started",
   },
   {
@@ -65,7 +85,7 @@ const faqs: FAQItem[] = [
     id: "6",
     question: "How does payment work?",
     answer:
-      "Customers pay through our secure IntaSend payment gateway. Your earnings are tracked in the Earnings page. Payments are processed within 3-5 business days after service completion.",
+      "Customers pay through our secure IntaSend payment gateway. Your earnings and payouts are tracked in your wallet and earnings pages, where transfer status and timing are shown for each transaction.",
     category: "Payments",
   },
   {
@@ -97,6 +117,8 @@ const HelpPage = () => {
   const [description, setDescription] = useState("");
   const [ticketCategory, setTicketCategory] = useState("General");
   const [priority, setPriority] = useState("MEDIUM");
+  const [relatedEntityType, setRelatedEntityType] = useState("BOOKING");
+  const [relatedEntityId, setRelatedEntityId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Tickets state
@@ -104,13 +126,19 @@ const HelpPage = () => {
   const [isLoadingTickets, setIsLoadingTickets] = useState(true);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [expandedTicket, setExpandedTicket] = useState<string | null>(null);
+  const [activeTicketActionId, setActiveTicketActionId] = useState<
+    string | null
+  >(null);
+  const [replyByTicketId, setReplyByTicketId] = useState<
+    Record<string, string>
+  >({});
+  const [editingTicketId, setEditingTicketId] = useState<string | null>(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editCategory, setEditCategory] = useState("General");
 
-  // Fetch tickets on mount
-  useEffect(() => {
-    fetchTickets();
-  }, [statusFilter]);
-
-  const fetchTickets = async () => {
+  const fetchTickets = useCallback(async () => {
+    setIsLoadingTickets(true);
     try {
       const url =
         statusFilter === "ALL"
@@ -121,19 +149,133 @@ const HelpPage = () => {
       if (response.ok) {
         const data = await response.json();
         setTickets(data.tickets || []);
+      } else {
+        toast.error("Failed to load support tickets");
       }
     } catch (error) {
       console.error("Error fetching tickets:", error);
+      toast.error("Failed to load support tickets");
     } finally {
       setIsLoadingTickets(false);
     }
+  }, [statusFilter]);
+
+  // Fetch tickets on mount
+  useEffect(() => {
+    void fetchTickets();
+  }, [fetchTickets]);
+
+  const updateTicket = async (
+    ticketId: string,
+    action: TicketUpdateAction,
+    payload: Record<string, string> = {},
+    successMessage = "Ticket updated",
+  ) => {
+    try {
+      setActiveTicketActionId(ticketId);
+
+      const response = await fetch(`/api/support/tickets/${ticketId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action,
+          ...payload,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update ticket");
+      }
+
+      toast.success(successMessage);
+      await fetchTickets();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Ticket update failed",
+      );
+    } finally {
+      setActiveTicketActionId(null);
+    }
+  };
+
+  const beginEditingTicket = (ticket: SupportTicket) => {
+    setEditingTicketId(ticket.id);
+    setEditSubject(ticket.subject);
+    setEditDescription(ticket.description);
+    setEditCategory(ticket.category);
+  };
+
+  const cancelEditingTicket = () => {
+    setEditingTicketId(null);
+    setEditSubject("");
+    setEditDescription("");
+    setEditCategory("General");
+  };
+
+  const submitReply = async (ticket: SupportTicket) => {
+    const message = (replyByTicketId[ticket.id] || "").trim();
+    if (!message) {
+      toast.error("Enter your reply before sending");
+      return;
+    }
+
+    await updateTicket(
+      ticket.id,
+      "ADD_REPLY",
+      { message },
+      "Reply added to ticket",
+    );
+
+    setReplyByTicketId((current) => ({
+      ...current,
+      [ticket.id]: "",
+    }));
+  };
+
+  const saveTicketEdit = async (ticket: SupportTicket) => {
+    const nextSubject = editSubject.trim();
+    const nextDescription = editDescription.trim();
+
+    if (!nextSubject || !nextDescription) {
+      toast.error("Subject and description are required");
+      return;
+    }
+
+    await updateTicket(
+      ticket.id,
+      "EDIT",
+      {
+        subject: nextSubject,
+        description: nextDescription,
+        category: editCategory,
+      },
+      "Ticket details updated",
+    );
+
+    cancelEditingTicket();
   };
 
   const handleSubmitTicket = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!subject || !description) {
-      alert("Please fill in all required fields");
+    const trimmedSubject = subject.trim();
+    const trimmedDescription = description.trim();
+    const trimmedRelatedEntityId = relatedEntityId.trim();
+    const needsReference =
+      ticketCategory === "Payments" || ticketCategory === "Bookings";
+
+    if (!trimmedSubject || !trimmedDescription) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (needsReference && !trimmedRelatedEntityId) {
+      toast.error(
+        "This category requires a booking, job, or invoice reference",
+      );
       return;
     }
 
@@ -146,10 +288,12 @@ const HelpPage = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          subject,
-          description,
+          subject: trimmedSubject,
+          description: trimmedDescription,
           category: ticketCategory,
           priority,
+          relatedEntityType: needsReference ? relatedEntityType : undefined,
+          relatedEntityId: needsReference ? trimmedRelatedEntityId : undefined,
         }),
       });
 
@@ -163,15 +307,19 @@ const HelpPage = () => {
       setDescription("");
       setTicketCategory("General");
       setPriority("MEDIUM");
+      setRelatedEntityType("BOOKING");
+      setRelatedEntityId("");
 
       // Refresh tickets
       await fetchTickets();
 
-      alert(
-        "Support ticket submitted successfully! You'll receive an email confirmation shortly."
+      toast.success(
+        "Support ticket submitted successfully. Check your tickets below for updates.",
       );
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to submit ticket");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to submit ticket",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -233,7 +381,7 @@ const HelpPage = () => {
       <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4 mb-6 sm:mb-8">
         <Link
           href="/dashboard/settings?tab=security"
-          className="p-3 sm:p-4 md:p-6 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-lg sm:rounded-xl hover:shadow-md transition-shadow group"
+          className="p-3 sm:p-4 md:p-6 bg-linear-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-lg sm:rounded-xl hover:shadow-md transition-shadow group"
         >
           <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-emerald-600 rounded-lg flex items-center justify-center mb-2 sm:mb-3 md:mb-4">
             <span className="material-symbols-outlined text-white text-base sm:text-lg md:text-xl">
@@ -256,7 +404,7 @@ const HelpPage = () => {
 
         <Link
           href="/dashboard/premium"
-          className="p-3 sm:p-4 md:p-6 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-lg sm:rounded-xl hover:shadow-md transition-shadow group"
+          className="p-3 sm:p-4 md:p-6 bg-linear-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-lg sm:rounded-xl hover:shadow-md transition-shadow group"
         >
           <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-purple-600 rounded-lg flex items-center justify-center mb-2 sm:mb-3 md:mb-4">
             <span className="material-symbols-outlined text-white text-base sm:text-lg md:text-xl">
@@ -277,7 +425,7 @@ const HelpPage = () => {
           </span>
         </Link>
 
-        <div className="p-3 sm:p-4 md:p-6 bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-lg sm:rounded-xl hover:shadow-md transition-shadow xs:col-span-2 lg:col-span-1">
+        <div className="p-3 sm:p-4 md:p-6 bg-linear-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-lg sm:rounded-xl hover:shadow-md transition-shadow xs:col-span-2 lg:col-span-1">
           <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-2 sm:mb-3 md:mb-4">
             <span className="material-symbols-outlined text-white text-base sm:text-lg md:text-xl">
               headset_mic
@@ -294,7 +442,7 @@ const HelpPage = () => {
             className="text-blue-600 text-xs sm:text-sm font-medium mt-1.5 sm:mt-2 md:mt-3 inline-flex items-center gap-0.5 sm:gap-1 truncate"
           >
             <span className="truncate">support@gtss.software</span>
-            <span className="material-symbols-outlined text-xs sm:text-sm flex-shrink-0">
+            <span className="material-symbols-outlined text-xs sm:text-sm shrink-0">
               mail
             </span>
           </a>
@@ -303,7 +451,7 @@ const HelpPage = () => {
 
       {/* Support Ticket Form */}
       <div className="mb-8 sm:mb-10 md:mb-12 bg-white rounded-lg sm:rounded-xl border border-gray-200 overflow-hidden">
-        <div className="p-4 sm:p-5 md:p-6 border-b border-gray-200 bg-gradient-to-r from-emerald-50 to-teal-50">
+        <div className="p-4 sm:p-5 md:p-6 border-b border-gray-200 bg-linear-to-r from-emerald-50 to-teal-50">
           <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900 flex items-center gap-1.5 sm:gap-2">
             <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
               support_agent
@@ -311,8 +459,8 @@ const HelpPage = () => {
             Submit a Support Request
           </h2>
           <p className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1">
-            Can't find what you're looking for? Submit a ticket and we'll help
-            you out!
+            Can&apos;t find what you&apos;re looking for? Submit a ticket and
+            we&apos;ll help you out!
           </p>
         </div>
 
@@ -380,7 +528,51 @@ const HelpPage = () => {
               <option value="HIGH">High - Important issue</option>
               <option value="URGENT">Urgent - Critical problem</option>
             </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Priority may be normalized based on category and abuse prevention
+              controls.
+            </p>
           </div>
+
+          {(ticketCategory === "Payments" || ticketCategory === "Bookings") && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div>
+                <label
+                  htmlFor="relatedEntityType"
+                  className="block text-xs sm:text-sm font-medium text-gray-900 mb-1.5 sm:mb-2"
+                >
+                  Related Reference Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="relatedEntityType"
+                  value={relatedEntityType}
+                  onChange={(e) => setRelatedEntityType(e.target.value)}
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm sm:text-base text-gray-900"
+                >
+                  <option value="BOOKING">Booking</option>
+                  <option value="JOB">Job</option>
+                  <option value="INVOICE">Invoice</option>
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="relatedEntityId"
+                  className="block text-xs sm:text-sm font-medium text-gray-900 mb-1.5 sm:mb-2"
+                >
+                  Reference ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="relatedEntityId"
+                  type="text"
+                  value={relatedEntityId}
+                  onChange={(e) => setRelatedEntityId(e.target.value)}
+                  placeholder="e.g. booking_123"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm sm:text-base text-gray-900"
+                />
+              </div>
+            </div>
+          )}
 
           <div>
             <label
@@ -445,7 +637,7 @@ const HelpPage = () => {
               >
                 {status.replace("_", " ")}
               </button>
-            )
+            ),
           )}
         </div>
 
@@ -489,7 +681,7 @@ const HelpPage = () => {
                         </span>
                         <span
                           className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-xs font-semibold rounded ${getStatusColor(
-                            ticket.status
+                            ticket.status,
                           )}`}
                         >
                           {ticket.status.replace("_", " ")}
@@ -514,24 +706,41 @@ const HelpPage = () => {
                       <p className="text-xs sm:text-sm text-gray-600">
                         Created{" "}
                         {new Date(ticket.createdAt).toLocaleDateString()}
+                        {ticket._count?.messages
+                          ? ` • ${ticket._count.messages} update${ticket._count.messages === 1 ? "" : "s"}`
+                          : ""}
                       </p>
+                      {ticket.relatedEntityType && ticket.relatedEntityId && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Reference: {ticket.relatedEntityType} #
+                          {ticket.relatedEntityId}
+                        </p>
+                      )}
                     </div>
-                    <button
-                      onClick={() =>
-                        setExpandedTicket(
-                          expandedTicket === ticket.id ? null : ticket.id
-                        )
-                      }
-                      className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-                    >
-                      <span
-                        className={`material-symbols-outlined transition-transform text-base sm:text-lg ${
-                          expandedTicket === ticket.id ? "rotate-180" : ""
-                        }`}
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/dashboard/help/tickets/${ticket.id}`}
+                        className="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                       >
-                        expand_more
-                      </span>
-                    </button>
+                        Open Thread
+                      </Link>
+                      <button
+                        onClick={() =>
+                          setExpandedTicket(
+                            expandedTicket === ticket.id ? null : ticket.id,
+                          )
+                        }
+                        className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
+                      >
+                        <span
+                          className={`material-symbols-outlined transition-transform text-base sm:text-lg ${
+                            expandedTicket === ticket.id ? "rotate-180" : ""
+                          }`}
+                        >
+                          expand_more
+                        </span>
+                      </button>
+                    </div>
                   </div>
 
                   {expandedTicket === ticket.id && (
@@ -544,9 +753,66 @@ const HelpPage = () => {
                         <h4 className="text-xs sm:text-sm font-semibold text-gray-900 mb-1.5 sm:mb-2">
                           Description:
                         </h4>
-                        <p className="text-xs sm:text-sm text-gray-600 whitespace-pre-wrap">
-                          {ticket.description}
-                        </p>
+                        {editingTicketId === ticket.id ? (
+                          <div className="space-y-2 sm:space-y-3">
+                            <input
+                              type="text"
+                              value={editSubject}
+                              onChange={(e) => setEditSubject(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-900"
+                              placeholder="Ticket subject"
+                            />
+                            <select
+                              value={editCategory}
+                              onChange={(e) => setEditCategory(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-900"
+                            >
+                              <option value="General">General</option>
+                              <option value="Account">Account</option>
+                              <option value="Payments">Payments</option>
+                              <option value="Technical">Technical</option>
+                              <option value="Bookings">Bookings</option>
+                            </select>
+                            <textarea
+                              value={editDescription}
+                              onChange={(e) =>
+                                setEditDescription(e.target.value)
+                              }
+                              rows={4}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-900 resize-none"
+                              placeholder="Update ticket details"
+                            />
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => saveTicketEdit(ticket)}
+                                disabled={activeTicketActionId === ticket.id}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={cancelEditingTicket}
+                                disabled={activeTicketActionId === ticket.id}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-xs sm:text-sm text-gray-600 whitespace-pre-wrap">
+                              {ticket.description}
+                            </p>
+                            {ticket.messages?.[0] && (
+                              <p className="text-xs text-gray-500 mt-2">
+                                Latest update (
+                                {ticket.messages[0].authorRole.toLowerCase()}):{" "}
+                                {ticket.messages[0].message}
+                              </p>
+                            )}
+                          </>
+                        )}
                       </div>
 
                       {ticket.adminNotes && (
@@ -574,6 +840,98 @@ const HelpPage = () => {
                           <p className="text-xs sm:text-sm text-emerald-800">
                             {ticket.resolution}
                           </p>
+                        </div>
+                      )}
+
+                      {editingTicketId !== ticket.id && (
+                        <div className="space-y-2 sm:space-y-3">
+                          <label className="block text-xs sm:text-sm font-semibold text-gray-900">
+                            Add Reply
+                          </label>
+                          <textarea
+                            value={replyByTicketId[ticket.id] || ""}
+                            onChange={(e) =>
+                              setReplyByTicketId((current) => ({
+                                ...current,
+                                [ticket.id]: e.target.value,
+                              }))
+                            }
+                            rows={3}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs sm:text-sm text-gray-900 resize-none"
+                            placeholder="Add details, updates, or follow-up information"
+                          />
+
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => submitReply(ticket)}
+                              disabled={activeTicketActionId === ticket.id}
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              Send Reply
+                            </button>
+
+                            {(ticket.status === "OPEN" ||
+                              ticket.status === "IN_PROGRESS") && (
+                              <>
+                                <button
+                                  onClick={() => beginEditingTicket(ticket)}
+                                  disabled={activeTicketActionId === ticket.id}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                >
+                                  Edit Ticket
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    updateTicket(
+                                      ticket.id,
+                                      "CANCEL",
+                                      {},
+                                      "Ticket cancelled",
+                                    )
+                                  }
+                                  disabled={activeTicketActionId === ticket.id}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                >
+                                  Cancel Ticket
+                                </button>
+                              </>
+                            )}
+
+                            {(ticket.status === "RESOLVED" ||
+                              ticket.status === "CLOSED") && (
+                              <button
+                                onClick={() =>
+                                  updateTicket(
+                                    ticket.id,
+                                    "REOPEN",
+                                    {},
+                                    "Ticket reopened",
+                                  )
+                                }
+                                disabled={activeTicketActionId === ticket.id}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-yellow-200 text-yellow-800 hover:bg-yellow-50 disabled:opacity-50"
+                              >
+                                Reopen
+                              </button>
+                            )}
+
+                            {ticket.status === "RESOLVED" && (
+                              <button
+                                onClick={() =>
+                                  updateTicket(
+                                    ticket.id,
+                                    "ACK_RESOLVED",
+                                    {},
+                                    "Ticket acknowledged and closed",
+                                  )
+                                }
+                                disabled={activeTicketActionId === ticket.id}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                              >
+                                Acknowledge Resolution
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )}
                     </motion.div>
@@ -670,7 +1028,7 @@ const HelpPage = () => {
                     </h3>
                   </div>
                   <span
-                    className={`material-symbols-outlined text-gray-400 flex-shrink-0 transition-transform text-base sm:text-lg ${
+                    className={`material-symbols-outlined text-gray-400 shrink-0 transition-transform text-base sm:text-lg ${
                       expandedFAQ === faq.id ? "rotate-180" : ""
                     }`}
                   >

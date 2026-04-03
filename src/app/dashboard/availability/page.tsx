@@ -17,7 +17,7 @@ interface AvailabilitySlot {
 
 interface Exception {
   id?: string;
-  date: Date;
+  date: string | Date;
   isAvailable: boolean;
   startTime?: string;
   endTime?: string;
@@ -34,6 +34,14 @@ const DAYS = [
   "Saturday",
 ];
 
+const DEFAULT_EXCEPTION_FORM = {
+  date: "",
+  isAvailable: false,
+  startTime: "",
+  endTime: "",
+  reason: "",
+};
+
 export default function AvailabilityPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -43,6 +51,10 @@ export default function AvailabilityPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [showExceptionModal, setShowExceptionModal] = useState(false);
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
+  const [editingExceptionId, setEditingExceptionId] = useState<string | null>(
+    null,
+  );
   const [isMobile, setIsMobile] = useState(false);
 
   // New slot form
@@ -51,14 +63,28 @@ export default function AvailabilityPage() {
     endTime: "17:00",
   });
 
+  const [slotEditForm, setSlotEditForm] = useState({
+    startTime: "09:00",
+    endTime: "17:00",
+    dayOfWeek: 0,
+  });
+
   // Exception form
   const [newException, setNewException] = useState({
-    date: "",
-    isAvailable: false,
-    startTime: "",
-    endTime: "",
-    reason: "",
+    ...DEFAULT_EXCEPTION_FORM,
   });
+
+  const openNewExceptionModal = () => {
+    setEditingExceptionId(null);
+    setNewException({ ...DEFAULT_EXCEPTION_FORM });
+    setShowExceptionModal(true);
+  };
+
+  const closeExceptionModal = () => {
+    setEditingExceptionId(null);
+    setNewException({ ...DEFAULT_EXCEPTION_FORM });
+    setShowExceptionModal(false);
+  };
 
   // Check for mobile on mount and resize
   useEffect(() => {
@@ -92,11 +118,27 @@ export default function AvailabilityPage() {
   const fetchAvailability = async () => {
     try {
       const response = await fetch("/api/provider/availability");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to fetch availability");
+      }
+
       const data = await response.json();
-      setAvailability(data.weeklyAvailability || []);
-      setExceptions(data.exceptions || []);
+
+      const weeklyAvailability = Array.isArray(data?.weeklyAvailability)
+        ? data.weeklyAvailability
+        : [];
+      const availabilityExceptions = Array.isArray(data?.exceptions)
+        ? data.exceptions
+        : [];
+
+      setAvailability(weeklyAvailability);
+      setExceptions(availabilityExceptions);
     } catch (error) {
-      toast.error("Failed to load availability");
+      console.error("[fetchAvailability]", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load availability",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -108,8 +150,8 @@ export default function AvailabilityPage() {
       return;
     }
 
-    if (newSlot.startTime >= newSlot.endTime) {
-      toast.error("End time must be after start time");
+    if (newSlot.startTime === newSlot.endTime) {
+      toast.error("Start and end time cannot be the same");
       return;
     }
 
@@ -132,7 +174,7 @@ export default function AvailabilityPage() {
       if (!response.ok) throw new Error("Failed to add slot");
 
       toast.success("Time slot added!");
-      fetchAvailability();
+      await fetchAvailability();
       setSelectedDay(null);
       // Reset to default times
       setNewSlot({
@@ -152,12 +194,72 @@ export default function AvailabilityPage() {
         method: "DELETE",
       });
 
-      if (!response.ok) throw new Error("Failed to delete");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to delete");
+      }
 
       toast.success("Time slot removed");
-      fetchAvailability();
+      await fetchAvailability();
     } catch (error) {
-      toast.error("Failed to remove availability");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to remove availability",
+      );
+    }
+  };
+
+  const beginSlotEdit = (slot: AvailabilitySlot) => {
+    if (!slot.id) return;
+    setEditingSlotId(slot.id);
+    setSlotEditForm({
+      dayOfWeek: slot.dayOfWeek,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+    });
+  };
+
+  const saveSlotEdit = async () => {
+    if (!editingSlotId) return;
+
+    if (!slotEditForm.startTime || !slotEditForm.endTime) {
+      toast.error("Please set start and end times");
+      return;
+    }
+
+    if (slotEditForm.startTime === slotEditForm.endTime) {
+      toast.error("Start and end time cannot be the same");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/provider/availability", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingSlotId,
+          dayOfWeek: slotEditForm.dayOfWeek,
+          startTime: slotEditForm.startTime,
+          endTime: slotEditForm.endTime,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to update slot");
+      }
+
+      toast.success("Time slot updated");
+      setEditingSlotId(null);
+      await fetchAvailability();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update slot",
+      );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -175,31 +277,57 @@ export default function AvailabilityPage() {
       return;
     }
 
+    if (
+      newException.isAvailable &&
+      newException.startTime >= newException.endTime
+    ) {
+      toast.error("End time must be after start time");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const response = await fetch("/api/provider/availability/exceptions", {
-        method: "POST",
+        method: editingExceptionId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newException),
+        body: JSON.stringify({
+          ...(editingExceptionId ? { id: editingExceptionId } : {}),
+          ...newException,
+        }),
       });
 
-      if (!response.ok) throw new Error("Failed to add exception");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to save exception");
+      }
 
-      toast.success("Exception added!");
-      fetchAvailability();
-      setShowExceptionModal(false);
-      setNewException({
-        date: "",
-        isAvailable: false,
-        startTime: "",
-        endTime: "",
-        reason: "",
-      });
+      toast.success(
+        editingExceptionId ? "Exception updated!" : "Exception added!",
+      );
+      await fetchAvailability();
+      closeExceptionModal();
     } catch (error) {
-      toast.error("Failed to add exception");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save exception",
+      );
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const beginExceptionEdit = (exception: Exception) => {
+    if (!exception.id) return;
+    const dateValue = new Date(exception.date).toISOString().split("T")[0];
+
+    setEditingExceptionId(exception.id);
+    setNewException({
+      date: dateValue,
+      isAvailable: exception.isAvailable,
+      startTime: exception.startTime || "",
+      endTime: exception.endTime || "",
+      reason: exception.reason || "",
+    });
+    setShowExceptionModal(true);
   };
 
   const deleteException = async (id: string) => {
@@ -211,12 +339,17 @@ export default function AvailabilityPage() {
         },
       );
 
-      if (!response.ok) throw new Error("Failed to delete");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to delete");
+      }
 
       toast.success("Exception removed");
-      fetchAvailability();
+      await fetchAvailability();
     } catch (error) {
-      toast.error("Failed to remove exception");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to remove exception",
+      );
     }
   };
 
@@ -245,7 +378,7 @@ export default function AvailabilityPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 py-4 sm:py-6 lg:py-8">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 via-white to-emerald-50 py-4 sm:py-6 lg:py-8">
       <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8">
         {/* Header */}
         <motion.div
@@ -263,8 +396,8 @@ export default function AvailabilityPage() {
               </p>
             </div>
             <button
-              onClick={() => setShowExceptionModal(true)}
-              className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-semibold text-sm transition-all shadow-sm sm:shadow-md flex items-center gap-1.5 sm:gap-2 self-start xs:self-center"
+              onClick={openNewExceptionModal}
+              className="px-3 sm:px-4 py-2 bg-linear-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-semibold text-sm transition-all shadow-sm sm:shadow-md flex items-center gap-1.5 sm:gap-2 self-start xs:self-center"
             >
               <span className="material-symbols-outlined text-sm sm:text-base">
                 event_busy
@@ -305,7 +438,7 @@ export default function AvailabilityPage() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white font-bold text-sm sm:text-base flex-shrink-0">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center text-white font-bold text-sm sm:text-base shrink-0">
                               {isMobile
                                 ? day.substring(0, 2)
                                 : day.substring(0, 3)}
@@ -370,31 +503,95 @@ export default function AvailabilityPage() {
                                         key={slot.id}
                                         className="flex items-center justify-between p-2.5 sm:p-3 bg-white rounded-lg border border-gray-200"
                                       >
-                                        <div className="flex items-center gap-2 sm:gap-3">
-                                          <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
-                                            schedule
-                                          </span>
-                                          <div>
-                                            <span className="font-semibold text-gray-900 text-sm sm:text-base">
-                                              {slot.startTime} - {slot.endTime}
-                                            </span>
-                                            {slot.id && (
-                                              <p className="text-[10px] xs:text-xs text-gray-500 mt-0.5">
-                                                Click to remove
-                                              </p>
-                                            )}
+                                        {editingSlotId === slot.id ? (
+                                          <div className="w-full space-y-2">
+                                            <div className="grid grid-cols-2 gap-2">
+                                              <input
+                                                type="time"
+                                                value={slotEditForm.startTime}
+                                                onChange={(e) =>
+                                                  setSlotEditForm((prev) => ({
+                                                    ...prev,
+                                                    startTime: e.target.value,
+                                                  }))
+                                                }
+                                                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
+                                              />
+                                              <input
+                                                type="time"
+                                                value={slotEditForm.endTime}
+                                                onChange={(e) =>
+                                                  setSlotEditForm((prev) => ({
+                                                    ...prev,
+                                                    endTime: e.target.value,
+                                                  }))
+                                                }
+                                                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
+                                              />
+                                            </div>
+                                            <div className="flex items-center justify-end gap-2">
+                                              <button
+                                                onClick={() =>
+                                                  setEditingSlotId(null)
+                                                }
+                                                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                                              >
+                                                Cancel
+                                              </button>
+                                              <button
+                                                onClick={saveSlotEdit}
+                                                disabled={isSaving}
+                                                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                                              >
+                                                Save
+                                              </button>
+                                            </div>
                                           </div>
-                                        </div>
-                                        {slot.id && (
-                                          <button
-                                            onClick={() => deleteSlot(slot.id!)}
-                                            className="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                            title="Remove slot"
-                                          >
-                                            <span className="material-symbols-outlined text-sm sm:text-base">
-                                              delete
-                                            </span>
-                                          </button>
+                                        ) : (
+                                          <>
+                                            <div className="flex items-center gap-2 sm:gap-3">
+                                              <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
+                                                schedule
+                                              </span>
+                                              <div>
+                                                <span className="font-semibold text-gray-900 text-sm sm:text-base">
+                                                  {slot.startTime} -{" "}
+                                                  {slot.endTime}
+                                                </span>
+                                                {slot.id && (
+                                                  <p className="text-[10px] xs:text-xs text-gray-500 mt-0.5">
+                                                    Use edit to adjust this slot
+                                                  </p>
+                                                )}
+                                              </div>
+                                            </div>
+                                            {slot.id && (
+                                              <div className="flex items-center gap-1">
+                                                <button
+                                                  onClick={() =>
+                                                    beginSlotEdit(slot)
+                                                  }
+                                                  className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                  title="Edit slot"
+                                                >
+                                                  <span className="material-symbols-outlined text-sm sm:text-base">
+                                                    edit
+                                                  </span>
+                                                </button>
+                                                <button
+                                                  onClick={() =>
+                                                    deleteSlot(slot.id!)
+                                                  }
+                                                  className="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                  title="Remove slot"
+                                                >
+                                                  <span className="material-symbols-outlined text-sm sm:text-base">
+                                                    delete
+                                                  </span>
+                                                </button>
+                                              </div>
+                                            )}
+                                          </>
                                         )}
                                       </div>
                                     ))}
@@ -461,7 +658,7 @@ export default function AvailabilityPage() {
                                 <button
                                   onClick={() => addSlot(index)}
                                   disabled={isSaving}
-                                  className="w-full py-2 sm:py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                  className="w-full py-2 sm:py-2.5 bg-linear-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                                 >
                                   {isSaving ? (
                                     <span className="flex items-center justify-center gap-1.5">
@@ -487,7 +684,7 @@ export default function AvailabilityPage() {
           {/* Sidebar - Mobile: Below, Desktop: Right Side */}
           <div className="space-y-4 sm:space-y-6">
             {/* Quick Stats Card */}
-            <div className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl shadow-lg p-4 sm:p-6 text-white">
+            <div className="bg-linear-to-br from-emerald-500 to-teal-500 rounded-xl shadow-lg p-4 sm:p-6 text-white">
               <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4">
                 Quick Stats
               </h3>
@@ -526,7 +723,7 @@ export default function AvailabilityPage() {
                   Upcoming Exceptions
                 </h3>
                 <button
-                  onClick={() => setShowExceptionModal(true)}
+                  onClick={openNewExceptionModal}
                   className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1"
                 >
                   <span className="material-symbols-outlined text-sm">add</span>
@@ -541,7 +738,7 @@ export default function AvailabilityPage() {
                   </span>
                   <p className="text-xs sm:text-sm">No exceptions set</p>
                   <button
-                    onClick={() => setShowExceptionModal(true)}
+                    onClick={openNewExceptionModal}
                     className="mt-3 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition-colors"
                   >
                     Create Your First Exception
@@ -561,7 +758,7 @@ export default function AvailabilityPage() {
                       <div className="flex justify-between items-start mb-1.5">
                         <div className="flex items-center gap-2 min-w-0">
                           <span
-                            className={`material-symbols-outlined text-sm sm:text-base flex-shrink-0 ${
+                            className={`material-symbols-outlined text-sm sm:text-base shrink-0 ${
                               exception.isAvailable
                                 ? "text-green-600"
                                 : "text-red-600"
@@ -589,15 +786,26 @@ export default function AvailabilityPage() {
                             )}
                           </div>
                         </div>
-                        <button
-                          onClick={() => deleteException(exception.id!)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors flex-shrink-0 ml-1"
-                          title="Remove exception"
-                        >
-                          <span className="material-symbols-outlined text-sm">
-                            close
-                          </span>
-                        </button>
+                        <div className="flex items-center gap-1 shrink-0 ml-1">
+                          <button
+                            onClick={() => beginExceptionEdit(exception)}
+                            className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="Edit exception"
+                          >
+                            <span className="material-symbols-outlined text-sm">
+                              edit
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => deleteException(exception.id!)}
+                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Remove exception"
+                          >
+                            <span className="material-symbols-outlined text-sm">
+                              close
+                            </span>
+                          </button>
+                        </div>
                       </div>
                       {exception.isAvailable && exception.startTime && (
                         <div className="flex items-center gap-1.5 mt-1.5">
@@ -614,7 +822,7 @@ export default function AvailabilityPage() {
 
                   {exceptions.length > 3 && isMobile && (
                     <button
-                      onClick={() => setShowExceptionModal(true)}
+                      onClick={openNewExceptionModal}
                       className="w-full text-center text-xs text-gray-500 hover:text-gray-700 py-2"
                     >
                       View all {exceptions.length} exceptions
@@ -626,7 +834,7 @@ export default function AvailabilityPage() {
 
             {/* Mobile Tips Card */}
             {isMobile && (
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-4">
+              <div className="bg-linear-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-4">
                 <div className="flex items-start gap-2 mb-2">
                   <span className="material-symbols-outlined text-blue-600 text-lg">
                     tips_and_updates
@@ -669,7 +877,7 @@ export default function AvailabilityPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setShowExceptionModal(false)}
+            onClick={closeExceptionModal}
           >
             <motion.div
               className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
@@ -681,10 +889,12 @@ export default function AvailabilityPage() {
               <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
                   <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                    Add Date Exception
+                    {editingExceptionId
+                      ? "Edit Date Exception"
+                      : "Add Date Exception"}
                   </h2>
                   <button
-                    onClick={() => setShowExceptionModal(false)}
+                    onClick={closeExceptionModal}
                     className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     <span className="material-symbols-outlined text-lg">
@@ -806,7 +1016,7 @@ export default function AvailabilityPage() {
 
                   <div className="flex gap-2.5 sm:gap-3 pt-2">
                     <button
-                      onClick={() => setShowExceptionModal(false)}
+                      onClick={closeExceptionModal}
                       className="flex-1 px-4 py-2.5 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold text-sm"
                     >
                       Cancel
@@ -814,13 +1024,15 @@ export default function AvailabilityPage() {
                     <button
                       onClick={addException}
                       disabled={isSaving}
-                      className="flex-1 px-4 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                      className="flex-1 px-4 py-2.5 sm:py-3 bg-linear-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
                     >
                       {isSaving ? (
                         <span className="flex items-center justify-center gap-1.5">
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          Adding...
+                          {editingExceptionId ? "Updating..." : "Adding..."}
                         </span>
+                      ) : editingExceptionId ? (
+                        "Update Exception"
                       ) : (
                         "Add Exception"
                       )}

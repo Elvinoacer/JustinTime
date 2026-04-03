@@ -324,6 +324,7 @@ const ServicesList = ({
                   service.provider?.image ||
                   "/images/placeholder.png",
                 distance: service.distance,
+                dynamicPricing: service.dynamicPricing,
                 provider: {
                   name: service.provider?.name || "Unknown Provider",
                   image: service.provider?.image,

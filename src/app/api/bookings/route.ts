@@ -3,17 +3,13 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkAvailability } from "@/lib/utils/availability";
 import { createBookingNotifications } from "@/lib/utils/notifications";
-import {
-  sendBookingConfirmationEmail,
-  sendProviderBookingNotificationEmail,
-} from "@/lib/email";
+import { sendBookingConfirmationEmail } from "@/lib/email";
 import {
   sendComprehensiveNotification,
   emailTemplates,
 } from "@/lib/notifications/adminNotifications";
 import { calculateBookingBreakdown } from "@/lib/financials";
 import { validatePromoCode } from "@/lib/promo";
-import { getDynamicPrice } from "@/lib/pricing-engine";
 import { VALIDATION } from "@/lib/constants/validation";
 import { Prisma } from "@/generated/prisma/client";
 import { SERVICE_LOCATION_TYPES } from "@/lib/services/config";
@@ -21,6 +17,12 @@ import {
   BOOKING_LIFECYCLE_EVENT_TYPES,
   recordBookingLifecycleEvent,
 } from "@/lib/bookings/lifecycleTimeline";
+
+type IncomingBookingSlot = {
+  date: string;
+  startTime: string;
+  endTime: string;
+};
 
 export async function GET(request: Request) {
   try {
@@ -35,7 +37,7 @@ export async function GET(request: Request) {
     const skip = (page - 1) * pageSize;
 
     // Get bookings where user is the client
-    const where: any = { clientId: session.user.id };
+    const where: Prisma.BookingWhereInput = { clientId: session.user.id };
     if (searchParams.get("status")) where.status = searchParams.get("status");
 
     const [bookings, total] = await Promise.all([
@@ -108,19 +110,16 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    let {
+    const {
       professionalId,
       serviceId,
       date,
       startTime,
       endTime,
       slots, // Array of { date, startTime, endTime }
-      location,
-      notes,
-      clientPhone,
-      clientAddress,
-      promoCode,
+      pricingQuoteId,
     } = body;
+    let { location, notes, clientPhone, clientAddress, promoCode } = body;
 
     // Sanitize inputs
     location = location?.trim();
@@ -133,6 +132,17 @@ export async function POST(request: Request) {
     if (!professionalId || !serviceId) {
       return NextResponse.json(
         { error: "Missing required fields" },
+        { status: 400 },
+      );
+    }
+
+    if (!pricingQuoteId || typeof pricingQuoteId !== "string") {
+      return NextResponse.json(
+        {
+          error:
+            "A valid pricing quote is required before submitting this booking",
+          code: "PRICING_QUOTE_REQUIRED",
+        },
         { status: 400 },
       );
     }
@@ -232,7 +242,7 @@ export async function POST(request: Request) {
     let bookingSlots: { date: Date; startTime: string; endTime: string }[] = [];
 
     if (slots && Array.isArray(slots) && slots.length > 0) {
-      bookingSlots = slots.map((slot: any) => ({
+      bookingSlots = (slots as IncomingBookingSlot[]).map((slot) => ({
         date: new Date(slot.date),
         startTime: slot.startTime,
         endTime: slot.endTime,
@@ -307,6 +317,9 @@ export async function POST(request: Request) {
       }
     }
 
+    const firstSlot = bookingSlots[0];
+    const lastSlot = bookingSlots[bookingSlots.length - 1];
+
     // Calculate total amount and tax breakdown
     // If price is per session/hour, multiply by number of slots?
     // Assuming price is per slot for now based on previous logic
@@ -332,14 +345,72 @@ export async function POST(request: Request) {
       validPromoCodeId = promoValidation.promoCodeId;
     }
 
-    // Prepare slot references for pricing and booking
-    const firstSlot = bookingSlots[0];
-    const lastSlot = bookingSlots[bookingSlots.length - 1];
+    const pricingQuote = await prisma.pricingQuote.findFirst({
+      where: {
+        id: pricingQuoteId,
+        userId: session.user.id,
+        serviceId,
+        consumedAt: null,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      select: {
+        id: true,
+        slotDate: true,
+        slotCount: true,
+        basePrice: true,
+        multiplier: true,
+        finalPrice: true,
+        reason: true,
+      },
+    });
 
-    // Calculate dynamic pricing (surge pricing)
-    const pricingResult = await getDynamicPrice(serviceId, firstSlot.date);
-    const basePrice = Number(service.price) * bookingSlots.length;
-    const finalPrice = basePrice * pricingResult.multiplier;
+    if (!pricingQuote) {
+      return NextResponse.json(
+        {
+          error:
+            "Pricing quote is invalid or expired. Please refresh your quote and try again.",
+          code: "PRICING_QUOTE_INVALID",
+        },
+        { status: 409 },
+      );
+    }
+
+    const quoteBasePrice = Number(pricingQuote.basePrice);
+    if (Math.abs(baseAmount - quoteBasePrice) > 0.01) {
+      return NextResponse.json(
+        {
+          error:
+            "Service price changed since quote generation. Please refresh your quote.",
+          code: "PRICING_QUOTE_STALE",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (pricingQuote.slotCount !== bookingSlots.length) {
+      return NextResponse.json(
+        {
+          error: "Selected slots do not match the locked quote",
+          code: "PRICING_QUOTE_SLOT_MISMATCH",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (pricingQuote.slotDate.getTime() !== firstSlot.date.getTime()) {
+      return NextResponse.json(
+        {
+          error: "Selected date does not match the locked quote",
+          code: "PRICING_QUOTE_DATE_MISMATCH",
+        },
+        { status: 409 },
+      );
+    }
+
+    const basePrice = quoteBasePrice;
+    const finalPrice = Number(pricingQuote.finalPrice);
 
     const { exciseDuty, trustFee, totalAmount, netAmount } =
       calculateBookingBreakdown(finalPrice, discountAmount);
@@ -374,11 +445,33 @@ export async function POST(request: Request) {
           }
         }
 
+        const consumedQuote = await tx.pricingQuote.updateMany({
+          where: {
+            id: pricingQuote.id,
+            userId: session.user.id,
+            serviceId,
+            consumedAt: null,
+            expiresAt: {
+              gt: new Date(),
+            },
+            slotCount: bookingSlots.length,
+            slotDate: firstSlot.date,
+          },
+          data: {
+            consumedAt: new Date(),
+          },
+        });
+
+        if (consumedQuote.count !== 1) {
+          throw new Error("PRICING_QUOTE_INVALID");
+        }
+
         const newBooking = await tx.booking.create({
           data: {
             clientId: session.user.id,
             providerId: professionalId,
             serviceId,
+            pricingQuoteId: pricingQuote.id,
             date: firstSlot.date,
             startTime: firstSlot.startTime,
             endTime: lastSlot.endTime,
@@ -394,9 +487,9 @@ export async function POST(request: Request) {
             clientPhone,
             clientAddress,
             basePrice: basePrice,
-            surgeMultiplier: pricingResult.multiplier,
+            surgeMultiplier: pricingQuote.multiplier,
             finalPrice: finalPrice,
-            surgeReason: pricingResult.reason,
+            surgeReason: pricingQuote.reason,
             status: "PENDING",
             slots: {
               create: bookingSlots.map((slot) => ({
@@ -441,6 +534,7 @@ export async function POST(request: Request) {
         providerId: professionalId,
         slotCount: bookingSlots.length,
         hasPromoCode: Boolean(validPromoCodeId),
+        pricingQuoteId: pricingQuote.id,
       },
       idempotencyKey: `booking:${booking.id}:created`,
     });
@@ -579,6 +673,17 @@ export async function POST(request: Request) {
         {
           error: "One or more selected time slots are no longer available.",
           code: "BOOKING_SLOT_CONFLICT",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (error instanceof Error && error.message === "PRICING_QUOTE_INVALID") {
+      return NextResponse.json(
+        {
+          error:
+            "Pricing quote expired before booking could be completed. Please retry.",
+          code: "PRICING_QUOTE_INVALID",
         },
         { status: 409 },
       );
