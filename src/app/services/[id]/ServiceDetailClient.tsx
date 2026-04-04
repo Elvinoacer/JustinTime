@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import InteractionBar from "@/components/InteractionBar";
 import { useService, type Service } from "@/lib/api/hooks/useServices";
+import { useSession } from "next-auth/react";
 
 type TabId = "about" | "services" | "gallery" | "reviews" | "contact";
 
@@ -56,6 +57,7 @@ export default function ServiceDetailClient({
   const { data: service = initialService } = useService(serviceId, {
     initialData: initialService,
   });
+  const { status: authStatus } = useSession();
 
   const [activeTab, setActiveTab] = useState<TabId>("about");
   const [showMobileContact, setShowMobileContact] = useState(false);
@@ -72,6 +74,12 @@ export default function ServiceDetailClient({
 
   const heroImage = service.images[0] ?? provider.image;
   const categoryHref = `/services?category=${encodeURIComponent(service.category.name)}`;
+  const bookingHref = `/booking?professional=${provider.id}&service=${service.id}`;
+  const messageHref = `/client/messages?partnerId=${provider.id}&partnerName=${encodeURIComponent(provider.name)}`;
+  const guestSignupBookingHref =
+    `/auth/signup?callbackUrl=${encodeURIComponent(bookingHref)}&returnTo=${encodeURIComponent(`/services/${service.id}`)}&intent=book`;
+  const guestLoginMessageHref =
+    `/auth/login?callbackUrl=${encodeURIComponent(messageHref)}`;
 
   const crumbs = useMemo(
     () => [
@@ -319,7 +327,11 @@ export default function ServiceDetailClient({
                   ) : null}
                   <div className="mt-5 flex flex-col gap-2">
                     <Link
-                      href={`/booking?professional=${provider.id}&service=${service.id}`}
+                      href={
+                        authStatus === "authenticated"
+                          ? bookingHref
+                          : guestSignupBookingHref
+                      }
                       className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700"
                     >
                       <span className="material-symbols-outlined text-[20px]">
@@ -328,7 +340,11 @@ export default function ServiceDetailClient({
                       Book now
                     </Link>
                     <Link
-                      href={`/client/messages?partnerId=${provider.id}&partnerName=${encodeURIComponent(provider.name)}`}
+                      href={
+                        authStatus === "authenticated"
+                          ? messageHref
+                          : guestLoginMessageHref
+                      }
                       className="flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-600/30 bg-white px-4 py-3 text-center text-sm font-semibold text-emerald-800 transition hover:bg-emerald-50"
                     >
                       <span className="material-symbols-outlined text-[20px]">
@@ -743,7 +759,11 @@ export default function ServiceDetailClient({
           <div className="mb-1 w-48 rounded-xl border border-zinc-200 bg-white p-3 shadow-xl animate-in zoom-in-95 duration-150">
             <div className="flex flex-col gap-2">
               <Link
-                href={`/booking?professional=${provider.id}&service=${service.id}`}
+                href={
+                  authStatus === "authenticated"
+                    ? bookingHref
+                    : guestSignupBookingHref
+                }
                 className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white"
               >
                 <span className="material-symbols-outlined text-lg">
@@ -752,7 +772,11 @@ export default function ServiceDetailClient({
                 Book
               </Link>
               <Link
-                href={`/client/messages?partnerId=${provider.id}&partnerName=${encodeURIComponent(provider.name)}`}
+                href={
+                  authStatus === "authenticated"
+                    ? messageHref
+                    : guestLoginMessageHref
+                }
                 className="flex items-center justify-center gap-2 rounded-lg border border-zinc-200 py-2.5 text-sm font-semibold text-zinc-800"
               >
                 <span className="material-symbols-outlined text-lg">chat</span>

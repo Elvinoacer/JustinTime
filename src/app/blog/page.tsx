@@ -3,6 +3,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useState } from "react";
+import { blogCategories, blogPosts } from "@/content/blog";
 import {
   Search,
   Calendar,
@@ -15,138 +16,6 @@ import {
   Mail,
 } from "lucide-react";
 import Link from "next/link";
-
-interface BlogPost {
-  id: number;
-  title: string;
-  excerpt: string;
-  category: string;
-  author: string;
-  date: string;
-  readTime: string;
-  image: string;
-  slug: string;
-}
-
-const blogPosts: BlogPost[] = [
-  {
-    id: 1,
-    title: "10 Essential Home Maintenance Tips for Every Season",
-    excerpt:
-      "Keep your home in top shape year-round with these expert-recommended maintenance tips.",
-    category: "Home Improvement",
-    author: "Sarah Johnson",
-    date: "Nov 20, 2024",
-    readTime: "5 min",
-    image: "/api/placeholder/400/300",
-    slug: "home-maintenance-tips-every-season",
-  },
-  {
-    id: 2,
-    title: "The Ultimate Guide to Spring Cleaning",
-    excerpt:
-      "Transform your space with our comprehensive spring cleaning checklist.",
-    category: "Cleaning",
-    author: "Michael Chen",
-    date: "Nov 18, 2024",
-    readTime: "7 min",
-    image: "/api/placeholder/400/300",
-    slug: "ultimate-guide-spring-cleaning",
-  },
-  {
-    id: 3,
-    title: "5 Signs You Need to Call a Professional Plumber",
-    excerpt: "Don't ignore these warning signs to prevent costly water damage.",
-    category: "Plumbing",
-    author: "David Ochieng",
-    date: "Nov 15, 2024",
-    readTime: "4 min",
-    image: "/api/placeholder/400/300",
-    slug: "signs-need-professional-plumber",
-  },
-  {
-    id: 4,
-    title: "Electrical Safety: What Every Homeowner Should Know",
-    excerpt:
-      "Protect your family and property with these essential electrical safety tips.",
-    category: "Electrical",
-    author: "Jane Mwangi",
-    date: "Nov 12, 2024",
-    readTime: "6 min",
-    image: "/api/placeholder/400/300",
-    slug: "electrical-safety-homeowner-guide",
-  },
-  {
-    id: 5,
-    title: "Transform Your Space: Modern Painting Techniques",
-    excerpt:
-      "Discover the latest painting trends and techniques for a fresh look.",
-    category: "Painting",
-    author: "Alex Kimani",
-    date: "Nov 10, 2024",
-    readTime: "5 min",
-    image: "/api/placeholder/400/300",
-    slug: "modern-painting-techniques",
-  },
-  {
-    id: 6,
-    title: "Creating Your Dream Garden: A Beginner's Guide",
-    excerpt:
-      "Start your gardening journey with confidence and proper techniques.",
-    category: "Gardening",
-    author: "Grace Wanjiru",
-    date: "Nov 8, 2024",
-    readTime: "8 min",
-    image: "/api/placeholder/400/300",
-    slug: "dream-garden-beginners-guide",
-  },
-  {
-    id: 7,
-    title: "How to Choose the Right Service Provider",
-    excerpt:
-      "Make informed decisions when hiring professionals for home projects.",
-    category: "Tips & Tricks",
-    author: "Peter Kamau",
-    date: "Nov 5, 2024",
-    readTime: "6 min",
-    image: "/api/placeholder/400/300",
-    slug: "choose-right-service-provider",
-  },
-  {
-    id: 8,
-    title: "Budget-Friendly Home Repairs You Can DIY",
-    excerpt: "Save money with these simple home repairs you can do yourself.",
-    category: "DIY",
-    author: "Lisa Akinyi",
-    date: "Nov 3, 2024",
-    readTime: "7 min",
-    image: "/api/placeholder/400/300",
-    slug: "budget-friendly-diy-repairs",
-  },
-  {
-    id: 9,
-    title: "Energy Efficiency: Small Changes, Big Impact",
-    excerpt: "Reduce your utility bills with these easy energy-saving tips.",
-    category: "Home Improvement",
-    author: "Tom Njoroge",
-    date: "Nov 1, 2024",
-    readTime: "5 min",
-    image: "/api/placeholder/400/300",
-    slug: "energy-efficiency-tips",
-  },
-];
-
-const categories = [
-  "All",
-  "Home Improvement",
-  "Cleaning",
-  "Plumbing",
-  "Electrical",
-  "Painting",
-  "Gardening",
-  "Tips & Tricks",
-  "DIY",
-];
 
 const categoryColors: Record<string, string> = {
   "Home Improvement": "bg-blue-100 text-blue-700",
@@ -174,10 +43,16 @@ export default function BlogPage() {
     return matchesSearch && matchesCategory;
   });
 
-  const featuredPost = blogPosts[0];
+  const featuredPost = filteredPosts[0] ?? blogPosts[0];
   const regularPosts = filteredPosts.slice(
-    selectedCategory === "All" && !searchQuery ? 1 : 0
+    featuredPost?.slug === filteredPosts[0]?.slug ? 1 : 0,
   );
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-gray-50 via-white to-orange-50/20">
@@ -237,7 +112,7 @@ export default function BlogPage() {
             <div className="md:hidden fixed inset-x-0 top-20 z-50 bg-white border-t border-gray-200 shadow-lg animate-in slide-in-from-top">
               <div className="p-4 max-h-[60vh] overflow-y-auto">
                 <div className="flex flex-wrap gap-2">
-                  {categories.map((category) => (
+                  {blogCategories.map((category) => (
                     <button
                       key={category}
                       onClick={() => {
@@ -260,7 +135,7 @@ export default function BlogPage() {
 
           {/* Category Filters - Desktop */}
           <div className="hidden md:flex flex-wrap gap-2 sm:gap-3 justify-center mb-8 sm:mb-12 px-2">
-            {categories.map((category) => (
+                {blogCategories.map((category) => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
@@ -342,11 +217,11 @@ export default function BlogPage() {
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                          <span>{featuredPost.date}</span>
+                          <span>{formatDate(featuredPost.publishedAt)}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                          <span>{featuredPost.readTime} read</span>
+                          <span>{featuredPost.readTime}</span>
                         </div>
                       </div>
                       <div className="mt-4 sm:mt-6 flex items-center text-orange-600 font-semibold group-hover:gap-3 gap-2 transition-all text-sm sm:text-base">
@@ -386,7 +261,7 @@ export default function BlogPage() {
               {/* Two Column Grid on Tablet/Desktop, Single on Mobile */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 px-2">
                 {regularPosts.map((post) => (
-                  <Link key={post.id} href={`/blog/${post.slug}`}>
+                  <Link key={post.slug} href={`/blog/${post.slug}`}>
                     <div className="bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-all duration-300 group h-full flex flex-col">
                       <div className="h-40 sm:h-48 md:h-56 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center relative overflow-hidden">
                         <div
