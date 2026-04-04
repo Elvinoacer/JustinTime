@@ -431,6 +431,7 @@ Thank you for choosing JustInTime Premium!
 export const sendPasswordChangedEmail = async (
   userEmail: string,
   userName: string,
+  userRole: string,
   changeDateTime: Date,
 ) => {
   try {
@@ -443,6 +444,9 @@ export const sendPasswordChangedEmail = async (
       minute: "numeric",
       timeZoneName: "short",
     });
+    const securitySettingsUrl = buildAppUrl(
+      `${getSettingsPathForRole(userRole)}?tab=security`,
+    );
 
     await resend.emails.send({
       from: `JustInTime Security <${getFromEmail()}>`,
@@ -483,17 +487,17 @@ export const sendPasswordChangedEmail = async (
               <div class="alert-box">
                 <h3 style="margin-top: 0; color: #f59e0b;">⚠️ Didn't Make This Change?</h3>
                 <p style="margin-bottom: 0;">
-                  If you did not change your password, please <strong>secure your account immediately</strong>:
+                  If you did not change your password, please <strong>review your security settings immediately</strong>:
                 </p>
-                <a href="${buildAppUrl("/auth/forgot-password")}" class="button">
-                  Secure My Account
+                <a href="${securitySettingsUrl}" class="button">
+                  Review Security Settings
                 </a>
               </div>
 
               <h3 style="color: #059669;">Security Tips:</h3>
               <ul>
                 <li>Use a unique password for your JustInTime account</li>
-                <li>Enable Two-Factor Authentication for extra security (coming soon)</li>
+                <li>Enable Two-Factor Authentication for extra security</li>
                 <li>Never share your password with anyone</li>
                 <li>Avoid using the same password across multiple sites</li>
               </ul>
@@ -524,12 +528,12 @@ Account: ${userEmail}
 Date & Time: ${formattedDate}
 
 DIDN'T MAKE THIS CHANGE?
-If you did not change your password, please secure your account immediately by visiting:
-${buildAppUrl("/auth/forgot-password")}
+If you did not change your password, please review your security settings immediately:
+${securitySettingsUrl}
 
 SECURITY TIPS:
 - Use a unique password for your JustInTime account
-- Enable Two-Factor Authentication for extra security (coming soon)
+- Enable Two-Factor Authentication for extra security
 - Never share your password with anyone
 - Avoid using the same password across multiple sites
 

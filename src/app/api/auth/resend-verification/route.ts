@@ -64,6 +64,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const genericSuccessMessage =
+      "If that email exists, a verification link has been sent.";
+
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
       select: {
@@ -73,18 +76,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      // Return 200 even if user not found to prevent email enumeration
-      return NextResponse.json({
-        message: "If that email exists, a verification link was sent.",
-      });
+      return NextResponse.json({ message: genericSuccessMessage });
     }
 
-    // Don't resend if already verified
     if (user.emailVerified) {
-      return NextResponse.json(
-        { error: "Email is already verified" },
-        { status: 400 },
-      );
+      return NextResponse.json({ message: genericSuccessMessage });
     }
 
     // Rate-limit: check if a token was created in the last 2 minutes
@@ -128,7 +124,7 @@ export async function POST(request: NextRequest) {
     );
 
     return NextResponse.json({
-      message: "Verification email sent successfully.",
+      message: genericSuccessMessage,
     });
   } catch (error) {
     console.error("[RESEND_VERIFICATION_ERROR]", error);

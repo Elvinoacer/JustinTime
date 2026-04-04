@@ -55,38 +55,49 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const verificationToken = await prisma.verificationToken.findUnique({
-      where: { token },
+    const verificationResult = await prisma.$transaction(async (tx) => {
+      const verificationToken = await tx.verificationToken.findUnique({
+        where: { token },
+      });
+
+      if (!verificationToken) {
+        return { error: "Invalid token" } as const;
+      }
+
+      if (new Date() > verificationToken.expires) {
+        return { error: "Token expired" } as const;
+      }
+
+      const existingUser = await tx.user.findUnique({
+        where: { email: verificationToken.identifier },
+        select: { id: true },
+      });
+
+      if (!existingUser) {
+        return { error: "User not found" } as const;
+      }
+
+      await tx.user.update({
+        where: { email: verificationToken.identifier },
+        data: {
+          emailVerified: new Date(),
+        },
+        select: { id: true },
+      });
+
+      await tx.verificationToken.delete({
+        where: { token },
+      });
+
+      return { success: true } as const;
     });
 
-    if (!verificationToken) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 400 });
+    if ("error" in verificationResult) {
+      return NextResponse.json(
+        { error: verificationResult.error },
+        { status: 400 },
+      );
     }
-
-    if (new Date() > verificationToken.expires) {
-      return NextResponse.json({ error: "Token expired" }, { status: 400 });
-    }
-
-    const existingUser = await prisma.user.findUnique({
-      where: { email: verificationToken.identifier },
-      select: { id: true },
-    });
-
-    if (!existingUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 400 });
-    }
-
-    await prisma.user.update({
-      where: { email: verificationToken.identifier },
-      data: {
-        emailVerified: new Date(),
-      },
-      select: { id: true },
-    });
-
-    await prisma.verificationToken.delete({
-      where: { token },
-    });
 
     return NextResponse.json(
       { message: "Email verified successfully" },

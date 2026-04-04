@@ -243,7 +243,7 @@ function VerifyRequestContent() {
               {/* Support Link */}
               <div className="text-center pt-2">
                 <Link
-                  href="/support"
+                  href="/contact"
                   className="text-xs text-slate-500 hover:text-slate-700 inline-flex items-center gap-1"
                 >
                   Need help? Contact Support

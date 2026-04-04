@@ -49,6 +49,24 @@ const Header = () => {
     : hasRole(session?.user, "PROVIDER")
       ? getNotificationCenterPath("PROVIDER")
       : getNotificationCenterPath("CLIENT");
+  const isAdmin = hasRole(session?.user, "ADMIN");
+  const isProvider = !isAdmin && hasRole(session?.user, "PROVIDER");
+  const dashboardRoute = isAdmin
+    ? "/admin"
+    : isProvider
+      ? "/dashboard"
+      : "/client/dashboard";
+  const profileRoute = isAdmin
+    ? "/admin"
+    : isProvider
+      ? "/dashboard/profile"
+      : "/client/profile";
+  const settingsRoute = isAdmin
+    ? "/admin"
+    : isProvider
+      ? "/dashboard/settings"
+      : "/client/settings";
+  const bookingsRoute = isProvider ? "/dashboard/bookings" : "/client/bookings";
 
   const navItems = [
     { name: "Home", href: "/", icon: Home },
@@ -300,22 +318,22 @@ const Header = () => {
                             <div className="py-2">
                               {[
                                 {
-                                  href: "/dashboard/profile",
+                                  href: profileRoute,
                                   icon: User,
                                   label: "My Profile",
                                 },
                                 {
-                                  href: "/dashboard",
+                                  href: dashboardRoute,
                                   icon: LayoutDashboard,
                                   label: "Dashboard",
                                 },
                                 {
-                                  href: "/client/bookings",
+                                  href: bookingsRoute,
                                   icon: Calendar,
                                   label: "My Bookings",
                                 },
                                 {
-                                  href: "/dashboard/settings",
+                                  href: settingsRoute,
                                   icon: Settings,
                                   label: "Settings",
                                 },
@@ -540,22 +558,22 @@ const Header = () => {
                     <div className="space-y-1">
                       {[
                         {
-                          href: "/dashboard",
+                          href: dashboardRoute,
                           icon: LayoutDashboard,
                           label: "Dashboard",
                         },
                         {
-                          href: "/client/bookings",
+                          href: bookingsRoute,
                           icon: Calendar,
                           label: "My Bookings",
                         },
                         {
-                          href: "/dashboard/profile",
+                          href: profileRoute,
                           icon: User,
                           label: "My Profile",
                         },
                         {
-                          href: "/dashboard/settings",
+                          href: settingsRoute,
                           icon: Settings,
                           label: "Settings",
                         },

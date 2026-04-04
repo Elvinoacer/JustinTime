@@ -1,10 +1,18 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
-import { multiRoleFeatureFlags, normalizeRoles } from "@/lib/auth/roles";
+import {
+  getDefaultRolesForPrimaryRole,
+  normalizeRoles,
+} from "@/lib/auth/roles";
 import { getAppBaseUrl } from "@/lib/app-url";
 import { getAuthUserByEmail } from "@/lib/auth/lifecycle";
+import {
+  AUTH_CONTEXT_COOKIE_NAME,
+  decodeAuthContextCookie,
+} from "@/lib/auth/query";
 
 type CredentialsUserPayload = {
   role?: string;
@@ -120,6 +128,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         try {
+          const cookieStore = await cookies();
+          const authContext = decodeAuthContextCookie(
+            cookieStore.get(AUTH_CONTEXT_COOKIE_NAME)?.value,
+          );
           const existingUser = await prisma.user.findUnique({
             where: { email: normalizedEmail },
             select: {
@@ -151,17 +163,47 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               },
             });
           } else {
-            await prisma.user.create({
+            const initialRole = authContext?.intent === "provider"
+              ? "PROVIDER"
+              : "CLIENT";
+            let referrerId: string | null = null;
+
+            if (authContext?.ref) {
+              const referrer = await prisma.user.findUnique({
+                where: { referralCode: authContext.ref },
+                select: { id: true },
+              });
+
+              referrerId = referrer?.id ?? null;
+            }
+
+            const createdUser = await prisma.user.create({
               data: {
                 email: normalizedEmail,
                 name: user.name?.trim() || null,
                 image: user.image?.trim() || null,
                 emailVerified: new Date(),
-                role: "CLIENT",
-                roles: ["CLIENT"],
+                role: initialRole,
+                roles: getDefaultRolesForPrimaryRole(initialRole),
                 onboardingCompleted: false,
+                ...(referrerId ? { referredById: referrerId } : {}),
+              },
+              select: {
+                id: true,
               },
             });
+
+            if (referrerId) {
+              await prisma.referral.create({
+                data: {
+                  referrerId,
+                  referredUserId: createdUser.id,
+                  type: "SIGNUP",
+                  status: "PENDING",
+                  points: 100,
+                },
+              });
+            }
           }
         } catch (error) {
           console.error("[Google Sign-In Error]", error);
@@ -188,12 +230,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const dbUser = await fetchDbUserByEmail(user.email);
           if (dbUser) {
             token.role = dbUser.role;
-            if (multiRoleFeatureFlags.writeEnabled) {
-              token.roles = normalizeRoles({
-                role: dbUser.role,
-                roles: dbUser.roles,
-              });
-            }
+            token.roles = normalizeRoles({
+              role: dbUser.role,
+              roles: dbUser.roles,
+            });
             token.id = dbUser.id;
             token.image = dbUser.image ?? user.image ?? token.image;
             token.onboardingCompleted = dbUser.onboardingCompleted;
@@ -210,12 +250,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // Credentials login — user data comes from authorize()
           const credentialsUser = user as typeof user & CredentialsUserPayload;
           token.role = credentialsUser.role;
-          if (multiRoleFeatureFlags.writeEnabled) {
-            token.roles = normalizeRoles({
-              role: credentialsUser.role,
-              roles: credentialsUser.roles,
-            });
-          }
+          token.roles = normalizeRoles({
+            role: credentialsUser.role,
+            roles: credentialsUser.roles,
+          });
           token.id = user.id;
           token.image = user.image ?? token.image;
           token.onboardingCompleted = credentialsUser.onboardingCompleted;
@@ -240,12 +278,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const latestDbUser = await fetchDbUserByEmail(token.email);
         if (latestDbUser) {
           token.role = latestDbUser.role;
-          if (multiRoleFeatureFlags.writeEnabled) {
-            token.roles = normalizeRoles({
-              role: latestDbUser.role,
-              roles: latestDbUser.roles,
-            });
-          }
+          token.roles = normalizeRoles({
+            role: latestDbUser.role,
+            roles: latestDbUser.roles,
+          });
           token.id = latestDbUser.id;
           token.image = latestDbUser.image ?? token.image;
           token.onboardingCompleted = latestDbUser.onboardingCompleted;
@@ -254,8 +290,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.isBanned = latestDbUser.isBanned;
           token.deletionScheduledAt = latestDbUser.deletionScheduledAt;
           token.authInvalidatedAt = latestDbUser.authInvalidatedAt;
+          token.lastDbSyncAt = nowSeconds;
         }
-        token.lastDbSyncAt = nowSeconds;
       }
 
       const invalidatedAt =
@@ -276,12 +312,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.onboardingCompleted =
           session.user.onboardingCompleted ?? token.onboardingCompleted;
         token.role = session.user.role ?? token.role;
-        if (multiRoleFeatureFlags.writeEnabled) {
-          token.roles = normalizeRoles({
-            role: session.user.role ?? token.role,
-            roles: session.user.roles ?? token.roles,
-          });
-        }
+        token.roles = normalizeRoles({
+          role: session.user.role ?? token.role,
+          roles: session.user.roles ?? token.roles,
+        });
         token.clientInterests =
           session.user.clientInterests ?? token.clientInterests;
         token.emailVerified = session.user.emailVerified ?? token.emailVerified;
@@ -303,12 +337,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (token && session.user) {
         session.user.role = token.role as string;
-        if (multiRoleFeatureFlags.writeEnabled) {
-          session.user.roles = normalizeRoles({
-            role: token.role,
-            roles: token.roles,
-          });
-        }
+        session.user.roles = normalizeRoles({
+          role: token.role,
+          roles: token.roles,
+        });
         session.user.id = token.id as string;
         session.user.onboardingCompleted = token.onboardingCompleted as boolean;
         session.user.clientInterests = token.clientInterests as string[];

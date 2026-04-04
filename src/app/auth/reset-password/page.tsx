@@ -444,7 +444,7 @@ function ResetPasswordContent() {
           <p className="text-xs text-gray-500">
             Having trouble?{" "}
             <Link
-              href="/support"
+              href="/contact"
               className="font-medium text-gray-700 hover:text-gray-900"
             >
               Contact Support

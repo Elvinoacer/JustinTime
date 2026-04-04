@@ -100,7 +100,8 @@ export default function ForgotPasswordPage() {
               Forgot Password?
             </h2>
             <p className="text-gray-600 text-sm sm:text-base">
-              No worries! Enter your email and we'll send you a reset link.
+              No worries! Enter your email and we&apos;ll send you a reset
+              link.
             </p>
           </div>
 
@@ -220,7 +221,7 @@ export default function ForgotPasswordPage() {
             <p className="text-xs text-gray-500">
               Need help?{" "}
               <Link
-                href="/support"
+                href="/contact"
                 className="font-medium text-gray-700 hover:text-gray-900"
               >
                 Contact Support

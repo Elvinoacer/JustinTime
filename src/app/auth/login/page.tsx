@@ -8,7 +8,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useEffect } from "react";
 import { loginWithCredentials, resendTwoFactorToken } from "@/app/actions/auth";
-import { getAuthQueryState, withAuthQuery } from "@/lib/auth/query";
+import {
+  AUTH_CONTEXT_COOKIE_NAME,
+  buildOnboardingIntentUrl,
+  encodeAuthContextCookie,
+  getAuthQueryState,
+  withAuthQuery,
+} from "@/lib/auth/query";
 import {
   Mail,
   Lock,
@@ -77,7 +83,15 @@ function LoginPageContent() {
     }
 
     router.push(
-      `/auth/verify-request?email=${encodeURIComponent(normalizedLoginEmail)}`,
+      withAuthQuery(
+        `/auth/verify-request?email=${encodeURIComponent(normalizedLoginEmail)}`,
+        {
+          ref,
+          callbackUrl,
+          returnTo,
+          intent,
+        },
+      ),
     );
   };
 
@@ -136,12 +150,12 @@ function LoginPageContent() {
             const session = await getSession();
             const role = session?.user?.role;
             const onboarded = session?.user?.onboardingCompleted;
-            if (!onboarded) {
+            if (role === "ADMIN") {
+              router.push("/admin");
+            } else if (!onboarded) {
               router.push("/onboarding");
             } else if (role === "PROVIDER") {
               router.push("/dashboard");
-            } else if (role === "ADMIN") {
-              router.push("/admin");
             } else {
               router.push("/client/dashboard");
             }
@@ -211,12 +225,12 @@ function LoginPageContent() {
               const session = await getSession();
               const role = session?.user?.role;
               const onboarded = session?.user?.onboardingCompleted;
-              if (!onboarded) {
+              if (role === "ADMIN") {
+                router.push("/admin");
+              } else if (!onboarded) {
                 router.push("/onboarding");
               } else if (role === "PROVIDER") {
                 router.push("/dashboard");
-              } else if (role === "ADMIN") {
-                router.push("/admin");
               } else {
                 router.push("/client/dashboard");
               }
@@ -234,8 +248,25 @@ function LoginPageContent() {
 
   const handleGoogleSignIn = async () => {
     try {
+      document.cookie = `${AUTH_CONTEXT_COOKIE_NAME}=${encodeAuthContextCookie(
+        {
+          ref,
+          callbackUrl,
+          returnTo,
+          intent,
+        },
+      )}; Path=/; Max-Age=600; SameSite=Lax`;
+
       await signIn("google", {
-        callbackUrl: callbackUrl || returnTo || "/onboarding",
+        callbackUrl: buildOnboardingIntentUrl(
+          {
+            ref,
+            callbackUrl,
+            returnTo,
+            intent,
+          },
+          intent === "provider" ? "/provider/onboarding" : "/onboarding",
+        ),
       });
     } catch (error) {
       toast.error("Failed to sign in with Google");

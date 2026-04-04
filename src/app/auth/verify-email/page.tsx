@@ -222,7 +222,7 @@ function VerifyEmailContent() {
                       If the problem persists, please contact our support team.
                     </p>
                     <button
-                      onClick={() => router.push("/support")}
+                      onClick={() => router.push("/contact")}
                       className="mt-2 text-xs text-indigo-600 hover:text-indigo-700 font-medium"
                     >
                       Contact Support →
@@ -277,7 +277,7 @@ function VerifyEmailContent() {
               ← Back to Home
             </Link>
             <Link
-              href="/support"
+              href="/contact"
               className="hover:text-slate-900 transition-colors"
             >
               Help Center

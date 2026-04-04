@@ -26,39 +26,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const currentSessionToken =
-      req.cookies.get("__Secure-authjs.session-token")?.value ||
-      req.cookies.get("authjs.session-token")?.value ||
-      req.cookies.get("__Secure-next-auth.session-token")?.value ||
-      req.cookies.get("next-auth.session-token")?.value;
-
-    const now = new Date();
-    const dbSessions = await prisma.session.findMany({
-      where: { userId: session.user.id },
-      select: {
-        id: true,
-        sessionToken: true,
-        expires: true,
-      },
-      orderBy: {
-        expires: "desc",
-      },
-      take: 10,
-    });
-
-    const activeSessions: Array<{
-      id: string;
-      expires: Date | null;
-      isCurrent: boolean;
-    }> = dbSessions
-      .filter((dbSession) => dbSession.expires > now)
-      .map((dbSession) => ({
-        id: dbSession.id,
-        expires: dbSession.expires,
-        isCurrent:
-          !!currentSessionToken &&
-          dbSession.sessionToken === currentSessionToken,
-      }));
+    void req;
 
     // Fetch user with profile and subscription
     const user = await prisma.user.findUnique({
@@ -105,7 +73,7 @@ export async function GET(req: NextRequest) {
         : null,
       notifications: notificationPreferences,
       privacy: privacySettings,
-      activeSessions,
+      activeSessions: [],
       twoFactorEnabled: user.isTwoFactorEnabled || false,
     };
 

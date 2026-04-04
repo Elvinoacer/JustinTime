@@ -94,7 +94,12 @@ export async function POST(req: NextRequest) {
     if (user.email) {
       try {
         const { sendPasswordChangedEmail } = await import("@/lib/email");
-        await sendPasswordChangedEmail(user.email, user.email, new Date());
+        await sendPasswordChangedEmail(
+          user.email,
+          user.email,
+          session.user.role,
+          new Date(),
+        );
       } catch (emailError) {
         console.error("Failed to send password change email:", emailError);
         // Continue even if email fails - password was already changed

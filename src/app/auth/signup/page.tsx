@@ -6,7 +6,13 @@ import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
-import { getAuthQueryState, withAuthQuery } from "@/lib/auth/query";
+import {
+  AUTH_CONTEXT_COOKIE_NAME,
+  buildOnboardingIntentUrl,
+  encodeAuthContextCookie,
+  getAuthQueryState,
+  withAuthQuery,
+} from "@/lib/auth/query";
 import {
   User,
   Mail,
@@ -81,11 +87,24 @@ function SignupPageContent() {
 
   const handleGoogleSignIn = async () => {
     try {
-      let googleCallbackUrl = callbackUrl || returnTo || "/onboarding";
+      document.cookie = `${AUTH_CONTEXT_COOKIE_NAME}=${encodeAuthContextCookie(
+        {
+          ref: referralCode,
+          callbackUrl,
+          returnTo,
+          intent,
+        },
+      )}; Path=/; Max-Age=600; SameSite=Lax`;
 
-      if (!callbackUrl && referralCode) {
-        googleCallbackUrl = `/onboarding?ref=${encodeURIComponent(referralCode)}`;
-      }
+      const googleCallbackUrl = buildOnboardingIntentUrl(
+        {
+          ref: referralCode,
+          callbackUrl,
+          returnTo,
+          intent,
+        },
+        intent === "provider" ? "/provider/onboarding" : "/onboarding",
+      );
 
       await signIn("google", { callbackUrl: googleCallbackUrl });
     } catch {
@@ -147,7 +166,15 @@ function SignupPageContent() {
       // Account created successfully, redirect to verification request page
       toast.success("Account created! Please verify your email.");
       router.push(
-        `/auth/verify-request?email=${encodeURIComponent(data.email)}`,
+        withAuthQuery(
+          `/auth/verify-request?email=${encodeURIComponent(data.email)}`,
+          {
+            ref: referralCode,
+            callbackUrl,
+            returnTo,
+            intent,
+          },
+        ),
       );
     } catch (err: unknown) {
       const message =
@@ -511,7 +538,7 @@ function SignupPageContent() {
             <div className="space-y-3">
               <div className="text-center">
                 <Link
-                  href="/auth/login"
+                  href={loginHref}
                   className="text-sm font-medium text-emerald-600 hover:text-emerald-500 inline-flex items-center gap-1"
                 >
                   <ArrowRight className="w-4 h-4 rotate-180" />

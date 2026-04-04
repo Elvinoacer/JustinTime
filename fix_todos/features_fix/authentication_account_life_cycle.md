@@ -9,6 +9,12 @@ Implementation update on 2026-04-04:
 - Unified server-side password policy across signup, reset, and change-password flows.
 - Aligned signup and Google provisioning to persist `roles` consistently.
 - Clarified JWT-based session behavior in settings instead of inventing fake DB sessions.
+- Fixed JWT refresh semantics so failed DB refreshes do not falsely stamp successful sync time.
+- Preserved auth query state across login/signup/verify flows, including mobile footer links.
+- Restored Google auth intent propagation and carried signup referral/provider intent into OAuth signup context.
+- Made shared header account navigation role-aware for client vs provider users.
+- Replaced broken auth `/support` destinations with public contact paths.
+- Made resend-verification responses generic and wrapped email verification in a transaction.
 
 I audited the uploaded codebase for **Feature 2: Authentication & Account Lifecycle** and there are multiple broken flows, spec mismatches, and consistency problems.
 
