@@ -36,7 +36,7 @@ interface Dispute {
     id: string;
     date: Date;
     service: { title: string } | null;
-    totalAmount: any;
+    totalAmount: number | string;
   };
   creator: { name: string | null; email: string | null; role: string };
   defendant: { name: string | null; email: string | null; role: string };
@@ -198,8 +198,51 @@ export default function EnhancedDisputesTable({
   };
 
   const handleExport = () => {
-    // TODO: Implement export functionality
-    console.log("Exporting disputes...");
+    const escapeCsv = (value: unknown) =>
+      `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+    const rows = [
+      [
+        "Dispute ID",
+        "Status",
+        "Booking ID",
+        "Service",
+        "Booking Date",
+        "Booking Amount",
+        "Complainant",
+        "Defendant",
+        "Reason",
+        "Resolution",
+        "Created At",
+      ],
+      ...disputes.map((dispute) => [
+        dispute.id,
+        dispute.status,
+        dispute.booking.id,
+        dispute.booking.service?.title || "Custom Job",
+        formatDate(dispute.booking.date),
+        Number(dispute.booking.totalAmount).toString(),
+        `${dispute.creator.name || "Unknown"} (${dispute.creator.role})`,
+        `${dispute.defendant.name || "Unknown"} (${dispute.defendant.role})`,
+        dispute.reason,
+        dispute.resolution || "",
+        new Date(dispute.createdAt).toISOString(),
+      ]),
+    ];
+
+    const csv = rows
+      .map((row) => row.map((cell) => escapeCsv(cell)).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `admin-disputes-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Mobile Card View Component

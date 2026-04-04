@@ -19,7 +19,7 @@ export default function TopupCompletePage() {
 
     // Redirect to wallet page after a short delay
     const timeout = setTimeout(() => {
-      router.replace("/wallet");
+      router.replace("/dashboard/wallet");
     }, 2000);
 
     return () => clearTimeout(timeout);

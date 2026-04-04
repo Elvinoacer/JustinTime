@@ -19,7 +19,6 @@ import {
   User,
   Briefcase,
   ArrowUpDown,
-  Filter,
   Banknote,
 } from "lucide-react";
 import RefundModal from "./RefundModal";
@@ -30,7 +29,7 @@ interface Booking {
   startTime: string | null;
   endTime: string | null;
   status: string;
-  totalAmount: any;
+  totalAmount: number | string;
   location: string | null;
   notes: string | null;
   clientPhone: string | null;
@@ -120,8 +119,49 @@ export default function EnhancedBookingsTable({
   };
 
   const handleExport = () => {
-    // TODO: Implement export functionality
-    console.log("Exporting bookings...");
+    const escapeCsv = (value: unknown) =>
+      `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+    const rows = [
+      [
+        "Booking ID",
+        "Service",
+        "Client",
+        "Provider",
+        "Status",
+        "Date",
+        "Start Time",
+        "End Time",
+        "Total Amount",
+        "Location",
+      ],
+      ...bookings.map((booking) => [
+        booking.id,
+        booking.service?.title || "Custom Job",
+        booking.client.name || "Unknown",
+        booking.provider.name || "Unknown",
+        booking.status,
+        formatDate(booking.date),
+        booking.startTime || "",
+        booking.endTime || "",
+        Number(booking.totalAmount).toString(),
+        booking.location || "",
+      ]),
+    ];
+
+    const csv = rows
+      .map((row) => row.map((cell) => escapeCsv(cell)).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `admin-bookings-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleSort = (field: string) => {
@@ -454,7 +494,7 @@ export default function EnhancedBookingsTable({
                           onClick={(e) => {
                             e.stopPropagation();
                             setActiveMenu(
-                              activeMenu === booking.id ? null : booking.id
+                              activeMenu === booking.id ? null : booking.id,
                             );
                           }}
                           className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
@@ -698,7 +738,7 @@ export default function EnhancedBookingsTable({
                   <div>
                     {(() => {
                       const statusConfig = getStatusColor(
-                        selectedBooking.status
+                        selectedBooking.status,
                       );
                       const StatusIcon = statusConfig.icon;
                       return (
@@ -714,17 +754,18 @@ export default function EnhancedBookingsTable({
                 </div>
 
                 {/* Admin Actions */}
-                {selectedBooking.status !== "CANCELLED" && selectedBooking.status !== "REFUNDED" && (
-                  <div className="pt-4 border-t border-slate-100">
-                    <button
-                      onClick={() => setShowRefundModal(true)}
-                      className="w-full py-3 px-4 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Banknote className="w-4 h-4" />
-                      Process Manual Refund
-                    </button>
-                  </div>
-                )}
+                {selectedBooking.status !== "CANCELLED" &&
+                  selectedBooking.status !== "REFUNDED" && (
+                    <div className="pt-4 border-t border-slate-100">
+                      <button
+                        onClick={() => setShowRefundModal(true)}
+                        className="w-full py-3 px-4 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Banknote className="w-4 h-4" />
+                        Process Manual Refund
+                      </button>
+                    </div>
+                  )}
               </div>
             </motion.div>
           </motion.div>

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AchievementsPage() {
   const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.id) redirect("/auth/login");
 
   const result = await getUserBadges();
 
@@ -22,9 +22,9 @@ export default async function AchievementsPage() {
 
   const { badges, stats } = result;
   const inProgressBadges = badges
-    .filter((badge: any) => !badge.earned && badge.progress?.required > 0)
+    .filter((badge) => !badge.earned && badge.progress?.required > 0)
     .slice(0, 4);
-  const badgesForGrid = badges.map((badge: any) => ({
+  const badgesForGrid = badges.map((badge) => ({
     ...badge,
     progress:
       typeof badge.progress === "number"
@@ -138,7 +138,7 @@ export default async function AchievementsPage() {
             Progress Toward Next Badges
           </h2>
           <div className="space-y-4">
-            {inProgressBadges.map((badge: any) => {
+            {inProgressBadges.map((badge) => {
               const current = Number(badge.progress.current || 0);
               const required = Number(badge.progress.required || 0);
               const percentage =

@@ -1,16 +1,52 @@
 "use client";
 
+import { useTransition } from "react";
 import { toast } from "sonner";
-import { Copy, Trash } from "lucide-react";
+import { Copy, Power } from "lucide-react";
+import { setPromoCodeActiveStateAction } from "@/app/actions/promo";
+
+interface PromoItem {
+  id: string;
+  code: string;
+  description?: string | null;
+  type: "PERCENTAGE" | "FIXED";
+  value: number | string;
+  minOrderAmount?: number | string | null;
+  usageCount: number;
+  usageLimit?: number | null;
+  endDate?: Date | string | null;
+  isActive: boolean;
+  _count?: {
+    bookings?: number;
+  };
+}
 
 interface PromoListProps {
-  promos: any[];
+  promos: PromoItem[];
 }
 
 export function PromoList({ promos }: PromoListProps) {
+  const [isPending, startTransition] = useTransition();
+
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     toast.success("Code copied!");
+  };
+
+  const togglePromoStatus = (promo: PromoItem) => {
+    const nextState = !promo.isActive;
+    startTransition(async () => {
+      const result = await setPromoCodeActiveStateAction(promo.id, nextState);
+
+      if (!result.success) {
+        toast.error(result.error || "Failed to update promo status");
+        return;
+      }
+
+      toast.success(
+        nextState ? "Promo code activated" : "Promo code deactivated",
+      );
+    });
   };
 
   return (
@@ -22,7 +58,9 @@ export function PromoList({ promos }: PromoListProps) {
             <th className="px-6 py-4 font-semibold text-gray-900">Discount</th>
             <th className="px-6 py-4 font-semibold text-gray-900">Usage</th>
             <th className="px-6 py-4 font-semibold text-gray-900">Status</th>
-            <th className="px-6 py-4 font-semibold text-gray-900 text-right">Actions</th>
+            <th className="px-6 py-4 font-semibold text-gray-900 text-right">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
@@ -34,7 +72,10 @@ export function PromoList({ promos }: PromoListProps) {
             </tr>
           ) : (
             promos.map((promo) => (
-              <tr key={promo.id} className="hover:bg-gray-50/50 transition-colors">
+              <tr
+                key={promo.id}
+                className="hover:bg-gray-50/50 transition-colors"
+              >
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-medium text-gray-900 bg-gray-100 px-2 py-1 rounded">
@@ -48,25 +89,33 @@ export function PromoList({ promos }: PromoListProps) {
                     </button>
                   </div>
                   {promo.description && (
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-1">{promo.description}</p>
+                    <p className="text-xs text-gray-500 mt-1 line-clamp-1">
+                      {promo.description}
+                    </p>
                   )}
                 </td>
                 <td className="px-6 py-4">
                   <div className="font-medium text-emerald-700">
-                    {promo.type === "PERCENTAGE" ? `${promo.value}% OFF` : `KES ${Number(promo.value).toLocaleString()} OFF`}
+                    {promo.type === "PERCENTAGE"
+                      ? `${promo.value}% OFF`
+                      : `KES ${Number(promo.value).toLocaleString()} OFF`}
                   </div>
                   {promo.minOrderAmount && (
                     <div className="text-xs text-gray-500 mt-0.5">
-                      Min. spend: KES {Number(promo.minOrderAmount).toLocaleString()}
+                      Min. spend: KES{" "}
+                      {Number(promo.minOrderAmount).toLocaleString()}
                     </div>
                   )}
                 </td>
                 <td className="px-6 py-4">
                   <div className="text-gray-900">
-                    {promo.usageCount} <span className="text-gray-500">/ {promo.usageLimit || "∞"}</span>
+                    {promo.usageCount}{" "}
+                    <span className="text-gray-500">
+                      / {promo.usageLimit || "∞"}
+                    </span>
                   </div>
                   <div className="text-xs text-gray-500 mt-0.5">
-                    {promo.bookings?.length || 0} bookings
+                    {promo._count?.bookings || 0} bookings
                   </div>
                 </td>
                 <td className="px-6 py-4">
@@ -76,7 +125,7 @@ export function PromoList({ promos }: PromoListProps) {
                       Expired
                     </span>
                   ) : !promo.isActive ? (
-                     <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700">
                       Inactive
                     </span>
                   ) : (
@@ -86,13 +135,16 @@ export function PromoList({ promos }: PromoListProps) {
                   )}
                 </td>
                 <td className="px-6 py-4 text-right">
-                    <button 
-                        className="p-1 hover:bg-gray-100 rounded-md transition-colors text-gray-400 hover:text-red-600"
-                        title="Deactivate (Demo)"
-                        onClick={() => toast.info("Deactivation not implemented yet")}
-                    >
-                        <Trash className="w-4 h-4" />
-                    </button>
+                  <button
+                    className="p-1 hover:bg-gray-100 rounded-md transition-colors text-gray-400 hover:text-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={
+                      promo.isActive ? "Deactivate promo" : "Activate promo"
+                    }
+                    onClick={() => togglePromoStatus(promo)}
+                    disabled={isPending}
+                  >
+                    <Power className="w-4 h-4" />
+                  </button>
                 </td>
               </tr>
             ))

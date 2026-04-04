@@ -15,7 +15,6 @@ export const metadata: Metadata = {
 export default function SafetyPage() {
   return (
     <div className="container mx-auto py-8 max-w-5xl space-y-8">
-      {/* Global Components for Demo purposes - Ideally SOSOverlay is in layout */}
       <SOSOverlay />
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
@@ -29,11 +28,9 @@ export default function SafetyPage() {
         </div>
         <div className="flex items-center gap-3">
           <div className="text-right hidden md:block">
-            <p className="text-sm font-semibold text-gray-900">
-              Emergency Test
-            </p>
+            <p className="text-sm font-semibold text-gray-900">Emergency SOS</p>
             <p className="text-xs text-gray-500">
-              Test the button functionality
+              Press and hold if you need urgent assistance
             </p>
           </div>
           <PanicButton className="px-6 py-3 text-lg shadow-red-200 shadow-xl" />

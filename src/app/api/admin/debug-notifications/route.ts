@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
           body: "If you see this, push notifications are working.",
           data: {
             type: "DEBUG",
-            url: "/admin",
+            url: "/admin/dashboard",
           },
         });
 

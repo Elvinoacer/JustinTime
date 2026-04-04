@@ -76,7 +76,7 @@ const PremiumPage = () => {
     {
       name: "BUSINESS",
       price: 9999,
-      description: "For established businesses (Coming Soon)",
+      description: "For established businesses",
       features: [
         "Everything in PRO",
         "Team accounts (up to 5)",
@@ -90,8 +90,9 @@ const PremiumPage = () => {
       ],
       color: "amber",
       recommended: false,
-      ctaText: "Coming Soon",
-      disabled: true, // Disabled - not available yet
+      ctaText:
+        currentPlan === "BUSINESS" ? "Current Plan" : "Upgrade to BUSINESS",
+      disabled: currentPlan === "BUSINESS",
     },
   ];
 

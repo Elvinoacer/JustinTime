@@ -9,11 +9,9 @@ import {
   LayoutDashboard,
   Users,
   Shield,
-  ShieldAlert,
   Calendar,
   Briefcase,
   Gavel,
-  Wallet,
   Headphones,
   CreditCard,
   Scale,
@@ -23,21 +21,22 @@ import {
   X,
   User,
   ChevronRight,
+  TrendingUp,
+  TicketPercent,
 } from "lucide-react";
 import { signOutWithNotificationCleanup } from "@/lib/auth/signOutWithNotificationCleanup";
 
 const navItems = [
-  { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "Users", href: "/admin/users", icon: Users },
-  { name: "Trust Center", href: "/admin/trust", icon: Shield },
   { name: "Verifications", href: "/admin/verifications", icon: Shield },
-  { name: "Safety Ops", href: "/admin/safety", icon: ShieldAlert },
   { name: "Bookings", href: "/admin/bookings", icon: Calendar },
   { name: "Jobs", href: "/admin/jobs", icon: Briefcase },
   { name: "Disputes", href: "/admin/disputes", icon: Gavel },
-  { name: "Insurance", href: "/admin/insurance", icon: Wallet },
   { name: "Support", href: "/admin/support", icon: Headphones },
   { name: "Finance", href: "/admin/finance", icon: CreditCard },
+  { name: "Promotions", href: "/admin/marketing/promos", icon: TicketPercent },
+  { name: "Churn Analysis", href: "/admin/churn-analysis", icon: TrendingUp },
   { name: "Reconciliation", href: "/admin/reconciliation", icon: Scale },
   { name: "Audit Logs", href: "/admin/logs", icon: History },
   { name: "Settings", href: "/admin/settings", icon: Settings },
@@ -64,7 +63,7 @@ const AdminSidebar = ({ onClose }: AdminSidebarProps) => {
           {/* Header */}
           <div className="flex items-center justify-between p-4 lg:p-6 border-b border-slate-800">
             <Link
-              href="/admin"
+              href="/admin/dashboard"
               className="flex items-center gap-3"
               onClick={onClose}
             >
@@ -104,7 +103,7 @@ const AdminSidebar = ({ onClose }: AdminSidebarProps) => {
                 const Icon = item.icon;
                 const isActive =
                   pathname === item.href ||
-                  (item.href !== "/admin" && pathname?.startsWith(item.href));
+                  pathname?.startsWith(`${item.href}/`);
 
                 return (
                   <li key={item.name}>

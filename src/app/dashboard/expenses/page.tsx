@@ -13,7 +13,7 @@ export const metadata = {
 
 export default async function ExpensesPage() {
   const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.id) redirect("/auth/login");
 
   const result = await getExpenses({ page: 1, limit: 20 });
 

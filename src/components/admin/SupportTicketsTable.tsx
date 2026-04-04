@@ -17,7 +17,6 @@ import {
   XCircle,
   Zap,
   User,
-  FileText,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -52,7 +51,7 @@ export default function EnhancedSupportTicketsTable({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(
-    null
+    null,
   );
   const [adminNotes, setAdminNotes] = useState("");
   const [resolution, setResolution] = useState("");
@@ -166,8 +165,53 @@ export default function EnhancedSupportTicketsTable({
   };
 
   const handleExport = () => {
-    // TODO: Implement export functionality
-    console.log("Exporting tickets...");
+    const escapeCsv = (value: unknown) =>
+      `"${String(value ?? "").replace(/"/g, '""')}"`;
+
+    const rows = [
+      [
+        "Ticket ID",
+        "Subject",
+        "Category",
+        "Priority",
+        "Status",
+        "User",
+        "User Role",
+        "Description",
+        "Admin Notes",
+        "Resolution",
+        "Created At",
+        "Updated At",
+      ],
+      ...tickets.map((ticket) => [
+        ticket.id,
+        ticket.subject,
+        ticket.category,
+        ticket.priority,
+        ticket.status,
+        ticket.user.name || "Unknown",
+        ticket.user.role,
+        ticket.description,
+        ticket.adminNotes || "",
+        ticket.resolution || "",
+        new Date(ticket.createdAt).toISOString(),
+        new Date(ticket.updatedAt).toISOString(),
+      ]),
+    ];
+
+    const csv = rows
+      .map((row) => row.map((cell) => escapeCsv(cell)).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `admin-support-tickets-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -197,10 +241,6 @@ export default function EnhancedSupportTicketsTable({
               const priorityConfig = getPriorityConfig(ticket.priority);
               const StatusIcon = statusConfig.icon;
               const PriorityIcon = priorityConfig.icon;
-              const daysSinceCreated = Math.floor(
-                (new Date().getTime() - new Date(ticket.createdAt).getTime()) /
-                  (1000 * 60 * 60 * 24)
-              );
 
               return (
                 <motion.div
@@ -314,11 +354,6 @@ export default function EnhancedSupportTicketsTable({
                 const priorityConfig = getPriorityConfig(ticket.priority);
                 const StatusIcon = statusConfig.icon;
                 const PriorityIcon = priorityConfig.icon;
-                const daysSinceCreated = Math.floor(
-                  (new Date().getTime() -
-                    new Date(ticket.createdAt).getTime()) /
-                    (1000 * 60 * 60 * 24)
-                );
 
                 return (
                   <motion.tr
@@ -599,8 +634,8 @@ export default function EnhancedSupportTicketsTable({
                         selectedTicket.priority === "URGENT"
                           ? "bg-red-50 border-red-200 text-red-700"
                           : selectedTicket.priority === "HIGH"
-                          ? "bg-orange-50 border-orange-200 text-orange-700"
-                          : "bg-blue-50 border-blue-200 text-blue-700"
+                            ? "bg-orange-50 border-orange-200 text-orange-700"
+                            : "bg-blue-50 border-blue-200 text-blue-700"
                       }`}
                     >
                       <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -662,7 +697,7 @@ export default function EnhancedSupportTicketsTable({
                           >
                             {s.replace("_", " ")}
                           </button>
-                        )
+                        ),
                       )}
                     </div>
                   </div>

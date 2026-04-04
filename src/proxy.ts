@@ -395,7 +395,8 @@ export default auth((req) => {
       const isAllowedPendingDeletionApiRoute =
         allowedPendingDeletionApiRoutes.some(
           (route) =>
-            nextUrl.pathname === route || nextUrl.pathname.startsWith(`${route}/`),
+            nextUrl.pathname === route ||
+            nextUrl.pathname.startsWith(`${route}/`),
         );
 
       if (!isAllowedPendingDeletionApiRoute) {
@@ -439,6 +440,7 @@ export default auth((req) => {
   const isOnProviderDashboard = nextUrl.pathname.startsWith("/dashboard");
   const isOnClientDashboard = nextUrl.pathname.startsWith("/client");
   const isOnAdmin = nextUrl.pathname.startsWith("/admin");
+  const isOnAdminLogin = nextUrl.pathname === "/admin/login";
   const isOnSettings =
     nextUrl.pathname === "/dashboard/settings" ||
     nextUrl.pathname.startsWith("/dashboard/settings/") ||
@@ -486,13 +488,18 @@ export default auth((req) => {
 
   if (isBanned) {
     return clearAuthCookies(
-      NextResponse.redirect(new URL("/auth/error?error=AccountSuspended", nextUrl)),
+      NextResponse.redirect(
+        new URL("/auth/error?error=AccountSuspended", nextUrl),
+      ),
     );
   }
 
   if (isLoggedIn && hasPendingDeletion && !isOnSettings && !isOnAuth) {
     return NextResponse.redirect(
-      new URL(getPendingDeletionRedirect(userRole, nextUrl.searchParams), nextUrl),
+      new URL(
+        getPendingDeletionRedirect(userRole, nextUrl.searchParams),
+        nextUrl,
+      ),
     );
   }
 
@@ -503,8 +510,18 @@ export default auth((req) => {
 
   // Admin Route Protection
   if (isOnAdmin) {
+    if (isOnAdminLogin) {
+      if (isLoggedIn && userRole === "ADMIN") {
+        return NextResponse.redirect(new URL("/admin/dashboard", nextUrl));
+      }
+      if (isLoggedIn && userRole !== "ADMIN") {
+        return NextResponse.redirect(new URL("/", nextUrl));
+      }
+      return NextResponse.next();
+    }
+
     if (!isLoggedIn) {
-      return NextResponse.redirect(new URL("/auth/login", nextUrl));
+      return NextResponse.redirect(new URL("/admin/login", nextUrl));
     }
     if (userRole !== "ADMIN") {
       return NextResponse.redirect(new URL("/", nextUrl));
@@ -518,7 +535,7 @@ export default auth((req) => {
     userRole === "ADMIN" &&
     (isOnAnyDashboard || isOnOnboarding)
   ) {
-    return NextResponse.redirect(new URL("/admin", nextUrl));
+    return NextResponse.redirect(new URL("/admin/dashboard", nextUrl));
   }
 
   // B8: Protect /provider/ routes
@@ -527,7 +544,7 @@ export default auth((req) => {
       return NextResponse.redirect(new URL("/auth/login", nextUrl));
     }
     if (userRole === "ADMIN") {
-      return NextResponse.redirect(new URL("/admin", nextUrl));
+      return NextResponse.redirect(new URL("/admin/dashboard", nextUrl));
     }
     return NextResponse.next();
   }
@@ -582,7 +599,7 @@ export default auth((req) => {
   if (isOnAuth) {
     if (isLoggedIn) {
       if (userRole === "ADMIN") {
-        return NextResponse.redirect(new URL("/admin", nextUrl));
+        return NextResponse.redirect(new URL("/admin/dashboard", nextUrl));
       }
 
       // If user is still unverified, keep them on auth pages.

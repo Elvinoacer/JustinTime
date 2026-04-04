@@ -23,7 +23,6 @@ import {
   Shield,
   Loader2,
   ArrowLeft,
-  CheckCircle2,
   AlertCircle,
   Smartphone,
   UserPlus,
@@ -34,7 +33,8 @@ import {
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { ref, callbackUrl, returnTo, intent } = getAuthQueryState(searchParams);
+  const { ref, callbackUrl, returnTo, intent } =
+    getAuthQueryState(searchParams);
   const verified = searchParams.get("verified");
   const reset = searchParams.get("reset");
   const reauth = searchParams.get("reauth");
@@ -104,7 +104,7 @@ function LoginPageContent() {
       } else {
         toast.success("Code resent successfully");
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to resend code");
     } finally {
       setIsResending(false);
@@ -140,7 +140,7 @@ function LoginPageContent() {
                 shouldSmartRedirect = true;
               }
             }
-          } catch (e) {
+          } catch {
             shouldSmartRedirect = true;
           }
 
@@ -151,7 +151,7 @@ function LoginPageContent() {
             const role = session?.user?.role;
             const onboarded = session?.user?.onboardingCompleted;
             if (role === "ADMIN") {
-              router.push("/admin");
+              router.push("/admin/dashboard");
             } else if (!onboarded) {
               router.push("/onboarding");
             } else if (role === "PROVIDER") {
@@ -215,7 +215,7 @@ function LoginPageContent() {
                   shouldSmartRedirect = true;
                 }
               }
-            } catch (e) {
+            } catch {
               shouldSmartRedirect = true;
             }
 
@@ -226,7 +226,7 @@ function LoginPageContent() {
               const role = session?.user?.role;
               const onboarded = session?.user?.onboardingCompleted;
               if (role === "ADMIN") {
-                router.push("/admin");
+                router.push("/admin/dashboard");
               } else if (!onboarded) {
                 router.push("/onboarding");
               } else if (role === "PROVIDER") {
@@ -238,7 +238,7 @@ function LoginPageContent() {
           }
         }
       }
-    } catch (error) {
+    } catch {
       setError("An unexpected error occurred");
       toast.error("An unexpected error occurred");
     } finally {
@@ -248,14 +248,12 @@ function LoginPageContent() {
 
   const handleGoogleSignIn = async () => {
     try {
-      document.cookie = `${AUTH_CONTEXT_COOKIE_NAME}=${encodeAuthContextCookie(
-        {
-          ref,
-          callbackUrl,
-          returnTo,
-          intent,
-        },
-      )}; Path=/; Max-Age=600; SameSite=Lax`;
+      document.cookie = `${AUTH_CONTEXT_COOKIE_NAME}=${encodeAuthContextCookie({
+        ref,
+        callbackUrl,
+        returnTo,
+        intent,
+      })}; Path=/; Max-Age=600; SameSite=Lax`;
 
       await signIn("google", {
         callbackUrl: buildOnboardingIntentUrl(
@@ -268,7 +266,7 @@ function LoginPageContent() {
           intent === "provider" ? "/onboarding?intent=provider" : "/onboarding",
         ),
       });
-    } catch (error) {
+    } catch {
       toast.error("Failed to sign in with Google");
     }
   };

@@ -48,7 +48,7 @@ export function getNotificationCenterPath(role: NotificationRole): string {
   }
 
   if (normalizedRole === "ADMIN") {
-    return "/admin";
+    return "/admin/dashboard";
   }
 
   return "/dashboard/notifications";

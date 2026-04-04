@@ -36,10 +36,22 @@ const navItems = [
     description: "Job applications",
   },
   {
+    name: "Requests",
+    href: "/dashboard/requests",
+    icon: "inbox",
+    description: "Client requests",
+  },
+  {
     name: "Services",
     href: "/dashboard/services",
     icon: "construction",
     description: "Manage services",
+  },
+  {
+    name: "Invoices",
+    href: "/dashboard/invoices",
+    icon: "receipt",
+    description: "Billing records",
   },
   {
     name: "Expenses",
@@ -60,16 +72,58 @@ const navItems = [
     description: "Track income",
   },
   {
+    name: "Wallet",
+    href: "/dashboard/wallet",
+    icon: "account_balance_wallet",
+    description: "Wallet & credits",
+  },
+  {
+    name: "Verification",
+    href: "/dashboard/verification",
+    icon: "verified_user",
+    description: "Trust checks",
+  },
+  {
     name: "Profile",
     href: "/dashboard/profile",
     icon: "person",
     description: "Edit profile",
   },
   {
+    name: "Tax Settings",
+    href: "/dashboard/settings/tax",
+    icon: "account_balance",
+    description: "Tax profile",
+  },
+  {
     name: "Team",
     href: "/dashboard/team",
     icon: "groups",
     description: "Agency & Crew",
+  },
+  {
+    name: "Team Jobs",
+    href: "/dashboard/team/jobs",
+    icon: "group_work",
+    description: "Assigned jobs",
+  },
+  {
+    name: "Team Members",
+    href: "/dashboard/team/members",
+    icon: "diversity_3",
+    description: "Manage crew",
+  },
+  {
+    name: "Team Payroll",
+    href: "/dashboard/team/payroll",
+    icon: "payments",
+    description: "Team payouts",
+  },
+  {
+    name: "Safety",
+    href: "/dashboard/safety",
+    icon: "health_and_safety",
+    description: "SOS & contacts",
   },
   {
     name: "Surge Pricing",
@@ -176,7 +230,8 @@ const Sidebar = ({
       >
         <ul className="flex flex-col gap-1" role="list">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive =
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
 
             return (
               <li key={item.name}>

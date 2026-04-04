@@ -38,7 +38,7 @@ export default async function SurgePricingControlPage({
   searchParams?: Promise<PageSearchParams>;
 }) {
   const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.id) redirect("/auth/login");
 
   const resolvedSearchParams = (await searchParams) || {};
 

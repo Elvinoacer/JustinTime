@@ -52,17 +52,17 @@ const Header = () => {
   const isAdmin = hasRole(session?.user, "ADMIN");
   const isProvider = !isAdmin && hasRole(session?.user, "PROVIDER");
   const dashboardRoute = isAdmin
-    ? "/admin"
+    ? "/admin/dashboard"
     : isProvider
       ? "/dashboard"
       : "/client/dashboard";
   const profileRoute = isAdmin
-    ? "/admin"
+    ? "/admin/dashboard"
     : isProvider
       ? "/dashboard/profile"
       : "/client/profile";
   const settingsRoute = isAdmin
-    ? "/admin"
+    ? "/admin/dashboard"
     : isProvider
       ? "/dashboard/settings"
       : "/client/settings";

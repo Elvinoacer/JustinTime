@@ -30,6 +30,14 @@ type LockedWallet = {
   creditBalance: number;
 };
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 async function lockWalletForUpdate(
   tx: Prisma.TransactionClient,
   userId: string,
@@ -170,10 +178,11 @@ export async function purchaseCredits(
     });
 
     revalidatePath("/wallet");
+    revalidatePath("/dashboard/wallet");
     revalidatePath("/dashboard");
     return { success: true, newBalance: result.newCreditBalance };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error, "Purchase failed") };
   }
 }
 
@@ -247,8 +256,11 @@ export async function payOnboardingFee(): Promise<{
 
     revalidatePath("/profile");
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return {
+      success: false,
+      error: getErrorMessage(error, "Failed to pay onboarding fee"),
+    };
   }
 }
 
@@ -334,7 +346,10 @@ export async function promoteService(
     revalidatePath("/services");
     revalidatePath(`/services/${serviceId}`);
     return { success: true, promotedUntil: result.promotedUntil || undefined };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return {
+      success: false,
+      error: getErrorMessage(error, "Failed to promote service"),
+    };
   }
 }

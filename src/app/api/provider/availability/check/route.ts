@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       bookingDate,
       startTime,
       endTime,
-      serviceId
+      serviceId,
     );
 
     return NextResponse.json(result);
@@ -41,10 +41,7 @@ export async function POST(request: Request) {
 // GET - Get available slots for a date range
 export async function GET(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    // Public read endpoint used by booking flow to render slot options.
 
     const { searchParams } = new URL(request.url);
     const providerId = searchParams.get("providerId");
@@ -67,7 +64,7 @@ export async function GET(request: Request) {
       providerId,
       bookingDate,
       duration,
-      serviceId
+      serviceId,
     );
 
     return NextResponse.json({ slots });

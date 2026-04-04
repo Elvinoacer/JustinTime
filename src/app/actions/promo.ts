@@ -96,11 +96,43 @@ export async function createPromoCodeAction(formData: FormData) {
 
     revalidatePath("/admin/marketing/promos");
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Create Promo Error:", error);
-    if (error.code === "P2002") {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: string }).code === "P2002"
+    ) {
       return { success: false, error: "Promo code already exists" };
     }
     return { success: false, error: "Failed to create promo code" };
+  }
+}
+
+export async function setPromoCodeActiveStateAction(
+  promoId: string,
+  isActive: boolean,
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    if (!promoId) {
+      return { success: false, error: "Promo ID is required" };
+    }
+
+    await prisma.promoCode.update({
+      where: { id: promoId },
+      data: { isActive },
+    });
+
+    revalidatePath("/admin/marketing/promos");
+    return { success: true };
+  } catch (error) {
+    console.error("Set Promo Active State Error:", error);
+    return { success: false, error: "Failed to update promo status" };
   }
 }

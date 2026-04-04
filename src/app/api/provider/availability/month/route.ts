@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { startOfMonth, endOfMonth, eachDayOfInterval, format } from "date-fns";
 
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -16,9 +18,46 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (!MONTH_PATTERN.test(monthStr)) {
+      return NextResponse.json(
+        { error: "Invalid month format. Use YYYY-MM" },
+        { status: 400 },
+      );
+    }
+
     const [year, month] = monthStr.split("-").map(Number);
     const startDate = startOfMonth(new Date(year, month - 1));
     const endDate = endOfMonth(startDate);
+
+    const provider = await prisma.user.findUnique({
+      where: { id: providerId },
+      select: { id: true },
+    });
+
+    if (!provider) {
+      return NextResponse.json(
+        { error: "Provider not found" },
+        { status: 404 },
+      );
+    }
+
+    if (serviceId) {
+      const service = await prisma.service.findFirst({
+        where: {
+          id: serviceId,
+          providerId,
+          isActive: true,
+        },
+        select: { id: true },
+      });
+
+      if (!service) {
+        return NextResponse.json(
+          { error: "Invalid serviceId for provider" },
+          { status: 400 },
+        );
+      }
+    }
 
     // 1. Get Weekly Availability
     const weeklyAvailability = await prisma.availability.findMany({
