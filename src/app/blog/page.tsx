@@ -26,7 +26,43 @@ const categoryColors: Record<string, string> = {
   Gardening: "bg-emerald-100 text-emerald-700",
   "Tips & Tricks": "bg-orange-100 text-orange-700",
   DIY: "bg-pink-100 text-pink-700",
+  Pricing: "bg-amber-100 text-amber-800",
+  Jobs: "bg-indigo-100 text-indigo-700",
 };
+
+function getCategoryChipClass(category: string) {
+  return categoryColors[category] || "bg-slate-100 text-slate-700";
+}
+
+function getCategoryGlowClass(category: string) {
+  const colorClass = getCategoryChipClass(category);
+
+  if (colorClass.includes("blue")) return "from-blue-500/20";
+  if (colorClass.includes("green")) return "from-green-500/20";
+  if (colorClass.includes("cyan")) return "from-cyan-500/20";
+  if (colorClass.includes("yellow")) return "from-yellow-500/20";
+  if (colorClass.includes("purple")) return "from-purple-500/20";
+  if (colorClass.includes("emerald")) return "from-emerald-500/20";
+  if (colorClass.includes("orange")) return "from-orange-500/20";
+  if (colorClass.includes("amber")) return "from-amber-500/20";
+  if (colorClass.includes("indigo")) return "from-indigo-500/20";
+  return "from-pink-500/20";
+}
+
+function getCategorySparkleClass(category: string) {
+  const colorClass = getCategoryChipClass(category);
+
+  if (colorClass.includes("blue")) return "text-blue-600/30";
+  if (colorClass.includes("green")) return "text-green-600/30";
+  if (colorClass.includes("cyan")) return "text-cyan-600/30";
+  if (colorClass.includes("yellow")) return "text-yellow-600/30";
+  if (colorClass.includes("purple")) return "text-purple-600/30";
+  if (colorClass.includes("emerald")) return "text-emerald-600/30";
+  if (colorClass.includes("orange")) return "text-orange-600/30";
+  if (colorClass.includes("amber")) return "text-amber-600/30";
+  if (colorClass.includes("indigo")) return "text-indigo-600/30";
+  return "text-pink-600/30";
+}
 
 export default function BlogPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -199,7 +235,7 @@ export default function BlogPage() {
                     <div className="p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col justify-center">
                       <span
                         className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold mb-3 ${
-                          categoryColors[featuredPost.category]
+                          getCategoryChipClass(featuredPost.category)
                         }`}
                       >
                         {featuredPost.category}
@@ -266,51 +302,19 @@ export default function BlogPage() {
                       <div className="h-40 sm:h-48 md:h-56 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center relative overflow-hidden">
                         <div
                           className={`absolute inset-0 bg-gradient-to-br ${
-                            categoryColors[post.category].includes("blue")
-                              ? "from-blue-500/20"
-                              : categoryColors[post.category].includes("green")
-                              ? "from-green-500/20"
-                              : categoryColors[post.category].includes("cyan")
-                              ? "from-cyan-500/20"
-                              : categoryColors[post.category].includes("yellow")
-                              ? "from-yellow-500/20"
-                              : categoryColors[post.category].includes("purple")
-                              ? "from-purple-500/20"
-                              : categoryColors[post.category].includes(
-                                  "emerald"
-                                )
-                              ? "from-emerald-500/20"
-                              : categoryColors[post.category].includes("orange")
-                              ? "from-orange-500/20"
-                              : "from-pink-500/20"
+                            getCategoryGlowClass(post.category)
                           } to-transparent group-hover:scale-110 transition-transform duration-300`}
                         ></div>
                         <Sparkles
-                          className={`w-12 h-12 sm:w-16 sm:h-16 ${
-                            categoryColors[post.category].includes("blue")
-                              ? "text-blue-600/30"
-                              : categoryColors[post.category].includes("green")
-                              ? "text-green-600/30"
-                              : categoryColors[post.category].includes("cyan")
-                              ? "text-cyan-600/30"
-                              : categoryColors[post.category].includes("yellow")
-                              ? "text-yellow-600/30"
-                              : categoryColors[post.category].includes("purple")
-                              ? "text-purple-600/30"
-                              : categoryColors[post.category].includes(
-                                  "emerald"
-                                )
-                              ? "text-emerald-600/30"
-                              : categoryColors[post.category].includes("orange")
-                              ? "text-orange-600/30"
-                              : "text-pink-600/30"
-                          }`}
+                          className={`w-12 h-12 sm:w-16 sm:h-16 ${getCategorySparkleClass(
+                            post.category,
+                          )}`}
                         />
                       </div>
                       <div className="p-4 sm:p-6 flex-1 flex flex-col">
                         <span
                           className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold mb-3 ${
-                            categoryColors[post.category]
+                            getCategoryChipClass(post.category)
                           }`}
                         >
                           {post.category}
