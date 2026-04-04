@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import { sendComprehensiveNotification } from "@/lib/notifications/adminNotifications";
@@ -31,12 +32,28 @@ function getClientIp(request: NextRequest): string | null {
   return value.split(",")[0].trim() || null;
 }
 
-function getInteractionIdentity(request: NextRequest): string | null {
-  return (
-    getClientIp(request) ||
-    request.headers.get("x-anonymous-id")?.trim() ||
-    null
-  );
+function buildFallbackIdentity(request: NextRequest): string {
+  const userAgent =
+    request.headers.get("user-agent")?.trim() || "unknown-agent";
+  const acceptLanguage =
+    request.headers.get("accept-language")?.trim() || "unknown-language";
+  return `fingerprint:${`${userAgent}|${acceptLanguage}`.slice(0, 180)}`;
+}
+
+async function getInteractionIdentity(request: NextRequest): Promise<string> {
+  const session = await auth();
+  if (session?.user?.id) {
+    return `user:${session.user.id}`;
+  }
+
+  const identity =
+    getClientIp(request) || request.headers.get("x-anonymous-id")?.trim();
+
+  if (identity) {
+    return identity;
+  }
+
+  return buildFallbackIdentity(request);
 }
 
 function isRateLimited(identity: string): boolean {
@@ -66,14 +83,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const identity = getInteractionIdentity(request);
-
-    if (!identity) {
-      return NextResponse.json(
-        { error: "Unable to validate request origin" },
-        { status: 400 },
-      );
-    }
+    const identity = await getInteractionIdentity(request);
 
     if (isRateLimited(identity)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });

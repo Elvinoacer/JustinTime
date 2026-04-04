@@ -51,7 +51,7 @@ export function useProviderProfile(enabled: boolean = true) {
 export function useUpdateProviderProfile() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: unknown) => {
       const response = await apiClient.put("/provider/profile", data);
       return response.data;
     },
@@ -119,7 +119,7 @@ export function useUpdateService() {
       id: string;
       data: ServiceUpdatePayload;
     }) => {
-      const response = await apiClient.put(`/provider/services?id=${id}`, data);
+      const response = await apiClient.put(`/provider/services/${id}`, data);
       return response.data;
     },
     onSuccess: () => {
@@ -133,7 +133,7 @@ export function useDeleteService() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiClient.delete(`/provider/services?id=${id}`);
+      const response = await apiClient.delete(`/provider/services/${id}`);
       return response.data;
     },
     onSuccess: () => {
@@ -169,7 +169,13 @@ export function useProviderBookings(params?: {
 export function useUpdateBooking() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Record<string, unknown>;
+    }) => {
       const response = await apiClient.patch(`/bookings/${id}`, data);
       return response.data;
     },

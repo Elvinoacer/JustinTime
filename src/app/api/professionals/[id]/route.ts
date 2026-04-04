@@ -5,19 +5,21 @@ import { isPubliclyVerified } from "@/lib/trust/publicTrust";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
 
-    const provider = await prisma.user.findUnique({
-      where: { 
+    const provider = await prisma.user.findFirst({
+      where: {
         id,
-        role: "PROVIDER",
+        OR: [{ role: "PROVIDER" }, { roles: { has: "PROVIDER" } }],
       },
       include: {
         profile: true,
-        services: true,
+        services: {
+          where: { isActive: true },
+        },
         receivedReviews: {
           include: {
             author: {
@@ -49,7 +51,10 @@ export async function GET(
     });
 
     if (!provider) {
-      return NextResponse.json({ error: "Professional not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Professional not found" },
+        { status: 404 },
+      );
     }
 
     // Calculate stats
@@ -76,7 +81,7 @@ export async function GET(
     });
 
     const ratingDistribution = await prisma.review.groupBy({
-      by: ['rating'],
+      by: ["rating"],
       where: { targetId: id },
       _count: {
         rating: true,
@@ -84,8 +89,8 @@ export async function GET(
     });
 
     // Format rating distribution
-    const distribution = [5, 4, 3, 2, 1].map(star => {
-      const found = ratingDistribution.find(r => r.rating === star);
+    const distribution = [5, 4, 3, 2, 1].map((star) => {
+      const found = ratingDistribution.find((r) => r.rating === star);
       return {
         stars: star,
         count: found?._count.rating || 0,
@@ -102,10 +107,10 @@ export async function GET(
 
     // Fetch all categories for skill mapping
     const categories = await prisma.category.findMany({
-      select: { id: true, name: true }
+      select: { id: true, name: true },
     });
-    
-    const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+
+    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
     // Format response
     const professionalData = {
@@ -118,7 +123,9 @@ export async function GET(
       latitude: provider.profile?.latitude,
       longitude: provider.profile?.longitude,
       bio: provider.profile?.bio,
-      skills: (provider.profile?.skills || []).map(skillId => categoryMap.get(skillId) || skillId),
+      skills: (provider.profile?.skills || []).map(
+        (skillId) => categoryMap.get(skillId) || skillId,
+      ),
       hourlyRate: provider.profile?.hourlyRate || 0,
       isVerified,
       certifications: provider.profile?.certifications || [],
@@ -136,7 +143,7 @@ export async function GET(
       averageRating: avgRating._avg.rating || 0,
       totalReviews,
       ratingDistribution: distribution,
-      services: provider.services.map(service => ({
+      services: provider.services.map((service) => ({
         id: service.id,
         title: service.title,
         description: service.description,
@@ -148,7 +155,7 @@ export async function GET(
         location: service.location,
         images: service.images,
       })),
-      reviews: provider.receivedReviews.map(review => ({
+      reviews: provider.receivedReviews.map((review) => ({
         id: review.id,
         rating: review.rating,
         comment: review.comment,

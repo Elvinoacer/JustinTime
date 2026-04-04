@@ -28,7 +28,7 @@ function isLikelyImageUrl(url: string) {
     const fm = parsed.searchParams.get("fm");
     return Boolean(
       (format && IMAGE_FILE_PATTERN.test(`file.${format}`)) ||
-        (fm && IMAGE_FILE_PATTERN.test(`file.${fm}`)),
+      (fm && IMAGE_FILE_PATTERN.test(`file.${fm}`)),
     );
   } catch {
     return IMAGE_FILE_PATTERN.test(url);
@@ -73,7 +73,11 @@ export async function GET(request: NextRequest) {
     const latitude = parseNum(searchParams.get("latitude"));
     const longitude = parseNum(searchParams.get("longitude"));
 
-    const conditions: Prisma.UserWhereInput[] = [{ role: "PROVIDER" }];
+    const conditions: Prisma.UserWhereInput[] = [
+      {
+        OR: [{ role: "PROVIDER" }, { roles: { has: "PROVIDER" } }],
+      },
+    ];
 
     const profileFilters: Prisma.ProfileWhereInput = {};
     if (minPrice !== undefined || maxPrice !== undefined) {
@@ -299,21 +303,23 @@ export async function GET(request: NextRequest) {
               ) ?? null)
             : null;
         const serviceImage =
-          provider.services.find((service) =>
-            Array.isArray(service.images)
-              ? service.images.some(
-                  (url) =>
-                    typeof url === "string" &&
-                    url.trim().length > 0 &&
-                    isLikelyImageUrl(url),
-                )
-              : false,
-          )?.images.find(
-            (url) =>
-              typeof url === "string" &&
-              url.trim().length > 0 &&
-              isLikelyImageUrl(url),
-          ) ?? null;
+          provider.services
+            .find((service) =>
+              Array.isArray(service.images)
+                ? service.images.some(
+                    (url) =>
+                      typeof url === "string" &&
+                      url.trim().length > 0 &&
+                      isLikelyImageUrl(url),
+                  )
+                : false,
+            )
+            ?.images.find(
+              (url) =>
+                typeof url === "string" &&
+                url.trim().length > 0 &&
+                isLikelyImageUrl(url),
+            ) ?? null;
 
         return {
           id: provider.id,

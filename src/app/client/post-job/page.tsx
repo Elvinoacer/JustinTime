@@ -177,7 +177,7 @@ function PostJobPageContent() {
 
   // Fetch job data if in edit mode
   const { data: existingJob, isLoading: isLoadingJob } = useQuery({
-    queryKey: ["job", editJobId],
+    queryKey: ["client-job", editJobId],
     queryFn: async () => {
       const response = await apiClient.get(`/client/jobs/${editJobId}`);
       return response.data;
@@ -192,7 +192,7 @@ function PostJobPageContent() {
     },
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["job", editJobId] }),
+        queryClient.invalidateQueries({ queryKey: ["client-job", editJobId] }),
         queryClient.invalidateQueries({ queryKey: ["client-jobs-list"] }),
         queryClient.invalidateQueries({
           queryKey: ["client", "dashboard", "jobs"],

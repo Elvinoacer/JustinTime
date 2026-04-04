@@ -5,6 +5,7 @@ import { handleError } from "@/lib/middleware/errorHandler";
 import { hasClientAccess } from "@/lib/auth/clientAccess";
 import type { Prisma } from "@/generated/prisma/client";
 import { JobStatus } from "@/generated/prisma/client";
+import { POST as createSharedJob } from "@/app/api/jobs/route";
 
 export async function GET(request: NextRequest) {
   try {
@@ -96,4 +97,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return handleError(error);
   }
+}
+
+export async function POST(request: Request) {
+  return createSharedJob(request);
 }

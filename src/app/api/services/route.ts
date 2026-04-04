@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { successResponse, handleError } from "@/lib/middleware/errorHandler";
 import { calculateDistance } from "@/lib/utils/geolocation";
 import { isPubliclyVerified } from "@/lib/trust/publicTrust";
+import type { Prisma } from "@/generated/prisma/client";
 
 const PRICING_TIMEZONE = "Africa/Nairobi";
 
@@ -44,8 +45,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     // Pagination
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "12");
+    const page = Math.max(
+      1,
+      parseInt(searchParams.get("page") || "1", 10) || 1,
+    );
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(searchParams.get("limit") || "12", 10) || 12),
+    );
     const skip = (page - 1) * limit;
 
     // Filters
@@ -53,6 +60,7 @@ export async function GET(request: NextRequest) {
     const verified = searchParams.get("verified");
     const minPrice = searchParams.get("minPrice");
     const maxPrice = searchParams.get("maxPrice");
+    const minRating = searchParams.get("minRating");
     const search = searchParams.get("search");
     const sort = searchParams.get("sort") || "relevance";
 
@@ -61,14 +69,36 @@ export async function GET(request: NextRequest) {
     const userLon = searchParams.get("longitude");
 
     // Build where clause
-    const where: any = {
+    const where: Prisma.ServiceWhereInput = {
       isActive: true,
     };
 
     if (category && category !== "All Services") {
-      where.category = {
-        name: category,
-      };
+      const normalizedCategory = category.trim();
+      const resolvedCategory = await prisma.category.findFirst({
+        where: {
+          OR: [
+            { id: normalizedCategory },
+            { slug: { equals: normalizedCategory, mode: "insensitive" } },
+            { name: { equals: normalizedCategory, mode: "insensitive" } },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (!resolvedCategory) {
+        return successResponse({
+          services: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+          },
+        });
+      }
+
+      where.categoryId = resolvedCategory.id;
     }
 
     if (verified === "true") {
@@ -104,8 +134,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Build orderBy clause (skip for distance sorting - we'll do it in memory)
-    let orderBy: any = {};
+    let orderBy: Prisma.ServiceOrderByWithRelationInput = {};
     const isDistanceSort = sort === "distance" && userLat && userLon;
+    const candidateTake = Math.min(
+      Math.max(skip + limit * 6, limit * 20),
+      5000,
+    );
 
     if (!isDistanceSort) {
       switch (sort) {
@@ -134,7 +168,9 @@ export async function GET(request: NextRequest) {
     const [services, total] = await Promise.all([
       prisma.service.findMany({
         where,
-        orderBy: isDistanceSort ? undefined : orderBy,
+        orderBy: isDistanceSort ? { createdAt: "desc" } : orderBy,
+        skip: 0,
+        take: candidateTake,
         include: {
           provider: {
             select: {
@@ -364,13 +400,29 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    type RankedService = (typeof servicesWithData)[number];
+
+    const minRatingThreshold =
+      minRating && minRating.trim().length > 0
+        ? parseFloat(minRating)
+        : undefined;
+
+    if (
+      minRatingThreshold !== undefined &&
+      Number.isFinite(minRatingThreshold)
+    ) {
+      servicesWithData = servicesWithData.filter(
+        (service) => service.rating >= minRatingThreshold,
+      );
+    }
+
     // Helper function to check if provider has premium plan
-    const isPremiumProvider = (service: any) =>
+    const isPremiumProvider = (service: RankedService) =>
       ["PRO", "BUSINESS"].includes(service.provider?.subscription?.plan) &&
       service.provider?.subscription?.isActive === true;
 
     // Sorting Logic: Promoted Service > Premium Provider > Distance/Rating/Relevance
-    const sortServices = (a: any, b: any) => {
+    const sortServices = (a: RankedService, b: RankedService) => {
       // 1. Active Service Promotion
       if (a.promoted.isPromoted && !b.promoted.isPromoted) return -1;
       if (!a.promoted.isPromoted && b.promoted.isPromoted) return 1;
@@ -391,7 +443,17 @@ export async function GET(request: NextRequest) {
 
       // 3. Requested Sort
       if (isDistanceSort) {
-        return (a.distance || 0) - (b.distance || 0);
+        const aDistance =
+          typeof a.distance === "number"
+            ? a.distance
+            : Number.POSITIVE_INFINITY;
+        const bDistance =
+          typeof b.distance === "number"
+            ? b.distance
+            : Number.POSITIVE_INFINITY;
+        if (aDistance !== bDistance) {
+          return aDistance - bDistance;
+        }
       } else if (sort === "rebooked") {
         return b.rebookedCount - a.rebookedCount;
       } else if (sort === "rating") {
@@ -408,23 +470,20 @@ export async function GET(request: NextRequest) {
     // Apply Sort
     servicesWithData.sort(sortServices);
 
-    // Apply pagination after ranking to keep deterministic global ordering.
-    if (isDistanceSort) {
-      servicesWithData = servicesWithData.filter(
-        (s) => s.distance !== undefined,
-      );
-    }
-
     const rankedTotal = servicesWithData.length;
     const paginatedServices = servicesWithData.slice(skip, skip + limit);
+    const effectiveTotal =
+      minRatingThreshold !== undefined && Number.isFinite(minRatingThreshold)
+        ? rankedTotal
+        : total;
 
     return successResponse({
       services: paginatedServices,
       pagination: {
         page,
         limit,
-        total: isDistanceSort ? rankedTotal : total,
-        totalPages: Math.ceil((isDistanceSort ? rankedTotal : total) / limit),
+        total: effectiveTotal,
+        totalPages: Math.ceil(effectiveTotal / limit),
       },
     });
   } catch (error) {

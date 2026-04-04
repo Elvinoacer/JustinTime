@@ -419,6 +419,7 @@ function BookingPageContent() {
                 ? parseFloat(negotiationData.proposedPrice)
                 : undefined,
               proposedLocation: negotiationData.proposedLocation || undefined,
+              message: negotiationData.message || undefined,
             }
           : undefined,
       };

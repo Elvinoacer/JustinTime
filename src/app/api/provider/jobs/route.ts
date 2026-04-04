@@ -70,6 +70,34 @@ function buildStatusHistory(
   ];
 }
 
+function normalizeLocationText(value?: string | null): string {
+  if (!value) return "";
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function calculateDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export async function GET(request: Request) {
   try {
     const session = await auth();
@@ -171,7 +199,13 @@ export async function GET(request: Request) {
         const provider = await prisma.user.findUnique({
           where: { id: session.user.id },
           select: {
-            profile: { select: { location: true } },
+            profile: {
+              select: {
+                location: true,
+                latitude: true,
+                longitude: true,
+              },
+            },
             services: { select: { categoryId: true } },
           },
         });
@@ -208,9 +242,11 @@ export async function GET(request: Request) {
           prisma.job.count({ where }),
         ]);
 
-        const providerLocation = provider?.profile?.location
-          ?.toLowerCase()
-          .trim();
+        const providerLocation = normalizeLocationText(
+          provider?.profile?.location,
+        );
+        const providerLatitude = provider?.profile?.latitude;
+        const providerLongitude = provider?.profile?.longitude;
         const now = Date.now();
 
         const scored = candidateJobs
@@ -223,14 +259,36 @@ export async function GET(request: Request) {
               reasons.push("category-match");
             }
 
-            const jobLocation = job.location?.toLowerCase().trim();
-            if (
+            const jobLocation = normalizeLocationText(job.location);
+            const hasGeoCoordinates =
+              typeof providerLatitude === "number" &&
+              typeof providerLongitude === "number" &&
+              typeof job.latitude === "number" &&
+              typeof job.longitude === "number";
+
+            if (hasGeoCoordinates) {
+              const distanceKm = calculateDistanceKm(
+                providerLatitude,
+                providerLongitude,
+                job.latitude,
+                job.longitude,
+              );
+
+              if (distanceKm <= 10) {
+                score += 2;
+                reasons.push("nearby");
+              } else if (distanceKm <= 25) {
+                score += 1;
+                reasons.push("nearby");
+              }
+            } else if (
               providerLocation &&
               jobLocation &&
-              providerLocation === jobLocation
+              (providerLocation.includes(jobLocation) ||
+                jobLocation.includes(providerLocation))
             ) {
-              score += 2;
-              reasons.push("nearby");
+              score += 1;
+              reasons.push("location-match");
             }
 
             const applicants = job._count?.proposals ?? 0;

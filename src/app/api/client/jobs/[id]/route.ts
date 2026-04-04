@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { hasAnyRole } from "@/lib/auth/roles";
+import { PUT as updateSharedJob } from "@/app/api/jobs/[id]/route";
 
 export async function GET(
   request: Request,
@@ -70,6 +71,7 @@ export async function GET(
       images: job.images,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
+      categoryId: job.categoryId,
       category: job.category,
       _count: job._count,
       proposals: job.proposals,
@@ -78,4 +80,11 @@ export async function GET(
     console.error("Error fetching client job:", error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
+}
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  return updateSharedJob(request, { params });
 }

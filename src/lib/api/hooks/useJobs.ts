@@ -142,7 +142,7 @@ export function useProviderTeams(enabled: boolean = true) {
 // Fetch single job details
 export function useJob(id: string) {
   return useQuery<JobDetail>({
-    queryKey: ["job", id],
+    queryKey: ["public-job", id],
     queryFn: async () => {
       const response = await apiClient.get(`/jobs/${id}`);
       return response.data;
@@ -169,9 +169,11 @@ export function useSubmitProposal() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["provider-jobs"] });
       queryClient.invalidateQueries({ queryKey: ["proposals"] });
-      queryClient.invalidateQueries({ queryKey: ["job", variables.jobId] });
       queryClient.invalidateQueries({
-        queryKey: ["job", variables.jobId, "proposals"],
+        queryKey: ["public-job", variables.jobId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["public-job", variables.jobId, "proposals"],
       });
     },
   });
@@ -179,7 +181,7 @@ export function useSubmitProposal() {
 
 export function useJobProposals(jobId: string, enabled: boolean = true) {
   return useQuery<JobProposal[]>({
-    queryKey: ["job", jobId, "proposals"],
+    queryKey: ["public-job", jobId, "proposals"],
     queryFn: async () => {
       const response = await apiClient.get(`/jobs/${jobId}/proposals`);
       return response.data;

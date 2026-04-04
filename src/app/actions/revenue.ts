@@ -345,6 +345,7 @@ export async function promoteService(
 
     revalidatePath("/services");
     revalidatePath(`/services/${serviceId}`);
+    revalidatePath("/dashboard/services");
     return { success: true, promotedUntil: result.promotedUntil || undefined };
   } catch (error: unknown) {
     return {

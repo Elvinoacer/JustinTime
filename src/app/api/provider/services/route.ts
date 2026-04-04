@@ -52,7 +52,7 @@ async function resolveEffectiveServicePlan(userId: string) {
   return subscription.plan;
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await auth();
 
@@ -128,9 +128,16 @@ export async function POST(request: NextRequest) {
 
     const validatedData = serviceSchema.parse(body);
 
-    // Find category by ID
-    const category = await prisma.category.findUnique({
-      where: { id: validatedData.category },
+    // Accept category id, slug, or name for backward-compatible clients.
+    const categoryInput = validatedData.category.trim();
+    const category = await prisma.category.findFirst({
+      where: {
+        OR: [
+          { id: categoryInput },
+          { slug: { equals: categoryInput, mode: "insensitive" } },
+          { name: { equals: categoryInput, mode: "insensitive" } },
+        ],
+      },
     });
 
     if (!category) {
@@ -247,8 +254,15 @@ export async function PUT(request: NextRequest) {
     }
 
     if (validatedData.category) {
-      const category = await prisma.category.findUnique({
-        where: { id: validatedData.category },
+      const categoryInput = validatedData.category.trim();
+      const category = await prisma.category.findFirst({
+        where: {
+          OR: [
+            { id: categoryInput },
+            { slug: { equals: categoryInput, mode: "insensitive" } },
+            { name: { equals: categoryInput, mode: "insensitive" } },
+          ],
+        },
       });
 
       if (!category) {
@@ -341,18 +355,37 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete media from Cloudinary
-    for (const imgUrl of existingService.images) {
-      await deleteFile(imgUrl);
+    const relatedBookingsCount = await prisma.booking.count({
+      where: { serviceId },
+    });
+
+    if (relatedBookingsCount > 0) {
+      await prisma.service.update({
+        where: { id: serviceId },
+        data: {
+          isActive: false,
+          promotedUntil: null,
+          promotionPlan: null,
+        },
+      });
+
+      return successResponse({
+        message:
+          "Service archived because it has existing booking history. It is now inactive in the marketplace.",
+        archived: true,
+      });
     }
 
-    if (existingService.video) {
-      await deleteFile(existingService.video);
-    }
+    const mediaToDelete = [
+      ...existingService.images,
+      ...(existingService.video ? [existingService.video] : []),
+    ];
 
     await prisma.service.delete({
       where: { id: serviceId },
     });
+
+    void Promise.allSettled(mediaToDelete.map((url) => deleteFile(url)));
 
     return successResponse({ message: "Service deleted successfully" });
   } catch (error) {

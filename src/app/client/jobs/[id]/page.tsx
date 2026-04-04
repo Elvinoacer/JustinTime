@@ -254,7 +254,7 @@ export default function JobDetailsPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["job", jobId],
+    queryKey: ["client-job", jobId],
     queryFn: async () => {
       const response = await apiClient.get(`/client/jobs/${jobId}`);
       return response.data as Job;
@@ -267,7 +267,7 @@ export default function JobDetailsPage() {
     error: proposalsError,
     refetch: refetchProposals,
   } = useQuery({
-    queryKey: ["job", jobId, "proposals"],
+    queryKey: ["client-job", jobId, "proposals"],
     queryFn: async () => {
       const response = await apiClient.get(`/client/jobs/${jobId}/proposals`);
       return response.data as Proposal[];
@@ -290,8 +290,10 @@ export default function JobDetailsPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["job", jobId] });
-      queryClient.invalidateQueries({ queryKey: ["job", jobId, "proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["client-job", jobId] });
+      queryClient.invalidateQueries({
+        queryKey: ["client-job", jobId, "proposals"],
+      });
       showToastMessage("Proposal accepted successfully!");
     },
     onError: () => {
@@ -313,8 +315,10 @@ export default function JobDetailsPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["job", jobId] });
-      queryClient.invalidateQueries({ queryKey: ["job", jobId, "proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["client-job", jobId] });
+      queryClient.invalidateQueries({
+        queryKey: ["client-job", jobId, "proposals"],
+      });
       showToastMessage("Provider updated: proposal remains in review.");
     },
     onError: () => {
@@ -329,7 +333,7 @@ export default function JobDetailsPage() {
     },
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["job", jobId] }),
+        queryClient.invalidateQueries({ queryKey: ["client-job", jobId] }),
         queryClient.invalidateQueries({ queryKey: ["client-jobs-list"] }),
         queryClient.invalidateQueries({
           queryKey: ["client", "dashboard", "jobs"],
@@ -483,7 +487,9 @@ export default function JobDetailsPage() {
         reason: value.trim(),
       });
       showToastMessage("Dispute submitted. Our team will review it shortly.");
-      queryClient.invalidateQueries({ queryKey: ["job", jobId, "proposals"] });
+      queryClient.invalidateQueries({
+        queryKey: ["client-job", jobId, "proposals"],
+      });
     } catch {
       showToastMessage("Failed to submit dispute. Please try again.");
     } finally {

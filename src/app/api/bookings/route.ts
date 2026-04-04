@@ -217,6 +217,7 @@ export async function POST(request: Request) {
       endTime,
       slots, // Array of { date, startTime, endTime }
       pricingQuoteId,
+      negotiation,
     } = body;
     let { location, notes, clientPhone, clientAddress, promoCode } = body;
 
@@ -226,6 +227,34 @@ export async function POST(request: Request) {
     clientPhone = clientPhone?.trim();
     clientAddress = clientAddress?.trim();
     promoCode = promoCode?.trim()?.toUpperCase();
+
+    const normalizedNegotiation =
+      negotiation && typeof negotiation === "object"
+        ? {
+            proposedPrice:
+              typeof negotiation.proposedPrice === "number" &&
+              Number.isFinite(negotiation.proposedPrice) &&
+              negotiation.proposedPrice > 0
+                ? negotiation.proposedPrice
+                : undefined,
+            proposedLocation:
+              typeof negotiation.proposedLocation === "string" &&
+              negotiation.proposedLocation.trim().length > 0
+                ? negotiation.proposedLocation.trim()
+                : undefined,
+            message:
+              typeof negotiation.message === "string" &&
+              negotiation.message.trim().length > 0
+                ? negotiation.message.trim().slice(0, 2000)
+                : undefined,
+          }
+        : null;
+    const shouldCreateNegotiation = Boolean(
+      normalizedNegotiation &&
+      (normalizedNegotiation.proposedPrice !== undefined ||
+        normalizedNegotiation.proposedLocation ||
+        normalizedNegotiation.message),
+    );
 
     // Validate required fields
     if (!professionalId || !serviceId) {
@@ -613,6 +642,20 @@ export async function POST(request: Request) {
           await tx.promoCode.update({
             where: { id: validPromoCodeId },
             data: { usageCount: { increment: 1 } },
+          });
+        }
+
+        if (shouldCreateNegotiation && normalizedNegotiation) {
+          await tx.bookingNegotiation.create({
+            data: {
+              bookingId: newBooking.id,
+              initiatorId: session.user.id,
+              receiverId: professionalId,
+              proposedPrice: normalizedNegotiation.proposedPrice,
+              proposedLocation: normalizedNegotiation.proposedLocation,
+              message: normalizedNegotiation.message,
+              status: "PENDING",
+            },
           });
         }
 

@@ -427,38 +427,6 @@ export async function applyProposalDecision({
         },
         tx,
       );
-
-      const createdPayment = await tx.payment.create({
-        data: {
-          bookingId: newBooking.id,
-          amount: proposal.price,
-          method: "WALLET",
-          status: "PENDING",
-          transactionId: `escrow_hold_${newBooking.id}`,
-        },
-      });
-
-      await recordJobLifecycleEvent(
-        {
-          jobId: proposal.jobId,
-          proposalId: updatedProposal.id,
-          bookingId: newBooking.id,
-          paymentId: createdPayment.id,
-          eventType: JOB_LIFECYCLE_EVENT_TYPES.PAYMENT_CREATED,
-          fromState: null,
-          toState: "PENDING",
-          reason: "Escrow payment hold created for accepted proposal.",
-          actorUserId,
-          actorName: normalizedActorName,
-          actorRole: normalizedActorRole,
-          metadata: {
-            method: createdPayment.method,
-            transactionId: createdPayment.transactionId,
-          },
-          idempotencyKey: `payment:${createdPayment.id}:created`,
-        },
-        tx,
-      );
     }
 
     return {

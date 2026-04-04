@@ -55,6 +55,12 @@ const SORT_OPTIONS = (
   { value: "newest", label: "Newest first", icon: "schedule" },
 ];
 
+function parseOptionalNumber(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 export default function ProfessionalsPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -63,8 +69,7 @@ export default function ProfessionalsPage() {
   const toolbarCompact = useHeroToolbarCompact(heroRef);
   const initialSearch =
     searchParams.get("search") ?? searchParams.get("q") ?? "";
-  const initialView =
-    searchParams.get("view") === "radar" ? "radar" : "cards";
+  const initialView = searchParams.get("view") === "radar" ? "radar" : "cards";
   const initialSort = searchParams.get("sort") ?? "rating";
   const initialLocation = searchParams.get("location") ?? "";
 
@@ -103,6 +108,45 @@ export default function ProfessionalsPage() {
     const timer = setTimeout(() => setSearch(searchInput), 400);
     return () => clearTimeout(timer);
   }, [searchInput]);
+
+  useEffect(() => {
+    const nextSearch =
+      searchParams.get("search") ?? searchParams.get("q") ?? "";
+    const nextMinPrice = parseOptionalNumber(searchParams.get("minPrice"));
+    const nextMaxPrice = parseOptionalNumber(searchParams.get("maxPrice"));
+    const nextSortBy = searchParams.get("sort") ?? "rating";
+    const nextVerifiedOnly = searchParams.get("verified") === "true";
+    const nextBackgroundCheckedOnly =
+      searchParams.get("backgroundChecked") === "true";
+    const nextCertifiedOnly = searchParams.get("certified") === "true";
+    const nextViewMode =
+      searchParams.get("view") === "radar" ? "radar" : "cards";
+
+    if (nextSearch !== searchInput) setSearchInput(nextSearch);
+    if (nextSearch !== search) setSearch(nextSearch);
+    if (nextMinPrice !== minPrice) setMinPrice(nextMinPrice);
+    if (nextMaxPrice !== maxPrice) setMaxPrice(nextMaxPrice);
+    if (nextSortBy !== sortBy) setSortBy(nextSortBy);
+    if (nextVerifiedOnly !== verifiedOnly) setVerifiedOnly(nextVerifiedOnly);
+    if (nextBackgroundCheckedOnly !== backgroundCheckedOnly) {
+      setBackgroundCheckedOnly(nextBackgroundCheckedOnly);
+    }
+    if (nextCertifiedOnly !== certifiedOnly) {
+      setCertifiedOnly(nextCertifiedOnly);
+    }
+    if (nextViewMode !== viewMode) setViewMode(nextViewMode);
+  }, [
+    backgroundCheckedOnly,
+    certifiedOnly,
+    maxPrice,
+    minPrice,
+    search,
+    searchInput,
+    searchParams,
+    sortBy,
+    verifiedOnly,
+    viewMode,
+  ]);
 
   const requestLocationPicker = () => {
     setMobileToolbarExpanded(true);

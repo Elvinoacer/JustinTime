@@ -60,8 +60,14 @@ export function hasRole(
   const target = normalizeRole(role);
   if (!target || !source) return false;
 
+  const normalizedLegacyRole = normalizeRole(source.role);
+  const normalizedExplicitRoles = normalizeRolesList(source.roles);
+
   if (!multiRoleFeatureFlags.enforceEnabled) {
-    return normalizeRole(source.role) === target;
+    return (
+      normalizedLegacyRole === target ||
+      normalizedExplicitRoles.includes(target)
+    );
   }
 
   return normalizeRoles(source).includes(target);

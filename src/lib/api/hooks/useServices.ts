@@ -167,13 +167,17 @@ async function fetchServices(
 ): Promise<ServicesResponse> {
   const params = new URLSearchParams();
 
-  if (filters.page) params.append("page", filters.page.toString());
-  if (filters.limit) params.append("limit", filters.limit.toString());
+  if (filters.page != null) params.append("page", filters.page.toString());
+  if (filters.limit != null) params.append("limit", filters.limit.toString());
   if (filters.category) params.append("category", filters.category);
   if (filters.verified !== undefined)
     params.append("verified", filters.verified.toString());
-  if (filters.minPrice) params.append("minPrice", filters.minPrice.toString());
-  if (filters.maxPrice) params.append("maxPrice", filters.maxPrice.toString());
+  if (filters.minPrice != null)
+    params.append("minPrice", filters.minPrice.toString());
+  if (filters.maxPrice != null)
+    params.append("maxPrice", filters.maxPrice.toString());
+  if (filters.minRating != null)
+    params.append("minRating", filters.minRating.toString());
   if (filters.search) params.append("search", filters.search);
   if (filters.sort) params.append("sort", filters.sort);
   if (filters.latitude != null)

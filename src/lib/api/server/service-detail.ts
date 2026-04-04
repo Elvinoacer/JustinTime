@@ -5,8 +5,11 @@ import { isPubliclyVerified } from "@/lib/trust/publicTrust";
 import { getDynamicPrice } from "@/lib/pricing-engine";
 
 async function fetchPublicServiceDetail(id: string): Promise<Service | null> {
-  const service = await prisma.service.findUnique({
-    where: { id },
+  const service = await prisma.service.findFirst({
+    where: {
+      id,
+      isActive: true,
+    },
     include: {
       category: true,
       provider: {
