@@ -319,8 +319,15 @@ export async function GET(request: Request) {
                 jobLat = jobCoords.lat;
                 jobLon = jobCoords.lon;
 
-                // Optional: We could update the job in DB here to persist it for next time
-                // await prisma.job.update({ where: { id: job.id }, data: { latitude: jobLat, longitude: jobLon } });
+                // Persist derived coordinates so future cold starts avoid repeated geocoding.
+                void prisma.job
+                  .update({
+                    where: { id: job.id },
+                    data: { latitude: jobLat, longitude: jobLon },
+                  })
+                  .catch(() => {
+                    // Best-effort persistence only; listing should continue even if this fails.
+                  });
               }
             } catch {
               // Ignore geocoding errors for legacy jobs to prevent API failure
