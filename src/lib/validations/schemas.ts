@@ -18,11 +18,6 @@ export const signupSchema = z.object({
     .min(8, "Password must be at least 8 characters")
     .max(128, "Password must not exceed 128 characters"),
   role: z.enum(["CLIENT", "PROVIDER"]).optional().default("CLIENT"),
-  phone: z
-    .string()
-    .trim()
-    .max(20, "Phone must not exceed 20 characters")
-    .optional(),
   referralCode: z
     .string()
     .trim()

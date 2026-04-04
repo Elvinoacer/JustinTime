@@ -121,6 +121,10 @@ async function issueTwoFactorToken(user: AuthLifecycleSnapshot): Promise<void> {
     throw new Error("Two-factor email delivery is unavailable for this user");
   }
 
+  await prisma.twoFactorConfirmation.deleteMany({
+    where: { userId: user.id },
+  });
+
   const token = crypto.randomInt(100000, 999999).toString();
   const expires = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -230,6 +234,14 @@ export async function verifyCredentialsLogin(input: {
 
   await prisma.twoFactorToken.delete({
     where: { id: twoFactorToken.id },
+  });
+
+  await prisma.twoFactorConfirmation.upsert({
+    where: { userId: user.id },
+    update: {},
+    create: {
+      userId: user.id,
+    },
   });
 
   return { status: "success", user };

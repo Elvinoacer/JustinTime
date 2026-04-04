@@ -13,10 +13,14 @@ import {
   Shield,
   RefreshCw,
 } from "lucide-react";
+import { getAuthQueryState, withAuthQuery } from "@/lib/auth/query";
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const authQuery = getAuthQueryState(searchParams);
+  const loginHref = withAuthQuery("/auth/login", authQuery);
+  const verifiedLoginHref = withAuthQuery("/auth/login?verified=true", authQuery);
   const router = useRouter();
 
   const [status, setStatus] = useState<"loading" | "success" | "error">(
@@ -42,17 +46,17 @@ function VerifyEmailContent() {
         setMessage("Your email has been successfully verified!");
         // B7: Auto-redirect to login after 2 seconds
         setTimeout(() => {
-          router.push("/auth/login?verified=true");
+          router.push(verifiedLoginHref);
         }, 2000);
       } else {
         setStatus("error");
         setMessage(data.error || "Failed to verify email.");
       }
-    } catch (error) {
+    } catch {
       setStatus("error");
       setMessage("An unexpected error occurred. Please try again.");
     }
-  }, [token, router]);
+  }, [token, router, verifiedLoginHref]);
 
   useEffect(() => {
     verifyEmail();
@@ -177,7 +181,7 @@ function VerifyEmailContent() {
               {status === "success" && (
                 <div className="space-y-4">
                   <Link
-                    href="/auth/login"
+                    href={verifiedLoginHref}
                     className="flex items-center justify-center gap-2 px-4 sm:px-8 py-3 sm:py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl sm:rounded-xl font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-all active:scale-[0.98] shadow-md shadow-emerald-500/20"
                   >
                     <span className="text-sm sm:text-base">
@@ -198,7 +202,7 @@ function VerifyEmailContent() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Link
-                      href="/auth/login"
+                      href={loginHref}
                       className="flex items-center justify-center px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all active:scale-[0.98] text-sm"
                     >
                       Back to Login

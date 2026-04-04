@@ -5,6 +5,7 @@ import { Mail, ArrowLeft, RefreshCw, Shield, Clock } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { getAuthQueryState, withAuthQuery } from "@/lib/auth/query";
 
 function maskEmailAddress(email: string | null): string | null {
   if (!email || !email.includes("@")) {
@@ -28,6 +29,8 @@ function VerifyRequestContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email");
   const maskedEmail = maskEmailAddress(email);
+  const authQuery = getAuthQueryState(searchParams);
+  const loginHref = withAuthQuery("/auth/login", authQuery);
   const [isResending, setIsResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
   const [resendError, setResendError] = useState("");
@@ -176,7 +179,7 @@ function VerifyRequestContent() {
             <div className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Link
-                  href="/auth/login"
+                  href={loginHref}
                   className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all active:scale-[0.98] text-sm"
                 >
                   <ArrowLeft className="w-4 h-4" />

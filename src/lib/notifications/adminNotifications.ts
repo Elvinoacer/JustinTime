@@ -295,7 +295,7 @@ export const emailTemplates = {
               
               <p>If you believe this is a mistake or would like to appeal, please contact our support team.</p>
               
-              <a href="${process.env.NEXTAUTH_URL}/support" class="button">Contact Support</a>
+              <a href="${process.env.NEXTAUTH_URL}/contact" class="button">Contact Support</a>
               
               <div class="footer">
                 <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>
@@ -466,7 +466,7 @@ export const emailTemplates = {
               
               <p><strong>This action can still be reversed by contacting our support team.</strong></p>
               
-              <a href="${process.env.NEXTAUTH_URL}/support" class="button">Contact Support</a>
+              <a href="${process.env.NEXTAUTH_URL}/contact" class="button">Contact Support</a>
               
               <div class="footer">
                 <p>© ${new Date().getFullYear()} JustInTime. All rights reserved.</p>

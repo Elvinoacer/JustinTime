@@ -1069,63 +1069,6 @@ const SettingsPage = () => {
                     </div>
                   </div>
 
-                  {/* Active Sessions */}
-                  <div>
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-1.5 sm:gap-2">
-                      <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
-                        devices
-                      </span>
-                      <span>Active Sessions</span>
-                    </h3>
-                    {settingsData?.sessionManagementMode === "jwt" && (
-                      <p className="mb-3 text-xs sm:text-sm text-gray-500">
-                        Session inventory is limited because authentication is
-                        using JWT sessions right now.
-                      </p>
-                    )}
-                    <div className="space-y-2 sm:space-y-3">
-                      {(settingsData?.settings.activeSessions || []).length ===
-                      0 ? (
-                        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
-                          No database-backed session records are available for
-                          this account yet.
-                        </div>
-                      ) : (
-                        (settingsData?.settings.activeSessions || []).map(
-                        (activeSession) => (
-                          <div
-                            key={activeSession.id}
-                            className="p-3 sm:p-4 bg-white border border-gray-200 rounded-lg flex items-center justify-between"
-                          >
-                            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                              <span className="material-symbols-outlined text-gray-400 text-base sm:text-lg">
-                                computer
-                              </span>
-                              <div className="min-w-0">
-                                <p className="font-medium text-gray-900 text-sm sm:text-base truncate">
-                                  {activeSession.isCurrent
-                                    ? "Current Session"
-                                    : "Another Session"}
-                                </p>
-                                <p className="text-xs sm:text-sm text-gray-800">
-                                  Expires:{" "}
-                                  {activeSession.expires
-                                    ? new Date(
-                                        activeSession.expires,
-                                      ).toLocaleString()
-                                    : "Unknown"}
-                                </p>
-                              </div>
-                            </div>
-                            <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0">
-                              {activeSession.isCurrent ? "Current" : "Active"}
-                            </span>
-                          </div>
-                        ),
-                        )
-                      )}
-                    </div>
-                  </div>
                 </div>
               </motion.div>
             )}

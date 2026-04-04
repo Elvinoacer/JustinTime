@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   LockKeyhole,
@@ -13,8 +14,12 @@ import {
   AlertCircle,
   Shield,
 } from "lucide-react";
+import { getAuthQueryState, withAuthQuery } from "@/lib/auth/query";
 
 export default function ForgotPasswordPage() {
+  const searchParams = useSearchParams();
+  const authQuery = getAuthQueryState(searchParams);
+  const loginHref = withAuthQuery("/auth/login", authQuery);
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{
@@ -64,7 +69,7 @@ export default function ForgotPasswordPage() {
           text: data.error || "Something went wrong. Please try again.",
         });
       }
-    } catch (error) {
+    } catch {
       setMessage({
         type: "error",
         text: "Failed to send reset link. Please check your connection and try again.",
@@ -182,7 +187,7 @@ export default function ForgotPasswordPage() {
           {/* Back to Login */}
           <div className="mt-6 text-center">
             <Link
-              href="/auth/login"
+              href={loginHref}
               className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium transition-colors text-sm sm:text-base group"
             >
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-1 transition-transform" />
@@ -197,7 +202,7 @@ export default function ForgotPasswordPage() {
             <p className="text-sm text-gray-600">
               Remember your password?{" "}
               <Link
-                href="/auth/login"
+                href={loginHref}
                 className="font-medium text-emerald-600 hover:text-emerald-700"
               >
                 Sign in instead

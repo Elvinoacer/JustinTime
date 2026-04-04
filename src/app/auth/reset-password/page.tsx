@@ -15,10 +15,14 @@ import {
   ChevronLeft,
   Shield,
 } from "lucide-react";
+import { getAuthQueryState, withAuthQuery } from "@/lib/auth/query";
 
 function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const authQuery = getAuthQueryState(searchParams);
+  const loginHref = withAuthQuery("/auth/login", authQuery);
+  const loginSuccessHref = withAuthQuery("/auth/login?reset=success", authQuery);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -144,7 +148,7 @@ function ResetPasswordContent() {
 
         // Redirect to login after 2 seconds
         setTimeout(() => {
-          router.push("/auth/login?reset=success");
+          router.push(loginSuccessHref);
         }, 2000);
       } else {
         setMessage({
@@ -152,7 +156,7 @@ function ResetPasswordContent() {
           text: data.error || "Something went wrong",
         });
       }
-    } catch (error) {
+    } catch {
       setMessage({
         type: "error",
         text: "Failed to reset password. Please try again.",
@@ -175,7 +179,7 @@ function ResetPasswordContent() {
           {/* Mobile Back Button */}
           <div className="lg:hidden mb-4">
             <Link
-              href="/auth/login"
+              href={loginHref}
               className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -413,7 +417,7 @@ function ResetPasswordContent() {
           {/* Back to Login (Desktop) */}
           <div className="mt-6 text-center hidden lg:block">
             <Link
-              href="/auth/login"
+              href={loginHref}
               className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium transition-colors text-sm sm:text-base group"
             >
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-1 transition-transform" />

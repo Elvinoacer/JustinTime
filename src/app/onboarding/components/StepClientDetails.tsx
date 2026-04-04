@@ -221,7 +221,7 @@ export default function StepClientDetails({
             <div className="mt-1.5 flex items-center gap-2 text-xs text-red-600">
               <span>{phoneError}</span>
               <a
-                href="/support"
+                href="/contact"
                 className="font-semibold underline underline-offset-2 hover:text-red-700"
               >
                 Contact support

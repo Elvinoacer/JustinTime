@@ -15,6 +15,11 @@ Implementation update on 2026-04-04:
 - Made shared header account navigation role-aware for client vs provider users.
 - Replaced broken auth `/support` destinations with public contact paths.
 - Made resend-verification responses generic and wrapped email verification in a transaction.
+- Excluded NextAuth-managed routes from duplicate proxy auth throttling.
+- Put `TwoFactorConfirmation` into the successful 2FA lifecycle instead of leaving it unused.
+- Hardened Google account linking so unverified password accounts are not silently auto-linked.
+- Removed JWT-mode active sessions UI/contract from account settings surfaces.
+- Replaced remaining public `/support` dead links and preserved auth context on verify-request back-links.
 
 I audited the uploaded codebase for **Feature 2: Authentication & Account Lifecycle** and there are multiple broken flows, spec mismatches, and consistency problems.
 

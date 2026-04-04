@@ -73,7 +73,6 @@ export async function GET(req: NextRequest) {
         : null,
       notifications: notificationPreferences,
       privacy: privacySettings,
-      activeSessions: [],
       twoFactorEnabled: user.isTwoFactorEnabled || false,
     };
 

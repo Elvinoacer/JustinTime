@@ -45,11 +45,6 @@ interface Settings {
     showLocation: boolean;
     allowMessages: boolean;
   };
-  activeSessions: {
-    id: string;
-    expires: string | null;
-    isCurrent: boolean;
-  }[];
 }
 
 interface UpdateSettingsParams {

@@ -285,7 +285,13 @@ function enforceApiRateLimit(
       limit: proxyLimits.authRecoveryLimit,
       windowMs: proxyLimits.authRecoveryWindowMs,
     });
-  } else if (pathname.startsWith("/api/auth")) {
+  } else if (
+    pathname.startsWith("/api/auth") &&
+    !pathname.startsWith("/api/auth/callback") &&
+    !pathname.startsWith("/api/auth/session") &&
+    !pathname.startsWith("/api/auth/signin") &&
+    !pathname.startsWith("/api/auth/signout")
+  ) {
     checks.push({
       key: `api:auth:ip:${ip}`,
       limit: proxyLimits.authGenericLimit,

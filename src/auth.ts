@@ -140,11 +140,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               role: true,
               roles: true,
               isBanned: true,
+              emailVerified: true,
+              password: true,
             },
           });
 
           if (existingUser?.isBanned) {
             return "/auth/error?error=AccountSuspended";
+          }
+
+          if (
+            existingUser &&
+            !existingUser.emailVerified &&
+            Boolean(existingUser.password)
+          ) {
+            return "/auth/error?error=OAuthAccountNotLinked";
           }
 
           if (existingUser) {

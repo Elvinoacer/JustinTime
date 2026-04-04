@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
       .toLowerCase();
     const rawName = String(body?.name ?? "").trim();
     const rawPassword = String(body?.password ?? "").trim();
-    const rawPhone = body?.phone ? String(body.phone).trim() : "";
     const rawReferralCode = body?.referralCode
       ? String(body.referralCode).trim().toUpperCase()
       : "";
@@ -49,7 +48,6 @@ export async function POST(request: NextRequest) {
       rawEmail.length > 254 ||
       rawName.length > 120 ||
       rawPassword.length > 128 ||
-      rawPhone.length > 32 ||
       rawReferralCode.length > 20
     ) {
       return NextResponse.json(
@@ -129,7 +127,6 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         role: validatedData.role || "CLIENT",
         roles: getDefaultRolesForPrimaryRole(validatedData.role || "CLIENT"),
-        phone: validatedData.phone,
         ...(referrerId ? { referredById: referrerId } : {}),
       },
       select: {
@@ -137,7 +134,6 @@ export async function POST(request: NextRequest) {
         name: true,
         email: true,
         role: true,
-        phone: true,
         createdAt: true,
       },
     });

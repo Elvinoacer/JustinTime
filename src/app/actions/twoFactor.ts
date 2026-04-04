@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
+import { revalidateAllSettingsPaths } from "@/lib/settings/revalidation";
 
 export async function toggleTwoFactor(enabled: boolean) {
   const session = await auth();
@@ -19,8 +19,7 @@ export async function toggleTwoFactor(enabled: boolean) {
       },
     });
 
-    revalidatePath("/dashboard/settings");
-    revalidatePath("/client/settings");
+    revalidateAllSettingsPaths();
     
     return { success: true, enabled };
   } catch (error) {

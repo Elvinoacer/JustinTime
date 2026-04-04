@@ -22,7 +22,6 @@ import {
   Clock,
   Settings,
   Smartphone,
-  Monitor,
   CheckCircle2,
   ChevronRight,
   Menu,
@@ -996,62 +995,6 @@ function ClientSettingsPageContent() {
                       </div>
                     </div>
 
-                    {/* Active Sessions */}
-                    <div>
-                      <h3 className="font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2 text-base sm:text-lg">
-                        <Monitor className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
-                        Active Sessions
-                      </h3>
-                      {settingsData?.sessionManagementMode === "jwt" && (
-                        <p className="mb-3 text-xs sm:text-sm text-gray-500">
-                          Session inventory is limited because authentication is
-                          using JWT sessions right now.
-                        </p>
-                      )}
-                      <div className="space-y-2 sm:space-y-3">
-                        {(settingsData?.settings.activeSessions || []).length ===
-                        0 ? (
-                          <div className="rounded-lg sm:rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
-                            No database-backed session records are available for
-                            this account yet.
-                          </div>
-                        ) : (
-                          (settingsData?.settings.activeSessions || []).map(
-                          (activeSession) => (
-                            <div
-                              key={activeSession.id}
-                              className="p-3 sm:p-4 bg-white rounded-lg sm:rounded-xl border border-gray-100 flex items-center justify-between hover:border-emerald-200 transition-colors"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-50 rounded-lg sm:rounded-xl flex items-center justify-center">
-                                  <Smartphone className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
-                                </div>
-                                <div>
-                                  <p className="text-sm sm:text-base font-semibold text-gray-900">
-                                    {activeSession.isCurrent
-                                      ? "Current Session"
-                                      : "Another Session"}
-                                  </p>
-                                  <p className="text-xs sm:text-sm text-gray-500">
-                                    Expires:{" "}
-                                    {activeSession.expires
-                                      ? new Date(
-                                          activeSession.expires,
-                                        ).toLocaleString()
-                                      : "Unknown"}
-                                  </p>
-                                </div>
-                              </div>
-                              <span className="px-2.5 sm:px-3 py-1.5 sm:py-2 bg-emerald-100 text-emerald-700 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5">
-                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-emerald-500 rounded-full animate-pulse" />
-                                {activeSession.isCurrent ? "Current" : "Active"}
-                              </span>
-                            </div>
-                          ),
-                          )
-                        )}
-                      </div>
-                    </div>
                   </div>
                 )}
 
