@@ -37,6 +37,7 @@ model User {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   onboardingCompleted   Boolean                @default(false)
+  onboardingDraft       Json?
   clientInterests       String[]
   isBanned              Boolean                @default(false)
   isTwoFactorEnabled    Boolean                @default(false)
@@ -226,6 +227,8 @@ model Profile {
   id                    String    @id @default(cuid())
   userId                String    @unique
   bio                   String?   @db.Text
+  businessName          String?
+  primaryCategoryId     String?
   skills                String[]
   hourlyRate            Decimal?  @db.Decimal(10, 2)
   portfolio             String[] // URLs to images/videos

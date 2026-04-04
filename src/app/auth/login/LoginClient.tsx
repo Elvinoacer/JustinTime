@@ -265,7 +265,7 @@ function LoginPageContent() {
             returnTo,
             intent,
           },
-          intent === "provider" ? "/provider/onboarding" : "/onboarding",
+          intent === "provider" ? "/onboarding?intent=provider" : "/onboarding",
         ),
       });
     } catch (error) {

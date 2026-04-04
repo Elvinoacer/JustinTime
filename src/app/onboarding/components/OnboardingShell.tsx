@@ -18,7 +18,7 @@ export default function OnboardingShell({
 }: OnboardingShellProps) {
   const labels =
     selectedRole === "PROVIDER"
-      ? ["Role", "Details", "Verify", "Done"]
+      ? ["Role", "Details", "Verify", "Pay", "Done"]
       : ["Role", "Details", "Done"];
   const totalSteps = labels.length;
   const currentLabel = labels[Math.min(currentStep - 1, totalSteps - 1)] || "Start";

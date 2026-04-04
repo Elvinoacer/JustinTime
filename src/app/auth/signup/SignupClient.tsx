@@ -103,7 +103,7 @@ function SignupPageContent() {
           returnTo,
           intent,
         },
-        intent === "provider" ? "/provider/onboarding" : "/onboarding",
+        intent === "provider" ? "/onboarding?intent=provider" : "/onboarding",
       );
 
       await signIn("google", { callbackUrl: googleCallbackUrl });

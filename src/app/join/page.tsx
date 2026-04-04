@@ -23,7 +23,7 @@ function getSingleValue(
 export default async function JoinPage({ searchParams }: JoinPageProps) {
   const params = (await searchParams) ?? {};
   const referralCode = getSingleValue(params.ref)?.trim();
-  const callbackUrl = "/provider/onboarding";
+  const callbackUrl = "/onboarding?intent=provider";
 
   const signupParams = new URLSearchParams({
     callbackUrl,

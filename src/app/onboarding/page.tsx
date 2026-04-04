@@ -1,14 +1,13 @@
 "use client";
+
 import apiClient from "@/lib/api/client";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import React, { Suspense, useEffect, useState, useCallback } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
-
-// Step Components
 import OnboardingShell from "./components/OnboardingShell";
 import StepRoleSelect from "./components/StepRoleSelect";
 import StepClientDetails from "./components/StepClientDetails";
@@ -17,9 +16,18 @@ import StepVerification, {
   type VerificationResult,
 } from "./components/StepVerification";
 import StepComplete from "./components/StepComplete";
-import type { LocationSource } from "./hooks/useLocation";
-
-type Role = "CLIENT" | "PROVIDER";
+import {
+  DEFAULT_CLIENT_ONBOARDING_DATA,
+  DEFAULT_PROVIDER_ONBOARDING_DATA,
+  DEFAULT_VERIFICATION_DRAFT,
+  getStepForRole,
+  normalizeOnboardingIntent,
+  type ClientOnboardingData,
+  type OnboardingDraftState,
+  type OnboardingRole,
+  type ProviderOnboardingData,
+  type VerificationDraftData,
+} from "@/lib/onboarding/draft";
 
 interface Category {
   id: string;
@@ -28,28 +36,6 @@ interface Category {
   image?: string;
   icon: string;
   count: number;
-}
-
-interface ProviderData {
-  skills: string[];
-  location: string;
-  latitude: number | null;
-  longitude: number | null;
-  locationSource?: LocationSource;
-  locationAccuracy?: number | null;
-  bio: string;
-  phone: string;
-  hourlyRate: string;
-}
-
-interface ClientData {
-  phone: string;
-  address: string;
-  location: string;
-  latitude: number | null;
-  longitude: number | null;
-  locationSource?: LocationSource;
-  locationAccuracy?: number | null;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -81,45 +67,30 @@ function getErrorMessage(error: unknown): string {
 
 function OnboardingPageContent() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { data: session, update } = useSession();
+  const onboardingIntent = normalizeOnboardingIntent(searchParams.get("intent"));
+  const referralFromUrl = searchParams.get("ref")?.trim().toUpperCase() || "";
+
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [selectedRole, setSelectedRole] = useState<OnboardingRole | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [submitStage, setSubmitStage] = useState<string>("");
-
-  // Provider Form Data
-  const [providerData, setProviderData] = useState<ProviderData>({
-    skills: [] as string[],
-    location: "",
-    latitude: null as number | null,
-    longitude: null as number | null,
-    locationSource: "MANUAL",
-    locationAccuracy: null as number | null,
-    bio: "",
-    phone: "",
-    hourlyRate: "",
+  const [submitStage, setSubmitStage] = useState("");
+  const [persistDrafts, setPersistDrafts] = useState(true);
+  const [didHydrateDraft, setDidHydrateDraft] = useState(false);
+  const [providerCheckoutUrl, setProviderCheckoutUrl] = useState("");
+  const [providerData, setProviderData] = useState<ProviderOnboardingData>({
+    ...DEFAULT_PROVIDER_ONBOARDING_DATA,
   });
-
-  // Client Form Data
-  const [clientData, setClientData] = useState<ClientData>({
-    phone: "",
-    address: "",
-    location: "",
-    latitude: null as number | null,
-    longitude: null as number | null,
-    locationSource: "MANUAL",
-    locationAccuracy: null as number | null,
+  const [clientData, setClientData] = useState<ClientOnboardingData>({
+    ...DEFAULT_CLIENT_ONBOARDING_DATA,
   });
   const [clientInterests, setClientInterests] = useState<string[]>([]);
   const [referralCode, setReferralCode] = useState("");
+  const [verificationDraft, setVerificationDraft] =
+    useState<VerificationDraftData>(DEFAULT_VERIFICATION_DRAFT);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const ref = new URLSearchParams(window.location.search).get("ref");
-    setReferralCode(ref?.trim().toUpperCase() || "");
-  }, []);
-
-  // Fetch categories from database
   const { data: categoriesData = [], isLoading: isLoadingCategories } =
     useQuery({
       queryKey: ["categories"],
@@ -129,33 +100,141 @@ function OnboardingPageContent() {
       },
     });
 
-  // Check if user has already completed onboarding
   useEffect(() => {
-    if (session?.user?.onboardingCompleted) {
-      const searchParams = new URLSearchParams(window.location.search);
-      const isUpgradeRequest = searchParams.get("upgrade") === "true";
+    let cancelled = false;
 
-      if (isUpgradeRequest && session.user.role === "CLIENT") {
-        return; // Stay on onboarding page for upgrade
+    const hydrateDraft = async () => {
+      if (!session?.user?.id) {
+        return;
       }
 
-      // NEW1 Fix: Don't redirect if we just completed onboarding — let the
-      // success screen show and the setTimeout handle the navigation
+      try {
+        const response = await fetch("/api/users/onboarding", {
+          cache: "no-store",
+          credentials: "include",
+        });
+
+        let draft: OnboardingDraftState | null = null;
+        if (response.ok) {
+          const data = (await response.json()) as { draft?: OnboardingDraftState };
+          draft = data.draft || null;
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        const effectiveRole = onboardingIntent || draft?.role || null;
+        const defaultClientName = session.user.name || "";
+        const nextClientData = {
+          ...DEFAULT_CLIENT_ONBOARDING_DATA,
+          ...(draft?.clientData || {}),
+          name: draft?.clientData?.name || defaultClientName,
+        };
+        const nextProviderData = {
+          ...DEFAULT_PROVIDER_ONBOARDING_DATA,
+          ...(draft?.providerData || {}),
+        };
+
+        setSelectedRole(effectiveRole);
+        setCurrentStep(
+          effectiveRole
+            ? Math.max(draft?.currentStep || getStepForRole(effectiveRole), 2)
+            : draft?.currentStep || 1,
+        );
+        setClientData(nextClientData);
+        setProviderData(nextProviderData);
+        setClientInterests(draft?.clientInterests || []);
+        setReferralCode(referralFromUrl || draft?.referralCode || "");
+        setVerificationDraft(draft?.verification || DEFAULT_VERIFICATION_DRAFT);
+        setProviderCheckoutUrl(draft?.checkoutUrl || "");
+      } catch (error) {
+        if (!cancelled) {
+          console.error("[ONBOARDING_DRAFT_HYDRATE_ERROR]", error);
+          setSelectedRole(onboardingIntent);
+          setCurrentStep(onboardingIntent ? 2 : 1);
+          setClientData((prev) => ({
+            ...prev,
+            name: prev.name || session.user?.name || "",
+          }));
+          setReferralCode(referralFromUrl);
+        }
+      } finally {
+        if (!cancelled) {
+          setDidHydrateDraft(true);
+        }
+      }
+    };
+
+    void hydrateDraft();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [onboardingIntent, referralFromUrl, session?.user?.id, session?.user?.name]);
+
+  useEffect(() => {
+    if (!didHydrateDraft || !persistDrafts || !session?.user?.id) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        await fetch("/api/users/onboarding", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            draft: {
+              role: selectedRole,
+              currentStep,
+              clientData,
+              providerData,
+              clientInterests,
+              referralCode,
+              verification: verificationDraft,
+              paymentInitiated: Boolean(providerCheckoutUrl),
+              checkoutUrl: providerCheckoutUrl,
+            },
+          }),
+        });
+      } catch (error) {
+        console.error("[ONBOARDING_DRAFT_SAVE_ERROR]", error);
+      }
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    clientData,
+    clientInterests,
+    currentStep,
+    didHydrateDraft,
+    persistDrafts,
+    providerCheckoutUrl,
+    providerData,
+    referralCode,
+    selectedRole,
+    session?.user?.id,
+    verificationDraft,
+  ]);
+
+  useEffect(() => {
+    if (session?.user?.onboardingCompleted) {
       const isOnSuccessStep =
         (selectedRole === "CLIENT" && currentStep === 3) ||
-        (selectedRole === "PROVIDER" && currentStep === 4);
-      if (isOnSuccessStep) return;
+        (selectedRole === "PROVIDER" && currentStep === 5);
+
+      if (isOnSuccessStep) {
+        return;
+      }
 
       const role = session.user.role;
-      const redirectPath =
-        role === "PROVIDER"
-          ? "/dashboard/services?create=true&from=onboarding"
-          : "/client/dashboard";
-      router.push(redirectPath);
+      router.push(role === "PROVIDER" ? "/dashboard" : "/client/dashboard");
     }
   }, [session, router, currentStep, selectedRole]);
 
-  // Phone number formatter for Kenyan numbers
   const formatPhoneNumber = useCallback((input: string): string => {
     return normalizeKenyanPhone(input);
   }, []);
@@ -163,7 +242,12 @@ function OnboardingPageContent() {
   const validatePhone = useCallback(
     async (
       phone: string,
-    ): Promise<{ ok: boolean; normalizedPhone?: string; message?: string }> => {
+    ): Promise<{
+      ok: boolean;
+      normalizedPhone?: string;
+      message?: string;
+      transientError?: boolean;
+    }> => {
       const normalizedPhone = normalizeKenyanPhone(phone);
 
       if (!normalizedPhone) {
@@ -203,8 +287,12 @@ function OnboardingPageContent() {
           data?: { error?: string; message?: string; normalizedPhone?: string };
         };
 
+        const transientError =
+          typeof known?.status !== "number" || known.status >= 500;
+
         return {
           ok: false,
+          transientError,
           normalizedPhone: known?.data?.normalizedPhone || normalizedPhone,
           message:
             known?.data?.error ||
@@ -217,7 +305,6 @@ function OnboardingPageContent() {
     [],
   );
 
-  // File upload helper
   const uploadFile = async (
     file: File,
     folder: string = "uploads",
@@ -246,8 +333,18 @@ function OnboardingPageContent() {
     return data.url;
   };
 
-  // ─── Step handlers ───────────────────────────────────────
-  const handleRoleSelect = (role: Role) => {
+  const deleteUploadedFile = async (url: string): Promise<void> => {
+    try {
+      await fetch(`/api/upload?url=${encodeURIComponent(url)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+    } catch (error) {
+      console.error("[ONBOARDING_UPLOAD_CLEANUP_FAILED]", error);
+    }
+  };
+
+  const handleRoleSelect = (role: OnboardingRole) => {
     setSelectedRole(role);
     setCurrentStep(2);
   };
@@ -260,17 +357,18 @@ function OnboardingPageContent() {
     );
   };
 
-  // Client: Step 2 → Submit
   const handleClientSubmit = async () => {
     setIsLoading(true);
     let succeeded = false;
+
     try {
       const payload = {
-        role: "CLIENT" as Role,
+        role: "CLIENT" as const,
         onboardingCompleted: true,
+        name: clientData.name,
         phone: clientData.phone,
         address: clientData.address,
-        location: clientData.location,
+        location: clientData.location || clientData.address,
         latitude: clientData.latitude,
         longitude: clientData.longitude,
         locationSource: clientData.locationSource,
@@ -285,6 +383,7 @@ function OnboardingPageContent() {
       setSubmitStage("Finalizing your account...");
       await update({
         user: {
+          name: clientData.name,
           role: "CLIENT",
           onboardingCompleted: true,
           clientInterests,
@@ -293,15 +392,14 @@ function OnboardingPageContent() {
         },
       });
 
-      // Show success step
+      setPersistDrafts(false);
       succeeded = true;
       setIsLoading(false);
       setCurrentStep(3);
-      router.refresh(); // Flush cache and re-read session cookie
-      setTimeout(() => router.push("/client/dashboard"), 3000);
+      router.refresh();
+      setTimeout(() => router.push("/client/dashboard"), 2500);
     } catch (error: unknown) {
-      console.error("Onboarding failed:", error);
-
+      console.error("Client onboarding failed:", error);
       toast.error(getErrorMessage(error));
     } finally {
       if (!succeeded) setIsLoading(false);
@@ -309,36 +407,38 @@ function OnboardingPageContent() {
     }
   };
 
-  // Provider: Step 2 → Step 3 (verification)
-  const handleProviderDetailsNext = () => {
+  const handleProviderDetailsNext = async () => {
     setCurrentStep(3);
   };
 
-  // Provider: Step 3 → Submit
   const handleVerificationComplete = async (result: VerificationResult) => {
     setIsLoading(true);
     let succeeded = false;
+    let onboardingSaved = false;
+    const uploadedUrls: string[] = [];
 
     try {
-      let idDocumentUrl = null;
-      let selfieUrl = null;
+      let idDocumentUrl: string | null = null;
+      let selfieUrl: string | null = null;
 
-      // Upload ID Document
       if (result.idFile) {
         setSubmitStage("Uploading ID document...");
         idDocumentUrl = await uploadFile(result.idFile, "identity");
+        uploadedUrls.push(idDocumentUrl);
       }
 
-      // Upload Selfie (also used as avatar)
       if (result.selfieFile) {
         setSubmitStage("Uploading profile photo...");
         selfieUrl = await uploadFile(result.selfieFile, "avatars");
+        uploadedUrls.push(selfieUrl);
       }
 
       const payload = {
-        role: "PROVIDER" as Role,
+        role: "PROVIDER" as const,
         onboardingCompleted: true,
         image: selfieUrl,
+        businessName: providerData.businessName,
+        primaryCategoryId: providerData.primaryCategoryId,
         skills: providerData.skills,
         location: providerData.location,
         latitude: providerData.latitude,
@@ -354,13 +454,28 @@ function OnboardingPageContent() {
         idDocument: idDocumentUrl,
         faceMatchScore: result.faceMatchScore,
         idDocumentType: result.idDocumentType,
+        manualReviewRequested: result.manualReviewRequested,
         ...(referralCode ? { referralCode } : {}),
       };
 
-      setSubmitStage("Saving your profile...");
+      setSubmitStage("Saving your provider profile...");
       await apiClient.post("/users/onboarding", payload);
+      onboardingSaved = true;
 
-      setSubmitStage("Finalizing your account...");
+      setSubmitStage("Preparing secure activation payment...");
+      const paymentResponse = await fetch("/api/onboarding-fee/initiate", {
+        method: "POST",
+        credentials: "include",
+      });
+      const paymentData = await paymentResponse.json();
+
+      if (!paymentResponse.ok && !paymentData?.alreadyActivated) {
+        throw new Error(paymentData?.error || "Failed to start onboarding payment");
+      }
+
+      const checkoutUrl =
+        paymentData?.checkoutUrl || "/dashboard/onboarding-complete";
+
       await update({
         user: {
           role: "PROVIDER",
@@ -372,16 +487,34 @@ function OnboardingPageContent() {
         },
       });
 
+      setVerificationDraft({
+        idDocumentType: result.idDocumentType,
+        faceMatchScore: result.faceMatchScore,
+        verificationStatus: result.manualReviewRequested
+          ? "MANUAL_REVIEW"
+          : "PASSED",
+        manualReviewRequested: result.manualReviewRequested,
+      });
+      setProviderCheckoutUrl(checkoutUrl);
+      setPersistDrafts(false);
       succeeded = true;
       setIsLoading(false);
-      setCurrentStep(4); // Success step
-      router.refresh(); // Flush cache and re-read session cookie
-      setTimeout(
-        () => router.push("/dashboard/services?create=true&from=onboarding"),
-        3000,
-      );
+      setCurrentStep(5);
+      router.refresh();
+
+      window.setTimeout(() => {
+        if (/^https?:\/\//i.test(checkoutUrl)) {
+          window.location.assign(checkoutUrl);
+        } else {
+          router.push(checkoutUrl);
+        }
+      }, 1800);
     } catch (error: unknown) {
-      console.error("Onboarding failed:", error);
+      console.error("Provider onboarding failed:", error);
+
+      if (!onboardingSaved) {
+        await Promise.all(uploadedUrls.map((url) => deleteUploadedFile(url)));
+      }
 
       toast.error(getErrorMessage(error));
     } finally {
@@ -390,13 +523,45 @@ function OnboardingPageContent() {
     }
   };
 
-  // ─── Determine if we're on the final (complete) step ──
   const isFinalStep =
     (selectedRole === "CLIENT" && currentStep === 3) ||
-    (selectedRole === "PROVIDER" && currentStep === 4);
+    (selectedRole === "PROVIDER" && currentStep === 5);
+
+  const providerSuccessMessage = useMemo(() => {
+    const needsManualReview = verificationDraft.manualReviewRequested;
+    return needsManualReview
+      ? "Your provider profile is submitted. Next we’ll redirect you to secure activation payment, and our team will manually review your verification documents afterwards."
+      : "Your provider profile is submitted. Next we’ll redirect you to secure activation payment so your verification review can continue.";
+  }, [verificationDraft.manualReviewRequested]);
+
+  const removeReferralCode = () => {
+    setReferralCode("");
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("ref");
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  };
 
   return (
     <OnboardingShell currentStep={currentStep} selectedRole={selectedRole}>
+      {referralCode ? (
+        <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold">Referral applied</p>
+              <p className="text-emerald-700">{referralCode}</p>
+            </div>
+            <button
+              type="button"
+              onClick={removeReferralCode}
+              className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <AnimatePresence mode="wait">
         {currentStep === 1 && (
           <StepRoleSelect
@@ -448,8 +613,29 @@ function OnboardingPageContent() {
             role={selectedRole}
             redirectPath={
               selectedRole === "PROVIDER"
-                ? "/dashboard/services?create=true&from=onboarding"
+                ? providerCheckoutUrl || "/dashboard/onboarding-complete"
                 : "/client/dashboard"
+            }
+            title={selectedRole === "PROVIDER" ? "Profile Submitted" : "All Set!"}
+            message={
+              selectedRole === "PROVIDER"
+                ? providerSuccessMessage
+                : "Your account is ready. Redirecting you to your dashboard..."
+            }
+            primaryActionLabel={
+              selectedRole === "PROVIDER"
+                ? "Continue to payment"
+                : undefined
+            }
+            secondaryActionLabel={
+              selectedRole === "PROVIDER"
+                ? "Verification overview"
+                : undefined
+            }
+            secondaryActionHref={
+              selectedRole === "PROVIDER"
+                ? "/dashboard/verification"
+                : undefined
             }
           />
         )}

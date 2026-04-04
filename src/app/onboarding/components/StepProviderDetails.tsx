@@ -15,6 +15,8 @@ interface Category {
 }
 
 interface ProviderData {
+  businessName: string;
+  primaryCategoryId: string;
   skills: string[];
   location: string;
   latitude: number | null;
@@ -24,6 +26,7 @@ interface ProviderData {
   bio: string;
   phone: string;
   hourlyRate: string;
+  phoneValidated: boolean;
 }
 
 interface StepProviderDetailsProps {
@@ -32,12 +35,13 @@ interface StepProviderDetailsProps {
   categories: Category[];
   isLoadingCategories: boolean;
   onBack: () => void;
-  onNext: () => void;
+  onNext: () => Promise<void>;
   formatPhoneNumber: (input: string) => string;
   validatePhone: (phone: string) => Promise<{
     ok: boolean;
     normalizedPhone?: string;
     message?: string;
+    transientError?: boolean;
   }>;
 }
 
@@ -54,6 +58,7 @@ export default function StepProviderDetails({
   const { prefillIfPermitted } = loc;
   const [showDeniedModal, setShowDeniedModal] = React.useState(false);
   const [phoneError, setPhoneError] = React.useState<string | null>(null);
+  const [phoneWarning, setPhoneWarning] = React.useState<string | null>(null);
   const [isCheckingPhone, setIsCheckingPhone] = React.useState(false);
   const [serviceSearch, setServiceSearch] = React.useState("");
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] =
@@ -102,11 +107,18 @@ export default function StepProviderDetails({
       if (!isSelected && prev.skills.length >= VALIDATION.MAX_PROVIDER_SKILLS) {
         return prev;
       }
+      const nextSkills = isSelected
+        ? prev.skills.filter((id) => id !== skillId)
+        : [...prev.skills, skillId];
+
       return {
         ...prev,
-        skills: isSelected
-          ? prev.skills.filter((id) => id !== skillId)
-          : [...prev.skills, skillId],
+        skills: nextSkills,
+        primaryCategoryId: isSelected
+          ? prev.primaryCategoryId === skillId
+            ? nextSkills[0] || ""
+            : prev.primaryCategoryId
+          : prev.primaryCategoryId || skillId,
       };
     });
   };
@@ -150,12 +162,21 @@ export default function StepProviderDetails({
     if (phoneError) {
       setPhoneError(null);
     }
-    setProviderData((prev) => ({ ...prev, phone: formatted }));
+    if (phoneWarning) {
+      setPhoneWarning(null);
+    }
+    setProviderData((prev) => ({
+      ...prev,
+      phone: formatted,
+      phoneValidated: false,
+    }));
   };
 
   const handlePhoneBlur = async () => {
     if (!providerData.phone) {
       setPhoneError("Phone number is required");
+      setPhoneWarning(null);
+      setProviderData((prev) => ({ ...prev, phoneValidated: false }));
       return;
     }
 
@@ -172,13 +193,63 @@ export default function StepProviderDetails({
       }));
     }
 
-    if (!result.ok) {
+    if (result.transientError) {
+      setPhoneError(null);
+      setPhoneWarning(
+        result.message ||
+          "We could not confirm your phone right now. You can continue and we will validate it again on submit.",
+      );
+      setProviderData((prev) => ({ ...prev, phoneValidated: false }));
+    } else if (!result.ok) {
       setPhoneError(result.message || "Unable to validate phone number");
+      setPhoneWarning(null);
+      setProviderData((prev) => ({ ...prev, phoneValidated: false }));
     } else {
       setPhoneError(null);
+      setPhoneWarning(null);
+      setProviderData((prev) => ({ ...prev, phoneValidated: true }));
     }
 
     setIsCheckingPhone(false);
+  };
+
+  const handleSubmit = async () => {
+    if (!providerData.phone) {
+      setPhoneError("Phone number is required");
+      return;
+    }
+
+    setIsCheckingPhone(true);
+    const result = await validatePhone(providerData.phone);
+
+    if (result.normalizedPhone && result.normalizedPhone !== providerData.phone) {
+      setProviderData((prev) => ({
+        ...prev,
+        phone: result.normalizedPhone || prev.phone,
+      }));
+    }
+
+    if (result.transientError) {
+      setPhoneError(null);
+      setPhoneWarning(
+        result.message ||
+          "Phone validation is temporarily unavailable. We will validate again when saving.",
+      );
+      setProviderData((prev) => ({ ...prev, phoneValidated: false }));
+    } else if (!result.ok) {
+      setPhoneError(result.message || "Unable to validate phone number");
+      setPhoneWarning(null);
+      setProviderData((prev) => ({ ...prev, phoneValidated: false }));
+      setIsCheckingPhone(false);
+      return;
+    } else {
+      setPhoneError(null);
+      setPhoneWarning(null);
+      setProviderData((prev) => ({ ...prev, phoneValidated: true }));
+    }
+
+    setIsCheckingPhone(false);
+    await onNext();
   };
 
   const locationSourceBadge = () => {
@@ -204,7 +275,7 @@ export default function StepProviderDetails({
         color: "text-blue-700 bg-blue-50 border-blue-200",
       },
     };
-    const b = badges[loc.location.source];
+    const b = badges[providerData.locationSource || "MANUAL"];
     return (
       <div
         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold ${b.color}`}
@@ -255,6 +326,79 @@ export default function StepProviderDetails({
       </div>
 
       <div className="space-y-4 sm:space-y-6">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="group">
+            <label
+              htmlFor="provider-business-name"
+              className="block text-xs sm:text-sm font-bold text-gray-700 mb-1 sm:mb-2 group-focus-within:text-emerald-600 transition-colors"
+            >
+              Business Name *
+            </label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                <span className="material-symbols-outlined text-gray-400 group-focus-within:text-emerald-500 transition-colors text-sm sm:text-base">
+                  storefront
+                </span>
+              </span>
+              <input
+                id="provider-business-name"
+                type="text"
+                value={providerData.businessName}
+                onChange={(e) =>
+                  setProviderData((prev) => ({
+                    ...prev,
+                    businessName: e.target.value,
+                  }))
+                }
+                className="w-full pl-9 sm:pl-11 pr-3 sm:pr-4 py-3 sm:py-4 rounded-lg sm:rounded-xl bg-gray-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium text-sm sm:text-base"
+                placeholder="Your trading or professional business name"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="group">
+            <label
+              htmlFor="provider-primary-category"
+              className="block text-xs sm:text-sm font-bold text-gray-700 mb-1 sm:mb-2 group-focus-within:text-emerald-600 transition-colors"
+            >
+              Primary Service Category *
+            </label>
+            <select
+              id="provider-primary-category"
+              value={providerData.primaryCategoryId}
+              onChange={(e) =>
+                setProviderData((prev) => {
+                  const nextPrimary = e.target.value;
+                  const nextSkills = nextPrimary
+                    ? prev.skills.includes(nextPrimary)
+                      ? prev.skills
+                      : [nextPrimary, ...prev.skills].slice(
+                          0,
+                          VALIDATION.MAX_PROVIDER_SKILLS,
+                        )
+                    : prev.skills;
+
+                  return {
+                    ...prev,
+                    primaryCategoryId: nextPrimary,
+                    skills: nextSkills,
+                  };
+                })
+              }
+              className="w-full rounded-lg sm:rounded-xl bg-gray-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-gray-900 font-medium text-sm sm:text-base px-3 sm:px-4 py-3 sm:py-4"
+              required
+            >
+              <option value="">Select your main service</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <section className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm">
@@ -559,6 +703,18 @@ export default function StepProviderDetails({
               </a>
             </div>
           )}
+          {phoneWarning && !phoneError && (
+            <div className="mt-1.5 flex items-center gap-2 text-xs text-amber-700">
+              <span>{phoneWarning}</span>
+              <button
+                type="button"
+                onClick={handlePhoneBlur}
+                className="font-semibold underline underline-offset-2 hover:text-amber-800"
+              >
+                Retry
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Hourly Rate */}
@@ -696,6 +852,8 @@ export default function StepProviderDetails({
                   setProviderData((prev) => ({
                     ...prev,
                     location: value,
+                    latitude: null,
+                    longitude: null,
                     locationSource: "MANUAL",
                     locationAccuracy: null,
                   }));
@@ -749,8 +907,10 @@ export default function StepProviderDetails({
           Back
         </button>
         <button
-          onClick={onNext}
+          onClick={handleSubmit}
           disabled={
+            !providerData.businessName.trim() ||
+            !providerData.primaryCategoryId ||
             providerData.skills.length === 0 ||
             providerData.skills.length > VALIDATION.MAX_PROVIDER_SKILLS ||
             isCheckingPhone ||

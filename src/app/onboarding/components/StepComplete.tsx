@@ -8,10 +8,29 @@ type Role = "CLIENT" | "PROVIDER";
 interface StepCompleteProps {
   role?: Role | null;
   redirectPath?: string;
+  title?: string;
+  message?: string;
+  primaryActionLabel?: string;
+  secondaryActionLabel?: string;
+  secondaryActionHref?: string;
 }
 
-export default function StepComplete({ role, redirectPath }: StepCompleteProps) {
+export default function StepComplete({
+  role,
+  redirectPath,
+  title,
+  message,
+  primaryActionLabel,
+  secondaryActionLabel,
+  secondaryActionHref,
+}: StepCompleteProps) {
   const isProvider = role === "PROVIDER";
+  const resolvedTitle = title || "All Set!";
+  const resolvedMessage =
+    message ||
+    (isProvider
+      ? "Your profile is submitted. Next we’ll take you to secure activation payment, then your verification review can continue."
+      : "Your account is ready. Redirecting you to your dashboard...");
 
   return (
     <motion.div
@@ -27,12 +46,10 @@ export default function StepComplete({ role, redirectPath }: StepCompleteProps) 
         </span>
       </div>
       <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mb-2 sm:mb-3 md:mb-4">
-        All Set!
+        {resolvedTitle}
       </h2>
       <p className="text-sm sm:text-base md:text-lg text-gray-600 max-w-xl mx-auto">
-        {isProvider
-          ? "You're ready to start getting booked. Redirecting you to create your first service."
-          : "Your account is ready. Redirecting you to your dashboard..."}
+        {resolvedMessage}
       </p>
       {isProvider && (
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -41,14 +58,14 @@ export default function StepComplete({ role, redirectPath }: StepCompleteProps) 
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors"
           >
             <span className="material-symbols-outlined text-base">add</span>
-            Create Service
+            {primaryActionLabel || "Continue"}
           </Link>
           <Link
-            href="/dashboard/availability"
+            href={secondaryActionHref || "/dashboard/verification"}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 rounded-xl font-semibold border border-gray-200 hover:bg-gray-50 transition-colors"
           >
             <span className="material-symbols-outlined text-base">schedule</span>
-            Set Availability
+            {secondaryActionLabel || "View verification"}
           </Link>
         </div>
       )}

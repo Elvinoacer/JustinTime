@@ -16,6 +16,7 @@ interface Category {
 }
 
 interface ClientData {
+  name: string;
   phone: string;
   address: string;
   location: string;
@@ -33,13 +34,14 @@ interface StepClientDetailsProps {
   categories: Category[];
   isLoadingCategories: boolean;
   onBack: () => void;
-  onNext: () => void;
+  onNext: () => Promise<void>;
   isLoading: boolean;
   formatPhoneNumber: (input: string) => string;
   validatePhone: (phone: string) => Promise<{
     ok: boolean;
     normalizedPhone?: string;
     message?: string;
+    transientError?: boolean;
   }>;
 }
 
@@ -60,6 +62,7 @@ export default function StepClientDetails({
   const { prefillIfPermitted } = loc;
   const [showDeniedModal, setShowDeniedModal] = React.useState(false);
   const [phoneError, setPhoneError] = React.useState<string | null>(null);
+  const [phoneWarning, setPhoneWarning] = React.useState<string | null>(null);
   const [isCheckingPhone, setIsCheckingPhone] = React.useState(false);
   const hasAutoPrefilledRef = React.useRef(false);
 
@@ -106,10 +109,55 @@ export default function StepClientDetails({
     if (phoneError) {
       setPhoneError(null);
     }
-    setClientData((prev) => ({ ...prev, phone: formatted }));
+    if (phoneWarning) {
+      setPhoneWarning(null);
+    }
+    setClientData((prev) => ({
+      ...prev,
+      phone: formatted,
+      phoneValidated: false,
+    }));
   };
 
   const handlePhoneBlur = async () => {
+    if (!clientData.phone) {
+      setPhoneError("Phone number is required");
+      setPhoneWarning(null);
+      setClientData((prev) => ({ ...prev, phoneValidated: false }));
+      return;
+    }
+
+    setIsCheckingPhone(true);
+    const result = await validatePhone(clientData.phone);
+
+    if (result.normalizedPhone && result.normalizedPhone !== clientData.phone) {
+      setClientData((prev) => ({
+        ...prev,
+        phone: result.normalizedPhone || prev.phone,
+      }));
+    }
+
+    if (result.transientError) {
+      setPhoneError(null);
+      setPhoneWarning(
+        result.message ||
+          "We could not confirm your phone right now. You can continue and we will validate it again on submit.",
+      );
+      setClientData((prev) => ({ ...prev, phoneValidated: false }));
+    } else if (!result.ok) {
+      setPhoneError(result.message || "Unable to validate phone number");
+      setPhoneWarning(null);
+      setClientData((prev) => ({ ...prev, phoneValidated: false }));
+    } else {
+      setPhoneError(null);
+      setPhoneWarning(null);
+      setClientData((prev) => ({ ...prev, phoneValidated: true }));
+    }
+
+    setIsCheckingPhone(false);
+  };
+
+  const handleSubmit = async () => {
     if (!clientData.phone) {
       setPhoneError("Phone number is required");
       return;
@@ -125,13 +173,27 @@ export default function StepClientDetails({
       }));
     }
 
-    if (!result.ok) {
+    if (result.transientError) {
+      setPhoneError(null);
+      setPhoneWarning(
+        result.message ||
+          "Phone validation is temporarily unavailable. We will validate again when saving.",
+      );
+      setClientData((prev) => ({ ...prev, phoneValidated: false }));
+    } else if (!result.ok) {
       setPhoneError(result.message || "Unable to validate phone number");
+      setPhoneWarning(null);
+      setClientData((prev) => ({ ...prev, phoneValidated: false }));
+      setIsCheckingPhone(false);
+      return;
     } else {
       setPhoneError(null);
+      setPhoneWarning(null);
+      setClientData((prev) => ({ ...prev, phoneValidated: true }));
     }
 
     setIsCheckingPhone(false);
+    await onNext();
   };
 
   const locationSourceBadge = () => {
@@ -157,7 +219,7 @@ export default function StepClientDetails({
         color: "text-blue-700 bg-blue-50 border-blue-200",
       },
     };
-    const b = badges[loc.location.source];
+    const b = badges[clientData.locationSource || "MANUAL"];
     return (
       <div
         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold ${b.color}`}
@@ -187,6 +249,34 @@ export default function StepClientDetails({
       </div>
 
       <div className="space-y-4 sm:space-y-6">
+        {/* Phone Number */}
+        <div className="group">
+          <label
+            htmlFor="client-name"
+            className="block text-xs sm:text-sm font-bold text-gray-700 mb-1 sm:mb-2 group-focus-within:text-emerald-600 transition-colors"
+          >
+            Full Name *
+          </label>
+          <div className="relative">
+            <span className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+              <span className="material-symbols-outlined text-gray-400 group-focus-within:text-emerald-500 transition-colors text-sm sm:text-base">
+                person
+              </span>
+            </span>
+            <input
+              id="client-name"
+              type="text"
+              value={clientData.name}
+              onChange={(e) =>
+                setClientData((prev) => ({ ...prev, name: e.target.value }))
+              }
+              className="w-full pl-9 sm:pl-11 pr-3 sm:pr-4 py-3 sm:py-4 rounded-lg sm:rounded-xl bg-gray-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium text-sm sm:text-base"
+              placeholder="Your full name"
+              required
+            />
+          </div>
+        </div>
+
         {/* Phone Number */}
         <div className="group">
           <label
@@ -228,6 +318,18 @@ export default function StepClientDetails({
               </a>
             </div>
           )}
+          {phoneWarning && !phoneError && (
+            <div className="mt-1.5 flex items-center gap-2 text-xs text-amber-700">
+              <span>{phoneWarning}</span>
+              <button
+                type="button"
+                onClick={handlePhoneBlur}
+                className="font-semibold underline underline-offset-2 hover:text-amber-800"
+              >
+                Retry
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Address */}
@@ -253,6 +355,8 @@ export default function StepClientDetails({
                   ...prev,
                   address: e.target.value,
                   location: e.target.value,
+                  latitude: null,
+                  longitude: null,
                   locationSource: "MANUAL",
                   locationAccuracy: null,
                 }))
@@ -382,11 +486,12 @@ export default function StepClientDetails({
           Back
         </button>
         <button
-          onClick={onNext}
+          onClick={handleSubmit}
           disabled={
             isLoading ||
             isCheckingPhone ||
             !!phoneError ||
+            !clientData.name.trim() ||
             !clientData.phone ||
             !clientData.address
           }

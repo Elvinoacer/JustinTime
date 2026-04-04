@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import ImageCropper from "@/components/ImageCropper";
 import CameraCapture from "./CameraCapture";
 
-type VerificationStatus = "PASSED" | "REJECTED" | null;
+type VerificationStatus = "PASSED" | "REJECTED" | "MANUAL_REVIEW" | null;
 
 interface StepVerificationProps {
   onBack: () => void;
@@ -20,6 +20,7 @@ export interface VerificationResult {
   selfieFile: File;
   faceMatchScore: number;
   idDocumentType: string;
+  manualReviewRequested: boolean;
 }
 
 export default function StepVerification({
@@ -192,8 +193,9 @@ export default function StepVerification({
 
       if (!idDetection) {
         setVerificationStatus("REJECTED");
+        setFaceMatchScore(0);
         setVerificationMessage(
-          "No face detected in ID document. Please use a clearer photo.",
+          "No face was detected in the ID photo. You can retry, or continue and let our team review it manually.",
         );
         toast.error("No face detected in ID");
         setIsVerifying(false);
@@ -210,8 +212,9 @@ export default function StepVerification({
 
       if (!selfieDetection) {
         setVerificationStatus("REJECTED");
+        setFaceMatchScore(0);
         setVerificationMessage(
-          "No face detected in selfie. Please ensure good lighting.",
+          "No face was detected in the selfie. You can retry, or continue and let our team review it manually.",
         );
         toast.error("No face detected in selfie");
         setIsVerifying(false);
@@ -233,7 +236,7 @@ export default function StepVerification({
       if (distance > MATCH_THRESHOLD) {
         setVerificationStatus("REJECTED");
         setVerificationMessage(
-          `Face match score: ${score.toFixed(0)}%. The faces in the ID and selfie don't appear to match. Please ensure both images are of the same person.`,
+          `Face match score: ${score.toFixed(0)}%. The local check could not confirm a strong match. You can retry now or submit for manual review.`,
         );
         toast.error("Face match failed — photos don't match");
         setIsVerifying(false);
@@ -249,7 +252,10 @@ export default function StepVerification({
     } catch (error) {
       console.error("Verification error:", error);
       setVerificationStatus("REJECTED");
-      setVerificationMessage("An error occurred during verification.");
+      setFaceMatchScore(0);
+      setVerificationMessage(
+        "An error occurred during verification. You can retry or continue for manual review.",
+      );
       toast.error("Verification error");
     } finally {
       setIsVerifying(false);
@@ -258,20 +264,22 @@ export default function StepVerification({
 
   const handleNext = () => {
     if (
-      verificationStatus !== "PASSED" ||
       !idFile ||
       !selfieFile ||
-      faceMatchScore === null
+      (faceMatchScore === null && verificationStatus !== "REJECTED")
     ) {
       toast.error("Please complete the face match check.");
       return;
     }
 
+    const manualReviewRequested = verificationStatus !== "PASSED";
+
     onNext({
       idFile,
       selfieFile,
-      faceMatchScore,
+      faceMatchScore: faceMatchScore ?? 0,
       idDocumentType: "unknown",
+      manualReviewRequested,
     });
   };
 
@@ -538,7 +546,7 @@ export default function StepVerification({
                 <span className="text-sm font-bold text-gray-800">
                   {verificationStatus === "PASSED"
                     ? "Face Match Passed"
-                    : "Verification Failed"}
+                    : "Manual Review Recommended"}
                 </span>
               </div>
               {/* Match bar */}
@@ -573,7 +581,9 @@ export default function StepVerification({
                         ? "Acceptable"
                         : "Mismatch detected"}
                 </span>
-                {faceMatchScore >= 28 ? " ✓ Verified" : " ✗ Below threshold"}
+                {verificationStatus === "PASSED"
+                  ? " ✓ Verified"
+                  : " • Manual review needed"}
               </p>
             </motion.div>
           )}
@@ -607,11 +617,13 @@ export default function StepVerification({
               !selfieFile ||
               verificationStatus === "PASSED"
             }
-            className={`w-full py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold text-white shadow-lg transition-all duration-300 flex items-center justify-center gap-2 min-h-11 ${
-              verificationStatus === "PASSED"
-                ? "bg-emerald-500 cursor-default"
+              className={`w-full py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold text-white shadow-lg transition-all duration-300 flex items-center justify-center gap-2 min-h-11 ${
+                verificationStatus === "PASSED"
+                  ? "bg-emerald-500 cursor-default"
+                  : verificationStatus === "REJECTED"
+                    ? "bg-amber-500 hover:bg-amber-600"
                 : "bg-linear-to-r from-blue-600 to-indigo-600 hover:shadow-blue-500/30 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
-            }`}
+              }`}
           >
             {isVerifying ? (
               <>
@@ -626,6 +638,14 @@ export default function StepVerification({
                 <span className="hidden sm:inline">Face Match Passed</span>
                 <span className="inline sm:hidden">Passed</span>
               </>
+            ) : verificationStatus === "REJECTED" ? (
+              <>
+                <span className="material-symbols-outlined text-sm sm:text-base">
+                  rule
+                </span>
+                <span className="hidden sm:inline">Retry or submit for review</span>
+                <span className="inline sm:hidden">Needs Review</span>
+              </>
             ) : (
               <>
                 <span className="material-symbols-outlined text-sm sm:text-base">
@@ -639,8 +659,10 @@ export default function StepVerification({
 
           <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs sm:text-sm text-gray-600">
             {verificationStatus === "PASSED"
-              ? "Local check complete. Continue to submit your documents for final verification review."
-              : "Why this matters: verification helps build trust, reduce fraud, and improve booking confidence."}
+              ? "Local check complete. Continue to submit your documents and start activation payment."
+              : verificationStatus === "REJECTED"
+                ? "The local check could not confidently confirm a match. You can still continue and our team will review the documents manually."
+                : "Why this matters: verification helps build trust, reduce fraud, and improve booking confidence."}
           </div>
         </div>
 
@@ -653,7 +675,12 @@ export default function StepVerification({
           </button>
           <button
             onClick={handleNext}
-            disabled={isSubmitting || verificationStatus !== "PASSED"}
+            disabled={
+              isSubmitting ||
+              !idFile ||
+              !selfieFile ||
+              verificationStatus === null
+            }
             className="bg-linear-to-r from-emerald-600 to-teal-600 text-white px-4 sm:px-6 md:px-8 py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center gap-2 text-sm sm:text-base min-h-11"
           >
             {isSubmitting ? (
@@ -668,8 +695,14 @@ export default function StepVerification({
               </>
             ) : (
               <>
-                <span className="hidden sm:inline">Complete Setup</span>
-                <span className="inline sm:hidden">Complete</span>
+                <span className="hidden sm:inline">
+                  {verificationStatus === "PASSED"
+                    ? "Continue to activation payment"
+                    : "Submit for manual review"}
+                </span>
+                <span className="inline sm:hidden">
+                  {verificationStatus === "PASSED" ? "Continue" : "Submit"}
+                </span>
                 <span className="material-symbols-outlined text-xs sm:text-sm">
                   arrow_forward
                 </span>

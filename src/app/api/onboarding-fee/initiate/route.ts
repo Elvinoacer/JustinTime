@@ -8,7 +8,7 @@ import {
   PAYMENT_AMOUNTS,
 } from "@/lib/intasend";
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -107,10 +107,12 @@ export async function POST(req: Request) {
       apiRef: apiRef,
       amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[ONBOARDING_FEE_INITIATE]", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to initiate payment";
     return NextResponse.json(
-      { error: error.message || "Failed to initiate payment" },
+      { error: message },
       { status: 500 },
     );
   }
