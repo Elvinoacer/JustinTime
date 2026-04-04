@@ -110,6 +110,7 @@ function serializeJobForList(
     _count: { proposals: number };
   },
   distanceKm: number | null,
+  options?: { exposePreciseLocation?: boolean },
 ): JobListClient {
   const isVerified = isPubliclyVerified({
     verificationStatus: job.client.profile?.verificationStatus,
@@ -129,8 +130,8 @@ function serializeJobForList(
     description: job.description,
     budget,
     location: job.location,
-    latitude: job.latitude,
-    longitude: job.longitude,
+    latitude: options?.exposePreciseLocation ? job.latitude : null,
+    longitude: options?.exposePreciseLocation ? job.longitude : null,
     deadline: job.deadline ? job.deadline.toISOString() : null,
     status: job.status,
     createdAt: job.createdAt.toISOString(),
@@ -156,6 +157,7 @@ function serializeJobForList(
 
 export async function GET(request: Request) {
   try {
+    const session = await auth();
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const pageSize = parseInt(searchParams.get("pageSize") || "10");
@@ -360,7 +362,9 @@ export async function GET(request: Request) {
     }
 
     const items: JobListClient[] = processedJobs.map(({ job, distanceKm }) =>
-      serializeJobForList(job, distanceKm),
+      serializeJobForList(job, distanceKm, {
+        exposePreciseLocation: Boolean(session?.user?.id),
+      }),
     );
 
     const totalPages =

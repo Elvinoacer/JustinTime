@@ -175,6 +175,8 @@ export default function JobDetailPage() {
     hasRole(session?.user, "PROVIDER") || hasRole(session?.user, "ADMIN");
   const shouldResumeMessageIntent =
     searchParams.get("messageClientInApp") === "1";
+  const shouldResumeApplyIntent = searchParams.get("apply") === "1";
+  const applyCallbackUrl = encodeURIComponent(`/jobs/${jobId}?apply=1`);
 
   const { data: job, isLoading, error } = useJob(jobId);
   const { data: profile } = useProviderProfile(
@@ -256,6 +258,22 @@ export default function JobDetailPage() {
     router,
     session?.user?.id,
     shouldResumeMessageIntent,
+  ]);
+
+  useEffect(() => {
+    if (!shouldResumeApplyIntent || authStatus !== "authenticated") return;
+    if (!isProvider || isJobOwner || existingProposal || isApplyingClosed) {
+      return;
+    }
+
+    setShowForm(true);
+  }, [
+    authStatus,
+    existingProposal,
+    isApplyingClosed,
+    isJobOwner,
+    isProvider,
+    shouldResumeApplyIntent,
   ]);
 
   useEffect(() => {
@@ -638,7 +656,7 @@ export default function JobDetailPage() {
 
   const openApplyFlow = () => {
     if (!session) {
-      router.push(`/auth/login?callbackUrl=/jobs/${jobId}`);
+      router.push(`/auth/login?callbackUrl=${applyCallbackUrl}`);
       return;
     }
 
@@ -669,7 +687,7 @@ export default function JobDetailPage() {
 
   const handleQuickApply = () => {
     if (!session) {
-      router.push(`/auth/login?callbackUrl=/jobs/${jobId}`);
+      router.push(`/auth/login?callbackUrl=${applyCallbackUrl}`);
       return;
     }
 
@@ -731,7 +749,7 @@ export default function JobDetailPage() {
     e.preventDefault();
 
     if (!session) {
-      router.push(`/auth/login?callbackUrl=/jobs/${jobId}`);
+      router.push(`/auth/login?callbackUrl=${applyCallbackUrl}`);
       return;
     }
 

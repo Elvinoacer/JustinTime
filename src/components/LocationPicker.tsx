@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
@@ -12,7 +12,9 @@ import {
   getLocationFromStorage,
   saveLocationToStorage,
   clearLocationFromStorage,
+  searchManualLocations,
   type LocationFallbackReason,
+  type ManualLocationOption,
   type LocationSource,
 } from "@/lib/utils/geolocation";
 
@@ -28,6 +30,8 @@ interface LocationPickerProps {
   compact?: boolean;
   /** Calmer browse toolbar: no hover scale, no pulsing dot, tighter copy */
   quiet?: boolean;
+  initialQuery?: string;
+  initialCountryCode?: string;
 }
 
 type PickerLocation = {
@@ -43,6 +47,8 @@ export default function LocationPicker({
   onLocationChange,
   compact = false,
   quiet = false,
+  initialQuery,
+  initialCountryCode,
 }: LocationPickerProps) {
   const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
@@ -51,7 +57,17 @@ export default function LocationPicker({
     null,
   );
   const [isMobile, setIsMobile] = useState(false);
+  const normalizedInitialQuery = useMemo(
+    () => initialQuery?.trim() ?? "",
+    [initialQuery],
+  );
+  const [manualQuery, setManualQuery] = useState(normalizedInitialQuery);
+  const [manualResults, setManualResults] = useState<ManualLocationOption[]>(
+    [],
+  );
+  const [isSearchingManual, setIsSearchingManual] = useState(false);
   const bootstrapIdentityRef = useRef<string | null>(null);
+  const hasAttemptedInitialQueryRef = useRef(false);
 
   const syncLocation = useCallback(
     async (
@@ -232,14 +248,94 @@ export default function LocationPicker({
     setCurrentLocation(null);
     onLocationChange(null);
     clearLocationFromStorage();
+    setManualResults([]);
     toast.success("Location cleared");
     setIsOpen(false);
   };
 
-  const handleManualLocation = () => {
-    toast.info("Manual location input coming soon!");
-    setIsOpen(false);
-  };
+  const selectManualLocation = useCallback(async (
+    result: ManualLocationOption,
+    options?: { silent?: boolean; closeAfter?: boolean },
+  ) => {
+    await syncLocation(
+      {
+        latitude: result.latitude,
+        longitude: result.longitude,
+        address: result.address,
+        source: "MANUAL",
+        accuracy: null,
+      },
+      options,
+    );
+    setManualQuery(result.address);
+    setManualResults([]);
+  }, [syncLocation]);
+
+  const handleManualLocation = useCallback(async (
+    queryOverride?: string,
+    options?: { silent?: boolean; closeAfter?: boolean },
+  ) => {
+    const query = (queryOverride ?? manualQuery).trim();
+    if (!query) {
+      toast.info("Enter a city, town, estate, or county first.");
+      return;
+    }
+
+    setIsSearchingManual(true);
+
+    try {
+      const results = await searchManualLocations(query, {
+        countryCode: initialCountryCode,
+        limit: 5,
+      });
+
+      setManualResults(results);
+
+      if (results.length === 0) {
+        toast.error("No matching places found. Try a broader location.");
+        return;
+      }
+
+      if (results.length === 1) {
+        await selectManualLocation(results[0], options);
+        if (!options?.silent) {
+          toast.success("Location updated from manual search.");
+        }
+      }
+    } finally {
+      setIsSearchingManual(false);
+    }
+  }, [initialCountryCode, manualQuery, selectManualLocation]);
+
+  useEffect(() => {
+    setManualQuery(normalizedInitialQuery);
+  }, [normalizedInitialQuery]);
+
+  useEffect(() => {
+    if (!normalizedInitialQuery) {
+      return;
+    }
+    if (currentLocation) {
+      return;
+    }
+    if (hasAttemptedInitialQueryRef.current) {
+      return;
+    }
+
+    hasAttemptedInitialQueryRef.current = true;
+    void handleManualLocation(normalizedInitialQuery, { silent: true });
+  }, [currentLocation, handleManualLocation, normalizedInitialQuery]);
+
+  useEffect(() => {
+    const handleOpenRequest = () => {
+      setIsOpen(true);
+    };
+
+    window.addEventListener("jit:location-picker-open", handleOpenRequest);
+    return () => {
+      window.removeEventListener("jit:location-picker-open", handleOpenRequest);
+    };
+  }, []);
 
   const compactH =
     quiet || compact
@@ -448,6 +544,47 @@ export default function LocationPicker({
                         <span className="inline sm:hidden">Clear</span>
                       </button>
                     </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        Refine manually
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={manualQuery}
+                          onChange={(event) => setManualQuery(event.target.value)}
+                          placeholder="Search area, town, or county"
+                          className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-emerald-500/80 focus:ring-2 focus:ring-emerald-500/15"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void handleManualLocation(undefined, { closeAfter: true })}
+                          disabled={isSearchingManual}
+                          className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Search
+                        </button>
+                      </div>
+                      {manualResults.length > 1 ? (
+                        <div className="mt-2 space-y-2">
+                          {manualResults.map((result) => (
+                            <button
+                              key={`${result.latitude}:${result.longitude}:${result.address}`}
+                              type="button"
+                              onClick={() =>
+                                void selectManualLocation(result, {
+                                  closeAfter: true,
+                                })
+                              }
+                              className="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:border-emerald-200 hover:bg-emerald-50/60"
+                            >
+                              {result.address}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </>
                 ) : (
                   <>
@@ -495,15 +632,64 @@ export default function LocationPicker({
 
                     {/* Secondary Option */}
                     <div className="text-center">
-                      <button
-                        onClick={handleManualLocation}
-                        className="text-emerald-600 hover:text-emerald-700 font-medium text-sm flex items-center justify-center gap-1 mx-auto"
-                      >
-                        <span className="material-symbols-outlined text-sm">
-                          edit_location
-                        </span>
-                        Enter location manually
-                      </button>
+                      <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
+                        <label
+                          htmlFor="manual-location-search"
+                          className="block text-left text-xs font-semibold uppercase tracking-wide text-slate-600"
+                        >
+                          Enter location manually
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            id="manual-location-search"
+                            type="text"
+                            value={manualQuery}
+                            onChange={(event) =>
+                              setManualQuery(event.target.value)
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                void handleManualLocation(undefined, {
+                                  closeAfter: true,
+                                });
+                              }
+                            }}
+                            placeholder="Nairobi, Westlands, Kisumu..."
+                            className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-emerald-500/80 focus:ring-2 focus:ring-emerald-500/15"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void handleManualLocation(undefined, {
+                                closeAfter: true,
+                              })
+                            }
+                            disabled={isSearchingManual}
+                            className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-200 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {isSearchingManual ? "..." : "Search"}
+                          </button>
+                        </div>
+                        {manualResults.length > 0 ? (
+                          <div className="space-y-2">
+                            {manualResults.map((result) => (
+                              <button
+                                key={`${result.latitude}:${result.longitude}:${result.address}`}
+                                type="button"
+                                onClick={() =>
+                                  void selectManualLocation(result, {
+                                    closeAfter: true,
+                                  })
+                                }
+                                className="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:border-emerald-200 hover:bg-emerald-50/60"
+                              >
+                                {result.address}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
 
                     {/* Privacy Note */}

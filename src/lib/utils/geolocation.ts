@@ -29,6 +29,12 @@ export type DetectedLocation = {
   fallbackReason?: LocationFallbackReason;
 };
 
+export type ManualLocationOption = {
+  latitude: number;
+  longitude: number;
+  address: string;
+};
+
 /**
  * Calculate distance between two coordinates using Haversine formula
  * @param lat1 Latitude of first point
@@ -125,6 +131,8 @@ async function fetchJsonWithTimeout(url: string, timeoutMs = 6000) {
 type NominatimResponse = {
   display_name?: string;
   address?: Record<string, string | undefined>;
+  lat?: string;
+  lon?: string;
 };
 
 function firstNonEmpty(...values: Array<string | undefined>) {
@@ -335,6 +343,65 @@ export async function reverseGeocodeCoordinates(
     return formatReadableAddress(data, lat, lon);
   } catch {
     return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  }
+}
+
+export async function searchManualLocations(
+  query: string,
+  options?: { countryCode?: string; limit?: number; timeoutMs?: number },
+): Promise<ManualLocationOption[]> {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) {
+    return [];
+  }
+
+  try {
+    const params = new URLSearchParams({
+      q: trimmedQuery,
+      format: "jsonv2",
+      addressdetails: "1",
+      limit: String(options?.limit ?? 5),
+    });
+
+    if (options?.countryCode?.trim()) {
+      params.set("countrycodes", options.countryCode.trim().toLowerCase());
+    }
+
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+      {
+        headers: {
+          "User-Agent": "JustInTime/1.0 (support@gtss.software)",
+          "Accept-Language": "en",
+        },
+        signal: AbortSignal.timeout(options?.timeoutMs ?? 6000),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Location search failed with ${response.status}`);
+    }
+
+    const data = (await response.json()) as NominatimResponse[];
+
+    return data
+      .map((item) => {
+        const latitude = toNumber(item.lat);
+        const longitude = toNumber(item.lon);
+
+        if (latitude === null || longitude === null) {
+          return null;
+        }
+
+        return {
+          latitude,
+          longitude,
+          address: formatReadableAddress(item, latitude, longitude),
+        } satisfies ManualLocationOption;
+      })
+      .filter((item): item is ManualLocationOption => Boolean(item));
+  } catch {
+    return [];
   }
 }
 

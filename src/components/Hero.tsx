@@ -253,7 +253,7 @@ const Hero = () => {
         searchTitle: "Preview local demand by skill and location",
         searchAction: "Explore Market Demand",
         secondaryCtaLabel: "Create Pro Account",
-        secondaryCtaHref: "/auth/signup?callbackUrl=/provider/onboarding",
+        secondaryCtaHref: "/join",
       }
     : {
         badge: "Trusted Across Kenya",

@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import ServiceCard from "./ServiceCard";
 import {
   useServicesInfinite,
@@ -27,6 +27,8 @@ function subscriptionPlanLabel(sub: unknown): string | null {
 
 interface ServicesListProps {
   filters: ServicesFilters;
+  viewMode: "cards" | "radar";
+  onViewModeChange: (mode: "cards" | "radar") => void;
   onPageChange?: (page: number) => void;
   onSortChange: (sort: ServicesFilters["sort"]) => void;
   onBrowseAll?: () => void;
@@ -34,10 +36,11 @@ interface ServicesListProps {
 
 const ServicesList = ({
   filters,
+  viewMode,
+  onViewModeChange,
   onSortChange,
   onBrowseAll,
 }: ServicesListProps) => {
-  const [viewMode, setViewMode] = useState<"cards" | "radar">("cards");
   const {
     data,
     isLoading,
@@ -59,8 +62,10 @@ const ServicesList = ({
     onSortChange(sortMap[sort] || "relevance");
   };
 
-  const services =
-    data?.pages.flatMap((page: ServicesResponse) => page.services) || [];
+  const services = useMemo(
+    () => data?.pages.flatMap((page: ServicesResponse) => page.services) || [],
+    [data?.pages],
+  );
   const pagination = data?.pages[0]?.pagination;
 
   const radarItems = useMemo<RadarBrowseItem[]>(() => {
@@ -259,7 +264,7 @@ const ServicesList = ({
           <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm">
             <button
               type="button"
-              onClick={() => setViewMode("cards")}
+              onClick={() => onViewModeChange("cards")}
               className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
                 viewMode === "cards"
                   ? "bg-emerald-600 text-white"
@@ -270,7 +275,7 @@ const ServicesList = ({
             </button>
             <button
               type="button"
-              onClick={() => setViewMode("radar")}
+              onClick={() => onViewModeChange("radar")}
               className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
                 viewMode === "radar"
                   ? "bg-emerald-600 text-white"

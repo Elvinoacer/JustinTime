@@ -186,6 +186,9 @@ export default function BlogPage() {
         <div className="max-w-7xl mx-auto">
           {/* Header Section */}
           <div className="text-center mb-8 sm:mb-12">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+              Editorial preview
+            </div>
             <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl sm:rounded-2xl mb-4 sm:mb-6 shadow-lg shadow-orange-500/30">
               <Sparkles className="w-5 h-5 sm:w-8 sm:h-8 text-white" />
             </div>
@@ -195,6 +198,10 @@ export default function BlogPage() {
             <p className="text-sm sm:text-base md:text-lg text-gray-600 max-w-2xl mx-auto px-2">
               Tips, insights, and expert advice on home maintenance and finding
               the right professionals.
+            </p>
+            <p className="mt-3 text-xs sm:text-sm text-gray-500 max-w-2xl mx-auto px-2">
+              This section is currently a curated preview while the full blog
+              publishing workflow is being completed.
             </p>
           </div>
 

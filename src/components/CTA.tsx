@@ -17,7 +17,7 @@ const CTA = () => {
         subtitle:
           "Join the pro network, get booked by trusted clients, and manage work from one dashboard.",
         primaryLabel: "Create Pro Account",
-        primaryHref: "/auth/signup?callbackUrl=/provider/onboarding",
+        primaryHref: "/join",
         secondaryLabel: "See Pro Benefits",
         secondaryHref: "/about",
       }

@@ -33,12 +33,20 @@ function getClientIp(request: NextRequest): string | null {
   return value.split(",")[0].trim() || null;
 }
 
-function isRateLimited(ip: string): boolean {
+function getInteractionIdentity(request: NextRequest): string | null {
+  return (
+    getClientIp(request) ||
+    request.headers.get("x-anonymous-id")?.trim() ||
+    null
+  );
+}
+
+function isRateLimited(identity: string): boolean {
   const now = Date.now();
-  const state = interactionRateLimitStore.get(ip);
+  const state = interactionRateLimitStore.get(identity);
 
   if (!state || state.resetAt <= now) {
-    interactionRateLimitStore.set(ip, {
+    interactionRateLimitStore.set(identity, {
       count: 1,
       resetAt: now + INTERACTION_RATE_WINDOW_MS,
     });
@@ -50,7 +58,7 @@ function isRateLimited(ip: string): boolean {
   }
 
   state.count += 1;
-  interactionRateLimitStore.set(ip, state);
+  interactionRateLimitStore.set(identity, state);
   return false;
 }
 
@@ -60,16 +68,16 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const clientIp = getClientIp(request);
+    const identity = getInteractionIdentity(request);
 
-    if (!clientIp) {
+    if (!identity) {
       return NextResponse.json(
         { error: "Unable to validate request origin" },
         { status: 400 },
       );
     }
 
-    if (isRateLimited(clientIp)) {
+    if (isRateLimited(identity)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
@@ -82,7 +90,7 @@ export async function POST(
       );
     }
 
-    const dedupeKey = `${type}:${id}:${clientIp}`;
+    const dedupeKey = `${type}:${id}:${identity}`;
     const now = Date.now();
     const lastSeen = interactionCooldownStore.get(dedupeKey);
     if (lastSeen && now - lastSeen < INTERACTION_COOLDOWN_MS) {

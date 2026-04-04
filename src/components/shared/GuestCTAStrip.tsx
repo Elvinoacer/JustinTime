@@ -8,12 +8,16 @@ interface GuestCTAStripProps {
   title?: string;
   description?: string;
   buttonText?: string;
+  signupHref?: string;
+  loginHref?: string;
 }
 
 const GuestCTAStrip: React.FC<GuestCTAStripProps> = ({
   title = "Ready to get started?",
   description = "Create a free account to book services, apply for jobs, or post your own projects.",
   buttonText = "Sign Up Free",
+  signupHref = "/auth/signup",
+  loginHref = "/auth/login",
 }) => {
   const { status } = useSession();
 
@@ -39,13 +43,13 @@ const GuestCTAStrip: React.FC<GuestCTAStripProps> = ({
 
       <div className="relative z-10 flex flex-col sm:flex-row gap-3 w-full md:w-auto">
         <Link
-          href="/auth/signup"
+          href={signupHref}
           className="min-h-[48px] w-full rounded-2xl bg-white px-8 py-3.5 text-center text-sm font-bold text-emerald-800 shadow-lg shadow-black/10 transition hover:bg-emerald-50 sm:w-auto"
         >
           {buttonText}
         </Link>
         <Link
-          href="/auth/login"
+          href={loginHref}
           className="min-h-[48px] w-full rounded-2xl border border-white/25 bg-white/10 px-8 py-3.5 text-center text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/15 sm:w-auto"
         >
           Sign In

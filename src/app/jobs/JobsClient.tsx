@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useCategories } from "@/lib/api/hooks/useServices";
-import { usePublicJobsInfinite } from "@/lib/api/hooks/usePublicJobs";
+import {
+  useJobCategories,
+  usePublicJobsInfinite,
+} from "@/lib/api/hooks/usePublicJobs";
 import { useHeroToolbarCompact } from "@/lib/hooks/useHeroToolbarCompact";
 import { useScrollActionBarVisibility } from "@/lib/hooks/useScrollActionBarVisibility";
 import Header from "@/components/Header";
@@ -29,24 +31,34 @@ import {
   Radar,
   LayoutGrid,
 } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const STATUS_TABS = [
   { id: "OPEN", label: "Open", icon: Briefcase },
-  { id: "IN_PROGRESS", label: "In progress", icon: Loader2 },
-  { id: "COMPLETED", label: "Completed", icon: CheckCircle },
 ] as const;
 
 const JobsPage = () => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const heroRef = useRef<HTMLElement>(null);
   const toolbarCompact = useHeroToolbarCompact(heroRef);
+  const initialSearch = searchParams.get("search") ?? "";
+  const initialLocation = searchParams.get("location") ?? "";
+  const initialView =
+    searchParams.get("view") === "radar" ? "radar" : "cards";
 
-  const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState(initialSearch);
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [selectedStatus, setSelectedStatus] = useState("OPEN");
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(
+    searchParams.get("category") ?? "",
+  );
+  const [verifiedOnly, setVerifiedOnly] = useState(
+    searchParams.get("verified") === "true",
+  );
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<"cards" | "radar">("cards");
+  const [viewMode, setViewMode] = useState<"cards" | "radar">(initialView);
   const [mobileToolbarExpanded, setMobileToolbarExpanded] = useState(false);
   const showMobileActionBar = useScrollActionBarVisibility();
   const [userLocation, setUserLocation] = useState<{
@@ -60,8 +72,13 @@ const JobsPage = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  const { data: categoriesData } = useCategories();
+  const { data: categoriesData } = useJobCategories();
   const categories = categoriesData ?? [];
+
+  const requestLocationPicker = () => {
+    setMobileToolbarExpanded(true);
+    window.dispatchEvent(new Event("jit:location-picker-open"));
+  };
 
   const filters = useMemo(
     () => ({
@@ -146,6 +163,42 @@ const JobsPage = () => {
     (userLocation ? 1 : 0);
 
   useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (searchQuery.trim()) {
+      params.set("search", searchQuery.trim());
+    }
+    if (selectedCategory) {
+      params.set("category", selectedCategory);
+    }
+    if (verifiedOnly) {
+      params.set("verified", "true");
+    }
+    if (viewMode !== "cards") {
+      params.set("view", viewMode);
+    }
+    if (userLocation?.address?.trim()) {
+      params.set("location", userLocation.address.trim());
+    } else if (initialLocation.trim() && !userLocation) {
+      params.set("location", initialLocation.trim());
+    }
+
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
+  }, [
+    initialLocation,
+    pathname,
+    router,
+    searchQuery,
+    selectedCategory,
+    userLocation,
+    verifiedOnly,
+    viewMode,
+  ]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -201,7 +254,7 @@ const JobsPage = () => {
                           ? "border-emerald-500/80 bg-emerald-600 text-white shadow-sm shadow-emerald-600/20"
                           : "border-slate-200 bg-white text-slate-700 hover:border-emerald-200 hover:bg-emerald-50/60"
                       }`}
-                      onClick={() => setSelectedStatus(tab.id)}
+                      onClick={() => setSelectedStatus("OPEN")}
                     >
                       <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
                       {tab.label}
@@ -240,7 +293,13 @@ const JobsPage = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setViewMode("radar")}
+                  onClick={() => {
+                    if (!userLocation) {
+                      requestLocationPicker();
+                      return;
+                    }
+                    setViewMode("radar");
+                  }}
                   className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
                     viewMode === "radar"
                       ? "bg-emerald-600 text-white"
@@ -329,6 +388,7 @@ const JobsPage = () => {
                 <LocationPicker
                   compact={toolbarCompact}
                   quiet
+                  initialQuery={initialLocation}
                   onLocationChange={setUserLocation}
                 />
               </div>
@@ -460,6 +520,7 @@ const JobsPage = () => {
                 setSelectedCategory("");
                 setVerifiedOnly(false);
                 setSelectedStatus("OPEN");
+                setViewMode("cards");
               }}
             />
           ) : (
@@ -520,6 +581,8 @@ const JobsPage = () => {
             title="Ready to find your next project?"
             description="Sign up to submit proposals, communicate with clients, and grow your professional reputation."
             buttonText="Start working"
+            signupHref="/auth/signup?callbackUrl=/jobs"
+            loginHref="/auth/login?callbackUrl=/jobs"
           />
         </main>
       </div>
@@ -549,7 +612,13 @@ const JobsPage = () => {
         <button
           type="button"
           onClick={() =>
-            setViewMode((mode) => (mode === "cards" ? "radar" : "cards"))
+            setViewMode((mode) => {
+              if (mode === "cards" && !userLocation) {
+                requestLocationPicker();
+                return mode;
+              }
+              return mode === "cards" ? "radar" : "cards";
+            })
           }
           className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 text-sm font-semibold text-white"
         >

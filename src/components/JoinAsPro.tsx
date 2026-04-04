@@ -92,7 +92,7 @@ const JoinAsPro = () => {
             </div>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Link href="/auth/signup?callbackUrl=/provider/onboarding">
+              <Link href="/join">
                 <motion.button
                   className="shimmer-btn group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-colors hover:from-emerald-400 hover:to-teal-400 sm:w-auto"
                   whileHover={{ scale: 1.02 }}

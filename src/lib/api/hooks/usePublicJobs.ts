@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import apiClient from "@/lib/api/client";
 import {
   parseApiData,
@@ -14,6 +14,13 @@ export type PublicJobsFilters = {
   latitude?: number;
   longitude?: number;
   pageSize?: number;
+};
+
+export type JobCategoryOption = {
+  id: string;
+  name: string;
+  slug: string;
+  count: number;
 };
 
 export function usePublicJobsInfinite(filters: PublicJobsFilters) {
@@ -51,5 +58,16 @@ export function usePublicJobsInfinite(filters: PublicJobsFilters) {
       last.pagination.hasMore ? last.pagination.page + 1 : undefined,
     initialPageParam: 1,
     staleTime: 60 * 1000,
+  });
+}
+
+export function useJobCategories() {
+  return useQuery({
+    queryKey: [...queryKeys.jobs.lists(), "categories"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<unknown>("/jobs/categories");
+      return parseApiData<JobCategoryOption[]>(data);
+    },
+    staleTime: 10 * 60 * 1000,
   });
 }

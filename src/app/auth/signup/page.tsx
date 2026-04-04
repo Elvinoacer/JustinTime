@@ -17,7 +17,6 @@ import {
   CheckCircle2,
   ArrowRight,
   Users,
-  Shield,
   ChevronLeft,
 } from "lucide-react";
 
@@ -32,6 +31,18 @@ function SignupPageContent() {
     message: "",
   });
   const referralCode = searchParams.get("ref")?.trim().toUpperCase() || "";
+  const callbackUrl = searchParams.get("callbackUrl")?.trim() || "";
+  const returnTo = searchParams.get("returnTo")?.trim() || "";
+  const intent = searchParams.get("intent")?.trim() || "";
+
+  const preservedAuthQuery = new URLSearchParams();
+  if (referralCode) preservedAuthQuery.set("ref", referralCode);
+  if (callbackUrl) preservedAuthQuery.set("callbackUrl", callbackUrl);
+  if (returnTo) preservedAuthQuery.set("returnTo", returnTo);
+  if (intent) preservedAuthQuery.set("intent", intent);
+  const loginHref = preservedAuthQuery.toString()
+    ? `/auth/login?${preservedAuthQuery.toString()}`
+    : "/auth/login";
 
   const calculatePasswordStrength = (password: string) => {
     if (password.length === 0) return { score: 0, message: "" };
@@ -74,11 +85,14 @@ function SignupPageContent() {
 
   const handleGoogleSignIn = async () => {
     try {
-      const callbackUrl = referralCode
-        ? `/onboarding?ref=${encodeURIComponent(referralCode)}`
-        : "/onboarding";
-      await signIn("google", { callbackUrl });
-    } catch (error) {
+      let googleCallbackUrl = callbackUrl || returnTo || "/onboarding";
+
+      if (!callbackUrl && referralCode) {
+        googleCallbackUrl = `/onboarding?ref=${encodeURIComponent(referralCode)}`;
+      }
+
+      await signIn("google", { callbackUrl: googleCallbackUrl });
+    } catch {
       toast.error("Failed to sign in with Google");
     }
   };
@@ -138,9 +152,11 @@ function SignupPageContent() {
       router.push(
         `/auth/verify-request?email=${encodeURIComponent(data.email)}`,
       );
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
-      toast.error(err.message || "Something went wrong");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Something went wrong";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -212,7 +228,7 @@ function SignupPageContent() {
             <p className="mt-2 text-sm text-gray-600">
               Already have an account?{" "}
               <Link
-                href="/auth/login"
+                href={loginHref}
                 className="font-medium text-emerald-600 hover:text-emerald-500 transition-colors"
               >
                 Sign in instead

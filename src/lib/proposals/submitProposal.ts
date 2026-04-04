@@ -355,7 +355,7 @@ export async function submitProposal({
                 <p><strong>Estimated Days:</strong> ${proposal.estimatedDays ?? "Not specified"}</p>
               </div>
 
-              <a href="${process.env.NEXTAUTH_URL}/client/jobs/${proposal.job.id}" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Review proposal</a>
+              <a href="${process.env.NEXTAUTH_URL}/jobs/${proposal.job.id}" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Review proposal</a>
             </div>
           `,
         });

@@ -20,6 +20,7 @@ import { useProfessionalsInfinite } from "@/lib/api/hooks/useProfessionals";
 import { useHeroToolbarCompact } from "@/lib/hooks/useHeroToolbarCompact";
 import { useScrollActionBarVisibility } from "@/lib/hooks/useScrollActionBarVisibility";
 import { calculateBearing, calculateDistance } from "@/lib/utils/geolocation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   Filter,
@@ -53,18 +54,35 @@ const SORT_OPTIONS = (
 ];
 
 export default function ProfessionalsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const heroRef = useRef<HTMLElement>(null);
   const toolbarCompact = useHeroToolbarCompact(heroRef);
+  const initialSearch =
+    searchParams.get("search") ?? searchParams.get("q") ?? "";
+  const initialView =
+    searchParams.get("view") === "radar" ? "radar" : "cards";
+  const initialSort = searchParams.get("sort") ?? "rating";
+  const initialLocation = searchParams.get("location") ?? "";
 
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const [minPrice, setMinPrice] = useState<number>();
-  const [maxPrice, setMaxPrice] = useState<number>();
-  const [sortBy, setSortBy] = useState("rating");
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [searchInput, setSearchInput] = useState(initialSearch);
+  const [search, setSearch] = useState(initialSearch);
+  const [minPrice, setMinPrice] = useState<number>(() => {
+    const value = searchParams.get("minPrice");
+    return value ? Number(value) : undefined;
+  });
+  const [maxPrice, setMaxPrice] = useState<number>(() => {
+    const value = searchParams.get("maxPrice");
+    return value ? Number(value) : undefined;
+  });
+  const [sortBy, setSortBy] = useState(initialSort);
+  const [verifiedOnly, setVerifiedOnly] = useState(
+    searchParams.get("verified") === "true",
+  );
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"cards" | "radar">("cards");
+  const [viewMode, setViewMode] = useState<"cards" | "radar">(initialView);
   const [mobileToolbarExpanded, setMobileToolbarExpanded] = useState(false);
   const showMobileActionBar = useScrollActionBarVisibility();
   const [userLocation, setUserLocation] = useState<{
@@ -77,6 +95,11 @@ export default function ProfessionalsPage() {
     const timer = setTimeout(() => setSearch(searchInput), 400);
     return () => clearTimeout(timer);
   }, [searchInput]);
+
+  const requestLocationPicker = () => {
+    setMobileToolbarExpanded(true);
+    window.dispatchEvent(new Event("jit:location-picker-open"));
+  };
 
   const filters = useMemo(
     () => ({
@@ -177,6 +200,50 @@ export default function ProfessionalsPage() {
     (userLocation ? 1 : 0);
 
   useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (search.trim()) {
+      params.set("search", search.trim());
+    }
+    if (minPrice != null) {
+      params.set("minPrice", String(minPrice));
+    }
+    if (maxPrice != null) {
+      params.set("maxPrice", String(maxPrice));
+    }
+    if (sortBy !== "rating") {
+      params.set("sort", sortBy);
+    }
+    if (verifiedOnly) {
+      params.set("verified", "true");
+    }
+    if (viewMode !== "cards") {
+      params.set("view", viewMode);
+    }
+    if (userLocation?.address?.trim()) {
+      params.set("location", userLocation.address.trim());
+    } else if (initialLocation.trim() && !userLocation) {
+      params.set("location", initialLocation.trim());
+    }
+
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
+  }, [
+    initialLocation,
+    maxPrice,
+    minPrice,
+    pathname,
+    router,
+    search,
+    sortBy,
+    userLocation,
+    verifiedOnly,
+    viewMode,
+  ]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -257,6 +324,7 @@ export default function ProfessionalsPage() {
                 <LocationPicker
                   compact={toolbarCompact}
                   quiet
+                  initialQuery={initialLocation}
                   onLocationChange={(loc) => {
                     setUserLocation(loc);
                     if (loc) setSortBy("distance");
@@ -369,8 +437,13 @@ export default function ProfessionalsPage() {
                         <button
                           key={opt.value}
                           type="button"
-                          disabled={opt.disabled}
-                          onClick={() => !opt.disabled && setSortBy(opt.value)}
+                          onClick={() => {
+                            if (opt.value === "distance" && !userLocation) {
+                              requestLocationPicker();
+                              return;
+                            }
+                            setSortBy(opt.value);
+                          }}
                           className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm transition-colors ${
                             sortBy === opt.value
                               ? "border-emerald-200 bg-emerald-50 font-semibold text-emerald-900"
@@ -481,7 +554,13 @@ export default function ProfessionalsPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setViewMode("radar")}
+                    onClick={() => {
+                      if (!userLocation) {
+                        requestLocationPicker();
+                        return;
+                      }
+                      setViewMode("radar");
+                    }}
                     className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
                       viewMode === "radar"
                         ? "bg-emerald-600 text-white"
@@ -541,6 +620,7 @@ export default function ProfessionalsPage() {
                     setMaxPrice(undefined);
                     setSortBy("rating");
                     setVerifiedOnly(false);
+                    setViewMode("cards");
                   }}
                 />
               ) : viewMode === "cards" ? (
@@ -580,6 +660,8 @@ export default function ProfessionalsPage() {
                 title="Want to join our network?"
                 description="Sign up as a professional to showcase your skills and find quality jobs."
                 buttonText="Join as a pro"
+                signupHref="/join"
+                loginHref="/auth/login?callbackUrl=/professionals"
               />
             </div>
           </div>
@@ -614,7 +696,13 @@ export default function ProfessionalsPage() {
         <button
           type="button"
           onClick={() =>
-            setViewMode((mode) => (mode === "cards" ? "radar" : "cards"))
+            setViewMode((mode) => {
+              if (mode === "cards" && !userLocation) {
+                requestLocationPicker();
+                return mode;
+              }
+              return mode === "cards" ? "radar" : "cards";
+            })
           }
           className="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-2 text-sm font-semibold text-white"
         >

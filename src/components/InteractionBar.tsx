@@ -21,7 +21,21 @@ const InteractionBar = ({
   const [views, setViews] = useState(initialViews);
   const [favorites, setFavorites] = useState(initialFavorites);
   const [isFavorited, setIsFavorited] = useState(false);
-  const [hasViewed, setHasViewed] = useState(false);
+
+  const getAnonymousInteractionId = () => {
+    const storageKey = "jit_anonymous_interaction_id";
+    const existing = localStorage.getItem(storageKey);
+    if (existing) {
+      return existing;
+    }
+
+    const generated =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `anon_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+    localStorage.setItem(storageKey, generated);
+    return generated;
+  };
 
   // Load state from local storage and track view
   useEffect(() => {
@@ -43,7 +57,15 @@ const InteractionBar = ({
             ? `/professionals/${id}/interactions` 
             : `/services/${id}/interactions`;
             
-          const response = await apiClient.post(endpoint, { type: "view" });
+          const response = await apiClient.post(
+            endpoint,
+            { type: "view" },
+            {
+              headers: {
+                "x-anonymous-id": getAnonymousInteractionId(),
+              },
+            },
+          );
           
           if (response.data?.data?.views) {
             setViews(response.data.data.views);
@@ -52,15 +74,12 @@ const InteractionBar = ({
           }
           
           localStorage.setItem(storageKeyView, "true");
-          setHasViewed(true);
         } catch (error) {
           console.error("Failed to track view:", error);
         }
       };
 
       trackView();
-    } else {
-      setHasViewed(true);
     }
   }, [id, type]);
 
@@ -89,7 +108,15 @@ const InteractionBar = ({
         ? `/professionals/${id}/interactions` 
         : `/services/${id}/interactions`;
 
-      await apiClient.post(endpoint, { type: "favorite" });
+      await apiClient.post(
+        endpoint,
+        { type: "favorite" },
+        {
+          headers: {
+            "x-anonymous-id": getAnonymousInteractionId(),
+          },
+        },
+      );
       toast.success("Added to favorites!");
     } catch (error) {
       console.error("Failed to track favorite:", error);

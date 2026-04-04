@@ -23,16 +23,30 @@ import GuestCTAStrip from "@/components/shared/GuestCTAStrip";
 import { useCategories, ServicesFilters } from "@/lib/api/hooks/useServices";
 import { useHeroToolbarCompact } from "@/lib/hooks/useHeroToolbarCompact";
 import { useScrollActionBarVisibility } from "@/lib/hooks/useScrollActionBarVisibility";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { clearLocationFromStorage } from "@/lib/utils/geolocation";
 
 function ServicesPageContent() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
+  const initialSearch = searchParams.get("search") ?? searchParams.get("q") ?? "";
+  const initialLocation = searchParams.get("location") ?? "";
+  const initialCountry = searchParams.get("country") ?? "";
+  const initialMinPrice = searchParams.get("minPrice");
+  const initialMaxPrice = searchParams.get("maxPrice");
+  const initialMinRating = searchParams.get("minRating");
+  const initialSort = searchParams.get("sort") ?? "relevance";
+  const initialVerified = searchParams.get("verified") === "true";
+  const initialView =
+    searchParams.get("view") === "radar" ? "radar" : "cards";
 
-  const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All Services");
+  const [searchInput, setSearchInput] = useState(initialSearch);
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+  const [selectedCategory, setSelectedCategory] = useState(
+    categoryParam || "All Services",
+  );
   const [isAllCategoriesOpen, setIsAllCategoriesOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
@@ -43,12 +57,18 @@ function ServicesPageContent() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [locationPickerKey, setLocationPickerKey] = useState(0);
+  const [viewMode, setViewMode] = useState<"cards" | "radar">(initialView);
 
   const [filters, setFilters] = useState<ServicesFilters>({
     page: 1,
     limit: 12,
-    sort: "relevance",
-    category: "All Services",
+    sort: initialSort as ServicesFilters["sort"],
+    category: categoryParam || "All Services",
+    search: initialSearch || undefined,
+    minPrice: initialMinPrice ? Number(initialMinPrice) : undefined,
+    maxPrice: initialMaxPrice ? Number(initialMaxPrice) : undefined,
+    minRating: initialMinRating ? Number(initialMinRating) : undefined,
+    verified: initialVerified || undefined,
   });
 
   useEffect(() => {
@@ -57,14 +77,6 @@ function ServicesPageContent() {
     }, 500);
     return () => clearTimeout(timer);
   }, [searchInput]);
-
-  useEffect(() => {
-    if (categoryParam) {
-      const formattedCategory =
-        categoryParam.charAt(0).toUpperCase() + categoryParam.slice(1);
-      setSelectedCategory(formattedCategory);
-    }
-  }, [categoryParam]);
 
   useEffect(() => {
     setFilters((prev) => ({
@@ -84,9 +96,19 @@ function ServicesPageContent() {
 
   const { data: categoriesData, isLoading: isCategoriesLoading } =
     useCategories();
-  const allCategories = categoriesData || [
-    { name: "All Services", icon: "apps", count: 0 },
-  ];
+  const allCategories = useMemo(
+    () =>
+      categoriesData || [
+        {
+          id: "all",
+          name: "All Services",
+          slug: "all-services",
+          icon: "apps",
+          count: 0,
+        },
+      ],
+    [categoriesData],
+  );
 
   const topCategories = allCategories
     .filter((cat) => cat.name !== "All Services")
@@ -97,6 +119,84 @@ function ServicesPageContent() {
     { name: "All Services", icon: "apps", count: 0 },
     ...topCategories,
   ];
+
+  useEffect(() => {
+    if (!categoryParam) {
+      return;
+    }
+
+    const normalizedCategoryParam = categoryParam.trim().toLowerCase();
+    const matchingCategory = allCategories.find((category) => {
+      return (
+        category.name.trim().toLowerCase() === normalizedCategoryParam ||
+        category.slug.trim().toLowerCase() === normalizedCategoryParam
+      );
+    });
+
+    setSelectedCategory(matchingCategory?.name || "All Services");
+  }, [allCategories, categoryParam]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (searchQuery.trim()) {
+      params.set("search", searchQuery.trim());
+    }
+
+    if (selectedCategory !== "All Services") {
+      const category = allCategories.find((item) => item.name === selectedCategory);
+      params.set("category", category?.slug || selectedCategory);
+    }
+
+    if (userLocation?.address?.trim()) {
+      params.set("location", userLocation.address.trim());
+    } else if (initialLocation.trim() && !userLocation) {
+      params.set("location", initialLocation.trim());
+    }
+
+    if (initialCountry.trim()) {
+      params.set("country", initialCountry.trim());
+    }
+
+    if (filters.minPrice != null) {
+      params.set("minPrice", String(filters.minPrice));
+    }
+    if (filters.maxPrice != null) {
+      params.set("maxPrice", String(filters.maxPrice));
+    }
+    if (filters.minRating != null) {
+      params.set("minRating", String(filters.minRating));
+    }
+    if (filters.verified) {
+      params.set("verified", "true");
+    }
+    if (filters.sort && filters.sort !== "relevance") {
+      params.set("sort", filters.sort);
+    }
+    if (viewMode !== "cards") {
+      params.set("view", viewMode);
+    }
+
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
+  }, [
+    allCategories,
+    filters.maxPrice,
+    filters.minPrice,
+    filters.minRating,
+    filters.sort,
+    filters.verified,
+    initialCountry,
+    initialLocation,
+    pathname,
+    router,
+    searchQuery,
+    selectedCategory,
+    userLocation,
+    viewMode,
+  ]);
 
   const activeFilterCount = [
     filters.minPrice ? 1 : 0,
@@ -121,6 +221,7 @@ function ServicesPageContent() {
     setSearchQuery("");
     setSelectedCategory("All Services");
     setUserLocation(null);
+    setViewMode("cards");
     if (typeof window !== "undefined") {
       clearLocationFromStorage();
     }
@@ -360,6 +461,8 @@ function ServicesPageContent() {
                   <LocationPicker
                     key={locationPickerKey}
                     compact={toolbarCompact}
+                    initialQuery={initialLocation}
+                    initialCountryCode={initialCountry}
                     onLocationChange={setUserLocation}
                   />
                 </div>
@@ -482,6 +585,8 @@ function ServicesPageContent() {
               <div className="flex min-h-[min(60vh,520px)] flex-1 flex-col">
                 <ServicesList
                   filters={filters}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
                   onPageChange={handlePageChange}
                   onSortChange={(sort) =>
                     handleFilterChange({
@@ -495,6 +600,8 @@ function ServicesPageContent() {
                   title="Ready to book a service?"
                   description="Create an account to book trusted professionals, track requests, and pay securely with M-Pesa."
                   buttonText="Join JustInTime"
+                  signupHref="/auth/signup?callbackUrl=/services"
+                  loginHref="/auth/login?callbackUrl=/services"
                 />
               </div>
             </div>
