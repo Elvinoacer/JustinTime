@@ -59,6 +59,9 @@ export type ProfessionalListItem = {
   completedJobs: number;
   memberSince: string;
   verified: boolean;
+  backgroundChecked: boolean;
+  certified: boolean;
+  trustBadges: string[];
   verificationAccessGranted: boolean;
   visibilityBoostScore: number;
   subscription: {

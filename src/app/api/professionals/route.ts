@@ -67,6 +67,9 @@ export async function GET(request: NextRequest) {
     );
     const sortBy = searchParams.get("sortBy") || "rating";
     const verifiedOnly = searchParams.get("verifiedOnly") === "true";
+    const backgroundCheckedOnly =
+      searchParams.get("backgroundCheckedOnly") === "true";
+    const certifiedOnly = searchParams.get("certifiedOnly") === "true";
     const latitude = parseNum(searchParams.get("latitude"));
     const longitude = parseNum(searchParams.get("longitude"));
 
@@ -87,6 +90,28 @@ export async function GET(request: NextRequest) {
         OR: [
           { profile: { verificationStatus: "VERIFIED" } },
           { trustScore: { tier: { in: ["VERIFIED", "PREMIUM", "ELITE"] } } },
+        ],
+      });
+    }
+
+    if (backgroundCheckedOnly) {
+      conditions.push({
+        OR: [
+          {
+            backgroundChecks: {
+              some: {
+                status: "APPROVED",
+              },
+            },
+          },
+          {
+            verificationBadges: {
+              some: {
+                type: "GOOD_CONDUCT",
+                status: "VERIFIED",
+              },
+            },
+          },
         ],
       });
     }
@@ -152,6 +177,17 @@ export async function GET(request: NextRequest) {
         subscription: {
           select: { plan: true, isActive: true },
         },
+        backgroundChecks: {
+          select: {
+            status: true,
+          },
+        },
+        verificationBadges: {
+          select: {
+            type: true,
+            status: true,
+          },
+        },
         trustScore: {
           select: {
             tier: true,
@@ -202,9 +238,29 @@ export async function GET(request: NextRequest) {
           trustTier: provider.trustScore?.tier,
           overallScore: provider.trustScore?.overallScore,
         });
+        const approvedBadges = provider.verificationBadges.filter(
+          (badge) => badge.status === "VERIFIED",
+        );
+        const hasApprovedBackgroundCheck = provider.backgroundChecks.some(
+          (backgroundCheck) => backgroundCheck.status === "APPROVED",
+        );
+        const backgroundChecked =
+          hasApprovedBackgroundCheck ||
+          approvedBadges.some((badge) => badge.type === "GOOD_CONDUCT");
+        const certificationsRaw = Array.isArray(p?.certifications)
+          ? p.certifications
+          : [];
+        const certified =
+          certificationsRaw.length > 0 ||
+          approvedBadges.some((badge) => badge.type === "SKILLS_CERTIFIED");
         const skills = Array.isArray(p?.skills)
           ? p!.skills.map((skillId) => categoryMap.get(skillId) || skillId)
           : [];
+        const trustBadges = [
+          ...(verified ? ["Verified"] : []),
+          ...(backgroundChecked ? ["Background checked"] : []),
+          ...(certified ? ["Certified"] : []),
+        ];
 
         const hasPaidOrWaivedAccess =
           Boolean(p?.hasPaidOnboardingFee) || Boolean(p?.onboardingFeeWaived);
@@ -276,6 +332,9 @@ export async function GET(request: NextRequest) {
           completedJobs: provider._count?.providerBookings || 0,
           memberSince: provider.createdAt.toISOString(),
           verified,
+          backgroundChecked,
+          certified,
+          trustBadges,
           verificationAccessGranted: hasPaidOrWaivedAccess,
           visibilityBoostScore,
           subscription: {
@@ -286,6 +345,18 @@ export async function GET(request: NextRequest) {
         };
       },
     );
+
+    if (backgroundCheckedOnly) {
+      formattedProviders = formattedProviders.filter(
+        (provider) => provider.backgroundChecked,
+      );
+    }
+
+    if (certifiedOnly) {
+      formattedProviders = formattedProviders.filter(
+        (provider) => provider.certified,
+      );
+    }
 
     formattedProviders.sort((a, b) => {
       const isAPremium =
@@ -355,6 +426,7 @@ export async function GET(request: NextRequest) {
     });
 
     const rankableCount = formattedProviders.length;
+    const totalVisible = rankableCount;
     const paginated = formattedProviders.slice(
       (page - 1) * limit,
       page * limit,
@@ -368,7 +440,7 @@ export async function GET(request: NextRequest) {
         page,
         pageSize: limit,
         limit,
-        total: totalMatched,
+        total: totalVisible,
         totalPages: rankableCount === 0 ? 0 : totalPages,
         hasMore,
       },

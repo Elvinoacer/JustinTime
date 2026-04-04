@@ -25,6 +25,8 @@ import {
   Search,
   Filter,
   CheckCircle,
+  ShieldCheck,
+  BadgeCheck,
   Loader2,
   ArrowDownWideNarrow,
   Radar,
@@ -80,6 +82,12 @@ export default function ProfessionalsPage() {
   const [verifiedOnly, setVerifiedOnly] = useState(
     searchParams.get("verified") === "true",
   );
+  const [backgroundCheckedOnly, setBackgroundCheckedOnly] = useState(
+    searchParams.get("backgroundChecked") === "true",
+  );
+  const [certifiedOnly, setCertifiedOnly] = useState(
+    searchParams.get("certified") === "true",
+  );
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "radar">(initialView);
@@ -108,6 +116,8 @@ export default function ProfessionalsPage() {
       maxPrice,
       sortBy,
       verifiedOnly,
+      backgroundCheckedOnly,
+      certifiedOnly,
       latitude: userLocation?.latitude,
       longitude: userLocation?.longitude,
       limit: 12,
@@ -118,6 +128,8 @@ export default function ProfessionalsPage() {
       maxPrice,
       sortBy,
       verifiedOnly,
+      backgroundCheckedOnly,
+      certifiedOnly,
       userLocation?.latitude,
       userLocation?.longitude,
     ],
@@ -196,6 +208,8 @@ export default function ProfessionalsPage() {
     (minPrice != null ? 1 : 0) +
     (maxPrice != null ? 1 : 0) +
     (verifiedOnly ? 1 : 0) +
+    (backgroundCheckedOnly ? 1 : 0) +
+    (certifiedOnly ? 1 : 0) +
     (sortBy !== "rating" ? 1 : 0) +
     (userLocation ? 1 : 0);
 
@@ -216,6 +230,12 @@ export default function ProfessionalsPage() {
     }
     if (verifiedOnly) {
       params.set("verified", "true");
+    }
+    if (backgroundCheckedOnly) {
+      params.set("backgroundChecked", "true");
+    }
+    if (certifiedOnly) {
+      params.set("certified", "true");
     }
     if (viewMode !== "cards") {
       params.set("view", viewMode);
@@ -240,6 +260,8 @@ export default function ProfessionalsPage() {
     sortBy,
     userLocation,
     verifiedOnly,
+    backgroundCheckedOnly,
+    certifiedOnly,
     viewMode,
   ]);
 
@@ -470,25 +492,73 @@ export default function ProfessionalsPage() {
                     <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-600">
                       Trust
                     </label>
-                    <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
-                      <div className="flex items-center gap-2 text-sm text-slate-800">
-                        <CheckCircle className="h-4 w-4 text-emerald-600" />
-                        Verified only
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setVerifiedOnly(!verifiedOnly)}
-                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-                          verifiedOnly ? "bg-emerald-600" : "bg-slate-300"
-                        }`}
-                        aria-pressed={verifiedOnly}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                            verifiedOnly ? "translate-x-6" : "translate-x-1"
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+                        <div className="flex items-center gap-2 text-sm text-slate-800">
+                          <CheckCircle className="h-4 w-4 text-emerald-600" />
+                          Verified only
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setVerifiedOnly(!verifiedOnly)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                            verifiedOnly ? "bg-emerald-600" : "bg-slate-300"
                           }`}
-                        />
-                      </button>
+                          aria-pressed={verifiedOnly}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                              verifiedOnly ? "translate-x-6" : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+                        <div className="flex items-center gap-2 text-sm text-slate-800">
+                          <ShieldCheck className="h-4 w-4 text-slate-700" />
+                          Background checked
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setBackgroundCheckedOnly(!backgroundCheckedOnly)
+                          }
+                          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                            backgroundCheckedOnly
+                              ? "bg-emerald-600"
+                              : "bg-slate-300"
+                          }`}
+                          aria-pressed={backgroundCheckedOnly}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                              backgroundCheckedOnly
+                                ? "translate-x-6"
+                                : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+                        <div className="flex items-center gap-2 text-sm text-slate-800">
+                          <BadgeCheck className="h-4 w-4 text-sky-700" />
+                          Certified or licensed
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCertifiedOnly(!certifiedOnly)}
+                          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                            certifiedOnly ? "bg-emerald-600" : "bg-slate-300"
+                          }`}
+                          aria-pressed={certifiedOnly}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                              certifiedOnly ? "translate-x-6" : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -502,6 +572,8 @@ export default function ProfessionalsPage() {
                       setMaxPrice(undefined);
                       setSortBy("rating");
                       setVerifiedOnly(false);
+                      setBackgroundCheckedOnly(false);
+                      setCertifiedOnly(false);
                     }}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
                   >
@@ -620,6 +692,8 @@ export default function ProfessionalsPage() {
                     setMaxPrice(undefined);
                     setSortBy("rating");
                     setVerifiedOnly(false);
+                    setBackgroundCheckedOnly(false);
+                    setCertifiedOnly(false);
                     setViewMode("cards");
                   }}
                 />
@@ -662,6 +736,7 @@ export default function ProfessionalsPage() {
                 buttonText="Join as a pro"
                 signupHref="/join"
                 loginHref="/auth/login?callbackUrl=/professionals"
+                intent="become_provider"
               />
             </div>
           </div>

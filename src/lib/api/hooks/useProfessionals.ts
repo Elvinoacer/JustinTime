@@ -13,6 +13,8 @@ interface UseProfessionalsParams {
   maxPrice?: number;
   sortBy?: string;
   verifiedOnly?: boolean;
+  backgroundCheckedOnly?: boolean;
+  certifiedOnly?: boolean;
   latitude?: number;
   longitude?: number;
   page?: number;
@@ -30,6 +32,10 @@ function appendFilterParams(
     queryParams.append("maxPrice", params.maxPrice.toString());
   if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
   if (params?.verifiedOnly) queryParams.append("verifiedOnly", "true");
+  if (params?.backgroundCheckedOnly) {
+    queryParams.append("backgroundCheckedOnly", "true");
+  }
+  if (params?.certifiedOnly) queryParams.append("certifiedOnly", "true");
   if (params?.latitude !== undefined)
     queryParams.append("latitude", params.latitude.toString());
   if (params?.longitude !== undefined)

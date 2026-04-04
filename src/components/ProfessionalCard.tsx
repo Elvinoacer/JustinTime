@@ -19,6 +19,9 @@ interface ProfessionalCardProps {
     completedJobs?: number | null;
     memberSince: string;
     verified?: boolean;
+    backgroundChecked?: boolean;
+    certified?: boolean;
+    trustBadges?: string[];
     subscription?: {
       plan: string;
       isActive: boolean;
@@ -79,6 +82,9 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional }) => 
 
   const skillsShown = skills.slice(0, 4);
   const skillsExtra = skills.length > 4 ? skills.length - 4 : 0;
+  const trustBadges = Array.isArray(professional.trustBadges)
+    ? professional.trustBadges.slice(0, 3)
+    : [];
 
   return (
     <Link
@@ -112,6 +118,11 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional }) => 
                 <span className="flex items-center gap-0.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800 shadow-sm backdrop-blur-sm">
                   <span className="material-symbols-outlined text-[12px]">verified</span>
                   Verified
+                </span>
+              ) : null}
+              {professional.backgroundChecked ? (
+                <span className="rounded-md bg-slate-900/85 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+                  Background checked
                 </span>
               ) : null}
             </div>
@@ -172,6 +183,18 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional }) => 
                       +{skillsExtra}
                     </span>
                   ) : null}
+                </div>
+              ) : null}
+              {trustBadges.length > 0 ? (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {trustBadges.map((badge) => (
+                    <span
+                      key={badge}
+                      className="rounded-md border border-sky-100 bg-sky-50/90 px-1.5 py-px text-[10px] font-medium text-sky-800 sm:text-[11px]"
+                    >
+                      {badge}
+                    </span>
+                  ))}
                 </div>
               ) : null}
             </div>

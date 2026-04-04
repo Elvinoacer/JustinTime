@@ -9,5 +9,32 @@ export const metadata = constructMetadata({
 });
 
 export default function ProfessionalsPage() {
-  return <ProfessionalsClient />;
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "JustInTime Professionals Directory",
+    url: "https://justintime.gtss.software/professionals",
+    description:
+      "Browse verified, background-checked, and certified professionals across Kenya.",
+    mainEntity: {
+      "@type": "ItemList",
+      name: "Professionals",
+    },
+    potentialAction: {
+      "@type": "SearchAction",
+      target:
+        "https://justintime.gtss.software/professionals?search={search_term_string}",
+      "query-input": "required name=search_term_string",
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      />
+      <ProfessionalsClient />
+    </>
+  );
 }

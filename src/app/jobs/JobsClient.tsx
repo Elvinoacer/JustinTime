@@ -583,6 +583,7 @@ const JobsPage = () => {
             buttonText="Start working"
             signupHref="/auth/signup?callbackUrl=/jobs"
             loginHref="/auth/login?callbackUrl=/jobs"
+            intent="apply"
           />
         </main>
       </div>

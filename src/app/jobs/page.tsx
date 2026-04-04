@@ -8,5 +8,31 @@ export const metadata = constructMetadata({
 });
 
 export default function JobsPage() {
-  return <JobsClient />;
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "JustInTime Jobs Marketplace",
+    url: "https://justintime.gtss.software/jobs",
+    description:
+      "Browse open client job postings and send proposals for projects that match your skills.",
+    mainEntity: {
+      "@type": "ItemList",
+      name: "Open jobs",
+    },
+    potentialAction: {
+      "@type": "SearchAction",
+      target: "https://justintime.gtss.software/jobs?search={search_term_string}",
+      "query-input": "required name=search_term_string",
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      />
+      <JobsClient />
+    </>
+  );
 }

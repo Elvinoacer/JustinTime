@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
+import { usePathname, useSearchParams } from "next/navigation";
 
 interface GuestCTAStripProps {
   title?: string;
@@ -10,6 +11,8 @@ interface GuestCTAStripProps {
   buttonText?: string;
   signupHref?: string;
   loginHref?: string;
+  intent?: string;
+  preserveCurrentUrl?: boolean;
 }
 
 const GuestCTAStrip: React.FC<GuestCTAStripProps> = ({
@@ -18,10 +21,43 @@ const GuestCTAStrip: React.FC<GuestCTAStripProps> = ({
   buttonText = "Sign Up Free",
   signupHref = "/auth/signup",
   loginHref = "/auth/login",
+  intent,
+  preserveCurrentUrl = true,
 }) => {
   const { status } = useSession();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   if (status === "authenticated") return null;
+
+  const currentUrl = searchParams?.toString()
+    ? `${pathname}?${searchParams.toString()}`
+    : pathname;
+
+  const enrichAuthHref = (href: string) => {
+    if (!preserveCurrentUrl) {
+      return href;
+    }
+
+    if (!href.startsWith("/auth/")) {
+      return href;
+    }
+
+    const [basePath, rawQuery = ""] = href.split("?");
+    const params = new URLSearchParams(rawQuery);
+
+    if (!params.has("returnTo")) {
+      params.set("returnTo", currentUrl);
+    }
+    if (intent && !params.has("intent")) {
+      params.set("intent", intent);
+    }
+
+    return params.toString() ? `${basePath}?${params.toString()}` : basePath;
+  };
+
+  const resolvedSignupHref = enrichAuthHref(signupHref);
+  const resolvedLoginHref = enrichAuthHref(loginHref);
 
   return (
     <motion.div
@@ -43,13 +79,13 @@ const GuestCTAStrip: React.FC<GuestCTAStripProps> = ({
 
       <div className="relative z-10 flex flex-col sm:flex-row gap-3 w-full md:w-auto">
         <Link
-          href={signupHref}
+          href={resolvedSignupHref}
           className="min-h-[48px] w-full rounded-2xl bg-white px-8 py-3.5 text-center text-sm font-bold text-emerald-800 shadow-lg shadow-black/10 transition hover:bg-emerald-50 sm:w-auto"
         >
           {buttonText}
         </Link>
         <Link
-          href={loginHref}
+          href={resolvedLoginHref}
           className="min-h-[48px] w-full rounded-2xl border border-white/25 bg-white/10 px-8 py-3.5 text-center text-sm font-bold text-white backdrop-blur-sm transition hover:bg-white/15 sm:w-auto"
         >
           Sign In

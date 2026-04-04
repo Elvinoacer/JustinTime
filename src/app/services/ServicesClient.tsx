@@ -602,6 +602,7 @@ function ServicesPageContent() {
                   buttonText="Join JustInTime"
                   signupHref="/auth/signup?callbackUrl=/services"
                   loginHref="/auth/login?callbackUrl=/services"
+                  intent="book"
                 />
               </div>
             </div>
