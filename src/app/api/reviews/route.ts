@@ -6,6 +6,7 @@ import {
   JOB_LIFECYCLE_EVENT_TYPES,
   recordJobLifecycleEvent,
 } from "@/lib/jobs/lifecycleTimeline";
+import { createReviewSchema } from "@/lib/validations/schemas";
 
 export async function POST(req: Request) {
   try {
@@ -17,31 +18,21 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { bookingId, rating, comment, idempotencyKey } = body;
 
-    if (!bookingId || !rating) {
-      return new NextResponse("Missing required fields", { status: 400 });
+    // Validate required fields separately since schema doesn't include bookingId
+    if (!bookingId) {
+      return new NextResponse("Booking ID is required", { status: 400 });
     }
 
-    const numericRating = Number(rating);
-    if (
-      !Number.isInteger(numericRating) ||
-      numericRating < 1 ||
-      numericRating > 5
-    ) {
-      return new NextResponse("Rating must be an integer between 1 and 5", {
+    // Validate review data with schema
+    const reviewValidation = createReviewSchema.safeParse({ rating, comment });
+    if (!reviewValidation.success) {
+      return new NextResponse(reviewValidation.error.errors[0].message, {
         status: 400,
       });
     }
 
-    const normalizedComment = typeof comment === "string" ? comment.trim() : "";
-
-    if (normalizedComment.length > 0 && normalizedComment.length < 10) {
-      return new NextResponse(
-        "Comment must be at least 10 characters when provided",
-        {
-          status: 400,
-        },
-      );
-    }
+    const { rating: validatedRating, comment: validatedComment } =
+      reviewValidation.data;
 
     // Fetch booking to verify ownership and status
     const booking = await prisma.booking.findUnique({
@@ -131,8 +122,8 @@ export async function POST(req: Request) {
           bookingId,
           authorId: session.user.id,
           targetId: targetUserId,
-          rating: numericRating,
-          comment: normalizedComment || null,
+          rating: validatedRating,
+          comment: validatedComment || null,
         },
       });
     } catch (createError) {

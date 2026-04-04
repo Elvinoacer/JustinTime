@@ -282,7 +282,7 @@ export default function ReviewSubmissionPage({
   useEffect(() => {
     const fetchBooking = async () => {
       try {
-        const response = await fetch(`/api/bookings/${bookingId}`);
+        const response = await fetch(`/api/client/bookings/${bookingId}`);
         if (response.ok) {
           const data = await response.json();
           const normalizedBooking = normalizeBooking(data);

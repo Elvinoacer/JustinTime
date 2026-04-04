@@ -57,12 +57,12 @@ export const useClientActivity = () => {
   });
 };
 
-export const useClientJobs = (limit = 5) => {
+export const useClientRecentJobs = () => {
   return useQuery({
-    queryKey: ["client", "dashboard", "jobs", limit],
+    queryKey: ["client", "dashboard", "recent-jobs"],
     queryFn: async () => {
       const { data } = await apiClient.get<{ jobs: DashboardJob[] }>(
-        `/client/jobs?limit=${limit}`,
+        `/client/jobs?limit=5`,
       );
       return data.jobs;
     },

@@ -2,7 +2,7 @@
 import NotificationPermissionOverlay from "@/components/NotificationPermissionOverlay";
 import {
   useClientActivity,
-  useClientJobs,
+  useClientRecentJobs,
   useClientStats,
 } from "@/lib/api/hooks/useClientDashboard";
 import { motion } from "framer-motion";
@@ -14,7 +14,7 @@ export default function ClientDashboardPage() {
   const { data: session } = useSession();
   const { data: stats, isLoading: statsLoading } = useClientStats();
   const { data: activities, isLoading: activityLoading } = useClientActivity();
-  const { data: jobs, isLoading: jobsLoading } = useClientJobs();
+  const { data: jobs, isLoading: jobsLoading } = useClientRecentJobs();
 
   const activeJobsCount = useMemo(() => {
     const value = stats?.find((item) => item.title === "Active Jobs")?.value;

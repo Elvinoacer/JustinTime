@@ -1,126 +1,81 @@
-import { auth } from "@/auth";
-import { hasClientAccess } from "@/lib/auth/clientAccess";
-import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
-
-async function proxyRequest(
-  request: Request,
-  path: string,
-  method: "GET" | "PUT" | "DELETE",
-  body?: string,
-) {
-  const origin = new URL(request.url).origin;
-  const response = await fetch(`${origin}${path}`, {
-    method,
-    headers: {
-      cookie: request.headers.get("cookie") || "",
-      ...(request.headers.get("content-type")
-        ? { "content-type": request.headers.get("content-type") as string }
-        : {}),
-    },
-    body: body && method !== "GET" ? body : undefined,
-    cache: "no-store",
-  });
-
-  const payload = await response.text();
-  return new NextResponse(payload, {
-    status: response.status,
-    headers: {
-      "content-type":
-        response.headers.get("content-type") || "application/json",
-    },
-  });
-}
-
-async function ensureClientOwnsJob(jobId: string, userId: string) {
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
-    select: { id: true, clientId: true },
-  });
-
-  if (!job) {
-    return new NextResponse("Job not found", { status: 404 });
-  }
-
-  if (job.clientId !== userId) {
-    return new NextResponse("Forbidden", { status: 403 });
-  }
-
-  return null;
-}
+import { auth } from "@/auth";
+import prisma from "@/lib/prisma";
+import { hasAnyRole } from "@/lib/auth/roles";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
+  try {
+    const session = await auth();
+    if (!session?.user?.id || !hasAnyRole(session.user, ["CLIENT"])) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const job = await prisma.job.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        _count: { select: { proposals: true } },
+        proposals: {
+          where: {
+            status: { in: ["PENDING", "ACCEPTED", "REJECTED"] },
+          },
+          select: {
+            id: true,
+            status: true,
+            price: true,
+            coverLetter: true,
+            estimatedDays: true,
+            attachments: true,
+            createdAt: true,
+            provider: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+
+    if (!job) {
+      return new NextResponse("Job not found", { status: 404 });
+    }
+
+    // Ensure the job belongs to the client
+    if (job.clientId !== session.user.id) {
+      return new NextResponse("Unauthorized", { status: 403 });
+    }
+
+    // Return client-safe job data
+    return NextResponse.json({
+      id: job.id,
+      title: job.title,
+      description: job.description,
+      budget: job.budget,
+      location: job.location,
+      latitude: job.latitude,
+      longitude: job.longitude,
+      status: job.status,
+      deadline: job.deadline,
+      maxApplicants: job.maxApplicants,
+      maxAcceptedProviders: job.maxAcceptedProviders,
+      images: job.images,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      category: job.category,
+      _count: job._count,
+      proposals: job.proposals,
+    });
+  } catch (error) {
+    console.error("Error fetching client job:", error);
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
-
-  if (!hasClientAccess(session.user)) {
-    return NextResponse.json(
-      { error: "Client profile required" },
-      { status: 403 },
-    );
-  }
-
-  const { id } = await params;
-  const ownershipError = await ensureClientOwnsJob(id, session.user.id);
-  if (ownershipError) {
-    return ownershipError;
-  }
-
-  return proxyRequest(request, `/api/jobs/${id}`, "GET");
-}
-
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
-
-  if (!hasClientAccess(session.user)) {
-    return NextResponse.json(
-      { error: "Client profile required" },
-      { status: 403 },
-    );
-  }
-
-  const { id } = await params;
-  const ownershipError = await ensureClientOwnsJob(id, session.user.id);
-  if (ownershipError) {
-    return ownershipError;
-  }
-
-  const body = await request.text();
-  return proxyRequest(request, `/api/jobs/${id}`, "PUT", body);
-}
-
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
-
-  if (!hasClientAccess(session.user)) {
-    return NextResponse.json(
-      { error: "Client profile required" },
-      { status: 403 },
-    );
-  }
-
-  const { id } = await params;
-  const ownershipError = await ensureClientOwnsJob(id, session.user.id);
-  if (ownershipError) {
-    return ownershipError;
-  }
-
-  return proxyRequest(request, `/api/jobs/${id}`, "DELETE");
 }
