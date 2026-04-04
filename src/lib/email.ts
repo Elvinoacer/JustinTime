@@ -1,4 +1,6 @@
 import { Resend } from "resend";
+import { buildAppUrl } from "@/lib/app-url";
+import { getSettingsPathForRole } from "@/lib/auth/lifecycle";
 
 // Initialize Resend client
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -39,6 +41,7 @@ export const sendEmail = async ({
 export const sendAccountDeletionScheduledEmail = async (
   userEmail: string,
   userName: string,
+  userRole: string,
   deletionDate: Date,
   reason?: string,
 ) => {
@@ -51,6 +54,7 @@ export const sendAccountDeletionScheduledEmail = async (
       hour: "numeric",
       minute: "numeric",
     });
+    const restoreUrl = buildAppUrl(getSettingsPathForRole(userRole));
 
     await resend.emails.send({
       from: `JustInTime <${getFromEmail()}>`,
@@ -98,7 +102,7 @@ export const sendAccountDeletionScheduledEmail = async (
               <p><strong>Changed your mind?</strong></p>
               <p>You can restore your account anytime before ${formattedDate}. Simply log in and click "Restore Account" in your settings.</p>
               
-              <a href="${process.env.NEXTAUTH_URL}/dashboard/settings" class="button">Restore My Account</a>
+              <a href="${restoreUrl}" class="button">Restore My Account</a>
               
               <p style="margin-top: 30px;">If you're leaving because something wasn't working well, we'd love to hear your feedback to improve. Just reply to this email!</p>
               
@@ -129,7 +133,7 @@ Here's what will happen:
 Changed your mind?
 You can restore your account anytime before ${formattedDate}. Simply log in and click "Restore Account" in your settings.
 
-Restore your account: ${process.env.NEXTAUTH_URL}/dashboard/settings
+Restore your account: ${restoreUrl}
 
 If you're leaving because something wasn't working well, we'd love to hear your feedback to improve. Just reply to this email!
 
@@ -189,7 +193,7 @@ export const sendAccountDeletionConfirmedEmail = async (
               <p>Thank you for being part of the JustInTime community. We're sorry to see you go, but we respect your decision.</p>
               
               <p><strong>Want to come back?</strong></p>
-              <p>You're always welcome to create a new account anytime at ${process.env.NEXTAUTH_URL}/signup</p>
+              <p>You're always welcome to create a new account anytime at ${buildAppUrl("/auth/signup")}</p>
               
               <p style="margin-top: 30px;">We'd love to hear any feedback about your experience with us. Feel free to reply to this email!</p>
               
@@ -217,7 +221,7 @@ What's been deleted:
 Thank you for being part of the JustInTime community. We're sorry to see you go, but we respect your decision.
 
 Want to come back?
-You're always welcome to create a new account anytime at ${process.env.NEXTAUTH_URL}/signup
+You're always welcome to create a new account anytime at ${buildAppUrl("/auth/signup")}
 
 We'd love to hear any feedback about your experience with us. Feel free to reply to this email!
 
@@ -481,7 +485,7 @@ export const sendPasswordChangedEmail = async (
                 <p style="margin-bottom: 0;">
                   If you did not change your password, please <strong>secure your account immediately</strong>:
                 </p>
-                <a href="${process.env.NEXTAUTH_URL}/settings?tab=security" class="button">
+                <a href="${buildAppUrl("/auth/forgot-password")}" class="button">
                   Secure My Account
                 </a>
               </div>
@@ -521,7 +525,7 @@ Date & Time: ${formattedDate}
 
 DIDN'T MAKE THIS CHANGE?
 If you did not change your password, please secure your account immediately by visiting:
-${process.env.NEXTAUTH_URL}/settings?tab=security
+${buildAppUrl("/auth/forgot-password")}
 
 SECURITY TIPS:
 - Use a unique password for your JustInTime account

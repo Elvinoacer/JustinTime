@@ -368,7 +368,7 @@ export default function ClientOnboardingPage() {
                     ))}
                   </div>
                   <p className="text-xs sm:text-sm text-gray-700 italic">
-                    "{testimonial.text}"
+                    &quot;{testimonial.text}&quot;
                   </p>
                 </div>
               ))}
@@ -396,7 +396,7 @@ export default function ClientOnboardingPage() {
               Post Your First Job
             </Link>
             <Link
-              href="/client/signup"
+              href="/auth/signup"
               className="inline-flex items-center justify-center px-5 sm:px-6 py-3 sm:py-3.5 bg-transparent border-2 border-white/30 hover:border-white/50 text-white font-semibold text-sm sm:text-base rounded-lg sm:rounded-xl backdrop-blur-sm transition-all"
             >
               Create Free Account

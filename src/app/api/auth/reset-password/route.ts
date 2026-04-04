@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import { getPasswordValidationError } from "@/lib/auth/lifecycle";
+import { hashPassword } from "@/lib/auth/password";
 import {
   getAuthTemporaryUnavailableMessage,
   isPrismaMissingColumnError,
@@ -64,12 +65,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate password strength
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters long" },
-        { status: 400 },
-      );
+    const passwordError = getPasswordValidationError(password);
+    if (passwordError) {
+      return NextResponse.json({ error: passwordError }, { status: 400 });
     }
 
     // Find user with valid token
@@ -97,7 +95,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Hash new password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hashPassword(password);
 
     // Update user password and clear reset token
     await prisma.user.update({
@@ -106,6 +104,7 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         resetToken: null,
         resetTokenExpiry: null,
+        authInvalidatedAt: new Date(),
       },
       select: { id: true },
     });

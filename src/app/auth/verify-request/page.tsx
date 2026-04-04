@@ -6,9 +6,28 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
+function maskEmailAddress(email: string | null): string | null {
+  if (!email || !email.includes("@")) {
+    return null;
+  }
+
+  const [localPart, domain] = email.split("@");
+  if (!localPart || !domain) {
+    return null;
+  }
+
+  const maskedLocal =
+    localPart.length <= 2
+      ? `${localPart[0] ?? "*"}*`
+      : `${localPart.slice(0, 2)}${"*".repeat(Math.max(1, localPart.length - 2))}`;
+
+  return `${maskedLocal}@${domain}`;
+}
+
 function VerifyRequestContent() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email");
+  const maskedEmail = maskEmailAddress(email);
   const [isResending, setIsResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
   const [resendError, setResendError] = useState("");
@@ -85,11 +104,15 @@ function VerifyRequestContent() {
 
               <div className="space-y-3 sm:space-y-4">
                 <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
-                  We've sent a verification link to{" "}
-                  <span className="font-semibold text-slate-900 bg-indigo-50 px-2 py-0.5 rounded-md">
-                    {email || "your email address"}
-                  </span>
-                  .
+                  We&apos;ve sent a verification link to your email address.
+                  {maskedEmail ? (
+                    <>
+                      {" "}
+                      <span className="font-semibold text-slate-900 bg-indigo-50 px-2 py-0.5 rounded-md">
+                        {maskedEmail}
+                      </span>
+                    </>
+                  ) : null}
                 </p>
 
                 <p className="text-sm sm:text-base text-slate-600">
@@ -131,7 +154,7 @@ function VerifyRequestContent() {
                 <span className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
                   <span className="text-xs">💡</span>
                 </span>
-                Can't find the email?
+                Can&apos;t find the email?
               </h4>
               <ul className="text-xs text-blue-700 space-y-1.5">
                 <li className="flex items-start gap-2">
@@ -140,11 +163,11 @@ function VerifyRequestContent() {
                 </li>
                 <li className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1 flex-shrink-0" />
-                  <span>Search for "JustInTime Verification"</span>
+                  <span>Search for &quot;JustInTime Verification&quot;</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1 flex-shrink-0" />
-                  <span>Ensure {email || "your email"} is correct</span>
+                  <span>Ensure your email address is correct</span>
                 </li>
               </ul>
             </div>

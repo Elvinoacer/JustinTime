@@ -22,6 +22,11 @@ function AuthErrorContent() {
         description:
           "You do not have permission to sign in. This may happen if your account was denied during creation.",
       },
+      AccountSuspended: {
+        title: "Account Suspended",
+        description:
+          "This account has been suspended. Please contact support if you believe this is a mistake.",
+      },
       Verification: {
         title: "Verification Error",
         description:

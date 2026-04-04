@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { getDefaultRolesForPrimaryRole } from "@/lib/auth/roles";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import crypto from "crypto";
@@ -246,7 +247,10 @@ export async function updateUserRole(
 
     await prisma.user.update({
       where: { id: userId },
-      data: { role: newRole },
+      data: {
+        role: newRole,
+        roles: getDefaultRolesForPrimaryRole(newRole),
+      },
     });
 
     await prisma.adminLog.create({
@@ -627,7 +631,10 @@ export async function toggleBanUser(userId: string, isBanned: boolean) {
 
     await prisma.user.update({
       where: { id: userId },
-      data: { isBanned },
+      data: {
+        isBanned,
+        ...(isBanned ? { authInvalidatedAt: new Date() } : {}),
+      },
     });
 
     await prisma.adminLog.create({

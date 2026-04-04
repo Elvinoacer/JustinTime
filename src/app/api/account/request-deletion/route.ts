@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { sendAccountDeletionScheduledEmail } from "@/lib/email";
+import { getSettingsPathForRole } from "@/lib/auth/lifecycle";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,14 +15,35 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { reason } = body;
 
-    // Get user details for email
+    if (session.user.role === "ADMIN") {
+      return NextResponse.json(
+        { error: "Admin accounts cannot use self-service deletion" },
+        { status: 403 },
+      );
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { email: true, name: true },
+      select: {
+        email: true,
+        name: true,
+        role: true,
+        deletionScheduledAt: true,
+      },
     });
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    if (user.deletionScheduledAt) {
+      return NextResponse.json(
+        {
+          error: "Account deletion is already scheduled",
+          deletionScheduledAt: user.deletionScheduledAt,
+        },
+        { status: 409 },
+      );
     }
 
     // Schedule deletion for 24 hours from now
@@ -52,6 +74,7 @@ export async function POST(req: NextRequest) {
       await sendAccountDeletionScheduledEmail(
         user.email,
         user.name,
+        user.role,
         deletionDate,
         reason,
       );
@@ -63,6 +86,7 @@ export async function POST(req: NextRequest) {
       deletionScheduledAt: deletionDate,
       hoursRemaining: 24,
       serverTime: new Date().toISOString(),
+      restorePath: getSettingsPathForRole(user.role),
     });
   } catch (error) {
     console.error("Error scheduling account deletion:", error);

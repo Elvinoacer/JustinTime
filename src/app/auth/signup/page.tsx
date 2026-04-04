@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
+import { getAuthQueryState, withAuthQuery } from "@/lib/auth/query";
 import {
   User,
   Mail,
@@ -30,19 +31,14 @@ function SignupPageContent() {
     score: 0,
     message: "",
   });
-  const referralCode = searchParams.get("ref")?.trim().toUpperCase() || "";
-  const callbackUrl = searchParams.get("callbackUrl")?.trim() || "";
-  const returnTo = searchParams.get("returnTo")?.trim() || "";
-  const intent = searchParams.get("intent")?.trim() || "";
-
-  const preservedAuthQuery = new URLSearchParams();
-  if (referralCode) preservedAuthQuery.set("ref", referralCode);
-  if (callbackUrl) preservedAuthQuery.set("callbackUrl", callbackUrl);
-  if (returnTo) preservedAuthQuery.set("returnTo", returnTo);
-  if (intent) preservedAuthQuery.set("intent", intent);
-  const loginHref = preservedAuthQuery.toString()
-    ? `/auth/login?${preservedAuthQuery.toString()}`
-    : "/auth/login";
+  const { ref: referralCode, callbackUrl, returnTo, intent } =
+    getAuthQueryState(searchParams);
+  const loginHref = withAuthQuery("/auth/login", {
+    ref: referralCode,
+    callbackUrl,
+    returnTo,
+    intent,
+  });
 
   const calculatePasswordStrength = (password: string) => {
     if (password.length === 0) return { score: 0, message: "" };
@@ -110,6 +106,7 @@ function SignupPageContent() {
         .toLowerCase(),
       password: String(formData.get("password") ?? "").trim(),
       referralCode: referralCode || undefined,
+      role: intent === "provider" ? "PROVIDER" : undefined,
     };
 
     if (

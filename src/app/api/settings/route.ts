@@ -60,15 +60,6 @@ export async function GET(req: NextRequest) {
           dbSession.sessionToken === currentSessionToken,
       }));
 
-    if (activeSessions.length === 0) {
-      // JWT strategy may not populate Session rows; expose current session as fallback.
-      activeSessions.push({
-        id: "current-jwt-session",
-        expires: session.expires ? new Date(session.expires) : null,
-        isCurrent: true,
-      });
-    }
-
     // Fetch user with profile and subscription
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -121,6 +112,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       settings,
       twoFactorEnabled: user.isTwoFactorEnabled || false,
+      sessionManagementMode: "jwt",
       serverTime: new Date().toISOString(),
     });
   } catch (error) {

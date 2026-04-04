@@ -3,6 +3,8 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import prisma from "@/lib/prisma";
 import { multiRoleFeatureFlags, normalizeRoles } from "@/lib/auth/roles";
+import { getAppBaseUrl } from "@/lib/app-url";
+import { getAuthUserByEmail } from "@/lib/auth/lifecycle";
 
 type CredentialsUserPayload = {
   role?: string;
@@ -10,6 +12,9 @@ type CredentialsUserPayload = {
   onboardingCompleted?: boolean;
   clientInterests?: string[];
   emailVerified?: Date | string | null;
+  isBanned?: boolean;
+  deletionScheduledAt?: Date | string | null;
+  authInvalidatedAt?: Date | string | null;
 };
 
 type DbUserSnapshot = {
@@ -20,22 +25,12 @@ type DbUserSnapshot = {
   onboardingCompleted: boolean;
   clientInterests: string[];
   emailVerified: Date | string | null;
+  isBanned: boolean;
+  deletionScheduledAt: Date | string | null;
+  authInvalidatedAt: Date | string | null;
 };
 
-const DB_SESSION_SYNC_INTERVAL_SECONDS = 60;
-
-/**
- * Resolve the base URL for internal API calls.
- * Fails loudly if NEXTAUTH_URL is not configured.
- */
-function getBaseUrl(): string {
-  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  throw new Error(
-    "[Auth] NEXTAUTH_URL is not set. Add it to .env for development " +
-      "or your deployment environment variables.",
-  );
-}
+const DB_SESSION_SYNC_INTERVAL_SECONDS = 0;
 
 async function fetchDbUserByEmail(
   email?: string | null,
@@ -43,47 +38,7 @@ async function fetchDbUserByEmail(
   if (!email) return null;
 
   try {
-    const normalizedEmail = email.trim().toLowerCase();
-    let user = null;
-
-    try {
-      user = await prisma.user.findUnique({
-        where: { email: normalizedEmail },
-        select: {
-          id: true,
-          role: true,
-          roles: true,
-          image: true,
-          onboardingCompleted: true,
-          clientInterests: true,
-          emailVerified: true,
-        },
-      });
-    } catch (error) {
-      // Compatibility fallback if the roles column migration is not applied yet.
-      console.warn(
-        "[JWT Sync Warning] roles column unavailable, using legacy role",
-        error,
-      );
-      const legacyUser = await prisma.user.findUnique({
-        where: { email: normalizedEmail },
-        select: {
-          id: true,
-          role: true,
-          image: true,
-          onboardingCompleted: true,
-          clientInterests: true,
-          emailVerified: true,
-        },
-      });
-
-      user = legacyUser
-        ? {
-            ...legacyUser,
-            roles: normalizeRoles({ role: legacyUser.role }),
-          }
-        : null;
-    }
+    const user = await getAuthUserByEmail(email);
 
     if (!user) {
       return null;
@@ -128,7 +83,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             : undefined;
 
         try {
-          const baseUrl = getBaseUrl();
+          const baseUrl = getAppBaseUrl();
           const response = await fetch(
             `${baseUrl}/api/auth/verify-credentials`,
             {
@@ -167,8 +122,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const existingUser = await prisma.user.findUnique({
             where: { email: normalizedEmail },
-            select: { id: true, image: true },
+            select: {
+              id: true,
+              image: true,
+              role: true,
+              roles: true,
+              isBanned: true,
+            },
           });
+
+          if (existingUser?.isBanned) {
+            return "/auth/error?error=AccountSuspended";
+          }
 
           if (existingUser) {
             await prisma.user.update({
@@ -176,6 +141,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               data: {
                 emailVerified: new Date(),
                 name: user.name?.trim() || null,
+                roles: normalizeRoles({
+                  role: existingUser.role,
+                  roles: existingUser.roles,
+                }),
                 ...(!existingUser.image && user.image
                   ? { image: user.image.trim() }
                   : {}),
@@ -189,6 +158,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 image: user.image?.trim() || null,
                 emailVerified: new Date(),
                 role: "CLIENT",
+                roles: ["CLIENT"],
                 onboardingCompleted: false,
               },
             });
@@ -211,6 +181,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (account) {
           token.authProvider = account.provider; // "google" | "credentials"
         }
+        token.authenticatedAt = nowSeconds;
+        token.sessionInvalidated = false;
 
         if (account?.provider === "google") {
           const dbUser = await fetchDbUserByEmail(user.email);
@@ -227,6 +199,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.onboardingCompleted = dbUser.onboardingCompleted;
             token.clientInterests = dbUser.clientInterests;
             token.emailVerified = dbUser.emailVerified;
+            token.isBanned = dbUser.isBanned;
+            token.deletionScheduledAt = dbUser.deletionScheduledAt;
+            token.authInvalidatedAt = dbUser.authInvalidatedAt;
             token.lastDbSyncAt = nowSeconds;
           } else {
             console.error("[JWT Error] Failed to fetch Google user snapshot");
@@ -246,6 +221,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.onboardingCompleted = credentialsUser.onboardingCompleted;
           token.clientInterests = credentialsUser.clientInterests;
           token.emailVerified = credentialsUser.emailVerified;
+          token.isBanned = credentialsUser.isBanned;
+          token.deletionScheduledAt = credentialsUser.deletionScheduledAt;
+          token.authInvalidatedAt = credentialsUser.authInvalidatedAt;
           token.lastDbSyncAt = nowSeconds;
         }
       }
@@ -273,9 +251,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.onboardingCompleted = latestDbUser.onboardingCompleted;
           token.clientInterests = latestDbUser.clientInterests;
           token.emailVerified = latestDbUser.emailVerified;
+          token.isBanned = latestDbUser.isBanned;
+          token.deletionScheduledAt = latestDbUser.deletionScheduledAt;
+          token.authInvalidatedAt = latestDbUser.authInvalidatedAt;
         }
         token.lastDbSyncAt = nowSeconds;
       }
+
+      const invalidatedAt =
+        token.authInvalidatedAt instanceof Date
+          ? Math.floor(token.authInvalidatedAt.getTime() / 1000)
+          : token.authInvalidatedAt
+            ? Math.floor(new Date(token.authInvalidatedAt).getTime() / 1000)
+            : null;
+
+      token.sessionInvalidated = Boolean(
+        invalidatedAt &&
+          token.authenticatedAt &&
+          invalidatedAt > Number(token.authenticatedAt),
+      );
 
       // Handle session updates (e.g., after onboarding completion)
       if (trigger === "update" && session?.user) {
@@ -293,6 +287,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.emailVerified = session.user.emailVerified ?? token.emailVerified;
         token.authProvider = session.user.authProvider ?? token.authProvider;
         token.image = session.user.image ?? token.image;
+        token.isBanned = session.user.isBanned ?? token.isBanned;
+        token.deletionScheduledAt =
+          session.user.deletionScheduledAt ?? token.deletionScheduledAt;
+        token.authInvalidatedAt =
+          session.user.authInvalidatedAt ?? token.authInvalidatedAt;
+        token.sessionInvalidated =
+          session.user.sessionInvalidated ?? token.sessionInvalidated;
         token.lastDbSyncAt = nowSeconds;
       }
 
@@ -313,6 +314,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.clientInterests = token.clientInterests as string[];
         session.user.emailVerified = token.emailVerified as Date | null;
         session.user.authProvider = token.authProvider as string; // B2/B6
+        session.user.isBanned = Boolean(token.isBanned);
+        session.user.deletionScheduledAt = token.deletionScheduledAt as Date | null;
+        session.user.authInvalidatedAt = token.authInvalidatedAt as Date | null;
+        session.user.sessionInvalidated = Boolean(token.sessionInvalidated);
         session.user.image =
           (token.image as string | undefined) ?? session.user.image;
       }

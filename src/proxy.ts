@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { hasClientAccess } from "@/lib/auth/clientAccess";
+import { getPendingDeletionRedirect } from "@/lib/auth/lifecycle";
 import { NextResponse } from "next/server";
 
 type ProxyRateLimitEntry = {
@@ -309,9 +310,42 @@ function enforceApiRateLimit(
 }
 
 export default auth((req) => {
-  const isLoggedIn = !!req.auth;
   const { nextUrl } = req;
   const isApiRoute = nextUrl.pathname.startsWith("/api");
+  const user = req.auth?.user;
+  const isSessionInvalidated = Boolean(user?.sessionInvalidated);
+  const isLoggedIn = Boolean(req.auth && !isSessionInvalidated);
+  const isBanned = Boolean(user?.isBanned);
+  const hasPendingDeletion = Boolean(user?.deletionScheduledAt);
+
+  const clearAuthCookies = (response: NextResponse) => {
+    const cookieNames = [
+      "authjs.session-token",
+      "__Secure-authjs.session-token",
+      "next-auth.session-token",
+      "__Secure-next-auth.session-token",
+    ];
+
+    for (const cookieName of cookieNames) {
+      response.cookies.delete(cookieName);
+    }
+
+    return response;
+  };
+
+  if (isSessionInvalidated) {
+    if (isApiRoute) {
+      return clearAuthCookies(
+        NextResponse.json(
+          { error: "Session expired. Please sign in again." },
+          { status: 401 },
+        ),
+      );
+    }
+
+    const loginUrl = new URL("/auth/login?reauth=required", nextUrl);
+    return clearAuthCookies(NextResponse.redirect(loginUrl));
+  }
 
   if (isApiRoute) {
     const clientIp = getClientIp(req.headers);
@@ -334,6 +368,39 @@ export default auth((req) => {
           },
         },
       );
+    }
+
+    if (isBanned) {
+      return clearAuthCookies(
+        NextResponse.json(
+          { error: "This account has been suspended." },
+          { status: 403 },
+        ),
+      );
+    }
+
+    if (hasPendingDeletion) {
+      const allowedPendingDeletionApiRoutes = [
+        "/api/account/cancel-deletion",
+        "/api/settings",
+        "/api/client/settings",
+        "/api/auth",
+      ];
+      const isAllowedPendingDeletionApiRoute =
+        allowedPendingDeletionApiRoutes.some(
+          (route) =>
+            nextUrl.pathname === route || nextUrl.pathname.startsWith(`${route}/`),
+        );
+
+      if (!isAllowedPendingDeletionApiRoute) {
+        return NextResponse.json(
+          {
+            error:
+              "This account is pending deletion. Restore it from settings to continue.",
+          },
+          { status: 423 },
+        );
+      }
     }
 
     return NextResponse.next();
@@ -366,6 +433,11 @@ export default auth((req) => {
   const isOnProviderDashboard = nextUrl.pathname.startsWith("/dashboard");
   const isOnClientDashboard = nextUrl.pathname.startsWith("/client");
   const isOnAdmin = nextUrl.pathname.startsWith("/admin");
+  const isOnSettings =
+    nextUrl.pathname === "/dashboard/settings" ||
+    nextUrl.pathname.startsWith("/dashboard/settings/") ||
+    nextUrl.pathname === "/client/settings" ||
+    nextUrl.pathname.startsWith("/client/settings/");
   const isOnAnyDashboard = isOnProviderDashboard || isOnClientDashboard;
   const isOnOnboarding = nextUrl.pathname.startsWith("/onboarding");
   const isOnAuth = nextUrl.pathname.startsWith("/auth");
@@ -395,17 +467,28 @@ export default auth((req) => {
   }
 
   const hasCompletedOnboarding = req.auth?.user?.onboardingCompleted;
-  const userRole = req.auth?.user?.role;
-  const userRoles = req.auth?.user?.roles as string[] | undefined;
+  const userRole = user?.role;
+  const userRoles = user?.roles as string[] | undefined;
   const hasClientWorkspaceAccess = hasClientAccess({
     role: userRole,
     roles: userRoles,
   });
-  const emailVerified = req.auth?.user?.emailVerified;
-  const authProvider = req.auth?.user?.authProvider;
+  const emailVerified = user?.emailVerified;
+  const authProvider = user?.authProvider;
   const isGoogleUser = authProvider === "google";
-  const isEffectivelyVerified =
-    isGoogleUser || Boolean(emailVerified) || Boolean(hasCompletedOnboarding);
+  const isEffectivelyVerified = isGoogleUser || Boolean(emailVerified);
+
+  if (isBanned) {
+    return clearAuthCookies(
+      NextResponse.redirect(new URL("/auth/error?error=AccountSuspended", nextUrl)),
+    );
+  }
+
+  if (isLoggedIn && hasPendingDeletion && !isOnSettings && !isOnAuth) {
+    return NextResponse.redirect(
+      new URL(getPendingDeletionRedirect(userRole, nextUrl.searchParams), nextUrl),
+    );
+  }
 
   // B2: Email verification gate (treat completed onboarding as verified for routing)
   if (isLoggedIn && !isEffectivelyVerified && !isOnAuth) {

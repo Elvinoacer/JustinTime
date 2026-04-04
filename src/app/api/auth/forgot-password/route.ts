@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { sendPasswordResetEmail } from "@/lib/email";
+import { buildAppUrl } from "@/lib/app-url";
 import {
   getAuthTemporaryUnavailableMessage,
   isPrismaMissingColumnError,
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Construct reset URL
-      const resetUrl = `${process.env.NEXTAUTH_URL || "https://justintimeservices.vercel.app"}/auth/reset-password?token=${resetToken}`;
+      const resetUrl = buildAppUrl(`/auth/reset-password?token=${resetToken}`);
 
       // Send password reset email
       await sendPasswordResetEmail(user.email!, user.name || "User", resetUrl);

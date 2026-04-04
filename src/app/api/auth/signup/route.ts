@@ -20,6 +20,8 @@ import {
   getClientIpFromHeaders,
 } from "@/lib/auth/rate-limit";
 import { getDefaultRolesForPrimaryRole } from "@/lib/auth/roles";
+import { buildAppUrl } from "@/lib/app-url";
+import { getPasswordValidationError } from "@/lib/auth/lifecycle";
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,6 +85,10 @@ export async function POST(request: NextRequest) {
 
     // Validate input
     const validatedData = signupSchema.parse(body);
+    const passwordError = getPasswordValidationError(validatedData.password);
+    if (passwordError) {
+      return NextResponse.json({ error: passwordError }, { status: 400 });
+    }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -122,6 +128,7 @@ export async function POST(request: NextRequest) {
         email: validatedData.email,
         password: hashedPassword,
         role: validatedData.role || "CLIENT",
+        roles: getDefaultRolesForPrimaryRole(validatedData.role || "CLIENT"),
         phone: validatedData.phone,
         ...(referrerId ? { referredById: referrerId } : {}),
       },
@@ -161,7 +168,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Send verification email
-    const verificationUrl = `${process.env.NEXTAUTH_URL}/auth/verify-email?token=${token}`;
+    const verificationUrl = buildAppUrl(`/auth/verify-email?token=${token}`);
     await sendVerificationEmail(
       user.email!,
       user.name || "User",

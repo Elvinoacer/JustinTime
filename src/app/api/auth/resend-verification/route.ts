@@ -11,6 +11,7 @@ import {
   enforceRateLimits,
   getClientIpFromHeaders,
 } from "@/lib/auth/rate-limit";
+import { buildAppUrl } from "@/lib/app-url";
 
 export async function POST(request: NextRequest) {
   try {
@@ -118,9 +119,7 @@ export async function POST(request: NextRequest) {
       data: { identifier: normalizedEmail, token, expires },
     });
 
-    const baseUrl =
-      process.env.NEXTAUTH_URL || "https://justintime.gtss.software";
-    const verificationUrl = `${baseUrl}/auth/verify-email?token=${token}`;
+    const verificationUrl = buildAppUrl(`/auth/verify-email?token=${token}`);
 
     await sendVerificationEmail(
       normalizedEmail,

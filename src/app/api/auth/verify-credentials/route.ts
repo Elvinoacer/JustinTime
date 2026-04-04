@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { comparePassword } from "@/lib/auth/password";
 import {
   getAuthTemporaryUnavailableMessage,
   isPrismaMissingColumnError,
@@ -10,7 +8,10 @@ import {
   enforceRateLimits,
   getClientIpFromHeaders,
 } from "@/lib/auth/rate-limit";
-import { getDefaultRolesForPrimaryRole } from "@/lib/auth/roles";
+import {
+  buildAuthSessionUser,
+  verifyCredentialsLogin,
+} from "@/lib/auth/lifecycle";
 
 /**
  * Internal API endpoint for credential verification
@@ -23,11 +24,6 @@ export async function POST(request: NextRequest) {
       .trim()
       .toLowerCase();
     const normalizedPassword = String(password ?? "").trim();
-    const normalizedCode =
-      typeof code === "string"
-        ? code.replace(/\D/g, "").slice(0, 6)
-        : undefined;
-
     const clientIp = getClientIpFromHeaders(request.headers);
     if (!clientIp) {
       return NextResponse.json(
@@ -75,107 +71,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        password: true,
-        role: true,
-        image: true,
-        onboardingCompleted: true,
-        clientInterests: true,
-        emailVerified: true,
-        isTwoFactorEnabled: true,
-      },
+    const result = await verifyCredentialsLogin({
+      email: normalizedEmail,
+      password: normalizedPassword,
+      code: typeof code === "string" ? code : undefined,
+      requireTwoFactorCode: true,
     });
 
-    if (!user || !user.password) {
-      return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 },
-      );
+    if (result.status !== "success") {
+      const statusCode =
+        result.status === "banned"
+          ? 403
+          : result.status === "two-factor-expired" ||
+              result.status === "two-factor-invalid" ||
+              result.status === "email-unverified" ||
+              result.status === "invalid"
+            ? 401
+            : 400;
+
+      return NextResponse.json({ error: result.message }, { status: statusCode });
     }
 
-    // Verify password
-    const isValid = await comparePassword(normalizedPassword, user.password);
-
-    if (!isValid) {
-      return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 },
-      );
-    }
-
-    // Check if email is verified
-    if (!user.emailVerified) {
-      return NextResponse.json(
-        { error: "Please verify your email address" },
-        { status: 401 },
-      );
-    }
-
-    // 2FA Verification
-    if (user.isTwoFactorEnabled) {
-      if (normalizedCode) {
-        const twoFactorToken = await prisma.twoFactorToken.findUnique({
-          where: {
-            email_token: {
-              email: user.email!,
-              token: normalizedCode,
-            },
-          },
-        });
-
-        if (!twoFactorToken) {
-          return NextResponse.json(
-            { error: "Invalid 2FA code" },
-            { status: 401 },
-          );
-        }
-
-        if (new Date() > twoFactorToken.expires) {
-          return NextResponse.json(
-            { error: "2FA code expired" },
-            { status: 401 },
-          );
-        }
-
-        await prisma.twoFactorToken.delete({
-          where: { id: twoFactorToken.id },
-        });
-
-        // Create confirmation (optional, skipping for now)
-      } else {
-        // If 2FA enabled but no code provided, we return 401 with specific error
-        // But wait, NextAuth authorize might treat any error as failure.
-        // We need to distinguish "Password Wrong" vs "2FA Required".
-        // But in our flow, we only call this when we HAVE the code (if 2FA required).
-        // OR if we are just checking password (initial step).
-        // Actually, the initial step is done by the Server Action.
-        // So when `signIn` is called, it MUST succeed.
-        // So if 2FA is enabled and code is missing, it's an error.
-        return NextResponse.json(
-          { error: "2FA code required" },
-          { status: 401 },
-        );
-      }
-    }
-
-    // Return user without password
-    return NextResponse.json({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      roles: getDefaultRolesForPrimaryRole(user.role),
-      image: user.image,
-      onboardingCompleted: user.onboardingCompleted,
-      clientInterests: user.clientInterests,
-      emailVerified: user.emailVerified,
-    });
+    return NextResponse.json(buildAuthSessionUser(result.user));
   } catch (error) {
     console.error("[Auth Verify Error]", error);
     if (isPrismaMissingColumnError(error, "webAuthnCredentialId")) {

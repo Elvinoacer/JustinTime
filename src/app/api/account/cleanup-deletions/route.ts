@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { sendAccountDeletionConfirmedEmail } from "@/lib/email";
 import { auth } from "@/auth";
+import {
+  AUTH_RATE_LIMIT_ERROR,
+  enforceRateLimits,
+  getClientIpFromHeaders,
+} from "@/lib/auth/rate-limit";
+
+const ACCOUNT_DELETION_BATCH_SIZE = 50;
 
 function hasValidCronSecret(req: NextRequest): boolean {
   const configuredSecret = process.env.ACCOUNT_CLEANUP_SECRET;
@@ -24,12 +31,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const clientIp = getClientIpFromHeaders(req.headers);
+    const rateLimitKey = clientIp || (isAuthorizedCron ? "cron-secret" : "admin");
+    const limitResult = enforceRateLimits("account.cleanup-deletions", [
+      {
+        suffix: rateLimitKey,
+        limit: 6,
+        windowMs: 60 * 1000,
+      },
+    ]);
+
+    if (!limitResult.ok) {
+      return NextResponse.json(
+        { error: AUTH_RATE_LIMIT_ERROR },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(limitResult.retryAfterSeconds ?? 60),
+          },
+        },
+      );
+    }
+
     // Find all users with deletion scheduled in the past
     const usersToDelete = await prisma.user.findMany({
       where: {
         deletionScheduledAt: {
           lte: new Date(), // Deletion time has passed
         },
+      },
+      take: ACCOUNT_DELETION_BATCH_SIZE,
+      orderBy: {
+        deletionScheduledAt: "asc",
       },
       select: {
         id: true,
@@ -87,6 +120,7 @@ export async function POST(req: NextRequest) {
       message: `Processed ${usersToDelete.length} account deletions`,
       successCount,
       failureCount: usersToDelete.length - successCount,
+      batchSize: ACCOUNT_DELETION_BATCH_SIZE,
       results: deletionResults,
     });
   } catch (error) {

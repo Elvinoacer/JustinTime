@@ -1002,8 +1002,21 @@ function ClientSettingsPageContent() {
                         <Monitor className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
                         Active Sessions
                       </h3>
+                      {settingsData?.sessionManagementMode === "jwt" && (
+                        <p className="mb-3 text-xs sm:text-sm text-gray-500">
+                          Session inventory is limited because authentication is
+                          using JWT sessions right now.
+                        </p>
+                      )}
                       <div className="space-y-2 sm:space-y-3">
-                        {(settingsData?.settings.activeSessions || []).map(
+                        {(settingsData?.settings.activeSessions || []).length ===
+                        0 ? (
+                          <div className="rounded-lg sm:rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                            No database-backed session records are available for
+                            this account yet.
+                          </div>
+                        ) : (
+                          (settingsData?.settings.activeSessions || []).map(
                           (activeSession) => (
                             <div
                               key={activeSession.id}
@@ -1035,6 +1048,7 @@ function ClientSettingsPageContent() {
                               </span>
                             </div>
                           ),
+                          )
                         )}
                       </div>
                     </div>

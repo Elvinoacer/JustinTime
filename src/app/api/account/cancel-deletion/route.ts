@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
     const session = await auth();
 
@@ -11,7 +11,23 @@ export async function POST(req: NextRequest) {
     }
 
     // Cancel deletion by clearing the scheduled time
-    const user = await prisma.user.update({
+    const existingUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, deletionScheduledAt: true },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    if (!existingUser.deletionScheduledAt) {
+      return NextResponse.json(
+        { error: "Account deletion is not currently scheduled" },
+        { status: 409 },
+      );
+    }
+
+    await prisma.user.update({
       where: { id: session.user.id },
       data: {
         deletionScheduledAt: null,

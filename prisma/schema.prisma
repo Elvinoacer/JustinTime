@@ -50,6 +50,7 @@ model User {
   // Account deletion tracking
   deletionScheduledAt DateTime?
   deletionReason      String?
+  authInvalidatedAt   DateTime?
 
   // Password reset
   resetToken       String?   @unique

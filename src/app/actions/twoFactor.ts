@@ -20,6 +20,7 @@ export async function toggleTwoFactor(enabled: boolean) {
     });
 
     revalidatePath("/dashboard/settings");
+    revalidatePath("/client/settings");
     
     return { success: true, enabled };
   } catch (error) {

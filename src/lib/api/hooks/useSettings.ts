@@ -74,6 +74,7 @@ export const useSettings = (scope: SettingsScope = "global") => {
   return useQuery<{
     settings: Settings;
     twoFactorEnabled: boolean;
+    sessionManagementMode?: "jwt" | "database";
     serverTime?: string;
   }>({
     queryKey: settingsQueryKey(scope),

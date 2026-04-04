@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import { comparePassword, hashPassword } from "@/lib/auth/password";
+import { getPasswordValidationError } from "@/lib/auth/lifecycle";
 
 interface PasswordChangeRequest {
   currentPassword: string;
@@ -30,27 +31,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validation: Password strength requirements
-    if (newPassword.length < 8) {
-      return NextResponse.json(
-        { error: "New password must be at least 8 characters long" },
-        { status: 400 }
-      );
-    }
-
-    // Check for password complexity
-    const hasUpperCase = /[A-Z]/.test(newPassword);
-    const hasLowerCase = /[a-z]/.test(newPassword);
-    const hasNumber = /[0-9]/.test(newPassword);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(newPassword);
-
-    if (!hasUpperCase || !hasLowerCase || !hasNumber) {
-      return NextResponse.json(
-        { 
-          error: "Password must contain at least one uppercase letter, one lowercase letter, and one number"
-        },
-        { status: 400 }
-      );
+    const passwordError = getPasswordValidationError(newPassword);
+    if (passwordError) {
+      return NextResponse.json({ error: passwordError }, { status: 400 });
     }
 
     // Fetch user with current password
@@ -74,9 +57,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify current password
-    const isCurrentPasswordValid = await bcrypt.compare(
+    const isCurrentPasswordValid = await comparePassword(
       currentPassword,
-      user.password
+      user.password,
     );
 
     if (!isCurrentPasswordValid) {
@@ -87,7 +70,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if new password is different from current
-    const isSameAsOld = await bcrypt.compare(newPassword, user.password);
+    const isSameAsOld = await comparePassword(newPassword, user.password);
     if (isSameAsOld) {
       return NextResponse.json(
         { error: "New password must be different from your current password" },
@@ -96,12 +79,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    const hashedPassword = await hashPassword(newPassword);
 
     // Update password
     await prisma.user.update({
       where: { id: user.id },
-      data: { password: hashedPassword },
+      data: {
+        password: hashedPassword,
+        authInvalidatedAt: new Date(),
+      },
     });
 
     // Send email notification about password change

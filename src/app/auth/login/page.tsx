@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useEffect } from "react";
 import { loginWithCredentials, resendTwoFactorToken } from "@/app/actions/auth";
+import { getAuthQueryState, withAuthQuery } from "@/lib/auth/query";
 import {
   Mail,
   Lock,
@@ -27,15 +28,29 @@ import {
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "";
+  const { ref, callbackUrl, returnTo, intent } = getAuthQueryState(searchParams);
   const verified = searchParams.get("verified");
+  const reset = searchParams.get("reset");
+  const reauth = searchParams.get("reauth");
+  const signupHref = withAuthQuery("/auth/signup", {
+    ref,
+    callbackUrl,
+    returnTo,
+    intent,
+  });
 
   // B7: Show toast if user just verified their email
   useEffect(() => {
     if (verified === "true") {
       toast.success("Email verified! You can now sign in.");
     }
-  }, [verified]);
+    if (reset === "success") {
+      toast.success("Password reset successful. You can now sign in.");
+    }
+    if (reauth === "required") {
+      toast.error("Please sign in again to continue.");
+    }
+  }, [reauth, reset, verified]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -219,7 +234,9 @@ function LoginPageContent() {
 
   const handleGoogleSignIn = async () => {
     try {
-      await signIn("google", { callbackUrl: callbackUrl || "/onboarding" });
+      await signIn("google", {
+        callbackUrl: callbackUrl || returnTo || "/onboarding",
+      });
     } catch (error) {
       toast.error("Failed to sign in with Google");
     }
@@ -293,9 +310,9 @@ function LoginPageContent() {
                 "Enter the 6-digit code sent to your email"
               ) : (
                 <>
-                  Don't have an account?{" "}
+                  Don&apos;t have an account?{" "}
                   <Link
-                    href="/auth/signup"
+                    href={signupHref}
                     className="font-medium text-emerald-600 hover:text-emerald-500 transition-colors"
                   >
                     Sign up now
@@ -338,7 +355,7 @@ function LoginPageContent() {
                           Forgot password?
                         </Link>
                         <Link
-                          href="/auth/signup"
+                          href={signupHref}
                           className="inline-flex items-center gap-1 font-medium text-emerald-700 hover:text-emerald-600"
                         >
                           <UserPlus className="w-4 h-4" />
@@ -473,7 +490,7 @@ function LoginPageContent() {
                       <Smartphone className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-600" />
                     </div>
                     <p className="text-sm text-gray-600 mb-2">
-                      We've sent a 6-digit code to:
+                      We&apos;ve sent a 6-digit code to:
                     </p>
                     <p className="font-medium text-gray-900">
                       {loginData.email}
@@ -621,7 +638,7 @@ function LoginPageContent() {
             <div className="space-y-3">
               <div className="text-center">
                 <Link
-                  href="/auth/signup"
+                  href={signupHref}
                   className="text-sm font-medium text-emerald-600 hover:text-emerald-500 inline-flex items-center gap-1"
                 >
                   <UserPlus className="w-4 h-4" />
