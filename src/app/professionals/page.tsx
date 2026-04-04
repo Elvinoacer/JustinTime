@@ -1,5 +1,6 @@
 import { constructMetadata } from "@/lib/metadata";
 import ProfessionalsClient from "./ProfessionalsClient";
+import { Suspense } from "react";
 
 export const metadata = constructMetadata({
   title: "Find Professionals - Verified Experts",
@@ -34,7 +35,9 @@ export default function ProfessionalsPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
-      <ProfessionalsClient />
+      <Suspense fallback={<div>Loading professionals...</div>}>
+        <ProfessionalsClient />
+      </Suspense>
     </>
   );
 }

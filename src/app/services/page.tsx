@@ -1,9 +1,11 @@
 import { constructMetadata } from "@/lib/metadata";
 import ServicesClient from "./ServicesClient";
+import { Suspense } from "react";
 
 export const metadata = constructMetadata({
   title: "Services - Find Professionals",
-  description: "Browse our wide range of professional services. From home cleaning to electrical repairs, find the right expert for your needs.",
+  description:
+    "Browse our wide range of professional services. From home cleaning to electrical repairs, find the right expert for your needs.",
   canonical: "https://justintime.gtss.software/services",
 });
 
@@ -33,7 +35,9 @@ export default function ServicesPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
-      <ServicesClient />
+      <Suspense fallback={<div>Loading services...</div>}>
+        <ServicesClient />
+      </Suspense>
     </>
   );
 }

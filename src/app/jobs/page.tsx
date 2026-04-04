@@ -1,9 +1,11 @@
 import { constructMetadata } from "@/lib/metadata";
 import JobsClient from "./JobsClient";
+import { Suspense } from "react";
 
 export const metadata = constructMetadata({
   title: "Jobs - Find Work & Projects",
-  description: "Browse available jobs and projects. Find new opportunities to grow your business and connect with clients looking for your skills.",
+  description:
+    "Browse available jobs and projects. Find new opportunities to grow your business and connect with clients looking for your skills.",
   canonical: "https://justintime.gtss.software/jobs",
 });
 
@@ -21,7 +23,8 @@ export default function JobsPage() {
     },
     potentialAction: {
       "@type": "SearchAction",
-      target: "https://justintime.gtss.software/jobs?search={search_term_string}",
+      target:
+        "https://justintime.gtss.software/jobs?search={search_term_string}",
       "query-input": "required name=search_term_string",
     },
   };
@@ -32,7 +35,9 @@ export default function JobsPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
-      <JobsClient />
+      <Suspense fallback={<div>Loading jobs...</div>}>
+        <JobsClient />
+      </Suspense>
     </>
   );
 }
