@@ -1,6 +1,3 @@
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
-import { hasRole } from "@/lib/auth/roles";
 import { getActiveSOSAdmin } from "@/app/actions/safety";
 import ActiveSOSAlertsPanel from "@/components/admin/ActiveSOSAlertsPanel";
 import { ShieldAlert } from "lucide-react";
@@ -8,11 +5,6 @@ import { ShieldAlert } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function AdminSafetyPage() {
-  const session = await auth();
-  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
-    redirect("/dashboard");
-  }
-
   const alerts = await getActiveSOSAdmin();
 
   const serializedAlerts = alerts.map((alert) => ({

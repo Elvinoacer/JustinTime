@@ -1,6 +1,3 @@
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
-import { hasRole } from "@/lib/auth/roles";
 import { prisma } from "@/lib/prisma";
 import { ClaimStatus } from "@/generated/prisma/client";
 import InsuranceClaimsTable, {
@@ -28,11 +25,6 @@ export default async function AdminInsurancePage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const session = await auth();
-  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
-    redirect("/dashboard");
-  }
-
   const params = await searchParams;
   const requestedStatus = (params.status || "").toUpperCase();
   const status = ALLOWED_STATUSES.includes(

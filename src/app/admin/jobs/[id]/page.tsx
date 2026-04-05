@@ -1,8 +1,6 @@
-import { auth } from "@/auth";
-import { hasRole } from "@/lib/auth/roles";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -39,16 +37,6 @@ export default async function AdminJobDetailsPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    redirect("/auth/login");
-  }
-
-  if (!hasRole(session.user, "ADMIN")) {
-    redirect("/");
-  }
-
   const { id } = await params;
 
   const job = await prisma.job.findUnique({
