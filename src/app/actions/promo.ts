@@ -90,7 +90,11 @@ function getPromoActionInput(formData: FormData): PromoActionInput {
 }
 
 function validatePromoActionInput(input: PromoActionInput): string | undefined {
-  if (!input.code || !input.type || !Object.values(PromoType).includes(input.type)) {
+  if (
+    !input.code ||
+    !input.type ||
+    !Object.values(PromoType).includes(input.type)
+  ) {
     return "Missing required fields";
   }
 
@@ -116,7 +120,10 @@ function validatePromoActionInput(input: PromoActionInput): string | undefined {
     return "Max discount must be a positive number";
   }
 
-  if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit <= 0)) {
+  if (
+    input.limit !== undefined &&
+    (!Number.isInteger(input.limit) || input.limit <= 0)
+  ) {
     return "Usage limit must be a positive whole number";
   }
 

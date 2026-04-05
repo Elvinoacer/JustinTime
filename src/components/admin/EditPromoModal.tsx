@@ -68,7 +68,9 @@ function convertDateTimeLocalToIso(value: FormDataEntryValue | null): string {
   return parsed.toISOString();
 }
 
-function normalizeFieldValue(value: number | string | null | undefined): string {
+function normalizeFieldValue(
+  value: number | string | null | undefined,
+): string {
   if (value === null || value === undefined) {
     return "";
   }
@@ -76,7 +78,10 @@ function normalizeFieldValue(value: number | string | null | undefined): string 
   return String(value);
 }
 
-export function EditPromoModal({ promo, disabled = false }: EditPromoModalProps) {
+export function EditPromoModal({
+  promo,
+  disabled = false,
+}: EditPromoModalProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -91,7 +96,9 @@ export function EditPromoModal({ promo, disabled = false }: EditPromoModalProps)
     const normalizedStartDate = convertDateTimeLocalToIso(
       formData.get("startDate"),
     );
-    const normalizedEndDate = convertDateTimeLocalToIso(formData.get("endDate"));
+    const normalizedEndDate = convertDateTimeLocalToIso(
+      formData.get("endDate"),
+    );
 
     if (normalizedStartDate) {
       formData.set("startDate", normalizedStartDate);
@@ -180,7 +187,9 @@ export function EditPromoModal({ promo, disabled = false }: EditPromoModalProps)
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor={`edit-min-order-${promo.id}`}>Min Order (Optional)</Label>
+              <Label htmlFor={`edit-min-order-${promo.id}`}>
+                Min Order (Optional)
+              </Label>
               <Input
                 id={`edit-min-order-${promo.id}`}
                 name="minOrder"
@@ -189,7 +198,9 @@ export function EditPromoModal({ promo, disabled = false }: EditPromoModalProps)
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor={`edit-limit-${promo.id}`}>Usage Limit (Optional)</Label>
+              <Label htmlFor={`edit-limit-${promo.id}`}>
+                Usage Limit (Optional)
+              </Label>
               <Input
                 id={`edit-limit-${promo.id}`}
                 name="limit"
@@ -201,7 +212,9 @@ export function EditPromoModal({ promo, disabled = false }: EditPromoModalProps)
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor={`edit-max-discount-${promo.id}`}>Max Discount (Optional)</Label>
+              <Label htmlFor={`edit-max-discount-${promo.id}`}>
+                Max Discount (Optional)
+              </Label>
               <Input
                 id={`edit-max-discount-${promo.id}`}
                 name="maxDiscount"
@@ -211,7 +224,9 @@ export function EditPromoModal({ promo, disabled = false }: EditPromoModalProps)
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor={`edit-per-user-limit-${promo.id}`}>Per User Limit</Label>
+              <Label htmlFor={`edit-per-user-limit-${promo.id}`}>
+                Per User Limit
+              </Label>
               <Input
                 id={`edit-per-user-limit-${promo.id}`}
                 name="perUserLimit"
@@ -234,7 +249,9 @@ export function EditPromoModal({ promo, disabled = false }: EditPromoModalProps)
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor={`edit-end-date-${promo.id}`}>End Date (Optional)</Label>
+              <Label htmlFor={`edit-end-date-${promo.id}`}>
+                End Date (Optional)
+              </Label>
               <Input
                 id={`edit-end-date-${promo.id}`}
                 name="endDate"
