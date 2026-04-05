@@ -8,6 +8,10 @@ import {
   generateApiRef,
   PAYMENT_AMOUNTS,
 } from "@/lib/intasend";
+import {
+  getWalletSchemaOutOfSyncMessage,
+  isWalletSchemaOutOfSyncError,
+} from "@/lib/wallet/errors";
 
 function normalizeReturnPath(path?: string): string | null {
   if (!path || typeof path !== "string") {
@@ -29,14 +33,34 @@ export async function POST(req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json(
+        { error: "Invalid request payload" },
+        { status: 400 },
+      );
+    }
+
     const amount = Number(body?.amount);
     const requestedReturnUrl = normalizeReturnPath(body?.returnUrl);
 
-    if (!amount || amount < PAYMENT_AMOUNTS.MIN_TOPUP) {
+    if (!Number.isFinite(amount) || amount < PAYMENT_AMOUNTS.MIN_TOPUP) {
       return NextResponse.json(
         {
           error: `Invalid amount. Minimum top-up is KES ${PAYMENT_AMOUNTS.MIN_TOPUP}.`,
+        },
+        { status: 400 },
+      );
+    }
+
+    const email = String(session.user.email || "")
+      .trim()
+      .toLowerCase();
+    if (!email) {
+      return NextResponse.json(
+        {
+          error:
+            "Your account email is required before initiating wallet payments.",
         },
         { status: 400 },
       );
@@ -65,12 +89,25 @@ export async function POST(req: Request) {
     const response = await collection.charge({
       first_name: session.user.name?.split(" ")[0] || "User",
       last_name: session.user.name?.split(" ").slice(1).join(" ") || "",
-      email: session.user.email || "",
+      email,
       amount,
       currency: "KES",
       api_ref: apiRef,
       redirect_url: redirectUrl,
     });
+
+    const checkoutUrl =
+      response && typeof response.url === "string" ? response.url.trim() : "";
+
+    if (!checkoutUrl) {
+      return NextResponse.json(
+        {
+          error:
+            "Payment provider did not return a checkout URL. Please try again.",
+        },
+        { status: 502 },
+      );
+    }
 
     console.log("IntaSend topup checkout response:", response);
 
@@ -106,7 +143,7 @@ export async function POST(req: Request) {
           gateway: "INTASEND",
           apiRef,
           gatewaySessionId: response.id ? String(response.id) : null,
-          checkoutUrl: response.url || null,
+          checkoutUrl,
           initiatedAt: new Date(),
           rawInitiationPayload: response,
         },
@@ -132,7 +169,7 @@ export async function POST(req: Request) {
           description: `Wallet Top-up initiated [Ref:${apiRef}]`,
           metadata: {
             apiRef,
-            checkoutUrl: response.url,
+            checkoutUrl,
           },
         },
       });
@@ -148,7 +185,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({
-      checkoutUrl: response.url,
+      checkoutUrl,
       sessionId: response.id,
       apiRef: apiRef,
       topUpId: topUp.id,
@@ -156,8 +193,42 @@ export async function POST(req: Request) {
     });
   } catch (error: unknown) {
     console.error("[WALLET_TOPUP_INITIATE]", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to initiate topup";
-    return NextResponse.json({ error: message }, { status: 500 });
+
+    if (isWalletSchemaOutOfSyncError(error)) {
+      return NextResponse.json(
+        {
+          error: getWalletSchemaOutOfSyncMessage(),
+          code: "WALLET_SCHEMA_OUT_OF_SYNC",
+        },
+        { status: 503 },
+      );
+    }
+
+    const message = error instanceof Error ? error.message : "";
+
+    if (/IntaSend API keys not configured/i.test(message)) {
+      return NextResponse.json(
+        {
+          error:
+            "Wallet payments are temporarily unavailable. Please try again shortly.",
+        },
+        { status: 503 },
+      );
+    }
+
+    if (/ECONN|ENOTFOUND|ETIMEDOUT|Network Error/i.test(message)) {
+      return NextResponse.json(
+        {
+          error:
+            "Payment provider is currently unreachable. Please retry in a moment.",
+        },
+        { status: 502 },
+      );
+    }
+
+    return NextResponse.json(
+      { error: "Failed to initiate wallet top-up. Please try again." },
+      { status: 500 },
+    );
   }
 }

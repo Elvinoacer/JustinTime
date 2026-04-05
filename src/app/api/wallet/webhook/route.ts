@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyWebhookChallenge, verifyWebhookSignature } from "@/lib/intasend";
 import { Prisma } from "@/generated/prisma/client";
+import {
+  getWalletSchemaOutOfSyncMessage,
+  isWalletSchemaOutOfSyncError,
+} from "@/lib/wallet/errors";
 
 const LEGACY_PENDING_PREFIX = "INTASEND:WALLET:PENDING:";
 const LEGACY_SETTLED_PREFIX = "INTASEND:WALLET:SETTLED:";
@@ -394,6 +398,24 @@ export async function POST(req: Request) {
     return NextResponse.json(outcome);
   } catch (error) {
     console.error("[WALLET_TOPUP_WEBHOOK_ERROR]", error);
+
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { error: "Invalid webhook payload" },
+        { status: 400 },
+      );
+    }
+
+    if (isWalletSchemaOutOfSyncError(error)) {
+      return NextResponse.json(
+        {
+          error: getWalletSchemaOutOfSyncMessage(),
+          code: "WALLET_SCHEMA_OUT_OF_SYNC",
+        },
+        { status: 503 },
+      );
+    }
+
     return NextResponse.json({ error: "Processing error" }, { status: 500 });
   }
 }

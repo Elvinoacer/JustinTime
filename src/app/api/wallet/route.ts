@@ -1,6 +1,10 @@
 import { auth } from "@/auth";
 import { getWalletSummaryForUser } from "@/lib/wallet/queries";
 import { NextResponse } from "next/server";
+import {
+  getWalletSchemaOutOfSyncMessage,
+  isWalletSchemaOutOfSyncError,
+} from "@/lib/wallet/errors";
 
 export async function GET(req: Request) {
   try {
@@ -15,6 +19,20 @@ export async function GET(req: Request) {
     return NextResponse.json(summary);
   } catch (error) {
     console.error("[WALLET_GET]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+
+    if (isWalletSchemaOutOfSyncError(error)) {
+      return NextResponse.json(
+        {
+          error: getWalletSchemaOutOfSyncMessage(),
+          code: "WALLET_SCHEMA_OUT_OF_SYNC",
+        },
+        { status: 503 },
+      );
+    }
+
+    return NextResponse.json(
+      { error: "Unable to load wallet summary right now" },
+      { status: 500 },
+    );
   }
 }

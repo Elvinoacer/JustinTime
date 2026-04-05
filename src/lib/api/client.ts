@@ -1,4 +1,36 @@
-import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from "axios";
+import axios, {
+  AxiosError,
+  AxiosInstance,
+  InternalAxiosRequestConfig,
+} from "axios";
+
+type ApiErrorPayload = {
+  message?: string;
+  error?: string;
+  code?: string;
+  [key: string]: unknown;
+};
+
+function extractApiErrorMessage(
+  payload: unknown,
+  fallback: string,
+): { message: string; code?: string } {
+  if (typeof payload === "string" && payload.trim().length > 0) {
+    return { message: payload };
+  }
+
+  if (payload && typeof payload === "object") {
+    const data = payload as ApiErrorPayload;
+    const message =
+      (typeof data.error === "string" && data.error) ||
+      (typeof data.message === "string" && data.message) ||
+      fallback;
+    const code = typeof data.code === "string" ? data.code : undefined;
+    return { message, code };
+  }
+
+  return { message: fallback };
+}
 
 // Create axios instance with default config
 const apiClient: AxiosInstance = axios.create({
@@ -14,23 +46,27 @@ const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // Get token from localStorage or session storage
-    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
-    
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     // Log requests in development
     if (process.env.NODE_ENV === "development") {
-      console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, config.data);
+      console.log(
+        `[API Request] ${config.method?.toUpperCase()} ${config.url}`,
+        config.data,
+      );
     }
-    
+
     return config;
   },
   (error: AxiosError) => {
     console.error("[API Request Error]", error);
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor - handle errors consistently
@@ -47,14 +83,20 @@ apiClient.interceptors.response.use(
     if (error.response) {
       // Server responded with error status
       const status = error.response.status;
-      const message = (error.response.data as any)?.message || error.message;
-      
+      const normalized = extractApiErrorMessage(
+        error.response.data,
+        error.message,
+      );
+      const message = normalized.message;
+
       switch (status) {
         case 401:
-          // Unauthorized - next-auth will handle session invalidation. 
-          // Removed manual window.location.href to prevent jarring redirects 
+          // Unauthorized - next-auth will handle session invalidation.
+          // Removed manual window.location.href to prevent jarring redirects
           // during onboarding or session generation lags.
-          console.warn("[API] 401 Unauthorized received. Session might be expired or lagging.");
+          console.warn(
+            "[API] 401 Unauthorized received. Session might be expired or lagging.",
+          );
           break;
         case 403:
           console.error("[API] Forbidden:", message);
@@ -68,10 +110,11 @@ apiClient.interceptors.response.use(
         default:
           console.error(`[API] Error ${status}:`, message);
       }
-      
+
       return Promise.reject({
         status,
         message,
+        code: normalized.code,
         data: error.response.data,
       });
     } else if (error.request) {
@@ -89,7 +132,7 @@ apiClient.interceptors.response.use(
         message: error.message,
       });
     }
-  }
+  },
 );
 
 export default apiClient;

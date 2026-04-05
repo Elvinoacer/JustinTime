@@ -99,6 +99,7 @@ export interface WalletTopUpResponse {
   apiRef?: string;
   topUpId?: string;
   status?: WalletTransactionStatus;
+  error?: string;
 }
 
 export interface WalletTopUpStatusResponse {
@@ -213,6 +214,14 @@ export const useTopUpWallet = (
         "/wallet/topup",
         data,
       );
+
+      if (!response.data?.checkoutUrl) {
+        throw new Error(
+          response.data?.error ||
+            "Unable to start secure checkout. Please try again.",
+        );
+      }
+
       return response.data;
     },
     onSuccess: (data, variables, onMutateResult, context) => {

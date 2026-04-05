@@ -1,6 +1,10 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import {
+  getWalletSchemaOutOfSyncMessage,
+  isWalletSchemaOutOfSyncError,
+} from "@/lib/wallet/errors";
 
 export async function GET() {
   try {
@@ -44,6 +48,20 @@ export async function GET() {
     });
   } catch (error) {
     console.error("[WALLET_BALANCE]", error);
-    return new NextResponse("Internal Error", { status: 500 });
+
+    if (isWalletSchemaOutOfSyncError(error)) {
+      return NextResponse.json(
+        {
+          error: getWalletSchemaOutOfSyncMessage(),
+          code: "WALLET_SCHEMA_OUT_OF_SYNC",
+        },
+        { status: 503 },
+      );
+    }
+
+    return NextResponse.json(
+      { error: "Unable to load wallet balance right now" },
+      { status: 500 },
+    );
   }
 }

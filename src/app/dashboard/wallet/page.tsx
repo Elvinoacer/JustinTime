@@ -76,7 +76,7 @@ export default async function WalletPage() {
 
           <div className="flex gap-3 relative z-10">
             <Link
-              href="/dashboard/wallet"
+              href="/client/wallet"
               className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors"
             >
               <Plus className="h-4 w-4" /> Top Up

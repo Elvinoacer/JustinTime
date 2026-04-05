@@ -117,7 +117,7 @@ SET
     WHEN "type" = 'PROMOTION_PAYMENT' THEN 'PROMOTION_PAYMENT'::"WalletTransactionCategory"
     WHEN "type" = 'EARNING' THEN 'EARNING'::"WalletTransactionCategory"
     WHEN "type" = 'ONBOARDING_FEE' THEN 'ONBOARDING_FEE'::"WalletTransactionCategory"
-    WHEN "type" = 'ADJUSTMENT' THEN 'ADJUSTMENT'::"WalletTransactionCategory"
+    WHEN "type"::text = 'ADJUSTMENT' THEN 'ADJUSTMENT'::"WalletTransactionCategory"
     ELSE 'OTHER'::"WalletTransactionCategory"
   END
 WHERE "direction" IS NULL;
