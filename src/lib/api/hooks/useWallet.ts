@@ -10,24 +10,79 @@ import { toast } from "sonner";
 import { queryKeys } from "@/lib/api/queryKeys";
 import { PaginatedResponse } from "@/types/api";
 
+const TOPUP_STORAGE_KEY = "jt.wallet.topup.pending";
+
+export type WalletTransactionStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "SETTLED"
+  | "FAILED"
+  | "REVERSED"
+  | "CANCELLED";
+
+export interface WalletTopUpReference {
+  id: string;
+  apiRef: string;
+  status: WalletTransactionStatus;
+  amountExpected: number | string;
+  amountReceived: number | string | null;
+  gatewaySessionId: string | null;
+  gatewayInvoiceId: string | null;
+  failureReason: string | null;
+}
+
 export interface WalletTransaction {
   id: string;
   description: string | null;
   amount: number | string;
   type: string;
+  status: WalletTransactionStatus;
+  direction?: "CREDIT" | "DEBIT" | null;
+  category?: string | null;
+  currency?: string | null;
+  providerRef?: string | null;
+  gatewayReference?: string | null;
+  gatewaySessionId?: string | null;
+  failureReason?: string | null;
   createdAt: string;
+  settledAt?: string | null;
+  failedAt?: string | null;
+  cancelledAt?: string | null;
+  reversedAt?: string | null;
+  topUp?: WalletTopUpReference | null;
 }
 
-export interface WalletResource {
+export interface WalletSummary {
   id: string;
   userId: string;
+  currency: string;
   balance: number | string;
+  availableBalance: number | string;
+  pendingBalance: number | string;
+  pendingIncoming: number | string;
+  pendingOutgoing: number | string;
   creditBalance: number;
+  monthlyStats: {
+    startOfMonth: string;
+    spent: number;
+    transactionCount: number;
+    averageSpent: number;
+  };
+  topUpStats: {
+    pendingCount: number;
+    processingCount: number;
+    failedCount: number;
+  };
+  recentSettledTransactions: WalletTransaction[];
+  recentPendingTransactions: WalletTransaction[];
   transactions: WalletTransaction[];
 }
 
 export interface WalletBalance {
   balance: number | string;
+  availableBalance: number | string;
+  pendingBalance: number | string;
+  pendingIncoming: number | string;
   currency: string;
 }
 
@@ -42,18 +97,38 @@ export interface WalletTopUpResponse {
   checkoutUrl?: string;
   sessionId?: string;
   apiRef?: string;
+  topUpId?: string;
+  status?: WalletTransactionStatus;
+}
+
+export interface WalletTopUpStatusResponse {
+  topUpId: string;
+  apiRef: string;
+  status: WalletTransactionStatus;
+  currency: string;
+  amountExpected: number | string;
+  amountReceived: number | string | null;
+  gateway: string;
+  gatewaySessionId: string | null;
+  gatewayInvoiceId: string | null;
+  checkoutUrl: string | null;
+  initiatedAt: string;
+  confirmedAt: string | null;
+  failedAt: string | null;
+  cancelledAt: string | null;
+  reversedAt: string | null;
+  failureReason: string | null;
+  isTerminal: boolean;
+  transaction: WalletTransaction | null;
 }
 
 export const useWallet = (
-  options?: Omit<
-    UseQueryOptions<WalletResource, Error>,
-    "queryKey" | "queryFn"
-  >,
+  options?: Omit<UseQueryOptions<WalletSummary, Error>, "queryKey" | "queryFn">,
 ) => {
-  return useQuery<WalletResource, Error>({
+  return useQuery<WalletSummary, Error>({
     queryKey: queryKeys.wallet.all,
     queryFn: async () => {
-      const response = await apiClient.get<WalletResource>("/wallet");
+      const response = await apiClient.get<WalletSummary>("/wallet");
       return response.data;
     },
     ...options,
@@ -74,7 +149,16 @@ export const useWalletBalance = (
 };
 
 export const useWalletTransactions = (
-  filters?: { page?: number; pageSize?: number; type?: string },
+  filters?: {
+    page?: number;
+    pageSize?: number;
+    type?: string;
+    status?: string;
+    direction?: string;
+    category?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  },
   options?: Omit<
     UseQueryOptions<WalletTransactionsResponse, Error>,
     "queryKey" | "queryFn"
@@ -89,6 +173,27 @@ export const useWalletTransactions = (
       );
       return response.data;
     },
+    ...options,
+  });
+};
+
+export const useWalletTopUpStatus = (
+  params: { apiRef?: string; topUpId?: string },
+  options?: Omit<
+    UseQueryOptions<WalletTopUpStatusResponse, Error>,
+    "queryKey" | "queryFn"
+  >,
+) => {
+  return useQuery<WalletTopUpStatusResponse, Error>({
+    queryKey: queryKeys.wallet.topUpStatus(params),
+    queryFn: async () => {
+      const response = await apiClient.get<WalletTopUpStatusResponse>(
+        "/wallet/topup/status",
+        { params },
+      );
+      return response.data;
+    },
+    enabled: Boolean(params.apiRef || params.topUpId),
     ...options,
   });
 };
@@ -111,12 +216,24 @@ export const useTopUpWallet = (
       return response.data;
     },
     onSuccess: (data, variables, onMutateResult, context) => {
+      if (typeof window !== "undefined" && (data.apiRef || data.topUpId)) {
+        const payload = {
+          apiRef: data.apiRef || null,
+          topUpId: data.topUpId || null,
+          initiatedAt: new Date().toISOString(),
+        };
+        window.localStorage.setItem(TOPUP_STORAGE_KEY, JSON.stringify(payload));
+      }
+
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
       }
 
       queryClient.invalidateQueries({ queryKey: queryKeys.wallet.balance() });
       queryClient.invalidateQueries({ queryKey: queryKeys.wallet.all });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.wallet.transactions(),
+      });
 
       onSuccess?.(data, variables, onMutateResult, context);
     },
@@ -128,3 +245,45 @@ export const useTopUpWallet = (
     ...restOptions,
   });
 };
+
+export function getStoredPendingTopUp(): {
+  apiRef?: string;
+  topUpId?: string;
+} | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(TOPUP_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    const apiRef =
+      typeof parsed.apiRef === "string" ? parsed.apiRef : undefined;
+    const topUpId =
+      typeof parsed.topUpId === "string" ? parsed.topUpId : undefined;
+
+    if (!apiRef && !topUpId) {
+      return null;
+    }
+
+    return { apiRef, topUpId };
+  } catch {
+    return null;
+  }
+}
+
+export function clearStoredPendingTopUp() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(TOPUP_STORAGE_KEY);
+}

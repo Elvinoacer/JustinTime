@@ -1,5 +1,6 @@
 import {
   getPaymentLifecycleReconciliation,
+  processWalletManualAdjustmentAction,
   resolveReconciliationEventAction,
 } from "@/app/actions/admin";
 import { AlertTriangle, CircleAlert, Scale, Wallet } from "lucide-react";
@@ -25,6 +26,11 @@ function formatDate(value: Date | string) {
 async function handleReconciliationFormAction(formData: FormData) {
   "use server";
   await resolveReconciliationEventAction(formData);
+}
+
+async function handleManualWalletAdjustmentFormAction(formData: FormData) {
+  "use server";
+  await processWalletManualAdjustmentAction(formData);
 }
 
 export default async function AdminReconciliationPage() {
@@ -172,7 +178,9 @@ export default async function AdminReconciliationPage() {
                     <p className="text-xs text-rose-700 mt-1">
                       {row.entityType === "PAYMENT"
                         ? `Booking ${row.bookingId} • Payment ${row.paymentId}`
-                        : `Ledger Event • Transaction ${row.paymentId}`}
+                        : row.entityType === "TOPUP"
+                          ? `Wallet Top-up • ${"apiRef" in row ? row.apiRef : row.paymentId}`
+                          : `Ledger Event • Transaction ${row.paymentId}`}
                     </p>
                     <p className="text-xs text-rose-700 mt-1">
                       Job: {row.jobTitle || row.jobId || "N/A"}
@@ -186,11 +194,31 @@ export default async function AdminReconciliationPage() {
                         Ref: {row.description}
                       </p>
                     )}
+                    {"gatewayReference" in row && row.gatewayReference && (
+                      <p className="text-xs text-rose-700 mt-1">
+                        Gateway ref: {row.gatewayReference}
+                      </p>
+                    )}
+                    {"gatewaySessionId" in row && row.gatewaySessionId && (
+                      <p className="text-xs text-rose-700 mt-1">
+                        Session: {row.gatewaySessionId}
+                      </p>
+                    )}
+                    {"failureReason" in row && row.failureReason && (
+                      <p className="text-xs text-rose-700 mt-1">
+                        Failure reason: {row.failureReason}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-rose-900">
                       {formatCurrency(row.amount)}
                     </p>
+                    {"amountReceived" in row && row.amountReceived != null && (
+                      <p className="text-xs text-rose-700 mt-1">
+                        Received: {formatCurrency(row.amountReceived)}
+                      </p>
+                    )}
                     <p className="text-xs text-rose-700 mt-1">
                       Open for {row.hoursOpen}h
                     </p>
@@ -280,6 +308,45 @@ export default async function AdminReconciliationPage() {
                       </button>
                     </form>
                   </div>
+                ) : row.entityType === "TOPUP" ? (
+                  <div className="mt-3 space-y-2">
+                    <form action={handleReconciliationFormAction}>
+                      <input
+                        type="hidden"
+                        name="topUpId"
+                        value={"topUpId" in row ? row.topUpId : row.paymentId}
+                      />
+                      <input
+                        type="hidden"
+                        name="paymentId"
+                        value={row.paymentId}
+                      />
+                      <input
+                        type="hidden"
+                        name="reason"
+                        value="Admin marked stale top-up as resolved from reconciliation dashboard"
+                      />
+                      <button
+                        type="submit"
+                        name="resolutionAction"
+                        value="MARK_TOPUP_RESOLVED"
+                        className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                      >
+                        Mark Resolved
+                      </button>
+                    </form>
+
+                    {"rawWebhookPayload" in row && row.rawWebhookPayload && (
+                      <details className="rounded-lg border border-rose-200 bg-white/70 p-3 text-xs text-rose-800">
+                        <summary className="cursor-pointer font-semibold">
+                          View Raw Webhook Payload
+                        </summary>
+                        <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap">
+                          {JSON.stringify(row.rawWebhookPayload, null, 2)}
+                        </pre>
+                      </details>
+                    )}
+                  </div>
                 ) : (
                   <div className="mt-3 rounded-lg border border-rose-300 bg-white/60 px-3 py-2 text-xs text-rose-700">
                     Review this pending ledger event in webhook and payment
@@ -291,6 +358,89 @@ export default async function AdminReconciliationPage() {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h2 className="font-semibold text-slate-900">
+            Manual Wallet Adjustment
+          </h2>
+          <p className="text-xs text-slate-500 mt-1">
+            Creates audited adjustment entries with before/after wallet
+            balances.
+          </p>
+        </div>
+
+        <form
+          action={handleManualWalletAdjustmentFormAction}
+          className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3"
+        >
+          <label className="text-xs font-medium text-slate-600 space-y-1">
+            Target User (ID or Email)
+            <input
+              name="targetUser"
+              required
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+              placeholder="user_id or user@email.com"
+            />
+          </label>
+
+          <label className="text-xs font-medium text-slate-600 space-y-1">
+            Direction
+            <select
+              name="direction"
+              required
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+              defaultValue="CREDIT"
+            >
+              <option value="CREDIT">Credit</option>
+              <option value="DEBIT">Debit</option>
+            </select>
+          </label>
+
+          <label className="text-xs font-medium text-slate-600 space-y-1">
+            Amount (KES)
+            <input
+              name="amount"
+              required
+              min="0.01"
+              step="0.01"
+              type="number"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+              placeholder="0.00"
+            />
+          </label>
+
+          <label className="text-xs font-medium text-slate-600 space-y-1">
+            Source Reference (Optional)
+            <input
+              name="sourceReference"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+              placeholder="ticket id / correction id"
+            />
+          </label>
+
+          <label className="text-xs font-medium text-slate-600 space-y-1 md:col-span-2">
+            Mandatory Reason
+            <textarea
+              name="reason"
+              required
+              minLength={6}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+              placeholder="Explain why this adjustment is required"
+              rows={3}
+            />
+          </label>
+
+          <div className="md:col-span-2">
+            <button
+              type="submit"
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              Apply Adjustment
+            </button>
+          </div>
+        </form>
       </section>
 
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

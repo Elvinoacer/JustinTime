@@ -55,6 +55,8 @@ export async function POST(req: NextRequest) {
         data: {
           userId: session.user.id,
           balance: 0,
+          pendingBalance: 0,
+          currency: "KES",
         },
       });
     }
@@ -64,7 +66,19 @@ export async function POST(req: NextRequest) {
         walletId: wallet.id,
         amount,
         type: "PAYMENT",
+        status: "PENDING",
+        direction: "DEBIT",
+        category: "SUBSCRIPTION",
+        currency: "KES",
+        gateway: "INTASEND",
+        gatewayReference: apiRef,
+        gatewaySessionId: checkoutSession.id
+          ? String(checkoutSession.id)
+          : null,
         providerRef: `INTASEND:SUBSCRIPTION:PENDING:${apiRef}`,
+        sourceType: "SUBSCRIPTION",
+        sourceId: plan,
+        createdByType: "USER",
         description: `Subscription payment pending (${plan}) [Ref:${apiRef}]`,
       },
     });

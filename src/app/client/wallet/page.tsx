@@ -1,617 +1,508 @@
 "use client";
-import { useTopUpWallet, useWallet } from "@/lib/api/hooks/useWallet";
+
+import { useEffect, useMemo, useState } from "react";
 import {
+  AlertCircle,
   ArrowDownRight,
   ArrowUpRight,
-  CreditCard,
+  Clock3,
   Download,
+  Filter,
   History,
-  MoreVertical,
   Plus,
-  QrCode,
-  Receipt,
-  Send,
   Wallet,
 } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+  WalletTransaction,
+  useTopUpWallet,
+  useWallet,
+  useWalletTransactions,
+} from "@/lib/api/hooks/useWallet";
 
-type WalletTransaction = {
-  id?: string;
-  type: string;
-  amount?: number | string | null;
-  createdAt?: string | Date;
-  description?: string | null;
-};
+function formatCurrency(value: number | string | null | undefined): string {
+  const parsed = Number(value || 0);
+  if (!Number.isFinite(parsed)) {
+    return "KES 0";
+  }
 
-function ClientWalletPageContent() {
-  const { data: wallet, isLoading } = useWallet();
+  return `KES ${parsed.toLocaleString()}`;
+}
+
+function statusTone(status: string): string {
+  switch (status) {
+    case "SETTLED":
+      return "bg-emerald-100 text-emerald-700";
+    case "PENDING":
+    case "PROCESSING":
+      return "bg-amber-100 text-amber-700";
+    case "FAILED":
+    case "REVERSED":
+      return "bg-red-100 text-red-700";
+    case "CANCELLED":
+      return "bg-slate-100 text-slate-700";
+    default:
+      return "bg-slate-100 text-slate-700";
+  }
+}
+
+function statusLabel(status: string): string {
+  switch (status) {
+    case "SETTLED":
+      return "Confirmed";
+    case "PENDING":
+      return "Pending confirmation";
+    case "PROCESSING":
+      return "Processing";
+    case "FAILED":
+      return "Failed";
+    case "REVERSED":
+      return "Reversed";
+    case "CANCELLED":
+      return "Cancelled";
+    default:
+      return status;
+  }
+}
+
+function isCredit(tx: WalletTransaction): boolean {
+  if (tx.direction) {
+    return tx.direction === "CREDIT";
+  }
+
+  return ["DEPOSIT", "REFUND", "EARNING"].includes(tx.type);
+}
+
+function transactionReference(tx: WalletTransaction): string | null {
+  if (tx.topUp?.apiRef) {
+    return tx.topUp.apiRef;
+  }
+
+  if (tx.gatewayReference) {
+    return tx.gatewayReference;
+  }
+
+  if (tx.providerRef) {
+    const pieces = tx.providerRef.split(":");
+    return pieces[pieces.length - 1] || tx.providerRef;
+  }
+
+  return null;
+}
+
+export default function ClientWalletPage() {
+  const [topUpAmount, setTopUpAmount] = useState("1000");
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<
+    "ALL" | "SETTLED" | "PENDING" | "FAILED"
+  >("ALL");
+  const [directionFilter, setDirectionFilter] = useState<
+    "ALL" | "CREDIT" | "DEBIT"
+  >("ALL");
+
+  const { data: wallet, isLoading: walletLoading } = useWallet();
   const topUpMutation = useTopUpWallet();
-  const [isMobile, setIsMobile] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<"all" | "credit" | "debit">(
-    "all",
+
+  const txFilters = useMemo(
+    () => ({
+      page,
+      pageSize: 12,
+      status:
+        statusFilter === "ALL"
+          ? undefined
+          : statusFilter === "PENDING"
+            ? "PENDING"
+            : statusFilter,
+      direction: directionFilter === "ALL" ? undefined : directionFilter,
+    }),
+    [directionFilter, page, statusFilter],
   );
 
-  const [topUpAmount, setTopUpAmount] = useState<string>("1000");
-  const [showQuickAmounts, setShowQuickAmounts] = useState(true);
+  const transactionsQuery = useWalletTransactions(txFilters);
 
-  // Check for mobile
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
+    setPage(1);
+  }, [statusFilter, directionFilter]);
 
   const handleTopUp = () => {
-    const amount = parseInt(topUpAmount);
+    const amount = parseInt(topUpAmount, 10);
     if (!amount || amount < 10) {
       toast.error("Minimum top-up is KES 10");
       return;
     }
+
     topUpMutation.mutate({
       amount,
       returnUrl: "/client/wallet/topup-complete",
     });
   };
 
-  const transactions = (wallet?.transactions as WalletTransaction[]) || [];
-
-  const filterTabs: Array<{ id: "all" | "credit" | "debit"; label: string }> = [
-    { id: "all", label: "All" },
-    { id: "credit", label: "Credits" },
-    { id: "debit", label: "Debits" },
-  ];
-
-  const filteredTransactions =
-    activeFilter === "all"
-      ? transactions
-      : activeFilter === "credit"
-        ? transactions.filter(
-            (t) => t.type === "DEPOSIT" || t.type === "REFUND",
-          )
-        : transactions.filter(
-            (t) => t.type !== "DEPOSIT" && t.type !== "REFUND",
-          );
-
-  const quickAmounts = [500, 1000, 2000, 5000, 10000];
-
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case "DEPOSIT":
-      case "REFUND":
-        return <ArrowDownRight className="w-4 h-4" />;
-      case "WITHDRAWAL":
-        return <ArrowUpRight className="w-4 h-4" />;
-      case "PAYMENT":
-        return <CreditCard className="w-4 h-4" />;
-      default:
-        return <Wallet className="w-4 h-4" />;
-    }
-  };
-
-  const getTransactionColor = (type: string) => {
-    return type === "DEPOSIT" || type === "REFUND"
-      ? "text-emerald-600 bg-emerald-50"
-      : "text-red-600 bg-red-50";
-  };
-
-  const showUnavailable = (feature: string) => {
-    toast.info(`${feature} is not available yet.`);
-  };
+  const transactions = transactionsQuery.data?.items || [];
 
   return (
-    <div className="min-h-[calc(100vh-4rem)]">
-      <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6 lg:space-y-8">
-        {/* Header */}
-        <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3">
+    <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
               Wallet & Payments
             </h1>
-            <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-              Manage your balance and transaction history
+            <p className="mt-1 text-sm text-slate-500">
+              Available funds, pending top-ups, and complete ledger history.
             </p>
           </div>
-          {!isMobile && (
-            <button className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2.5 rounded-lg sm:rounded-xl hover:bg-gray-800 transition-colors shadow-sm font-medium text-sm">
-              <Download className="w-4 h-4" />
-              Download Statement
-            </button>
-          )}
+          <button className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+            <Download className="h-4 w-4" />
+            Download Statement
+          </button>
         </div>
 
-        {/* Main Content Grid - Mobile: Stacked, Desktop: 2 columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Balance Card - Takes full width on mobile, 2/3 on desktop */}
+        <div className="grid gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <div className="bg-linear-to-br from-emerald-600 to-teal-700 rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 lg:p-8 text-white shadow-lg relative overflow-hidden">
-              {/* Background Pattern */}
-              <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-5">
-                <Wallet className="w-16 h-16 sm:w-24 sm:h-24" />
+            <div className="rounded-2xl bg-linear-to-br from-emerald-600 to-teal-700 p-6 text-white shadow-lg">
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-sm font-medium text-emerald-100">
+                  Available Balance
+                </p>
+                <Wallet className="h-5 w-5 text-emerald-100" />
+              </div>
+              <p className="text-3xl font-bold sm:text-4xl">
+                {walletLoading
+                  ? "..."
+                  : formatCurrency(
+                      wallet?.availableBalance || wallet?.balance || 0,
+                    )}
+              </p>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-xl bg-white/15 p-3">
+                  <p className="text-xs uppercase tracking-wide text-emerald-100">
+                    Pending Incoming
+                  </p>
+                  <p className="mt-1 text-lg font-semibold">
+                    {walletLoading
+                      ? "..."
+                      : formatCurrency(wallet?.pendingIncoming || 0)}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-white/15 p-3">
+                  <p className="text-xs uppercase tracking-wide text-emerald-100">
+                    Pending Top-ups
+                  </p>
+                  <p className="mt-1 text-lg font-semibold">
+                    {walletLoading
+                      ? "..."
+                      : (wallet?.topUpStats.pendingCount || 0) +
+                        (wallet?.topUpStats.processingCount || 0)}
+                  </p>
+                </div>
               </div>
 
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-3 sm:mb-4">
-                  <p className="text-emerald-100 font-medium text-sm sm:text-base">
-                    Total Balance
-                  </p>
-                  {isMobile && (
-                    <button className="text-emerald-100 hover:text-white">
-                      <History className="w-4 h-4" />
-                    </button>
-                  )}
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                <div className="relative flex-1">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-semibold text-slate-500">
+                    KES
+                  </span>
+                  <input
+                    type="number"
+                    min="10"
+                    value={topUpAmount}
+                    onChange={(e) => setTopUpAmount(e.target.value)}
+                    className="w-full rounded-xl border border-emerald-100 bg-white py-2.5 pl-11 pr-3 text-slate-900 focus:border-emerald-300 focus:outline-none"
+                    placeholder="Top-up amount"
+                  />
                 </div>
-
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 sm:mb-6 lg:mb-8">
-                  {isLoading
-                    ? "..."
-                    : `KES ${Number(wallet?.balance || 0).toLocaleString()}`}
-                </h2>
-
-                {/* Top Up Section */}
-                <div className="space-y-3 sm:space-y-4">
-                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                    <div className="relative flex-1">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 text-sm font-bold">
-                        KES
-                      </span>
-                      <input
-                        type="number"
-                        value={topUpAmount}
-                        onChange={(e) => setTopUpAmount(e.target.value)}
-                        className="w-full pl-10 pr-3 sm:pl-12 sm:pr-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg sm:rounded-xl text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                        min="10"
-                        placeholder="Amount"
-                      />
-                    </div>
-                    <button
-                      onClick={handleTopUp}
-                      disabled={topUpMutation.isPending}
-                      className="bg-white text-emerald-700 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-bold hover:bg-emerald-50 transition-colors shadow-sm flex items-center justify-center gap-1.5 sm:gap-2 disabled:opacity-70 text-sm sm:text-base"
-                    >
-                      <Plus className="w-4 h-4" />
-                      {topUpMutation.isPending ? "Processing..." : "Top Up"}
-                    </button>
-                  </div>
-
-                  {/* Quick Amounts */}
-                  {showQuickAmounts && (
-                    <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                      <p className="text-xs sm:text-sm text-emerald-100 w-full mb-1">
-                        Quick amounts:
-                      </p>
-                      {quickAmounts.map((amount) => (
-                        <button
-                          key={amount}
-                          onClick={() => setTopUpAmount(amount.toString())}
-                          className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-                            topUpAmount === amount.toString()
-                              ? "bg-white text-emerald-700"
-                              : "bg-emerald-500/30 text-white hover:bg-emerald-500/40"
-                          }`}
-                        >
-                          KES {amount.toLocaleString()}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => setShowQuickAmounts(false)}
-                        className="px-2.5 py-1.5 text-emerald-100 hover:text-white text-xs"
-                      >
-                        Hide
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Mobile Action Buttons */}
-                  {isMobile && (
-                    <div className="grid grid-cols-2 gap-2 pt-3 border-t border-emerald-500/30">
-                      <button
-                        type="button"
-                        onClick={() => showUnavailable("Withdraw")}
-                        className="bg-emerald-500/30 text-white px-3 py-2 rounded-lg font-medium hover:bg-emerald-500/40 transition-colors flex items-center justify-center gap-1.5 text-sm"
-                      >
-                        <Send className="w-4 h-4" />
-                        Withdraw
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => showUnavailable("QR payments")}
-                        className="bg-emerald-500/30 text-white px-3 py-2 rounded-lg font-medium hover:bg-emerald-500/40 transition-colors flex items-center justify-center gap-1.5 text-sm"
-                      >
-                        <QrCode className="w-4 h-4" />
-                        Pay with QR
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <button
+                  onClick={handleTopUp}
+                  disabled={topUpMutation.isPending}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-70"
+                >
+                  <Plus className="h-4 w-4" />
+                  {topUpMutation.isPending ? "Creating checkout..." : "Top Up"}
+                </button>
               </div>
             </div>
-
-            {/* Desktop Action Buttons */}
-            {!isMobile && (
-              <div className="mt-3 sm:mt-4 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => showUnavailable("Withdraw funds")}
-                  className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl font-medium transition-colors border border-gray-200 flex items-center justify-center gap-1.5"
-                >
-                  <Send className="w-4 h-4" />
-                  Withdraw Funds
-                </button>
-                <button
-                  type="button"
-                  onClick={() => showUnavailable("QR payments")}
-                  className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl font-medium transition-colors border border-gray-200 flex items-center justify-center gap-1.5"
-                >
-                  <QrCode className="w-4 h-4" />
-                  Generate QR
-                </button>
-              </div>
-            )}
           </div>
 
-          {/* Payment Methods & Stats */}
-          <div className="space-y-3 sm:space-y-4">
-            {/* Payment Methods */}
-            <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-6 shadow-xs sm:shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-1.5">
-                  <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                  Payment Methods
-                </h3>
-                <button className="text-emerald-600 hover:text-emerald-700 text-xs sm:text-sm font-medium">
-                  Add New
-                </button>
-              </div>
-
-              {/* Payment Methods List */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                      <span className="text-white font-bold text-xs">MP</span>
-                    </div>
-                    <div>
-                      <p className="text-xs sm:text-sm font-medium text-gray-900">
-                        M-Pesa
-                      </p>
-                      <p className="text-xs text-gray-500">+254 7XX XXX XXX</p>
-                    </div>
-                  </div>
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-900">
+                This Month
+              </h2>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>Total Spent</span>
+                  <span className="font-semibold text-slate-900">
+                    {formatCurrency(wallet?.monthlyStats.spent || 0)}
+                  </span>
                 </div>
-
-                <button className="w-full p-2.5 border border-dashed border-gray-300 rounded-lg text-gray-500 hover:text-gray-700 hover:border-gray-400 transition-colors text-xs sm:text-sm flex items-center justify-center gap-1.5">
-                  <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                  Add Card or Bank
-                </button>
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>Settled Debits</span>
+                  <span className="font-semibold text-slate-900">
+                    {wallet?.monthlyStats.transactionCount || 0}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-slate-600">
+                  <span>Average Debit</span>
+                  <span className="font-semibold text-slate-900">
+                    {formatCurrency(wallet?.monthlyStats.averageSpent || 0)}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Stats Card */}
-            <div className="bg-linear-to-br from-blue-600 to-indigo-700 rounded-lg sm:rounded-xl lg:rounded-2xl p-3 sm:p-4 lg:p-6 text-white">
-              <h3 className="text-sm sm:text-base font-bold mb-2 sm:mb-3">
-                This Month
-              </h3>
-              <div className="space-y-2.5 sm:space-y-3">
-                {(() => {
-                  const now = new Date();
-                  const startOfMonth = new Date(
-                    now.getFullYear(),
-                    now.getMonth(),
-                    1,
-                  );
-                  const monthlyTransactions = transactions.filter(
-                    (transaction) =>
-                      new Date(transaction.createdAt || Date.now()) >=
-                        startOfMonth &&
-                      transaction.type !== "DEPOSIT" &&
-                      transaction.type !== "REFUND",
-                  );
-                  const totalSpent = monthlyTransactions.reduce(
-                    (sum, transaction) => sum + Number(transaction.amount || 0),
-                    0,
-                  );
-                  const count = monthlyTransactions.length;
-                  const avg = count > 0 ? Math.round(totalSpent / count) : 0;
-                  return (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm text-blue-100">
-                          Total Spent
-                        </span>
-                        <span className="text-sm sm:text-base font-bold">
-                          KES {totalSpent.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm text-blue-100">
-                          Transactions
-                        </span>
-                        <span className="text-sm sm:text-base font-bold">
-                          {count}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm text-blue-100">
-                          Avg. Payment
-                        </span>
-                        <span className="text-sm sm:text-base font-bold">
-                          KES {avg.toLocaleString()}
-                        </span>
-                      </div>
-                    </>
-                  );
-                })()}
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-900">
+                Top-up Health
+              </h2>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Pending / Processing</span>
+                  <span className="font-semibold text-amber-700">
+                    {(wallet?.topUpStats.pendingCount || 0) +
+                      (wallet?.topUpStats.processingCount || 0)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Failed This Month</span>
+                  <span className="font-semibold text-red-700">
+                    {wallet?.topUpStats.failedCount || 0}
+                  </span>
+                </div>
               </div>
+              {(wallet?.topUpStats.pendingCount || 0) > 0 && (
+                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Pending top-ups are not spendable until status becomes
+                  Confirmed.
+                </p>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Transaction History */}
-        <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-xs sm:shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-3 sm:p-4 lg:p-6 border-b border-gray-200">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-1.5">
-                <History className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+        {wallet?.recentPendingTransactions?.length ? (
+          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <div className="mb-2 flex items-center gap-2 text-amber-800">
+              <Clock3 className="h-4 w-4" />
+              <p className="text-sm font-semibold">Awaiting Confirmation</p>
+            </div>
+            <div className="space-y-2 text-sm">
+              {wallet.recentPendingTransactions.slice(0, 3).map((tx) => (
+                <div
+                  key={tx.id}
+                  className="flex flex-col gap-1 rounded-lg bg-white/70 p-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <p className="font-medium text-slate-900">
+                      {tx.description || "Wallet top-up"}
+                    </p>
+                    <p className="text-xs text-slate-600">
+                      Ref: {transactionReference(tx) || "N/A"}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-slate-900">
+                      {formatCurrency(tx.amount)}
+                    </p>
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusTone(tx.status)}`}
+                    >
+                      {statusLabel(tx.status)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <h2 className="inline-flex items-center gap-2 text-lg font-bold text-slate-900">
+                <History className="h-5 w-5 text-slate-500" />
                 Transaction History
               </h2>
 
-              <div className="flex items-center gap-2">
-                {/* Filter Tabs - Mobile: Scrollable, Desktop: Normal */}
-                <div
-                  className={`flex ${
-                    isMobile ? "overflow-x-auto pb-2" : "gap-1"
-                  } -mx-3 sm:mx-0 px-3 sm:px-0`}
-                >
-                  {filterTabs.map((filter) => (
-                    <button
-                      key={filter.id}
-                      onClick={() => setActiveFilter(filter.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-                        activeFilter === filter.id
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                      }`}
-                    >
-                      {filter.label}
-                    </button>
-                  ))}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-500">
+                  <Filter className="h-3.5 w-3.5" />
+                  Filters
                 </div>
-
-                {!isMobile && (
-                  <button className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg font-medium transition-colors text-sm">
-                    <Download className="w-4 h-4" />
-                    Export
-                  </button>
-                )}
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (
+                      value === "ALL" ||
+                      value === "SETTLED" ||
+                      value === "PENDING" ||
+                      value === "FAILED"
+                    ) {
+                      setStatusFilter(value);
+                    }
+                  }}
+                  className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-700"
+                >
+                  <option value="ALL">All statuses</option>
+                  <option value="SETTLED">Confirmed</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="FAILED">Failed</option>
+                </select>
+                <select
+                  value={directionFilter}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (
+                      value === "ALL" ||
+                      value === "CREDIT" ||
+                      value === "DEBIT"
+                    ) {
+                      setDirectionFilter(value);
+                    }
+                  }}
+                  className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-700"
+                >
+                  <option value="ALL">All directions</option>
+                  <option value="CREDIT">Credits</option>
+                  <option value="DEBIT">Debits</option>
+                </select>
               </div>
             </div>
           </div>
 
-          {/* Transaction List */}
-          <div className={isMobile ? "" : "overflow-x-auto"}>
-            {isMobile ? (
-              /* Mobile Transaction List */
-              <div className="divide-y divide-gray-100">
-                {filteredTransactions.length === 0 ? (
-                  <div className="px-3 py-8 text-center">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <Wallet className="w-5 h-5 text-gray-400" />
-                    </div>
-                    <p className="text-sm text-gray-500">
-                      No transactions found
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Try changing your filters
-                    </p>
-                  </div>
-                ) : (
-                  filteredTransactions.slice(0, 10).map((transaction) => (
-                    <div
-                      key={transaction.id}
-                      className="p-3 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center ${getTransactionColor(
-                              transaction.type,
-                            )}`}
-                          >
-                            {getTransactionIcon(transaction.type)}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 truncate max-w-37.5">
-                              {transaction.description || "Transaction"}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(
-                                transaction.createdAt || Date.now(),
-                              ).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                ...(isMobile ? {} : { year: "numeric" }),
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p
-                            className={`text-sm font-bold ${
-                              transaction.type === "DEPOSIT" ||
-                              transaction.type === "REFUND"
-                                ? "text-emerald-600"
-                                : "text-red-600"
-                            }`}
-                          >
-                            {transaction.type === "DEPOSIT" ||
-                            transaction.type === "REFUND"
-                              ? "+"
-                              : "-"}
-                            KES {Number(transaction.amount).toLocaleString()}
-                          </p>
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                              transaction.type === "DEPOSIT" ||
-                              transaction.type === "REFUND"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {transaction.type}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <button className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                          <Receipt className="w-3 h-3" />
-                          Receipt
-                        </button>
-                        <button className="text-gray-400 hover:text-gray-600">
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-
-                {filteredTransactions.length > 10 && (
-                  <button className="w-full p-3 text-center text-sm text-emerald-600 hover:text-emerald-700 font-medium border-t border-gray-100">
-                    View All {filteredTransactions.length} Transactions
-                  </button>
-                )}
-              </div>
-            ) : (
-              /* Desktop Transaction Table */
-              <table className="w-full min-w-160">
-                <thead className="bg-gray-50">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold">
+                    Description
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold">
+                    Reference
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold">Date</th>
+                  <th className="px-4 py-3 text-right font-semibold">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactionsQuery.isLoading ? (
                   <tr>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Description
-                    </th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-4 sm:px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-8 text-center text-slate-500"
+                    >
+                      Loading transactions...
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredTransactions.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="px-4 sm:px-6 py-8 text-center text-gray-500"
-                      >
-                        No transactions found.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredTransactions.map((transaction) => (
+                ) : transactions.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-8 text-center text-slate-500"
+                    >
+                      No transactions found for selected filters.
+                    </td>
+                  </tr>
+                ) : (
+                  transactions.map((tx) => {
+                    const credit = isCredit(tx);
+                    const reference = transactionReference(tx);
+
+                    return (
                       <tr
-                        key={transaction.id}
-                        className="hover:bg-gray-50 transition-colors"
+                        key={tx.id}
+                        className="border-t border-slate-100 hover:bg-slate-50"
                       >
-                        <td className="px-4 sm:px-6 py-3">
-                          <div className="flex items-center gap-3">
+                        <td className="px-4 py-3">
+                          <div className="flex items-start gap-2">
                             <div
-                              className={`w-8 h-8 rounded-lg flex items-center justify-center ${getTransactionColor(
-                                transaction.type,
-                              )}`}
+                              className={`mt-0.5 rounded-full p-1 ${
+                                credit
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
                             >
-                              {getTransactionIcon(transaction.type)}
+                              {credit ? (
+                                <ArrowDownRight className="h-3.5 w-3.5" />
+                              ) : (
+                                <ArrowUpRight className="h-3.5 w-3.5" />
+                              )}
                             </div>
-                            <span className="text-sm font-medium text-gray-900 truncate max-w-50">
-                              {transaction.description || "Transaction"}
-                            </span>
+                            <div>
+                              <p className="font-medium text-slate-900">
+                                {tx.description || "Wallet transaction"}
+                              </p>
+                              {tx.failureReason ? (
+                                <p className="mt-1 inline-flex items-center gap-1 text-xs text-red-600">
+                                  <AlertCircle className="h-3.5 w-3.5" />
+                                  {tx.failureReason}
+                                </p>
+                              ) : null}
+                            </div>
                           </div>
                         </td>
-                        <td className="px-4 sm:px-6 py-3 text-sm text-gray-500">
-                          {new Date(
-                            transaction.createdAt || Date.now(),
-                          ).toLocaleDateString()}
+                        <td className="px-4 py-3 text-xs text-slate-600">
+                          {reference || "N/A"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusTone(tx.status)}`}
+                          >
+                            {statusLabel(tx.status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-600">
+                          {new Date(tx.createdAt).toLocaleString()}
                         </td>
                         <td
-                          className={`px-4 sm:px-6 py-3 text-sm font-bold ${
-                            transaction.type === "DEPOSIT" ||
-                            transaction.type === "REFUND"
-                              ? "text-emerald-600"
-                              : "text-red-600"
+                          className={`px-4 py-3 text-right font-semibold ${
+                            credit ? "text-emerald-700" : "text-red-700"
                           }`}
                         >
-                          {transaction.type === "DEPOSIT" ||
-                          transaction.type === "REFUND"
-                            ? "+"
-                            : "-"}
-                          KES {Number(transaction.amount).toLocaleString()}
-                        </td>
-                        <td className="px-4 sm:px-6 py-3">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              transaction.type === "DEPOSIT" ||
-                              transaction.type === "REFUND"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {transaction.type}
-                          </span>
-                        </td>
-                        <td className="px-4 sm:px-6 py-3 text-right">
-                          <button className="text-gray-400 hover:text-gray-600 p-1">
-                            <Receipt className="w-4 h-4" />
-                          </button>
+                          {credit ? "+" : "-"}
+                          {formatCurrency(tx.amount)}
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            )}
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-slate-200 p-4 text-sm">
+            <p className="text-slate-500">
+              {transactionsQuery.data
+                ? `Showing ${transactions.length} of ${transactionsQuery.data.total} transactions`
+                : "Loading history..."}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={page <= 1}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="text-slate-600">Page {page}</span>
+              <button
+                onClick={() => setPage((prev) => prev + 1)}
+                disabled={!transactionsQuery.data?.hasMore}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Mobile Bottom Action Bar */}
-        {isMobile && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 shadow-lg grid grid-cols-3 gap-2">
-            <button className="px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg font-medium text-xs flex flex-col items-center justify-center gap-1">
-              <History className="w-4 h-4" />
-              History
-            </button>
-            <button className="px-3 py-2 bg-emerald-600 text-white rounded-lg font-medium text-xs flex flex-col items-center justify-center gap-1">
-              <Plus className="w-4 h-4" />
-              Top Up
-            </button>
-            <button className="px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg font-medium text-xs flex flex-col items-center justify-center gap-1">
-              <Download className="w-4 h-4" />
-              Export
-            </button>
-          </div>
-        )}
+        <div className="mt-3 text-xs text-slate-500">
+          Full wallet history uses paginated data from the server. Confirmed
+          funds are shown separately from pending top-ups.
+        </div>
       </div>
     </div>
-  );
-}
-
-export default function ClientWalletPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex justify-center items-center min-h-screen px-4">
-          <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-emerald-600"></div>
-        </div>
-      }
-    >
-      <ClientWalletPageContent />
-    </Suspense>
   );
 }

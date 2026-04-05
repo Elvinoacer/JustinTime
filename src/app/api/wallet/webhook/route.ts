@@ -1,192 +1,374 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyWebhookChallenge, verifyWebhookSignature } from "@/lib/intasend";
+import { Prisma } from "@/generated/prisma/client";
+
+const LEGACY_PENDING_PREFIX = "INTASEND:WALLET:PENDING:";
+const LEGACY_SETTLED_PREFIX = "INTASEND:WALLET:SETTLED:";
+const CURRENT_PROVIDER_PREFIX = "INTASEND:WALLET:TOPUP:";
+
+type CanonicalWalletEventState =
+  | "PENDING"
+  | "PROCESSING"
+  | "SETTLED"
+  | "FAILED"
+  | "CANCELLED"
+  | "REVERSED";
+
+function normalizeGatewayState(rawState: unknown): CanonicalWalletEventState {
+  const value = String(rawState || "")
+    .trim()
+    .toUpperCase();
+
+  if (
+    ["COMPLETE", "COMPLETED", "SUCCESS", "SUCCEEDED", "PAID"].includes(value)
+  ) {
+    return "SETTLED";
+  }
+
+  if (["FAILED", "DECLINED", "ERROR"].includes(value)) {
+    return "FAILED";
+  }
+
+  if (["CANCELLED", "CANCELED", "VOID", "VOIDED"].includes(value)) {
+    return "CANCELLED";
+  }
+
+  if (["REVERSED", "REFUNDED", "CHARGEBACK"].includes(value)) {
+    return "REVERSED";
+  }
+
+  if (["PROCESSING", "IN_PROGRESS", "QUEUED"].includes(value)) {
+    return "PROCESSING";
+  }
+
+  return "PENDING";
+}
+
+type IntaSendWebhookPayload = Record<string, unknown>;
+
+function asObject(value: unknown): IntaSendWebhookPayload | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  return value as IntaSendWebhookPayload;
+}
+
+function extractAmount(payload: IntaSendWebhookPayload): number | null {
+  const invoice = asObject(payload.invoice);
+  const value = Number(
+    payload.value ?? invoice?.value ?? payload.amount ?? invoice?.amount,
+  );
+
+  if (!Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+
+  return value;
+}
+
+function extractApiRef(payload: IntaSendWebhookPayload): string {
+  const invoice = asObject(payload.invoice);
+  return String(payload.api_ref ?? invoice?.api_ref ?? "").trim();
+}
+
+async function ensureLegacyTopUp(tx: Prisma.TransactionClient, apiRef: string) {
+  const legacyTransaction = await tx.transaction.findFirst({
+    where: {
+      type: "DEPOSIT",
+      OR: [
+        { providerRef: `${CURRENT_PROVIDER_PREFIX}${apiRef}` },
+        { providerRef: `${LEGACY_PENDING_PREFIX}${apiRef}` },
+        { providerRef: `${LEGACY_SETTLED_PREFIX}${apiRef}` },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!legacyTransaction) {
+    return null;
+  }
+
+  const wallet = await tx.wallet.findUnique({
+    where: { id: legacyTransaction.walletId },
+  });
+
+  if (!wallet) {
+    return null;
+  }
+
+  const inferredStatus = legacyTransaction.providerRef?.startsWith(
+    LEGACY_SETTLED_PREFIX,
+  )
+    ? "SETTLED"
+    : "PENDING";
+
+  const topUp = await tx.walletTopUp.create({
+    data: {
+      userId: wallet.userId,
+      walletId: wallet.id,
+      amountExpected: legacyTransaction.amount,
+      amountReceived:
+        inferredStatus === "SETTLED" ? legacyTransaction.amount : null,
+      currency: legacyTransaction.currency || wallet.currency || "KES",
+      status: inferredStatus,
+      gateway: "INTASEND",
+      apiRef,
+      initiatedAt: legacyTransaction.createdAt,
+      confirmedAt:
+        inferredStatus === "SETTLED" ? legacyTransaction.createdAt : null,
+      rawInitiationPayload: {
+        migratedFromLegacyTransactionId: legacyTransaction.id,
+      },
+    },
+  });
+
+  await tx.transaction.update({
+    where: { id: legacyTransaction.id },
+    data: {
+      topUpId: topUp.id,
+      status: inferredStatus,
+      direction: "CREDIT",
+      category: "TOPUP",
+      gateway: "INTASEND",
+      gatewayReference: apiRef,
+      providerRef: `${CURRENT_PROVIDER_PREFIX}${apiRef}`,
+      sourceType: "WALLET_TOPUP",
+      sourceId: topUp.id,
+      createdByType: legacyTransaction.createdByType || "WEBHOOK",
+      settledAt:
+        inferredStatus === "SETTLED"
+          ? legacyTransaction.settledAt || legacyTransaction.createdAt
+          : null,
+    },
+  });
+
+  return topUp;
+}
 
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
     const signature = req.headers.get("x-intasend-signature");
-    const body = JSON.parse(rawBody);
+    const body = JSON.parse(rawBody) as IntaSendWebhookPayload;
+    const challenge =
+      typeof body.challenge === "string" ? body.challenge : null;
 
-    console.log("=== IntaSend Wallet Topup Webhook ===");
-    console.log("Payload:", JSON.stringify(body, null, 2));
-
-    // Handle challenge verification before enforcing signed event payloads.
-    if (body.challenge) {
-      if (verifyWebhookChallenge(body.challenge)) {
-        console.log("✅ Challenge verified successfully");
-        return NextResponse.json({ challenge: body.challenge });
+    if (challenge) {
+      if (verifyWebhookChallenge(challenge)) {
+        return NextResponse.json({ challenge });
       }
 
-      console.error("❌ Challenge verification failed");
       return NextResponse.json({ error: "Invalid challenge" }, { status: 401 });
     }
 
     if (!verifyWebhookSignature(rawBody, signature)) {
-      console.error("❌ Invalid IntaSend webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    // Extract payment state and reference
-    const state = body.state || body.invoice?.state;
-    const apiRef = body.api_ref || body.invoice?.api_ref || "";
-    const invoiceId = body.invoice_id || body.id;
-    const amount = Number(
-      body.value || body.invoice?.value || body.amount || 0,
+    const invoicePayload = asObject(body.invoice);
+    const apiRef = extractApiRef(body);
+    const gatewayState = normalizeGatewayState(
+      body.state || invoicePayload?.state,
     );
-    const canonicalRef = String(apiRef || "").trim();
+    const amountFromGateway = extractAmount(body);
+    const gatewayInvoiceId = String(
+      body.invoice_id ?? body.id ?? invoicePayload?.invoice_id ?? "",
+    ).trim();
+    const gatewaySessionId = String(invoicePayload?.id ?? body.id ?? "").trim();
 
-    if (!canonicalRef) {
+    if (!apiRef) {
       return NextResponse.json({
         received: true,
-        requiresManualResolution: true,
         skipped: true,
         reason: "missing_api_ref",
-        invoiceId: invoiceId ? String(invoiceId) : null,
       });
     }
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json({
-        received: true,
-        skipped: true,
-        reason: "invalid_amount",
-      });
-    }
+    const outcome = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${apiRef}, 0))`;
 
-    console.log(
-      `Processing webhook: state=${state}, api_ref=${apiRef}, amount=${amount}`,
-    );
-
-    // Only process COMPLETE payments
-    if (state !== "COMPLETE") {
-      console.log(`Payment not complete (state: ${state}), acknowledging...`);
-      return NextResponse.json({ received: true, state });
-    }
-
-    // Check if this is a topup payment
-    const pendingProviderRef = `INTASEND:WALLET:PENDING:${canonicalRef}`;
-    const pendingTopup = await prisma.transaction.findFirst({
-      where: {
-        type: "DEPOSIT",
-        providerRef: pendingProviderRef,
-      },
-      include: {
-        wallet: {
-          select: {
-            userId: true,
-          },
-        },
-      },
-    });
-
-    if (!pendingTopup) {
-      console.log(
-        `No pending top-up found for providerRef ${pendingProviderRef}; skipping auto-settlement`,
-      );
-      return NextResponse.json({
-        received: true,
-        requiresManualResolution: true,
-        skipped: true,
-        reason: "missing_pending_provider_reference",
-        apiRef: canonicalRef,
-      });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: pendingTopup.wallet.userId },
-    });
-
-    if (!user) {
-      console.error(`User not found for pending topup ref: ${canonicalRef}`);
-      return NextResponse.json({
-        received: true,
-        requiresManualResolution: true,
-        error: "User not found",
-      });
-    }
-
-    // Process the topup
-    await prisma.$transaction(async (tx) => {
-      const lockRef = canonicalRef;
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockRef}, 0))`;
-      const refForKeys = lockRef;
-      const topupSettledDescription = `Wallet Top-up Settled [Ref:${refForKeys}]`;
-      const topupPendingProviderRef = `INTASEND:WALLET:PENDING:${refForKeys}`;
-      const topupSettledProviderRef = `INTASEND:WALLET:SETTLED:${refForKeys}`;
-
-      const alreadyProcessed = await tx.transaction.findFirst({
-        where: {
-          providerRef: topupSettledProviderRef,
-          type: "DEPOSIT",
-        },
+      let topUp = await tx.walletTopUp.findUnique({
+        where: { apiRef },
       });
 
-      if (alreadyProcessed) {
-        return;
+      if (!topUp) {
+        topUp = await ensureLegacyTopUp(tx, apiRef);
       }
 
-      const pendingEntry = await tx.transaction.findFirst({
+      if (!topUp) {
+        return {
+          received: true,
+          skipped: true,
+          requiresManualResolution: true,
+          reason: "missing_topup_record",
+          apiRef,
+        };
+      }
+
+      const previousStatus = topUp.status;
+
+      const ledgerEntry = await tx.transaction.findFirst({
         where: {
-          type: "DEPOSIT",
-          providerRef: topupPendingProviderRef,
+          OR: [
+            { topUpId: topUp.id },
+            { providerRef: `${CURRENT_PROVIDER_PREFIX}${apiRef}` },
+            { providerRef: `${LEGACY_PENDING_PREFIX}${apiRef}` },
+            { providerRef: `${LEGACY_SETTLED_PREFIX}${apiRef}` },
+          ],
         },
+        orderBy: { createdAt: "desc" },
       });
 
-      // 1. Get or create wallet
-      let wallet = await tx.wallet.findUnique({
-        where: { userId: user.id },
-      });
+      const effectiveAmount = amountFromGateway ?? Number(topUp.amountExpected);
+      const shouldReleasePending =
+        ["PENDING", "PROCESSING"].includes(previousStatus) &&
+        ["SETTLED", "FAILED", "CANCELLED", "REVERSED"].includes(gatewayState);
 
-      if (!wallet) {
-        wallet = await tx.wallet.create({
+      if (shouldReleasePending) {
+        const wallet = await tx.wallet.findUnique({
+          where: { id: topUp.walletId },
+          select: { pendingBalance: true },
+        });
+
+        const currentPending = Number(wallet?.pendingBalance || 0);
+        const decrementBy = Math.min(
+          currentPending,
+          Number(topUp.amountExpected),
+        );
+
+        if (decrementBy > 0) {
+          await tx.wallet.update({
+            where: { id: topUp.walletId },
+            data: {
+              pendingBalance: { decrement: decrementBy },
+            },
+          });
+        }
+      }
+
+      if (gatewayState === "SETTLED" && previousStatus !== "SETTLED") {
+        await tx.wallet.update({
+          where: { id: topUp.walletId },
           data: {
-            userId: user.id,
-            balance: 0,
+            balance: { increment: effectiveAmount },
           },
         });
       }
 
-      // 2. Credit the wallet
-      await tx.wallet.update({
-        where: { id: wallet.id },
+      const now = new Date();
+
+      const updatedTopUp = await tx.walletTopUp.update({
+        where: { id: topUp.id },
         data: {
-          balance: { increment: amount },
+          status:
+            previousStatus === "SETTLED" && gatewayState === "SETTLED"
+              ? "SETTLED"
+              : gatewayState,
+          amountReceived:
+            gatewayState === "SETTLED" ? effectiveAmount : topUp.amountReceived,
+          gatewayInvoiceId: gatewayInvoiceId || topUp.gatewayInvoiceId,
+          gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
+          confirmedAt:
+            gatewayState === "SETTLED"
+              ? topUp.confirmedAt || now
+              : topUp.confirmedAt,
+          failedAt: gatewayState === "FAILED" ? now : topUp.failedAt,
+          cancelledAt: gatewayState === "CANCELLED" ? now : topUp.cancelledAt,
+          reversedAt: gatewayState === "REVERSED" ? now : topUp.reversedAt,
+          failureReason:
+            gatewayState === "FAILED" || gatewayState === "CANCELLED"
+              ? String(
+                  body.failed_reason ||
+                    invoicePayload?.failed_reason ||
+                    body.message ||
+                    "Gateway failure",
+                )
+              : gatewayState === "REVERSED"
+                ? String(body.message || "Gateway reversal")
+                : null,
+          rawWebhookPayload: body as Prisma.InputJsonValue,
         },
       });
 
-      // 3. Update pending record to settled, or create settled record if missing.
-      if (pendingEntry) {
+      const ledgerBase = {
+        walletId: topUp.walletId,
+        topUpId: topUp.id,
+        amount:
+          gatewayState === "SETTLED"
+            ? effectiveAmount
+            : Number(topUp.amountExpected),
+        type: "DEPOSIT" as const,
+        status: updatedTopUp.status,
+        direction: "CREDIT" as const,
+        category: "TOPUP" as const,
+        currency: updatedTopUp.currency,
+        gateway: "INTASEND" as const,
+        gatewayReference: gatewayInvoiceId || apiRef,
+        gatewaySessionId: gatewaySessionId || updatedTopUp.gatewaySessionId,
+        providerRef: `${CURRENT_PROVIDER_PREFIX}${apiRef}`,
+        sourceType: "WALLET_TOPUP",
+        sourceId: topUp.id,
+        createdByType: "WEBHOOK" as const,
+        description:
+          gatewayState === "SETTLED"
+            ? `Wallet Top-up settled [Ref:${apiRef}]`
+            : gatewayState === "FAILED"
+              ? `Wallet Top-up failed [Ref:${apiRef}]`
+              : gatewayState === "CANCELLED"
+                ? `Wallet Top-up cancelled [Ref:${apiRef}]`
+                : gatewayState === "REVERSED"
+                  ? `Wallet Top-up reversed [Ref:${apiRef}]`
+                  : `Wallet Top-up processing [Ref:${apiRef}]`,
+        metadata: {
+          apiRef,
+          gatewayState,
+          invoiceId: gatewayInvoiceId || null,
+        },
+        settledAt: gatewayState === "SETTLED" ? now : null,
+        failedAt: gatewayState === "FAILED" ? now : null,
+        cancelledAt: gatewayState === "CANCELLED" ? now : null,
+        reversedAt: gatewayState === "REVERSED" ? now : null,
+        failureReason:
+          gatewayState === "FAILED" || gatewayState === "CANCELLED"
+            ? String(
+                body.failed_reason ||
+                  invoicePayload?.failed_reason ||
+                  body.message ||
+                  "Gateway failure",
+              )
+            : gatewayState === "REVERSED"
+              ? String(body.message || "Gateway reversal")
+              : null,
+      };
+
+      if (ledgerEntry) {
         await tx.transaction.update({
-          where: { id: pendingEntry.id },
-          data: {
-            amount,
-            providerRef: topupSettledProviderRef,
-            description: topupSettledDescription,
-          },
+          where: { id: ledgerEntry.id },
+          data: ledgerBase,
         });
       } else {
         await tx.transaction.create({
-          data: {
-            walletId: wallet.id,
-            amount,
-            type: "DEPOSIT",
-            providerRef: topupSettledProviderRef,
-            description: topupSettledDescription,
-          },
+          data: ledgerBase,
         });
       }
+
+      return {
+        received: true,
+        success: true,
+        apiRef,
+        topUpId: topUp.id,
+        previousStatus,
+        status: updatedTopUp.status,
+        amount:
+          gatewayState === "SETTLED"
+            ? effectiveAmount
+            : Number(topUp.amountExpected),
+      };
     });
 
-    console.log(
-      `✅ Wallet topup completed for user: ${user.id} (${user.email}), amount: ${amount}`,
-    );
-    return NextResponse.json({
-      received: true,
-      success: true,
-      userId: user.id,
-      amount,
-    });
+    return NextResponse.json(outcome);
   } catch (error) {
     console.error("[WALLET_TOPUP_WEBHOOK_ERROR]", error);
     return NextResponse.json({ error: "Processing error" }, { status: 500 });

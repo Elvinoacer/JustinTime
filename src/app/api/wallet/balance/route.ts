@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -18,13 +18,29 @@ export async function GET(request: Request) {
         data: {
           userId: session.user.id,
           balance: 0,
+          pendingBalance: 0,
+          currency: "KES",
         },
       });
     }
 
+    const pendingIncoming = await prisma.transaction.aggregate({
+      where: {
+        walletId: wallet.id,
+        status: { in: ["PENDING", "PROCESSING"] },
+        direction: "CREDIT",
+      },
+      _sum: {
+        amount: true,
+      },
+    });
+
     return NextResponse.json({
       balance: wallet.balance,
-      currency: "KES",
+      availableBalance: wallet.balance,
+      pendingBalance: wallet.pendingBalance,
+      pendingIncoming: pendingIncoming._sum.amount || wallet.pendingBalance,
+      currency: wallet.currency || "KES",
     });
   } catch (error) {
     console.error("[WALLET_BALANCE]", error);

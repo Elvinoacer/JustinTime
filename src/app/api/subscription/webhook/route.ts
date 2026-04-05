@@ -91,13 +91,47 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Only process completed payments
-    if (state !== "COMPLETE") {
-      console.log(`Payment not complete. State: ${state}`);
-      if (failed_reason) {
-        console.log(`Failed reason: ${failed_reason}`);
-      }
-      return NextResponse.json({ message: "Payment not complete", state });
+    const normalizedState = String(state || "").toUpperCase();
+
+    // Persist intermediate/failed/cancelled states to avoid stale pending entries.
+    if (normalizedState !== "COMPLETE") {
+      const pendingProviderRef = `INTASEND:SUBSCRIPTION:PENDING:${canonicalRef}`;
+      const mappedStatus = ["FAILED", "DECLINED", "ERROR"].includes(
+        normalizedState,
+      )
+        ? "FAILED"
+        : ["CANCELLED", "CANCELED", "VOID", "VOIDED"].includes(normalizedState)
+          ? "CANCELLED"
+          : ["PROCESSING", "IN_PROGRESS"].includes(normalizedState)
+            ? "PROCESSING"
+            : "PENDING";
+
+      await prisma.transaction.updateMany({
+        where: {
+          type: "PAYMENT",
+          providerRef: pendingProviderRef,
+        },
+        data: {
+          status: mappedStatus,
+          failureReason:
+            mappedStatus === "FAILED" || mappedStatus === "CANCELLED"
+              ? String(
+                  failed_reason ||
+                    body.message ||
+                    `Gateway state: ${normalizedState}`,
+                )
+              : null,
+          failedAt: mappedStatus === "FAILED" ? new Date() : null,
+          cancelledAt: mappedStatus === "CANCELLED" ? new Date() : null,
+          createdByType: "WEBHOOK",
+        },
+      });
+
+      console.log(`Payment not complete. State: ${normalizedState}`);
+      return NextResponse.json({
+        message: "Payment not complete",
+        state: normalizedState,
+      });
     }
 
     const metadata = (meta || body.invoice?.meta || {}) as {
@@ -190,6 +224,8 @@ export async function POST(req: NextRequest) {
           data: {
             userId,
             balance: 0,
+            pendingBalance: 0,
+            currency: "KES",
           },
         });
       }
@@ -255,8 +291,22 @@ export async function POST(req: NextRequest) {
               Number.isFinite(amount) && amount > 0
                 ? amount
                 : pendingRecord.amount,
+            status: "SETTLED",
+            direction: "DEBIT",
+            category: "SUBSCRIPTION",
+            currency: "KES",
+            gateway: "INTASEND",
+            gatewayReference: invoice_id ? String(invoice_id) : refForKeys,
+            gatewaySessionId: invoice_id ? String(invoice_id) : null,
             providerRef: settledSubscriptionProviderRef,
+            sourceType: "SUBSCRIPTION",
+            sourceId: subscriptionRecord.id,
+            createdByType: "WEBHOOK",
             description: settledDescription,
+            settledAt: new Date(),
+            failureReason: null,
+            failedAt: null,
+            cancelledAt: null,
           },
         });
       } else {
@@ -265,8 +315,19 @@ export async function POST(req: NextRequest) {
             walletId: wallet.id,
             amount: Number.isFinite(amount) && amount > 0 ? amount : 0,
             type: "PAYMENT",
+            status: "SETTLED",
+            direction: "DEBIT",
+            category: "SUBSCRIPTION",
+            currency: "KES",
+            gateway: "INTASEND",
+            gatewayReference: invoice_id ? String(invoice_id) : refForKeys,
+            gatewaySessionId: invoice_id ? String(invoice_id) : null,
             providerRef: settledSubscriptionProviderRef,
+            sourceType: "SUBSCRIPTION",
+            sourceId: subscriptionRecord.id,
+            createdByType: "WEBHOOK",
             description: settledDescription,
+            settledAt: new Date(),
           },
         });
       }

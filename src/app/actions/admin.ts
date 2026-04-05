@@ -2043,77 +2043,60 @@ export async function getPaymentLifecycleReconciliation(limit = 100) {
       };
     });
 
-    const stalePendingLedgerTransactions = await prisma.transaction.findMany({
+    const staleTopUps = await prisma.walletTopUp.findMany({
       where: {
-        createdAt: {
+        initiatedAt: {
           lte: staleBefore,
         },
-        OR: [
-          {
-            providerRef: {
-              startsWith: "INTASEND:WALLET:PENDING:",
-            },
-          },
-          {
-            providerRef: {
-              startsWith: "INTASEND:ONBOARDING:PENDING:",
-            },
-          },
-          {
-            providerRef: {
-              startsWith: "INTASEND:SUBSCRIPTION:PENDING:",
-            },
-          },
-        ],
+        status: {
+          in: ["PENDING", "PROCESSING"],
+        },
       },
       orderBy: {
-        createdAt: "asc",
+        initiatedAt: "asc",
       },
       take: safeLimit,
       include: {
-        wallet: {
-          include: {
-            user: {
-              select: {
-                name: true,
-                email: true,
-              },
-            },
+        user: {
+          select: {
+            name: true,
+            email: true,
           },
         },
       },
     });
 
-    const unresolvedLedgerEvents = stalePendingLedgerTransactions.map((tx) => {
+    const unresolvedTopUpEvents = staleTopUps.map((topUp) => {
       const hoursOpen = Math.floor(
-        (Date.now() - new Date(tx.createdAt).getTime()) / (60 * 60 * 1000),
+        (Date.now() - new Date(topUp.initiatedAt).getTime()) / (60 * 60 * 1000),
       );
 
-      const description = tx.description || "Pending financial ledger event";
-      const providerRef = tx.providerRef || "";
-      const eventKind = providerRef.startsWith("INTASEND:WALLET:PENDING:")
-        ? "wallet_topup"
-        : providerRef.startsWith("INTASEND:ONBOARDING:PENDING:")
-          ? "onboarding_fee"
-          : "subscription";
-
       return {
-        entityType: "TRANSACTION",
-        paymentId: tx.id,
+        entityType: "TOPUP",
+        paymentId: topUp.id,
+        topUpId: topUp.id,
         bookingId: null,
         jobId: null,
         jobTitle: null,
         bookingStatus: null,
-        paymentStatus: "PENDING",
-        amount: Number(tx.amount),
-        method: "LEDGER",
-        transactionId: tx.id,
-        createdAt: tx.createdAt,
+        paymentStatus: topUp.status,
+        amount: Number(topUp.amountExpected),
+        amountReceived: topUp.amountReceived
+          ? Number(topUp.amountReceived)
+          : null,
+        method: topUp.gateway,
+        transactionId: topUp.apiRef,
+        createdAt: topUp.initiatedAt,
         hoursOpen,
-        issue: `Pending ${eventKind.replace("_", " ")} event has been open for ${hoursOpen}h without settlement confirmation.`,
-        clientName: tx.wallet.user.name || tx.wallet.user.email || null,
+        issue: `Wallet top-up has remained ${topUp.status.toLowerCase()} for ${hoursOpen}h without terminal settlement.`,
+        clientName: topUp.user.name || topUp.user.email || null,
         providerName: null,
-        description,
+        description: `Top-up Ref: ${topUp.apiRef}`,
+        apiRef: topUp.apiRef,
+        gatewayReference: topUp.gatewayInvoiceId,
+        gatewaySessionId: topUp.gatewaySessionId,
+        failureReason: topUp.failureReason,
+        rawWebhookPayload: topUp.rawWebhookPayload,
       };
     });
 
@@ -2193,7 +2176,7 @@ export async function getPaymentLifecycleReconciliation(limit = 100) {
 
     const allUnresolvedFinancialEvents = [
       ...unresolvedFinancialEvents,
-      ...unresolvedLedgerEvents,
+      ...unresolvedTopUpEvents,
     ]
       .sort(
         (a, b) =>
@@ -2222,6 +2205,7 @@ export async function resolveReconciliationEventAction(formData: FormData) {
     const admin = await checkAdmin();
 
     const paymentId = String(formData.get("paymentId") || "").trim();
+    const topUpId = String(formData.get("topUpId") || paymentId || "").trim();
     const bookingId = String(formData.get("bookingId") || "").trim();
     const requestedAction = String(formData.get("resolutionAction") || "")
       .trim()
@@ -2230,12 +2214,100 @@ export async function resolveReconciliationEventAction(formData: FormData) {
       formData.get("reason") || "Manual reconciliation",
     ).trim();
 
-    if (!paymentId) {
-      return { success: false, error: "Missing payment id" };
+    if (
+      !["FORCE_SETTLE", "REFUND", "VOID", "MARK_TOPUP_RESOLVED"].includes(
+        requestedAction,
+      )
+    ) {
+      return { success: false, error: "Unsupported reconciliation action" };
     }
 
-    if (!["FORCE_SETTLE", "REFUND", "VOID"].includes(requestedAction)) {
-      return { success: false, error: "Unsupported reconciliation action" };
+    if (requestedAction === "MARK_TOPUP_RESOLVED") {
+      if (!topUpId) {
+        return { success: false, error: "Missing top-up id" };
+      }
+
+      const topUp = await prisma.walletTopUp.findUnique({
+        where: { id: topUpId },
+        include: {
+          wallet: {
+            select: {
+              pendingBalance: true,
+            },
+          },
+        },
+      });
+
+      if (!topUp) {
+        return { success: false, error: "Top-up not found" };
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${topUp.apiRef}, 0))`;
+
+        if (["PENDING", "PROCESSING"].includes(topUp.status)) {
+          const currentPending = Number(topUp.wallet.pendingBalance || 0);
+          const releaseAmount = Math.min(
+            currentPending,
+            Number(topUp.amountExpected),
+          );
+
+          if (releaseAmount > 0) {
+            await tx.wallet.update({
+              where: { id: topUp.walletId },
+              data: {
+                pendingBalance: { decrement: releaseAmount },
+              },
+            });
+          }
+        }
+
+        await tx.walletTopUp.update({
+          where: { id: topUp.id },
+          data: {
+            status: "CANCELLED",
+            cancelledAt: new Date(),
+            failureReason: reason,
+            resolvedByAdminId: admin.id,
+          },
+        });
+
+        await tx.transaction.updateMany({
+          where: {
+            topUpId: topUp.id,
+            status: { in: ["PENDING", "PROCESSING"] },
+          },
+          data: {
+            status: "CANCELLED",
+            cancelledAt: new Date(),
+            failureReason: reason,
+            createdByType: "ADMIN",
+            createdById: admin.id,
+          },
+        });
+
+        await tx.adminLog.create({
+          data: {
+            adminId: admin.id,
+            action: "RECONCILIATION_MARK_TOPUP_RESOLVED",
+            targetId: topUp.id,
+            details: {
+              topUpId: topUp.id,
+              apiRef: topUp.apiRef,
+              reason,
+              previousStatus: topUp.status,
+              newStatus: "CANCELLED",
+            },
+          },
+        });
+      });
+
+      revalidatePath("/admin/reconciliation");
+      return { success: true };
+    }
+
+    if (!paymentId) {
+      return { success: false, error: "Missing payment id" };
     }
 
     const payment = await prisma.payment.findUnique({
@@ -2612,5 +2684,159 @@ export async function processManualRefund(
   } catch (error) {
     console.error("Error processing manual refund:", error);
     return { success: false, error: "Failed to process manual refund" };
+  }
+}
+
+export async function processWalletManualAdjustmentAction(formData: FormData) {
+  try {
+    const admin = await checkAdmin();
+
+    const targetUser = String(formData.get("targetUser") || "").trim();
+    const direction = String(formData.get("direction") || "")
+      .trim()
+      .toUpperCase();
+    const amount = Number(formData.get("amount") || 0);
+    const reason = String(formData.get("reason") || "").trim();
+    const sourceReference = String(formData.get("sourceReference") || "")
+      .trim()
+      .slice(0, 120);
+
+    if (!targetUser) {
+      return { success: false, error: "Target user (id or email) is required" };
+    }
+
+    if (!["CREDIT", "DEBIT"].includes(direction)) {
+      return { success: false, error: "Direction must be CREDIT or DEBIT" };
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return { success: false, error: "Amount must be greater than zero" };
+    }
+
+    if (!reason || reason.length < 6) {
+      return {
+        success: false,
+        error: "A clear adjustment reason is required (minimum 6 characters)",
+      };
+    }
+
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [{ id: targetUser }, { email: targetUser }],
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+      },
+    });
+
+    if (!user) {
+      return { success: false, error: "Target user not found" };
+    }
+
+    const adjustment = await prisma.$transaction(async (tx) => {
+      const wallet = await tx.wallet.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: {
+          userId: user.id,
+          balance: 0,
+          pendingBalance: 0,
+          currency: "KES",
+        },
+      });
+
+      const beforeBalance = Number(wallet.balance);
+      const adjustmentValue = Number(amount);
+
+      if (direction === "DEBIT" && beforeBalance < adjustmentValue) {
+        throw new Error("Insufficient wallet balance for debit adjustment");
+      }
+
+      const updatedWallet = await tx.wallet.update({
+        where: { id: wallet.id },
+        data: {
+          balance:
+            direction === "CREDIT"
+              ? { increment: adjustmentValue }
+              : { decrement: adjustmentValue },
+        },
+      });
+
+      const ledgerEntry = await tx.transaction.create({
+        data: {
+          walletId: wallet.id,
+          amount: adjustmentValue,
+          type: "ADJUSTMENT",
+          status: "SETTLED",
+          direction: direction as "CREDIT" | "DEBIT",
+          category: "ADJUSTMENT",
+          currency: updatedWallet.currency || "KES",
+          sourceType: "ADMIN_ADJUSTMENT",
+          sourceId: sourceReference || null,
+          description: `Manual wallet adjustment (${direction}) - ${reason}`,
+          metadata: {
+            reason,
+            sourceReference: sourceReference || null,
+            adjustedByAdminId: admin.id,
+            adjustedByAdminEmail: admin.email,
+            targetUserId: user.id,
+            targetUserEmail: user.email,
+          },
+          settledAt: new Date(),
+          createdByType: "ADMIN",
+          createdById: admin.id,
+        },
+      });
+
+      await tx.adminLog.create({
+        data: {
+          adminId: admin.id,
+          action: "WALLET_MANUAL_ADJUSTMENT",
+          targetId: wallet.id,
+          details: {
+            walletId: wallet.id,
+            ledgerEntryId: ledgerEntry.id,
+            direction,
+            amount: adjustmentValue,
+            reason,
+            sourceReference: sourceReference || null,
+            beforeBalance,
+            afterBalance: Number(updatedWallet.balance),
+            userId: user.id,
+            userEmail: user.email,
+          },
+        },
+      });
+
+      return {
+        walletId: wallet.id,
+        ledgerEntryId: ledgerEntry.id,
+        beforeBalance,
+        afterBalance: Number(updatedWallet.balance),
+      };
+    });
+
+    revalidatePath("/admin/reconciliation");
+    revalidatePath("/admin/finance");
+
+    return {
+      success: true,
+      userId: user.id,
+      walletId: adjustment.walletId,
+      ledgerEntryId: adjustment.ledgerEntryId,
+      beforeBalance: adjustment.beforeBalance,
+      afterBalance: adjustment.afterBalance,
+    };
+  } catch (error) {
+    console.error("Error processing wallet manual adjustment:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to apply manual wallet adjustment",
+    };
   }
 }

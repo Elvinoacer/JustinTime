@@ -34,6 +34,8 @@ export default async function WalletPage() {
       data: {
         userId: session.user.id,
         balance: 0,
+        pendingBalance: 0,
+        currency: "KES",
       },
       include: {
         transactions: {
@@ -43,6 +45,39 @@ export default async function WalletPage() {
       },
     });
   }
+
+  const [pendingTopUpsCount, failedTopUpsCount] = await Promise.all([
+    prisma.walletTopUp.count({
+      where: {
+        walletId: wallet.id,
+        status: { in: ["PENDING", "PROCESSING"] },
+      },
+    }),
+    prisma.walletTopUp.count({
+      where: {
+        walletId: wallet.id,
+        status: { in: ["FAILED", "CANCELLED", "REVERSED"] },
+      },
+    }),
+  ]);
+
+  type WalletTx = (typeof wallet.transactions)[number] & {
+    status?: string;
+    direction?: "CREDIT" | "DEBIT" | null;
+  };
+
+  const walletTransactions = wallet.transactions as WalletTx[];
+
+  const pendingIncoming = walletTransactions
+    .filter((tx) => ["PENDING", "PROCESSING"].includes(tx.status || "SETTLED"))
+    .filter((tx) => {
+      const direction = tx.direction;
+      if (direction) {
+        return direction === "CREDIT";
+      }
+      return ["DEPOSIT", "REFUND", "EARNING"].includes(tx.type);
+    })
+    .reduce((sum, tx) => sum + Number(tx.amount), 0);
 
   return (
     <div className="container mx-auto py-8 space-y-8 px-4 md:px-6 max-w-6xl">
@@ -67,8 +102,21 @@ export default async function WalletPage() {
             <Wallet className="h-5 w-5" /> Cash Balance
           </div>
 
-          <div className="text-4xl font-bold mb-6">
+          <div className="text-4xl font-bold mb-3">
             KES {Number(wallet.balance).toLocaleString()}
+          </div>
+
+          <div className="mb-5 space-y-1 text-xs text-blue-100">
+            <p>
+              Pending incoming: KES{" "}
+              {Number(
+                wallet.pendingBalance || pendingIncoming,
+              ).toLocaleString()}
+            </p>
+            <p>
+              Pending top-ups: {pendingTopUpsCount} • Failed top-ups:{" "}
+              {failedTopUpsCount}
+            </p>
           </div>
 
           <div className="flex gap-3 relative z-10">
@@ -105,6 +153,14 @@ export default async function WalletPage() {
           </p>
         </div>
       </div>
+
+      {pendingTopUpsCount > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800 text-sm">
+          You have {pendingTopUpsCount} pending top-up
+          {pendingTopUpsCount === 1 ? "" : "s"}. These funds are not spendable
+          until status becomes Confirmed.
+        </div>
+      )}
 
       <div className="space-y-4">
         <div className="flex items-center gap-2 mb-4">

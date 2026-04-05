@@ -50,6 +50,7 @@ export const API_ENDPOINTS = {
     balance: "/wallet/balance",
     transactions: "/wallet/transactions",
     topUp: "/wallet/topup",
+    topUpStatus: "/wallet/topup/status",
     details: "/wallet",
   },
 

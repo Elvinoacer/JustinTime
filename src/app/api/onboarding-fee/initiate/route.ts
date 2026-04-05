@@ -73,6 +73,8 @@ export async function POST() {
           data: {
             userId: session.user.id,
             balance: 0,
+            pendingBalance: 0,
+            currency: "KES",
           },
         });
       }
@@ -92,7 +94,17 @@ export async function POST() {
             walletId: wallet.id,
             amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
             type: "ONBOARDING_FEE",
+            status: "PENDING",
+            direction: "DEBIT",
+            category: "ONBOARDING_FEE",
+            currency: "KES",
+            gateway: "INTASEND",
+            gatewayReference: apiRef,
+            gatewaySessionId: response.id ? String(response.id) : null,
             providerRef: pendingProviderRef,
+            sourceType: "ONBOARDING_FEE",
+            sourceId: session.user.id,
+            createdByType: "USER",
             description: `Onboarding Fee Payment Pending [Ref:${apiRef}]`,
           },
         });
@@ -111,9 +123,6 @@ export async function POST() {
     console.error("[ONBOARDING_FEE_INITIATE]", error);
     const message =
       error instanceof Error ? error.message : "Failed to initiate payment";
-    return NextResponse.json(
-      { error: message },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

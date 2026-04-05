@@ -75,10 +75,45 @@ export async function POST(req: Request) {
       `Processing webhook: state=${state}, api_ref=${apiRef}, invoice=${invoiceId}`,
     );
 
-    // Only process COMPLETE payments
-    if (state !== "COMPLETE") {
-      console.log(`Payment not complete (state: ${state}), acknowledging...`);
-      return NextResponse.json({ received: true, state });
+    const normalizedState = String(state || "").toUpperCase();
+
+    if (normalizedState !== "COMPLETE") {
+      const pendingProviderRef = `INTASEND:ONBOARDING:PENDING:${canonicalRef}`;
+      const mappedStatus = ["FAILED", "DECLINED", "ERROR"].includes(
+        normalizedState,
+      )
+        ? "FAILED"
+        : ["CANCELLED", "CANCELED", "VOID", "VOIDED"].includes(normalizedState)
+          ? "CANCELLED"
+          : ["PROCESSING", "IN_PROGRESS"].includes(normalizedState)
+            ? "PROCESSING"
+            : "PENDING";
+
+      await prisma.transaction.updateMany({
+        where: {
+          type: "ONBOARDING_FEE",
+          providerRef: pendingProviderRef,
+        },
+        data: {
+          status: mappedStatus,
+          failureReason:
+            mappedStatus === "FAILED" || mappedStatus === "CANCELLED"
+              ? String(
+                  body.failed_reason ||
+                    body.message ||
+                    `Gateway state: ${normalizedState}`,
+                )
+              : null,
+          failedAt: mappedStatus === "FAILED" ? new Date() : null,
+          cancelledAt: mappedStatus === "CANCELLED" ? new Date() : null,
+          createdByType: "WEBHOOK",
+        },
+      });
+
+      console.log(
+        `Payment not complete (state: ${normalizedState}), acknowledging...`,
+      );
+      return NextResponse.json({ received: true, state: normalizedState });
     }
 
     const pendingProviderRef = `INTASEND:ONBOARDING:PENDING:${canonicalRef}`;
@@ -186,6 +221,8 @@ export async function POST(req: Request) {
             data: {
               userId: user.id,
               balance: 0,
+              pendingBalance: 0,
+              currency: "KES",
             },
           });
         }
@@ -195,8 +232,20 @@ export async function POST(req: Request) {
             where: { id: pendingPayment.id },
             data: {
               amount,
+              status: "FAILED",
+              direction: "DEBIT",
+              category: "ONBOARDING_FEE",
+              currency: "KES",
+              gateway: "INTASEND",
+              gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
+              gatewaySessionId: invoiceId ? String(invoiceId) : null,
               providerRef: partialPaymentProviderRef,
+              sourceType: "ONBOARDING_FEE",
+              sourceId: user.id,
+              createdByType: "WEBHOOK",
               description: partialDescription,
+              failedAt: new Date(),
+              failureReason: "Partial onboarding payment",
             },
           });
         } else {
@@ -205,8 +254,20 @@ export async function POST(req: Request) {
               walletId: wallet.id,
               amount,
               type: "ONBOARDING_FEE",
+              status: "FAILED",
+              direction: "DEBIT",
+              category: "ONBOARDING_FEE",
+              currency: "KES",
+              gateway: "INTASEND",
+              gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
+              gatewaySessionId: invoiceId ? String(invoiceId) : null,
               providerRef: partialPaymentProviderRef,
+              sourceType: "ONBOARDING_FEE",
+              sourceId: user.id,
+              createdByType: "WEBHOOK",
               description: partialDescription,
+              failedAt: new Date(),
+              failureReason: "Partial onboarding payment",
             },
           });
         }
@@ -254,6 +315,8 @@ export async function POST(req: Request) {
           data: {
             userId: user.id,
             balance: 0,
+            pendingBalance: 0,
+            currency: "KES",
           },
         });
       }
@@ -264,8 +327,22 @@ export async function POST(req: Request) {
           where: { id: pendingPayment.id },
           data: {
             amount,
+            status: "SETTLED",
+            direction: "DEBIT",
+            category: "ONBOARDING_FEE",
+            currency: "KES",
+            gateway: "INTASEND",
+            gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
+            gatewaySessionId: invoiceId ? String(invoiceId) : null,
             providerRef: settledPaymentProviderRef,
+            sourceType: "ONBOARDING_FEE",
+            sourceId: user.id,
+            createdByType: "WEBHOOK",
             description: successfulDescription,
+            settledAt: new Date(),
+            failureReason: null,
+            failedAt: null,
+            cancelledAt: null,
           },
         });
       } else {
@@ -274,8 +351,19 @@ export async function POST(req: Request) {
             walletId: wallet.id,
             amount,
             type: "ONBOARDING_FEE",
+            status: "SETTLED",
+            direction: "DEBIT",
+            category: "ONBOARDING_FEE",
+            currency: "KES",
+            gateway: "INTASEND",
+            gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
+            gatewaySessionId: invoiceId ? String(invoiceId) : null,
             providerRef: settledPaymentProviderRef,
+            sourceType: "ONBOARDING_FEE",
+            sourceId: user.id,
+            createdByType: "WEBHOOK",
             description: successfulDescription,
+            settledAt: new Date(),
           },
         });
       }

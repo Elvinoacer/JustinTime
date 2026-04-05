@@ -74,52 +74,90 @@ export async function POST(req: Request) {
 
     console.log("IntaSend topup checkout response:", response);
 
-    await prisma.$transaction(async (tx) => {
-      let wallet = await tx.wallet.findUnique({
+    const topUp = await prisma.$transaction(async (tx) => {
+      const wallet = await tx.wallet.upsert({
         where: { userId: session.user.id },
-      });
-
-      if (!wallet) {
-        wallet = await tx.wallet.create({
-          data: {
-            userId: session.user.id,
-            balance: 0,
-          },
-        });
-      }
-
-      const pendingProviderRef = `INTASEND:WALLET:PENDING:${apiRef}`;
-      const existingPending = await tx.transaction.findFirst({
-        where: {
-          walletId: wallet.id,
-          type: "DEPOSIT",
-          providerRef: pendingProviderRef,
+        update: {
+          currency: "KES",
+        },
+        create: {
+          userId: session.user.id,
+          balance: 0,
+          pendingBalance: 0,
+          currency: "KES",
         },
       });
 
-      if (!existingPending) {
-        await tx.transaction.create({
-          data: {
-            walletId: wallet.id,
-            amount,
-            type: "DEPOSIT",
-            providerRef: pendingProviderRef,
-            description: `Wallet Top-up Pending [Ref:${apiRef}]`,
-          },
-        });
+      const existingTopUp = await tx.walletTopUp.findUnique({
+        where: { apiRef },
+      });
+
+      if (existingTopUp) {
+        return existingTopUp;
       }
+
+      const createdTopUp = await tx.walletTopUp.create({
+        data: {
+          userId: session.user.id,
+          walletId: wallet.id,
+          amountExpected: amount,
+          currency: "KES",
+          status: "PENDING",
+          gateway: "INTASEND",
+          apiRef,
+          gatewaySessionId: response.id ? String(response.id) : null,
+          checkoutUrl: response.url || null,
+          initiatedAt: new Date(),
+          rawInitiationPayload: response,
+        },
+      });
+
+      await tx.transaction.create({
+        data: {
+          walletId: wallet.id,
+          topUpId: createdTopUp.id,
+          amount,
+          type: "DEPOSIT",
+          status: "PENDING",
+          direction: "CREDIT",
+          category: "TOPUP",
+          currency: "KES",
+          gateway: "INTASEND",
+          gatewayReference: apiRef,
+          gatewaySessionId: response.id ? String(response.id) : null,
+          providerRef: `INTASEND:WALLET:TOPUP:${apiRef}`,
+          sourceType: "WALLET_TOPUP",
+          sourceId: createdTopUp.id,
+          createdByType: "USER",
+          description: `Wallet Top-up initiated [Ref:${apiRef}]`,
+          metadata: {
+            apiRef,
+            checkoutUrl: response.url,
+          },
+        },
+      });
+
+      await tx.wallet.update({
+        where: { id: wallet.id },
+        data: {
+          pendingBalance: { increment: amount },
+        },
+      });
+
+      return createdTopUp;
     });
 
     return NextResponse.json({
       checkoutUrl: response.url,
       sessionId: response.id,
       apiRef: apiRef,
+      topUpId: topUp.id,
+      status: topUp.status,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[WALLET_TOPUP_INITIATE]", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to initiate topup" },
-      { status: 500 },
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to initiate topup";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
