@@ -382,15 +382,15 @@ export async function detectCurrentLocation(): Promise<DetectedLocation> {
     const firstGeoError = firstError as GeolocationPositionError;
     const firstReason = geolocationErrorToFallbackReason(firstGeoError);
 
-    const fastIpFallback = await ipFallbackPromise;
-    if (fastIpFallback) {
-      return {
-        ...fastIpFallback,
-        fallbackReason: firstReason,
-      } satisfies DetectedLocation;
-    }
-
     if (firstReason === "permission_denied") {
+      const fastIpFallback = await ipFallbackPromise;
+      if (fastIpFallback) {
+        return {
+          ...fastIpFallback,
+          fallbackReason: firstReason,
+        } satisfies DetectedLocation;
+      }
+
       return resolveWithIPFallback(firstReason, firstGeoError);
     }
 
@@ -413,10 +413,16 @@ export async function detectCurrentLocation(): Promise<DetectedLocation> {
       };
     } catch (secondError) {
       const secondGeoError = secondError as GeolocationPositionError;
-      return resolveWithIPFallback(
-        geolocationErrorToFallbackReason(secondGeoError),
-        secondGeoError,
-      );
+      const secondReason = geolocationErrorToFallbackReason(secondGeoError);
+      const fastIpFallback = await ipFallbackPromise;
+      if (fastIpFallback) {
+        return {
+          ...fastIpFallback,
+          fallbackReason: secondReason,
+        } satisfies DetectedLocation;
+      }
+
+      return resolveWithIPFallback(secondReason, secondGeoError);
     }
   }
 }

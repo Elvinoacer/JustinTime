@@ -139,6 +139,15 @@ function OnboardingPageContent() {
         const effectiveRole =
           roleFromDraftOrIntent ||
           (session.user.onboardingCompleted ? "PROVIDER" : null);
+        const draftStep =
+          typeof draft?.currentStep === "number" && draft.currentStep >= 1
+            ? draft.currentStep
+            : 1;
+        const hasSavedProgress = draftStep > 1;
+        const shouldShowRoleSelectionFirst =
+          Boolean(effectiveRole) &&
+          !session.user.onboardingCompleted &&
+          !hasSavedProgress;
         const defaultClientName = session.user.name || "";
         const nextClientData = {
           ...DEFAULT_CLIENT_ONBOARDING_DATA,
@@ -152,9 +161,11 @@ function OnboardingPageContent() {
 
         setSelectedRole(effectiveRole);
         setCurrentStep(
-          effectiveRole
-            ? Math.max(draft?.currentStep || getStepForRole(effectiveRole), 2)
-            : draft?.currentStep || 1,
+          shouldShowRoleSelectionFirst
+            ? 1
+            : effectiveRole
+              ? Math.max(draftStep, getStepForRole(effectiveRole), 2)
+              : draftStep,
         );
         setClientData(nextClientData);
         setProviderData(nextProviderData);
@@ -169,7 +180,9 @@ function OnboardingPageContent() {
             onboardingIntent ||
             (session.user?.onboardingCompleted ? "PROVIDER" : null);
           setSelectedRole(fallbackRole);
-          setCurrentStep(fallbackRole ? 2 : 1);
+          setCurrentStep(
+            fallbackRole && session.user?.onboardingCompleted ? 2 : 1,
+          );
           setClientData((prev) => ({
             ...prev,
             name: prev.name || session.user?.name || "",

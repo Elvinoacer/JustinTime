@@ -72,7 +72,9 @@ function sanitizeDraftState(input: unknown): OnboardingDraftState {
   );
 
   const rawClient = isPlainObject(draft.clientData) ? draft.clientData : {};
-  const rawProvider = isPlainObject(draft.providerData) ? draft.providerData : {};
+  const rawProvider = isPlainObject(draft.providerData)
+    ? draft.providerData
+    : {};
   const rawVerification = isPlainObject(draft.verification)
     ? draft.verification
     : {};
@@ -88,18 +90,23 @@ function sanitizeDraftState(input: unknown): OnboardingDraftState {
     longitude:
       typeof rawClient.longitude === "number" ? rawClient.longitude : null,
     locationSource: normalizeLocationSource(rawClient.locationSource),
-    locationAccuracy: normalizeLocationAccuracy(rawClient.locationAccuracy) ?? null,
+    locationAccuracy:
+      normalizeLocationAccuracy(rawClient.locationAccuracy) ?? null,
     phoneValidated: Boolean(rawClient.phoneValidated),
   };
 
   const skills = Array.isArray(rawProvider.skills)
-    ? rawProvider.skills.filter((value): value is string => typeof value === "string")
+    ? rawProvider.skills.filter(
+        (value): value is string => typeof value === "string",
+      )
     : [];
 
   const providerData: ProviderOnboardingData = {
     ...DEFAULT_ONBOARDING_DRAFT_STATE.providerData,
     businessName:
-      typeof rawProvider.businessName === "string" ? rawProvider.businessName : "",
+      typeof rawProvider.businessName === "string"
+        ? rawProvider.businessName
+        : "",
     primaryCategoryId:
       typeof rawProvider.primaryCategoryId === "string"
         ? rawProvider.primaryCategoryId
@@ -163,7 +170,8 @@ function sanitizeDraftState(input: unknown): OnboardingDraftState {
     verification,
     paymentInitiated: Boolean(draft.paymentInitiated),
     checkoutUrl: typeof draft.checkoutUrl === "string" ? draft.checkoutUrl : "",
-    updatedAt: typeof draft.updatedAt === "string" ? draft.updatedAt : undefined,
+    updatedAt:
+      typeof draft.updatedAt === "string" ? draft.updatedAt : undefined,
   };
 }
 
@@ -249,13 +257,13 @@ function buildDraftFromState(params: {
 }): OnboardingDraftState {
   const { user, profile } = params;
   const savedDraft = sanitizeDraftState(user.onboardingDraft);
-  const role = savedDraft.role || (user.role === "PROVIDER" ? "PROVIDER" : "CLIENT");
+  const role =
+    savedDraft.role || (user.role === "PROVIDER" ? "PROVIDER" : null);
 
   return {
     ...savedDraft,
     role,
-    currentStep:
-      savedDraft.currentStep || (role ? getStepForRole(role) : 1),
+    currentStep: savedDraft.currentStep || (role ? getStepForRole(role) : 1),
     referralCode: savedDraft.referralCode || "",
     clientInterests:
       savedDraft.clientInterests.length > 0
@@ -265,20 +273,18 @@ function buildDraftFromState(params: {
       ...savedDraft.clientData,
       name: savedDraft.clientData.name || user.name || "",
       phone: savedDraft.clientData.phone || user.phone || "",
-      address:
-        savedDraft.clientData.address || profile?.location || "",
-      location:
-        savedDraft.clientData.location || profile?.location || "",
-      latitude:
-        savedDraft.clientData.latitude ?? profile?.latitude ?? null,
-      longitude:
-        savedDraft.clientData.longitude ?? profile?.longitude ?? null,
+      address: savedDraft.clientData.address || profile?.location || "",
+      location: savedDraft.clientData.location || profile?.location || "",
+      latitude: savedDraft.clientData.latitude ?? profile?.latitude ?? null,
+      longitude: savedDraft.clientData.longitude ?? profile?.longitude ?? null,
       locationSource:
         savedDraft.clientData.locationSource ||
         normalizeLocationSource(profile?.locationSource) ||
         "MANUAL",
       locationAccuracy:
-        savedDraft.clientData.locationAccuracy ?? profile?.locationAccuracy ?? null,
+        savedDraft.clientData.locationAccuracy ??
+        profile?.locationAccuracy ??
+        null,
     },
     providerData: {
       ...savedDraft.providerData,
@@ -293,10 +299,8 @@ function buildDraftFromState(params: {
         savedDraft.providerData.skills.length > 0
           ? savedDraft.providerData.skills
           : profile?.skills || [],
-      location:
-        savedDraft.providerData.location || profile?.location || "",
-      latitude:
-        savedDraft.providerData.latitude ?? profile?.latitude ?? null,
+      location: savedDraft.providerData.location || profile?.location || "",
+      latitude: savedDraft.providerData.latitude ?? profile?.latitude ?? null,
       longitude:
         savedDraft.providerData.longitude ?? profile?.longitude ?? null,
       locationSource:
@@ -304,7 +308,9 @@ function buildDraftFromState(params: {
         normalizeLocationSource(profile?.locationSource) ||
         "MANUAL",
       locationAccuracy:
-        savedDraft.providerData.locationAccuracy ?? profile?.locationAccuracy ?? null,
+        savedDraft.providerData.locationAccuracy ??
+        profile?.locationAccuracy ??
+        null,
       bio: savedDraft.providerData.bio || profile?.bio || "",
       phone: savedDraft.providerData.phone || user.phone || "",
       hourlyRate:
@@ -314,7 +320,9 @@ function buildDraftFromState(params: {
     verification: {
       ...savedDraft.verification,
       faceMatchScore:
-        savedDraft.verification.faceMatchScore ?? profile?.faceMatchScore ?? null,
+        savedDraft.verification.faceMatchScore ??
+        profile?.faceMatchScore ??
+        null,
       idDocumentType:
         savedDraft.verification.idDocumentType ||
         profile?.idDocumentType ||
@@ -444,10 +452,12 @@ export const POST = auth(async (req) => {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
 
-    let location = typeof body?.location === "string" ? body.location.trim() : "";
+    let location =
+      typeof body?.location === "string" ? body.location.trim() : "";
     const bio = typeof body?.bio === "string" ? body.bio.trim() : "";
     const normalizedPhone = normalizePhoneInput(body?.phone);
-    const address = typeof body?.address === "string" ? body.address.trim() : "";
+    const address =
+      typeof body?.address === "string" ? body.address.trim() : "";
     const name = typeof body?.name === "string" ? body.name.trim() : "";
     const image = typeof body?.image === "string" ? body.image.trim() : "";
     const businessName =
@@ -456,7 +466,9 @@ export const POST = auth(async (req) => {
       typeof body?.primaryCategoryId === "string"
         ? body.primaryCategoryId.trim()
         : "";
-    const normalizedLocationSource = normalizeLocationSource(body?.locationSource);
+    const normalizedLocationSource = normalizeLocationSource(
+      body?.locationSource,
+    );
     const normalizedLocationAccuracy = normalizeLocationAccuracy(
       body?.locationAccuracy,
     );
@@ -465,10 +477,14 @@ export const POST = auth(async (req) => {
         ? body.referralCode.trim().toUpperCase()
         : "";
     const clientInterests = Array.isArray(body?.clientInterests)
-      ? body.clientInterests.filter((value: unknown): value is string => typeof value === "string")
+      ? body.clientInterests.filter(
+          (value: unknown): value is string => typeof value === "string",
+        )
       : [];
     const requestedSkills = Array.isArray(body?.skills)
-      ? body.skills.filter((value: unknown): value is string => typeof value === "string")
+      ? body.skills.filter(
+          (value: unknown): value is string => typeof value === "string",
+        )
       : [];
     const faceMatchScore =
       body?.faceMatchScore !== undefined && body?.faceMatchScore !== null
@@ -480,7 +496,9 @@ export const POST = auth(async (req) => {
         : "";
     const onboardingCompleted = Boolean(body?.onboardingCompleted);
     const hourlyRateValue =
-      body?.hourlyRate !== undefined && body?.hourlyRate !== null && body?.hourlyRate !== ""
+      body?.hourlyRate !== undefined &&
+      body?.hourlyRate !== null &&
+      body?.hourlyRate !== ""
         ? Number(body.hourlyRate)
         : null;
     const latitude =
@@ -492,7 +510,10 @@ export const POST = auth(async (req) => {
         ? Number(body.longitude)
         : null;
 
-    if (normalizedLocationAccuracy !== undefined && normalizedLocationAccuracy < 0) {
+    if (
+      normalizedLocationAccuracy !== undefined &&
+      normalizedLocationAccuracy < 0
+    ) {
       return NextResponse.json(
         { error: "Invalid location accuracy" },
         { status: 400 },
@@ -556,9 +577,7 @@ export const POST = auth(async (req) => {
 
       location = location || address;
 
-      if (
-        clientInterests.length > VALIDATION.MAX_CLIENT_INTERESTS
-      ) {
+      if (clientInterests.length > VALIDATION.MAX_CLIENT_INTERESTS) {
         return NextResponse.json(
           {
             error: `Maximum ${VALIDATION.MAX_CLIENT_INTERESTS} interests allowed`,
@@ -645,7 +664,8 @@ export const POST = auth(async (req) => {
       data: {
         role,
         onboardingCompleted,
-        clientInterests: role === "CLIENT" ? clientInterests : actingUser.clientInterests,
+        clientInterests:
+          role === "CLIENT" ? clientInterests : actingUser.clientInterests,
         onboardingDraft: null,
         ...(name ? { name } : {}),
         ...(image ? { image } : {}),
@@ -679,7 +699,8 @@ export const POST = auth(async (req) => {
     }
 
     if (role === "PROVIDER") {
-      const idDocument = typeof body?.idDocument === "string" ? body.idDocument.trim() : "";
+      const idDocument =
+        typeof body?.idDocument === "string" ? body.idDocument.trim() : "";
       const selfieUrl = image;
 
       const verificationFields = {
@@ -687,7 +708,9 @@ export const POST = auth(async (req) => {
           ? { faceMatchScore }
           : {}),
         ...(idDocumentType ? { idDocumentType } : {}),
-        ...(normalizedLocationSource ? { locationSource: normalizedLocationSource } : {}),
+        ...(normalizedLocationSource
+          ? { locationSource: normalizedLocationSource }
+          : {}),
         ...(normalizedLocationAccuracy !== undefined
           ? { locationAccuracy: normalizedLocationAccuracy }
           : {}),
@@ -713,7 +736,9 @@ export const POST = auth(async (req) => {
             ? { faceMatchScore }
             : {}),
           ...(idDocumentType ? { idDocumentType } : {}),
-          ...(normalizedLocationSource ? { locationSource: normalizedLocationSource } : {}),
+          ...(normalizedLocationSource
+            ? { locationSource: normalizedLocationSource }
+            : {}),
           ...(normalizedLocationAccuracy !== undefined
             ? { locationAccuracy: normalizedLocationAccuracy }
             : {}),
@@ -749,7 +774,9 @@ export const POST = auth(async (req) => {
           });
 
         const reviewNotes =
-          faceMatchScore !== undefined && Number.isFinite(faceMatchScore) && faceMatchScore < 45
+          faceMatchScore !== undefined &&
+          Number.isFinite(faceMatchScore) &&
+          faceMatchScore < 45
             ? "Automatic face match was low. Manual review required."
             : null;
 
@@ -806,7 +833,9 @@ export const POST = auth(async (req) => {
           location,
           latitude,
           longitude,
-          ...(normalizedLocationSource ? { locationSource: normalizedLocationSource } : {}),
+          ...(normalizedLocationSource
+            ? { locationSource: normalizedLocationSource }
+            : {}),
           ...(normalizedLocationAccuracy !== undefined
             ? { locationAccuracy: normalizedLocationAccuracy }
             : {}),
@@ -815,7 +844,9 @@ export const POST = auth(async (req) => {
           location,
           latitude,
           longitude,
-          ...(normalizedLocationSource ? { locationSource: normalizedLocationSource } : {}),
+          ...(normalizedLocationSource
+            ? { locationSource: normalizedLocationSource }
+            : {}),
           ...(normalizedLocationAccuracy !== undefined
             ? { locationAccuracy: normalizedLocationAccuracy }
             : {}),
@@ -846,9 +877,7 @@ export const POST = auth(async (req) => {
     });
 
     const prismaCode =
-      isPlainObject(error) && typeof error.code === "string"
-        ? error.code
-        : "";
+      isPlainObject(error) && typeof error.code === "string" ? error.code : "";
     const prismaMeta =
       isPlainObject(error) && "meta" in error
         ? (error as { meta?: { target?: string | string[] } }).meta
