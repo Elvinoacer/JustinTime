@@ -105,7 +105,11 @@ const Header = () => {
       signIn();
       return;
     }
-    router.push("/dashboard/services");
+    if (isProvider) {
+      router.push("/dashboard/services");
+    } else {
+      router.push("/become-a-provider");
+    }
   };
 
   const handleNotifications = () => {

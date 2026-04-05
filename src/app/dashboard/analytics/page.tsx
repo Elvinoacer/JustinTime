@@ -4,6 +4,13 @@ import BasicAnalytics from "@/components/dashboard/analytics/BasicAnalytics";
 import AdvancedAnalytics from "@/components/dashboard/analytics/AdvancedAnalytics";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { hasRole } from "@/lib/auth/roles";
+import {
+  buildDailyEarningsSeries,
+  buildMonthlySeries,
+  calculateGrowthRate,
+  resolveProviderNetAmount,
+} from "@/lib/analytics/providerAnalytics";
 
 export const dynamic = "force-dynamic";
 
@@ -19,25 +26,46 @@ export default async function AnalyticsPage() {
     redirect("/auth/login");
   }
 
+  if (!hasRole(session.user, "PROVIDER")) {
+    redirect("/client/dashboard");
+  }
+
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
     include: {
       subscription: true,
+      profile: {
+        select: {
+          location: true,
+        },
+      },
+      services: {
+        select: {
+          categoryId: true,
+        },
+      },
       providerBookings: {
-        where: {
-          status: {
-            in: ["COMPLETED", "CONFIRMED"],
+        orderBy: {
+          createdAt: "desc",
+        },
+        include: {
+          service: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+          review: {
+            select: {
+              rating: true,
+            },
           },
         },
       },
-      receivedReviews: true,
-      wallet: {
-        include: {
-          transactions: {
-            where: {
-              type: "EARNING",
-            },
-          },
+      receivedReviews: {
+        select: {
+          rating: true,
+          createdAt: true,
         },
       },
     },
@@ -52,15 +80,243 @@ export default async function AnalyticsPage() {
   const isActive = user.subscription?.isActive ?? false;
   const showAdvanced = isPro && isActive;
 
-  // Calculate stats for mobile view
-  const totalBookings = user.providerBookings.length;
-  const totalEarnings =
-    user.wallet?.transactions.reduce((sum, t) => sum + Number(t.amount), 0) ||
-    0;
+  const terminalBookings = user.providerBookings.filter(
+    (booking) =>
+      booking.status === "COMPLETED" || booking.status === "CANCELLED",
+  );
+
+  const completedBookings = user.providerBookings.filter(
+    (booking) => booking.status === "COMPLETED",
+  );
+
+  const earningsRows = completedBookings.map((booking) => ({
+    amount: resolveProviderNetAmount(booking),
+    createdAt: booking.createdAt,
+  }));
+
+  const monthlyRevenue = buildMonthlySeries(
+    completedBookings,
+    (booking) => resolveProviderNetAmount(booking),
+    () => 1,
+    { months: 12 },
+  );
+
+  const sixMonthRevenue = monthlyRevenue.slice(-6).map((row) => ({
+    name: row.month,
+    monthKey: row.monthKey,
+    earnings: row.earnings,
+    bookings: row.bookings,
+  }));
+
+  const dailyEarnings = buildDailyEarningsSeries(completedBookings, {
+    days: 7,
+  });
+
+  const latestMonth = monthlyRevenue[monthlyRevenue.length - 1]?.earnings || 0;
+  const previousMonth =
+    monthlyRevenue[monthlyRevenue.length - 2]?.earnings || 0;
+  const monthlyGrowthRate = calculateGrowthRate(latestMonth, previousMonth);
+
+  const uniqueClients = new Set(completedBookings.map((b) => b.clientId));
+  const bookingsByClient = completedBookings.reduce((acc, booking) => {
+    acc.set(booking.clientId, (acc.get(booking.clientId) || 0) + 1);
+    return acc;
+  }, new Map<string, number>());
+  const returningClients = Array.from(bookingsByClient.values()).filter(
+    (count) => count > 1,
+  ).length;
+  const retentionRate =
+    uniqueClients.size > 0 ? (returningClients / uniqueClients.size) * 100 : 0;
+
   const averageRating =
     user.receivedReviews.length > 0
-      ? user.receivedReviews.reduce((sum, r) => sum + r.rating, 0) /
+      ? user.receivedReviews.reduce((sum, review) => sum + review.rating, 0) /
         user.receivedReviews.length
+      : 0;
+  const customerSatisfaction = averageRating > 0 ? averageRating * 20 : 0;
+
+  const timeBuckets = [
+    { id: "6-9 AM", min: 6, max: 9, color: "#3b82f6" },
+    { id: "9-12 PM", min: 9, max: 12, color: "#8b5cf6" },
+    { id: "12-3 PM", min: 12, max: 15, color: "#f59e0b" },
+    { id: "3-6 PM", min: 15, max: 18, color: "#ef4444" },
+    { id: "6-9 PM", min: 18, max: 21, color: "#10b981" },
+  ];
+
+  const timeDistribution = timeBuckets.map((bucket) => ({
+    time: bucket.id,
+    bookings: 0,
+    color: bucket.color,
+  }));
+
+  for (const booking of completedBookings) {
+    let hour: number | null = null;
+    if (booking.startTime && /^\d{2}:\d{2}/.test(booking.startTime)) {
+      hour = Number(booking.startTime.split(":")[0]);
+    }
+    if (hour == null || Number.isNaN(hour)) {
+      hour = new Date(booking.date).getHours();
+    }
+
+    const bucketIndex = timeBuckets.findIndex(
+      (bucket) => hour >= bucket.min && hour < bucket.max,
+    );
+    if (bucketIndex >= 0) {
+      timeDistribution[bucketIndex].bookings += 1;
+    }
+  }
+
+  const servicePerformanceMap = new Map<
+    string,
+    {
+      name: string;
+      bookings: number;
+      revenue: number;
+      ratingSum: number;
+      ratingCount: number;
+    }
+  >();
+
+  for (const booking of completedBookings) {
+    const serviceName = booking.service?.title || "Unknown Service";
+    const existing = servicePerformanceMap.get(serviceName) || {
+      name: serviceName,
+      bookings: 0,
+      revenue: 0,
+      ratingSum: 0,
+      ratingCount: 0,
+    };
+
+    const nextValue = {
+      ...existing,
+      bookings: existing.bookings + 1,
+      revenue: existing.revenue + resolveProviderNetAmount(booking),
+      ratingSum:
+        existing.ratingSum +
+        (typeof booking.review?.rating === "number"
+          ? booking.review.rating
+          : 0),
+      ratingCount:
+        existing.ratingCount +
+        (typeof booking.review?.rating === "number" ? 1 : 0),
+    };
+
+    servicePerformanceMap.set(serviceName, nextValue);
+  }
+
+  const servicePerformance = Array.from(servicePerformanceMap.values())
+    .map((entry) => ({
+      name: entry.name,
+      bookings: entry.bookings,
+      revenue: entry.revenue,
+      rating:
+        entry.ratingCount > 0
+          ? entry.ratingSum / entry.ratingCount
+          : averageRating,
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5);
+
+  const providerCategoryIds = Array.from(
+    new Set(user.services.map((service) => service.categoryId)),
+  );
+
+  let peerBenchmark = {
+    peerCount: 0,
+    averagePeerEarnings: 0,
+    averagePeerRating: 0,
+    earningsPercentile: 0,
+    ratingPercentile: 0,
+  };
+
+  if (providerCategoryIds.length > 0) {
+    const peers = await prisma.user.findMany({
+      where: {
+        id: { not: user.id },
+        OR: [{ role: "PROVIDER" }, { roles: { has: "PROVIDER" } }],
+        services: {
+          some: {
+            categoryId: { in: providerCategoryIds },
+          },
+        },
+      },
+      select: {
+        providerBookings: {
+          where: { status: "COMPLETED" },
+          select: {
+            basePrice: true,
+            discountAmount: true,
+            totalAmount: true,
+            netAmount: true,
+            createdAt: true,
+            service: { select: { price: true } },
+            job: { select: { budget: true } },
+          },
+        },
+        receivedReviews: {
+          select: { rating: true },
+        },
+      },
+      take: 200,
+    });
+
+    const peerEarnings = peers.map((peer) =>
+      peer.providerBookings.reduce(
+        (sum, booking) => sum + resolveProviderNetAmount(booking),
+        0,
+      ),
+    );
+    const peerRatings = peers.map((peer) => {
+      if (peer.receivedReviews.length === 0) return 0;
+      return (
+        peer.receivedReviews.reduce((sum, review) => sum + review.rating, 0) /
+        peer.receivedReviews.length
+      );
+    });
+
+    const providerEarnings = earningsRows.reduce(
+      (sum, entry) => sum + Number(entry.amount || 0),
+      0,
+    );
+    const providerRating = averageRating;
+
+    const earningsRank =
+      peerEarnings.length > 0
+        ? peerEarnings.filter((value) => value <= providerEarnings).length /
+          peerEarnings.length
+        : 0;
+    const ratingRank =
+      peerRatings.length > 0
+        ? peerRatings.filter((value) => value <= providerRating).length /
+          peerRatings.length
+        : 0;
+
+    peerBenchmark = {
+      peerCount: peers.length,
+      averagePeerEarnings:
+        peerEarnings.length > 0
+          ? peerEarnings.reduce((sum, value) => sum + value, 0) /
+            peerEarnings.length
+          : 0,
+      averagePeerRating:
+        peerRatings.length > 0
+          ? peerRatings.reduce((sum, value) => sum + value, 0) /
+            peerRatings.length
+          : 0,
+      earningsPercentile: earningsRank * 100,
+      ratingPercentile: ratingRank * 100,
+    };
+  }
+
+  // Calculate stats for mobile view
+  const totalBookings = user.providerBookings.length;
+  const totalEarnings = earningsRows.reduce(
+    (sum, entry) => sum + Number(entry.amount || 0),
+    0,
+  );
+  const completionRate =
+    terminalBookings.length > 0
+      ? (completedBookings.length / terminalBookings.length) * 100
       : 0;
 
   return (
@@ -107,8 +363,10 @@ export default async function AnalyticsPage() {
         <div className="lg:col-span-2">
           <BasicAnalytics
             bookings={user.providerBookings}
-            earnings={user.wallet?.transactions || []}
+            earnings={earningsRows}
             reviews={user.receivedReviews}
+            monthlySeries={sixMonthRevenue}
+            completionRate={completionRate}
           />
         </div>
 
@@ -117,13 +375,21 @@ export default async function AnalyticsPage() {
           <div className="lg:col-span-2">
             <AdvancedAnalytics
               bookings={user.providerBookings}
-              earnings={user.wallet?.transactions || []}
+              earnings={earningsRows}
               reviews={user.receivedReviews}
+              monthlyRevenue={monthlyRevenue}
+              dailyEarnings={dailyEarnings}
+              monthlyGrowthRate={monthlyGrowthRate}
+              retentionRate={retentionRate}
+              customerSatisfaction={customerSatisfaction}
+              timeDistribution={timeDistribution}
+              servicePerformance={servicePerformance}
+              peerBenchmark={peerBenchmark}
             />
           </div>
         ) : (
           <div className="lg:col-span-2 mt-4 sm:mt-6">
-            <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-center relative overflow-hidden shadow-lg">
+            <div className="bg-linear-to-r from-gray-900 to-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 text-center relative overflow-hidden shadow-lg">
               {/* Background Effects */}
               <div className="absolute top-0 right-0 -mt-6 sm:-mt-10 -mr-6 sm:-mr-10 w-24 h-24 sm:w-40 sm:h-40 bg-white opacity-5 rounded-full blur-xl sm:blur-3xl" />
               <div className="absolute bottom-0 left-0 -mb-6 sm:-mb-10 -ml-6 sm:-ml-10 w-24 h-24 sm:w-40 sm:h-40 bg-emerald-500 opacity-10 rounded-full blur-xl sm:blur-3xl" />
@@ -184,7 +450,7 @@ export default async function AnalyticsPage() {
                 {/* Upgrade Button */}
                 <Link
                   href="/dashboard/premium"
-                  className="px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-bold rounded-lg sm:rounded-xl transition-all duration-200 shadow-lg shadow-orange-500/20 transform hover:scale-105 inline-flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
+                  className="px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 bg-linear-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-bold rounded-lg sm:rounded-xl transition-all duration-200 shadow-lg shadow-orange-500/20 transform hover:scale-105 inline-flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base"
                 >
                   <span className="material-symbols-outlined text-sm sm:text-base">
                     rocket_launch
@@ -219,9 +485,9 @@ export default async function AnalyticsPage() {
       {!showAdvanced && (
         <div className="hidden lg:block mt-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-6">
+            <div className="bg-linear-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-linear-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
                   <span className="material-symbols-outlined text-white">
                     insights
                   </span>
@@ -234,9 +500,9 @@ export default async function AnalyticsPage() {
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+            <div className="bg-linear-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-linear-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
                   <span className="material-symbols-outlined text-white">
                     trending_up
                   </span>
@@ -249,9 +515,9 @@ export default async function AnalyticsPage() {
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-6">
+            <div className="bg-linear-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-linear-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
                   <span className="material-symbols-outlined text-white">
                     group
                   </span>

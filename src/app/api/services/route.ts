@@ -3,9 +3,70 @@ import { prisma } from "@/lib/prisma";
 import { successResponse, handleError } from "@/lib/middleware/errorHandler";
 import { calculateDistance } from "@/lib/utils/geolocation";
 import { isPubliclyVerified } from "@/lib/trust/publicTrust";
+import { getMarketplaceSearchTerms } from "@/lib/search/normalizeMarketplaceQuery";
 import type { Prisma } from "@/generated/prisma/client";
 
 const PRICING_TIMEZONE = "Africa/Nairobi";
+
+const geocodeCache = new Map<
+  string,
+  { latitude: number; longitude: number } | null
+>();
+
+function parseCoordinate(raw: string | null): number | null {
+  if (raw == null || raw.trim() === "") return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+async function geocodeLocationText(
+  locationText: string,
+): Promise<{ latitude: number; longitude: number } | null> {
+  const normalized = locationText.trim().toLowerCase();
+  if (!normalized) return null;
+
+  if (geocodeCache.has(normalized)) {
+    return geocodeCache.get(normalized) ?? null;
+  }
+
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(locationText)}&limit=1`,
+      {
+        headers: {
+          "User-Agent": "JustInTime/1.0 (support@gtss.software)",
+          "Accept-Language": "en",
+        },
+        signal: AbortSignal.timeout(4000),
+      },
+    );
+
+    if (!response.ok) {
+      geocodeCache.set(normalized, null);
+      return null;
+    }
+
+    const payload = (await response.json()) as Array<{
+      lat?: string;
+      lon?: string;
+    }>;
+    const first = payload[0];
+    const latitude = first?.lat ? Number(first.lat) : NaN;
+    const longitude = first?.lon ? Number(first.lon) : NaN;
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      geocodeCache.set(normalized, null);
+      return null;
+    }
+
+    const result = { latitude, longitude };
+    geocodeCache.set(normalized, result);
+    return result;
+  } catch {
+    geocodeCache.set(normalized, null);
+    return null;
+  }
+}
 
 function getDemandMultiplier(demandCount: number): number {
   if (demandCount >= 40) return 0.35;
@@ -62,11 +123,27 @@ export async function GET(request: NextRequest) {
     const maxPrice = searchParams.get("maxPrice");
     const minRating = searchParams.get("minRating");
     const search = searchParams.get("search");
+    const locationQuery = searchParams.get("location");
     const sort = searchParams.get("sort") || "relevance";
 
     // Location parameters
-    const userLat = searchParams.get("latitude");
-    const userLon = searchParams.get("longitude");
+    const userLat = parseCoordinate(searchParams.get("latitude"));
+    const userLon = parseCoordinate(searchParams.get("longitude"));
+    let effectiveLatitude = userLat;
+    let effectiveLongitude = userLon;
+
+    if (
+      (effectiveLatitude === null || effectiveLongitude === null) &&
+      locationQuery
+    ) {
+      const resolved = await geocodeLocationText(locationQuery);
+      if (resolved) {
+        effectiveLatitude = resolved.latitude;
+        effectiveLongitude = resolved.longitude;
+      }
+    }
+
+    const searchTerms = getMarketplaceSearchTerms(search || "", 12);
 
     // Build where clause
     const where: Prisma.ServiceWhereInput = {
@@ -120,11 +197,12 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    if (search) {
-      where.OR = [
-        { title: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-      ];
+    if (searchTerms.length > 0) {
+      where.OR = searchTerms.flatMap((term) => [
+        { title: { contains: term, mode: "insensitive" } },
+        { description: { contains: term, mode: "insensitive" } },
+        { category: { name: { contains: term, mode: "insensitive" } } },
+      ]);
     }
 
     if (minPrice || maxPrice) {
@@ -135,7 +213,10 @@ export async function GET(request: NextRequest) {
 
     // Build orderBy clause (skip for distance sorting - we'll do it in memory)
     let orderBy: Prisma.ServiceOrderByWithRelationInput = {};
-    const isDistanceSort = sort === "distance" && userLat && userLon;
+    const isDistanceSort =
+      sort === "distance" &&
+      effectiveLatitude !== null &&
+      effectiveLongitude !== null;
     const candidateTake = Math.min(
       Math.max(skip + limit * 6, limit * 20),
       5000,
@@ -269,14 +350,14 @@ export async function GET(request: NextRequest) {
       let distance: number | undefined;
 
       if (
-        userLat &&
-        userLon &&
-        service.provider.profile?.latitude &&
-        service.provider.profile?.longitude
+        effectiveLatitude !== null &&
+        effectiveLongitude !== null &&
+        typeof service.provider.profile?.latitude === "number" &&
+        typeof service.provider.profile?.longitude === "number"
       ) {
         distance = calculateDistance(
-          parseFloat(userLat),
-          parseFloat(userLon),
+          effectiveLatitude,
+          effectiveLongitude,
           service.provider.profile.latitude,
           service.provider.profile.longitude,
         );
@@ -316,6 +397,27 @@ export async function GET(request: NextRequest) {
         overallScore: service.provider.trustScore?.overallScore,
       });
 
+      const searchableText =
+        `${service.title} ${service.description} ${service.category.name}`
+          .toLowerCase()
+          .trim();
+      const searchHits = searchTerms.filter((term) =>
+        searchableText.includes(term.toLowerCase()),
+      ).length;
+      const textMatchScore =
+        searchTerms.length > 0
+          ? Math.min((searchHits / searchTerms.length) * 22, 22)
+          : 10;
+
+      const proximityScore =
+        typeof distance === "number"
+          ? Math.max(0, 40 - Math.min(distance, 40))
+          : 0;
+
+      const ratingScore = Math.min(25, averageRating * 5);
+      const reviewConfidenceScore = (Math.min(ratings.length, 30) / 30) * 8;
+      const rebookScore = (Math.min(rebookedCount, 20) / 20) * 10;
+
       const demandMultiplier = getDemandMultiplier(
         demandMap.get(service.id) || 0,
       );
@@ -352,6 +454,32 @@ export async function GET(request: NextRequest) {
       if (pricingContext.weatherMultiplier > 0)
         pricingReasons.push("Seasonal Conditions");
 
+      const promotedBoost = isPromoted
+        ? service.promotionPlan === "PREMIUM"
+          ? 6
+          : 3
+        : 0;
+      const premiumProviderBoost =
+        ["PRO", "BUSINESS"].includes(
+          service.provider.subscription?.plan || "",
+        ) && service.provider.subscription?.isActive
+          ? 4
+          : 0;
+      const verificationBoost = providerIsVerified ? 4 : 0;
+
+      const relevanceScore = Number(
+        (
+          proximityScore +
+          textMatchScore +
+          ratingScore +
+          reviewConfidenceScore +
+          rebookScore +
+          promotedBoost +
+          premiumProviderBoost +
+          verificationBoost
+        ).toFixed(3),
+      );
+
       return {
         id: service.id,
         title: service.title,
@@ -387,6 +515,7 @@ export async function GET(request: NextRequest) {
         reviews: ratings.length,
         rebookedCount,
         distance,
+        relevanceScore,
         dynamicPricing: {
           multiplier: previewMultiplier,
           reason:
@@ -421,27 +550,8 @@ export async function GET(request: NextRequest) {
       ["PRO", "BUSINESS"].includes(service.provider?.subscription?.plan) &&
       service.provider?.subscription?.isActive === true;
 
-    // Sorting Logic: Promoted Service > Premium Provider > Distance/Rating/Relevance
+    // Sorting logic: location-aware relevance by default when coordinates are available.
     const sortServices = (a: RankedService, b: RankedService) => {
-      // 1. Active Service Promotion
-      if (a.promoted.isPromoted && !b.promoted.isPromoted) return -1;
-      if (!a.promoted.isPromoted && b.promoted.isPromoted) return 1;
-
-      // Tie-breaker Level 1: Promotion Plan (PREMIUM > STANDARD)
-      if (a.promoted.isPromoted && b.promoted.isPromoted) {
-        if (a.promoted.plan === "PREMIUM" && b.promoted.plan !== "PREMIUM")
-          return -1;
-        if (a.promoted.plan !== "PREMIUM" && b.promoted.plan === "PREMIUM")
-          return 1;
-      }
-
-      // 2. Premium Provider Subscription
-      const aProv = isPremiumProvider(a);
-      const bProv = isPremiumProvider(b);
-      if (aProv && !bProv) return -1;
-      if (!aProv && bProv) return 1;
-
-      // 3. Requested Sort
       if (isDistanceSort) {
         const aDistance =
           typeof a.distance === "number"
@@ -454,17 +564,37 @@ export async function GET(request: NextRequest) {
         if (aDistance !== bDistance) {
           return aDistance - bDistance;
         }
+        return (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0);
       } else if (sort === "rebooked") {
-        return b.rebookedCount - a.rebookedCount;
+        return (
+          b.rebookedCount - a.rebookedCount ||
+          (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0)
+        );
       } else if (sort === "rating") {
-        return b.rating - a.rating;
+        return (
+          b.rating - a.rating ||
+          (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0)
+        );
       } else if (sort === "price_low") {
-        return a.price - b.price;
+        return (
+          a.price - b.price || (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0)
+        );
       } else if (sort === "price_high") {
-        return b.price - a.price;
+        return (
+          b.price - a.price || (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0)
+        );
       }
 
-      return 0; // Relevance / Default
+      // Default relevance ranking with bounded promotion/premium boosts.
+      const relevanceDelta = (b.relevanceScore ?? 0) - (a.relevanceScore ?? 0);
+      if (relevanceDelta !== 0) return relevanceDelta;
+
+      const aProv = isPremiumProvider(a);
+      const bProv = isPremiumProvider(b);
+      if (aProv && !bProv) return -1;
+      if (!aProv && bProv) return 1;
+
+      return 0;
     };
 
     // Apply Sort

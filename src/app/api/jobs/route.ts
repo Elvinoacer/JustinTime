@@ -16,6 +16,7 @@ import { growthFeatureFlags } from "@/lib/growth/featureFlags";
 import { hasRole } from "@/lib/auth/roles";
 import type { JobListClient } from "@/lib/api/contracts/public-listings";
 import { isPubliclyVerified } from "@/lib/trust/publicTrust";
+import { getMarketplaceSearchTerms } from "@/lib/search/normalizeMarketplaceQuery";
 
 // Haversine formula to calculate distance between two coordinates in kilometers
 function calculateDistance(
@@ -209,13 +210,15 @@ export async function GET(request: Request) {
       }
     }
 
-    // Search filter (title and description)
+    // Search filter (title, description, and category aliases)
     if (searchParams.get("search")) {
       const searchTerm = searchParams.get("search")!;
-      where.OR = [
-        { title: { contains: searchTerm, mode: "insensitive" } },
-        { description: { contains: searchTerm, mode: "insensitive" } },
-      ];
+      const normalizedSearchTerms = getMarketplaceSearchTerms(searchTerm, 10);
+      where.OR = normalizedSearchTerms.flatMap((term) => [
+        { title: { contains: term, mode: "insensitive" } },
+        { description: { contains: term, mode: "insensitive" } },
+        { category: { name: { contains: term, mode: "insensitive" } } },
+      ]);
     }
 
     // Verified clients only filter
@@ -308,31 +311,8 @@ export async function GET(request: Request) {
       const jobsWithDistance = await Promise.all(
         jobs.map(async (job) => {
           let distance = null;
-          let jobLat = job.latitude;
-          let jobLon = job.longitude;
-
-          // Fallback for legacy jobs without stored coordinates
-          if ((jobLat === null || jobLon === null) && job.location) {
-            try {
-              const jobCoords = await geocodeLocation(job.location);
-              if (jobCoords) {
-                jobLat = jobCoords.lat;
-                jobLon = jobCoords.lon;
-
-                // Persist derived coordinates so future cold starts avoid repeated geocoding.
-                void prisma.job
-                  .update({
-                    where: { id: job.id },
-                    data: { latitude: jobLat, longitude: jobLon },
-                  })
-                  .catch(() => {
-                    // Best-effort persistence only; listing should continue even if this fails.
-                  });
-              }
-            } catch {
-              // Ignore geocoding errors for legacy jobs to prevent API failure
-            }
-          }
+          const jobLat = job.latitude;
+          const jobLon = job.longitude;
 
           if (jobLat !== null && jobLon !== null) {
             distance = calculateDistance(userLat, userLon, jobLat, jobLon);

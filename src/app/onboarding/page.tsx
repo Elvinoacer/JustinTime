@@ -8,6 +8,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
+import { getPreferredDashboard } from "@/lib/auth/workspace";
 import OnboardingShell from "./components/OnboardingShell";
 import StepRoleSelect from "./components/StepRoleSelect";
 import StepClientDetails from "./components/StepClientDetails";
@@ -230,8 +231,7 @@ function OnboardingPageContent() {
         return;
       }
 
-      const role = session.user.role;
-      router.push(role === "PROVIDER" ? "/dashboard" : "/client/dashboard");
+      router.push(getPreferredDashboard(session.user));
     }
   }, [session, router, currentStep, selectedRole]);
 

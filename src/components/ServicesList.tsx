@@ -52,14 +52,20 @@ const ServicesList = ({
   } = useServicesInfinite(filters);
 
   const handleSortChange = (sort: string) => {
-    const sortMap: Record<string, ServicesFilters["sort"]> = {
-      Relevance: "relevance",
-      "Distance: Nearest": "distance",
-      "Rating: High to Low": "rating",
-      "Price: Low to High": "price_low",
-      "Price: High to Low": "price_high",
-    };
-    onSortChange(sortMap[sort] || "relevance");
+    const allowedSorts = new Set<NonNullable<ServicesFilters["sort"]>>([
+      "recommended",
+      "relevance",
+      "distance",
+      "rating",
+      "price_low",
+      "price_high",
+    ]);
+
+    onSortChange(
+      allowedSorts.has(sort as NonNullable<ServicesFilters["sort"]>)
+        ? (sort as NonNullable<ServicesFilters["sort"]>)
+        : "relevance",
+    );
   };
 
   const services = useMemo(
@@ -199,6 +205,7 @@ const ServicesList = ({
   }
 
   const sortOptions = [
+    { label: "Recommended for You", value: "recommended" },
     { label: "Relevance", value: "relevance" },
     { label: "Rating: High to Low", value: "rating" },
     { label: "Price: Low to High", value: "price_low" },
@@ -208,8 +215,7 @@ const ServicesList = ({
       : []),
   ];
 
-  const currentSortLabel =
-    sortOptions.find((opt) => opt.value === filters.sort)?.label || "Relevance";
+  const currentSort = filters.sort || "relevance";
 
   return (
     <div className="flex-1 pb-24 md:pb-0">
@@ -251,10 +257,10 @@ const ServicesList = ({
               id="services-sort"
               className="max-w-[14rem] cursor-pointer bg-transparent py-2 pr-8 text-sm font-medium text-slate-900 outline-none"
               onChange={(e) => handleSortChange(e.target.value)}
-              value={currentSortLabel}
+              value={currentSort}
             >
               {sortOptions.map((option) => (
-                <option key={option.value} value={option.label}>
+                <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}

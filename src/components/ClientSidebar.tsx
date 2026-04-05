@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { hasRole } from "@/lib/auth/roles";
 import { useNotificationCounts } from "@/lib/hooks/useNotificationCounts";
 import { signOutWithNotificationCleanup } from "@/lib/auth/signOutWithNotificationCleanup";
+import WorkspaceSwitcher from "@/components/WorkspaceSwitcher";
 
 const navItems = [
   { name: "Dashboard", href: "/client/dashboard", icon: "dashboard" },
@@ -318,24 +319,10 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
           {/* Dashboard Switch - Role-based */}
           <div className="pt-2 mt-2 border-t border-gray-100">
             {hasRole(session?.user, "PROVIDER") ? (
-              <Link
-                href="/dashboard"
-                onClick={onClose}
-                className="flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-xl transition-all duration-200 group text-gray-600 hover:bg-gray-50 hover:text-gray-900 w-full"
-              >
-                <span
-                  className="material-symbols-outlined text-[18px] lg:text-[20px] transition-colors text-gray-400 group-hover:text-gray-600 shrink-0"
-                  aria-hidden="true"
-                >
-                  swap_horiz
-                </span>
-                <span className="text-xs lg:text-sm truncate">
-                  Provider Dashboard
-                </span>
-              </Link>
+              <WorkspaceSwitcher variant="client" onNavigate={onClose} />
             ) : (
               <Link
-                href="/onboarding?upgrade=true"
+                href="/become-a-provider"
                 onClick={onClose}
                 className="flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-xl transition-all duration-200 group bg-emerald-50 text-emerald-700 hover:bg-emerald-100 w-full"
               >

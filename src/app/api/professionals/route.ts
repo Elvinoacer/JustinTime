@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import type { ProfessionalListItem } from "@/lib/api/contracts/public-listings";
 import { isPubliclyVerified } from "@/lib/trust/publicTrust";
+import { getMarketplaceSearchTerms } from "@/lib/search/normalizeMarketplaceQuery";
 
 const MAX_PROVIDERS_RANK = 4000;
 const IMAGE_FILE_PATTERN =
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const searchRaw = (searchParams.get("search") || "").trim();
+    const searchTerms = getMarketplaceSearchTerms(searchRaw, 10);
     const minPrice = parseNum(searchParams.get("minPrice"));
     const maxPrice = parseNum(searchParams.get("maxPrice"));
     const page = Math.max(1, parseNum(searchParams.get("page")) || 1);
@@ -121,18 +123,20 @@ export async function GET(request: NextRequest) {
     }
 
     let skillIds: string[] = [];
-    if (searchRaw) {
+    if (searchTerms.length > 0) {
       const matchingCats = await prisma.category.findMany({
         where: {
-          name: { contains: searchRaw, mode: "insensitive" },
+          OR: searchTerms.map((term) => ({
+            name: { contains: term, mode: "insensitive" },
+          })),
         },
         select: { id: true },
       });
       skillIds = matchingCats.map((c) => c.id);
-      const searchOr: Prisma.UserWhereInput[] = [
-        { name: { contains: searchRaw, mode: "insensitive" } },
-        { profile: { bio: { contains: searchRaw, mode: "insensitive" } } },
-      ];
+      const searchOr: Prisma.UserWhereInput[] = searchTerms.flatMap((term) => [
+        { name: { contains: term, mode: "insensitive" } },
+        { profile: { bio: { contains: term, mode: "insensitive" } } },
+      ]);
       if (skillIds.length > 0) {
         searchOr.push({ profile: { skills: { hasSome: skillIds } } });
       }
@@ -321,6 +325,37 @@ export async function GET(request: NextRequest) {
                 isLikelyImageUrl(url),
             ) ?? null;
 
+        const searchableText = [provider.name || "", p?.bio || "", ...skills]
+          .join(" ")
+          .toLowerCase();
+        const matchedTerms = searchTerms.filter((term) =>
+          searchableText.includes(term.toLowerCase()),
+        ).length;
+        const textRelevance =
+          searchTerms.length > 0
+            ? Math.min((matchedTerms / searchTerms.length) * 24, 24)
+            : 8;
+        const distanceScore =
+          typeof distance === "number"
+            ? Math.max(0, 35 - Math.min(distance, 35))
+            : 0;
+        const ratingScore = Math.min((getAvg(provider.id) || 0) * 5, 25);
+        const completionScore =
+          (Math.min(provider._count?.providerBookings || 0, 50) / 50) * 16;
+        const reviewsScore =
+          (Math.min(provider._count?.receivedReviews || 0, 40) / 40) * 10;
+        const verificationScore = verified ? 8 : 0;
+        const relevanceScore = Number(
+          (
+            textRelevance +
+            distanceScore +
+            ratingScore +
+            completionScore +
+            reviewsScore +
+            verificationScore
+          ).toFixed(3),
+        );
+
         return {
           id: provider.id,
           name: provider.name || "Anonymous Professional",
@@ -343,6 +378,7 @@ export async function GET(request: NextRequest) {
           trustBadges,
           verificationAccessGranted: hasPaidOrWaivedAccess,
           visibilityBoostScore,
+          relevanceScore,
           subscription: {
             plan: provider.subscription?.plan || "FREE",
             isActive: provider.subscription?.isActive || false,
@@ -399,6 +435,13 @@ export async function GET(request: NextRequest) {
           b.longitude!,
         );
         if (Math.abs(distA - distB) > 0.3) return distA - distB;
+        return boostDelta;
+      }
+
+      if (sortBy === "recommended") {
+        const recommendationDelta =
+          (b.relevanceScore || 0) - (a.relevanceScore || 0);
+        if (Math.abs(recommendationDelta) > 0.1) return recommendationDelta;
         return boostDelta;
       }
 

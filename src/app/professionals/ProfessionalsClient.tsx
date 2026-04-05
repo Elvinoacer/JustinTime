@@ -42,6 +42,11 @@ const SORT_OPTIONS = (
   disabled?: boolean;
   hint?: string;
 }[] => [
+  {
+    value: "recommended",
+    label: "Recommended for you",
+    icon: "auto_awesome",
+  },
   { value: "rating", label: "Highest rated", icon: "star" },
   {
     value: "distance",
@@ -75,11 +80,11 @@ export default function ProfessionalsPage() {
 
   const [searchInput, setSearchInput] = useState(initialSearch);
   const [search, setSearch] = useState(initialSearch);
-  const [minPrice, setMinPrice] = useState<number>(() => {
+  const [minPrice, setMinPrice] = useState<number | undefined>(() => {
     const value = searchParams.get("minPrice");
     return value ? Number(value) : undefined;
   });
-  const [maxPrice, setMaxPrice] = useState<number>(() => {
+  const [maxPrice, setMaxPrice] = useState<number | undefined>(() => {
     const value = searchParams.get("maxPrice");
     return value ? Number(value) : undefined;
   });

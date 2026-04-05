@@ -6,7 +6,6 @@ import {
   useUpdateClientProfile,
 } from "@/lib/api/hooks/useClientProfile";
 import Image from "next/image";
-import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,6 +13,7 @@ export default function ClientProfilePage() {
   const { data: profile, isLoading } = useClientProfile();
   const updateProfileMutation = useUpdateClientProfile();
 
+  const [isMobile, setIsMobile] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -27,6 +27,14 @@ export default function ClientProfilePage() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Detect mobile viewport for responsive UI adjustments
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   useEffect(() => {
     if (profile && isPristine) {
       setFormData({
@@ -37,12 +45,6 @@ export default function ClientProfilePage() {
       });
     }
   }, [profile, isPristine]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setIsPristine(false);
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,7 +130,7 @@ export default function ClientProfilePage() {
 
       <div className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-xs sm:shadow-sm lg:shadow-md border border-gray-200 overflow-hidden">
         {/* Header / Cover */}
-        <div className="h-20 sm:h-24 lg:h-32 bg-gradient-to-r from-emerald-500 to-teal-600 relative"></div>
+        <div className="h-20 sm:h-24 lg:h-32 bg-linear-to-r from-emerald-500 to-teal-600 relative"></div>
 
         <div className="px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8">
           <div className="relative flex justify-between items-end -mt-8 sm:-mt-10 lg:-mt-12 mb-4 sm:mb-6 lg:mb-8">
@@ -198,7 +200,7 @@ export default function ClientProfilePage() {
               <button
                 type="submit"
                 disabled={updateProfileMutation.isPending}
-                className="w-full md:w-auto bg-gradient-to-r from-emerald-500 to-emerald-600 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-medium hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-sm sm:shadow-md disabled:opacity-70 flex items-center justify-center gap-2 text-sm sm:text-base"
+                className="w-full md:w-auto bg-linear-to-r from-emerald-500 to-emerald-600 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-medium hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-sm sm:shadow-md disabled:opacity-70 flex items-center justify-center gap-2 text-sm sm:text-base"
               >
                 {updateProfileMutation.isPending ? (
                   <>

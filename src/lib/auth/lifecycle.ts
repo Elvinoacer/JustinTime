@@ -16,6 +16,8 @@ export type AuthLifecycleSnapshot = {
   roles: AppRole[];
   image: string | null;
   onboardingCompleted: boolean;
+  providerSetupCompleted: boolean;
+  preferredWorkspace: string | null;
   clientInterests: string[];
   emailVerified: Date | null;
   isBanned: boolean;
@@ -52,6 +54,8 @@ export async function getAuthUserByEmail(
       roles: true,
       image: true,
       onboardingCompleted: true,
+      providerSetupCompleted: true,
+      preferredWorkspace: true,
       clientInterests: true,
       emailVerified: true,
       isBanned: true,
@@ -107,6 +111,8 @@ export function buildAuthSessionUser(
     roles: mergeRoles(user.roles, user.role),
     image: user.image,
     onboardingCompleted: user.onboardingCompleted,
+    providerSetupCompleted: user.providerSetupCompleted,
+    preferredWorkspace: user.preferredWorkspace,
     clientInterests: user.clientInterests,
     emailVerified: user.emailVerified,
     isBanned: user.isBanned,

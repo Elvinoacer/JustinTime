@@ -7,6 +7,8 @@ declare module "next-auth" {
       role: string;
       roles?: string[];
       onboardingCompleted: boolean;
+      providerSetupCompleted?: boolean;
+      preferredWorkspace?: string;
       clientInterests: string[];
       emailVerified: Date | null;
       authProvider: string;
@@ -21,6 +23,8 @@ declare module "next-auth" {
     role: string;
     roles?: string[];
     onboardingCompleted: boolean;
+    providerSetupCompleted?: boolean;
+    preferredWorkspace?: string;
     clientInterests: string[];
     emailVerified: Date | null;
     isBanned: boolean;
@@ -35,6 +39,8 @@ declare module "next-auth/jwt" {
     role: string;
     roles?: string[];
     onboardingCompleted: boolean;
+    providerSetupCompleted?: boolean;
+    preferredWorkspace?: string;
     clientInterests: string[];
     emailVerified: Date | null;
     authProvider: string;

@@ -31,6 +31,8 @@ type DbUserSnapshot = {
   roles: string[];
   image: string | null;
   onboardingCompleted: boolean;
+  providerSetupCompleted: boolean;
+  preferredWorkspace: string | null;
   clientInterests: string[];
   emailVerified: Date | string | null;
   isBanned: boolean;
@@ -247,6 +249,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.id = dbUser.id;
             token.image = dbUser.image ?? user.image ?? token.image;
             token.onboardingCompleted = dbUser.onboardingCompleted;
+            token.providerSetupCompleted = dbUser.providerSetupCompleted;
+            token.preferredWorkspace = dbUser.preferredWorkspace;
             token.clientInterests = dbUser.clientInterests;
             token.emailVerified = dbUser.emailVerified;
             token.isBanned = dbUser.isBanned;
@@ -267,6 +271,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.id = user.id;
           token.image = user.image ?? token.image;
           token.onboardingCompleted = credentialsUser.onboardingCompleted;
+          token.providerSetupCompleted = credentialsUser.providerSetupCompleted;
+          token.preferredWorkspace = credentialsUser.preferredWorkspace;
           token.clientInterests = credentialsUser.clientInterests;
           token.emailVerified = credentialsUser.emailVerified;
           token.isBanned = credentialsUser.isBanned;
@@ -295,6 +301,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.id = latestDbUser.id;
           token.image = latestDbUser.image ?? token.image;
           token.onboardingCompleted = latestDbUser.onboardingCompleted;
+          token.providerSetupCompleted = latestDbUser.providerSetupCompleted;
+          token.preferredWorkspace = latestDbUser.preferredWorkspace;
           token.clientInterests = latestDbUser.clientInterests;
           token.emailVerified = latestDbUser.emailVerified;
           token.isBanned = latestDbUser.isBanned;
@@ -321,6 +329,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (trigger === "update" && session?.user) {
         token.onboardingCompleted =
           session.user.onboardingCompleted ?? token.onboardingCompleted;
+        token.providerSetupCompleted =
+          session.user.providerSetupCompleted ?? token.providerSetupCompleted;
+        token.preferredWorkspace =
+          session.user.preferredWorkspace ?? token.preferredWorkspace;
         token.role = session.user.role ?? token.role;
         token.roles = normalizeRoles({
           role: session.user.role ?? token.role,
@@ -353,6 +365,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
         session.user.id = token.id as string;
         session.user.onboardingCompleted = token.onboardingCompleted as boolean;
+        session.user.providerSetupCompleted = Boolean(token.providerSetupCompleted);
+        session.user.preferredWorkspace = (token.preferredWorkspace as string | undefined) ?? "CLIENT";
         session.user.clientInterests = token.clientInterests as string[];
         session.user.emailVerified = token.emailVerified as Date | null;
         session.user.authProvider = token.authProvider as string; // B2/B6

@@ -38,6 +38,8 @@ model User {
   updatedAt             DateTime               @updatedAt
   onboardingCompleted   Boolean                @default(false)
   onboardingDraft       Json?
+  providerSetupCompleted Boolean               @default(false)
+  preferredWorkspace    String?                @default("CLIENT") // CLIENT | PROVIDER | ADMIN
   clientInterests       String[]
   isBanned              Boolean                @default(false)
   isTwoFactorEnabled    Boolean                @default(false)

@@ -106,110 +106,24 @@ function toRadians(degrees: number): number {
   return degrees * (Math.PI / 180);
 }
 
-async function fetchJsonWithTimeout(url: string, timeoutMs = 6000) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+async function fetchLocationLookup<T>(
+  mode: "reverse" | "search" | "ip",
+  params?: Record<string, string>,
+  timeoutMs = 6000,
+): Promise<T> {
+  const query = new URLSearchParams({ mode, ...(params || {}) });
+  const response = await fetch(`/api/location/lookup?${query.toString()}`, {
+    signal: AbortSignal.timeout(timeoutMs),
+    headers: {
+      "Accept-Language": "en",
+    },
+  });
 
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "Accept-Language": "en",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Request failed: ${response.status}`);
-    }
-
-    return response.json();
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-type NominatimResponse = {
-  display_name?: string;
-  address?: Record<string, string | undefined>;
-  lat?: string;
-  lon?: string;
-};
-
-function firstNonEmpty(...values: Array<string | undefined>) {
-  for (const value of values) {
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      if (trimmed.length > 0) {
-        return trimmed;
-      }
-    }
+  if (!response.ok) {
+    throw new Error(`Location lookup failed: ${response.status}`);
   }
 
-  return undefined;
-}
-
-function formatReadableAddress(
-  data: NominatimResponse,
-  lat: number,
-  lon: number,
-) {
-  const address = data.address || {};
-
-  const locality = firstNonEmpty(
-    address.neighbourhood,
-    address.suburb,
-    address.city_district,
-    address.town,
-    address.city,
-    address.village,
-    address.county,
-    address.state,
-  );
-  const city = firstNonEmpty(
-    address.city,
-    address.town,
-    address.village,
-    address.county,
-    address.state_district,
-    address.state,
-  );
-  const region = firstNonEmpty(
-    address.county,
-    address.state_district,
-    address.state,
-    address.region,
-  );
-  const country = firstNonEmpty(address.country);
-
-  const ordered = [locality, city, region, country].filter(
-    (part): part is string => Boolean(part),
-  );
-
-  const deduped: string[] = [];
-  for (const part of ordered) {
-    if (
-      !deduped.some((existing) => existing.toLowerCase() === part.toLowerCase())
-    ) {
-      deduped.push(part);
-    }
-  }
-
-  if (deduped.length > 0) {
-    return deduped.join(", ");
-  }
-
-  if (typeof data.display_name === "string" && data.display_name.trim()) {
-    const chunks = data.display_name
-      .split(",")
-      .map((chunk) => chunk.trim())
-      .filter(Boolean);
-
-    if (chunks.length > 0) {
-      return chunks.slice(0, 4).join(", ");
-    }
-  }
-
-  return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  return (await response.json()) as T;
 }
 
 function toNumber(value: unknown): number | null {
@@ -298,7 +212,9 @@ export function getLocationFailureToastMessage(error: unknown): string {
   }
 
   if (
-    normalizedMessage.includes("unable to determine your location automatically")
+    normalizedMessage.includes(
+      "unable to determine your location automatically",
+    )
   ) {
     return "We could not detect your location automatically. Check your internet connection and try again, or enter it manually.";
   }
@@ -324,23 +240,20 @@ export async function reverseGeocodeCoordinates(
   timeoutMs: number = 5000,
 ): Promise<string> {
   try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
+    const data = await fetchLocationLookup<{ address?: string }>(
+      "reverse",
       {
-        headers: {
-          "User-Agent": "JustInTime/1.0 (support@gtss.software)",
-          "Accept-Language": "en",
-        },
-        signal: AbortSignal.timeout(timeoutMs),
+        lat: String(lat),
+        lon: String(lon),
       },
+      timeoutMs,
     );
 
-    if (!response.ok) {
-      throw new Error(`Reverse geocoding failed with ${response.status}`);
+    if (typeof data.address === "string" && data.address.trim()) {
+      return data.address;
     }
 
-    const data = (await response.json()) as NominatimResponse;
-    return formatReadableAddress(data, lat, lon);
+    return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
   } catch {
     return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
   }
@@ -356,50 +269,19 @@ export async function searchManualLocations(
   }
 
   try {
-    const params = new URLSearchParams({
-      q: trimmedQuery,
-      format: "jsonv2",
-      addressdetails: "1",
-      limit: String(options?.limit ?? 5),
-    });
-
-    if (options?.countryCode?.trim()) {
-      params.set("countrycodes", options.countryCode.trim().toLowerCase());
-    }
-
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+    const data = await fetchLocationLookup<{
+      items?: ManualLocationOption[];
+    }>(
+      "search",
       {
-        headers: {
-          "User-Agent": "JustInTime/1.0 (support@gtss.software)",
-          "Accept-Language": "en",
-        },
-        signal: AbortSignal.timeout(options?.timeoutMs ?? 6000),
+        q: trimmedQuery,
+        countryCode: options?.countryCode?.trim() || "",
+        limit: String(options?.limit ?? 5),
       },
+      options?.timeoutMs ?? 6000,
     );
 
-    if (!response.ok) {
-      throw new Error(`Location search failed with ${response.status}`);
-    }
-
-    const data = (await response.json()) as NominatimResponse[];
-
-    return data
-      .map((item) => {
-        const latitude = toNumber(item.lat);
-        const longitude = toNumber(item.lon);
-
-        if (latitude === null || longitude === null) {
-          return null;
-        }
-
-        return {
-          latitude,
-          longitude,
-          address: formatReadableAddress(item, latitude, longitude),
-        } satisfies ManualLocationOption;
-      })
-      .filter((item): item is ManualLocationOption => Boolean(item));
+    return Array.isArray(data.items) ? data.items : [];
   } catch {
     return [];
   }
@@ -425,51 +307,26 @@ export async function getGeolocationPermissionState(): Promise<PermissionState |
 }
 
 export async function getApproximateLocationFromIP(): Promise<DetectedLocation> {
-  // Provider 1: ipapi
-  try {
-    const data = await fetchJsonWithTimeout("https://ipapi.co/json/");
-    const latitude = toNumber(data?.latitude);
-    const longitude = toNumber(data?.longitude);
+  const data = await fetchLocationLookup<{
+    latitude?: number;
+    longitude?: number;
+    address?: string;
+  }>("ip", undefined, 6000);
 
-    if (latitude !== null && longitude !== null) {
-      const parts = [data?.city, data?.region, data?.country_name].filter(
-        Boolean,
-      );
+  const latitude = toNumber(data?.latitude);
+  const longitude = toNumber(data?.longitude);
 
-      return {
-        latitude,
-        longitude,
-        address: parts.length > 0 ? parts.join(", ") : undefined,
-        source: "IP",
-        accuracy: null,
-      };
-    }
-  } catch {
-    // Fall through to secondary provider.
+  if (latitude === null || longitude === null) {
+    throw new Error("Unable to determine location automatically");
   }
 
-  // Provider 2: ipwho
-  try {
-    const data = await fetchJsonWithTimeout("https://ipwho.is/");
-    const latitude = toNumber(data?.latitude);
-    const longitude = toNumber(data?.longitude);
-
-    if (latitude !== null && longitude !== null) {
-      const parts = [data?.city, data?.region, data?.country].filter(Boolean);
-
-      return {
-        latitude,
-        longitude,
-        address: parts.length > 0 ? parts.join(", ") : undefined,
-        source: "IP",
-        accuracy: null,
-      };
-    }
-  } catch {
-    // Fall through to final failure.
-  }
-
-  throw new Error("Unable to determine location automatically");
+  return {
+    latitude,
+    longitude,
+    address: typeof data.address === "string" ? data.address : undefined,
+    source: "IP",
+    accuracy: null,
+  };
 }
 
 export async function detectCurrentLocation(): Promise<DetectedLocation> {
@@ -500,6 +357,10 @@ export async function detectCurrentLocation(): Promise<DetectedLocation> {
     return resolveWithIPFallback("unsupported");
   }
 
+  const ipFallbackPromise = getApproximateLocationFromIP()
+    .then((result) => result)
+    .catch(() => null);
+
   try {
     const precise = await resolvePosition({
       enableHighAccuracy: true,
@@ -521,6 +382,14 @@ export async function detectCurrentLocation(): Promise<DetectedLocation> {
     const firstGeoError = firstError as GeolocationPositionError;
     const firstReason = geolocationErrorToFallbackReason(firstGeoError);
 
+    const fastIpFallback = await ipFallbackPromise;
+    if (fastIpFallback) {
+      return {
+        ...fastIpFallback,
+        fallbackReason: firstReason,
+      } satisfies DetectedLocation;
+    }
+
     if (firstReason === "permission_denied") {
       return resolveWithIPFallback(firstReason, firstGeoError);
     }
@@ -528,8 +397,8 @@ export async function detectCurrentLocation(): Promise<DetectedLocation> {
     try {
       const fallback = await resolvePosition({
         enableHighAccuracy: false,
-        timeout: 15000,
-        maximumAge: 300000,
+        timeout: 4000,
+        maximumAge: 120000,
       });
 
       return {

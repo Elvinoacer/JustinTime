@@ -1,6 +1,5 @@
 "use client";
 import { useTopUpWallet, useWallet } from "@/lib/api/hooks/useWallet";
-import { motion } from "framer-motion";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -16,6 +15,14 @@ import {
 } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
+
+type WalletTransaction = {
+  id?: string;
+  type: string;
+  amount?: number | string | null;
+  createdAt?: string | Date;
+  description?: string | null;
+};
 
 function ClientWalletPageContent() {
   const { data: wallet, isLoading } = useWallet();
@@ -48,8 +55,13 @@ function ClientWalletPageContent() {
     });
   };
 
-  const transactions =
-    (wallet?.transactions as Array<{ type: string }> | undefined) || [];
+  const transactions = (wallet?.transactions as WalletTransaction[]) || [];
+
+  const filterTabs: Array<{ id: "all" | "credit" | "debit"; label: string }> = [
+    { id: "all", label: "All" },
+    { id: "credit", label: "Credits" },
+    { id: "debit", label: "Debits" },
+  ];
 
   const filteredTransactions =
     activeFilter === "all"
@@ -283,28 +295,55 @@ function ClientWalletPageContent() {
                 This Month
               </h3>
               <div className="space-y-2.5 sm:space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-blue-100">
-                    Total Spent
-                  </span>
-                  <span className="text-sm sm:text-base font-bold">
-                    KES 15,240
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-blue-100">
-                    Transactions
-                  </span>
-                  <span className="text-sm sm:text-base font-bold">8</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs sm:text-sm text-blue-100">
-                    Avg. Payment
-                  </span>
-                  <span className="text-sm sm:text-base font-bold">
-                    KES 1,905
-                  </span>
-                </div>
+                {(() => {
+                  const now = new Date();
+                  const startOfMonth = new Date(
+                    now.getFullYear(),
+                    now.getMonth(),
+                    1,
+                  );
+                  const monthlyTransactions = transactions.filter(
+                    (transaction) =>
+                      new Date(transaction.createdAt || Date.now()) >=
+                        startOfMonth &&
+                      transaction.type !== "DEPOSIT" &&
+                      transaction.type !== "REFUND",
+                  );
+                  const totalSpent = monthlyTransactions.reduce(
+                    (sum, transaction) => sum + Number(transaction.amount || 0),
+                    0,
+                  );
+                  const count = monthlyTransactions.length;
+                  const avg = count > 0 ? Math.round(totalSpent / count) : 0;
+                  return (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-blue-100">
+                          Total Spent
+                        </span>
+                        <span className="text-sm sm:text-base font-bold">
+                          KES {totalSpent.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-blue-100">
+                          Transactions
+                        </span>
+                        <span className="text-sm sm:text-base font-bold">
+                          {count}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-blue-100">
+                          Avg. Payment
+                        </span>
+                        <span className="text-sm sm:text-base font-bold">
+                          KES {avg.toLocaleString()}
+                        </span>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -326,19 +365,17 @@ function ClientWalletPageContent() {
                     isMobile ? "overflow-x-auto pb-2" : "gap-1"
                   } -mx-3 sm:mx-0 px-3 sm:px-0`}
                 >
-                  {["all", "credit", "debit"].map((filter) => (
+                  {filterTabs.map((filter) => (
                     <button
-                      key={filter}
-                      onClick={() => setActiveFilter(filter as any)}
+                      key={filter.id}
+                      onClick={() => setActiveFilter(filter.id)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-                        activeFilter === filter
+                        activeFilter === filter.id
                           ? "bg-emerald-100 text-emerald-700"
                           : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                       }`}
                     >
-                      {filter === "all" && "All"}
-                      {filter === "credit" && "Credits"}
-                      {filter === "debit" && "Debits"}
+                      {filter.label}
                     </button>
                   ))}
                 </div>
@@ -371,7 +408,7 @@ function ClientWalletPageContent() {
                     </p>
                   </div>
                 ) : (
-                  filteredTransactions.slice(0, 10).map((transaction: any) => (
+                  filteredTransactions.slice(0, 10).map((transaction) => (
                     <div
                       key={transaction.id}
                       className="p-3 hover:bg-gray-50 transition-colors"
@@ -391,7 +428,7 @@ function ClientWalletPageContent() {
                             </p>
                             <p className="text-xs text-gray-500">
                               {new Date(
-                                transaction.createdAt,
+                                transaction.createdAt || Date.now(),
                               ).toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
@@ -479,7 +516,7 @@ function ClientWalletPageContent() {
                       </td>
                     </tr>
                   ) : (
-                    filteredTransactions.map((transaction: any) => (
+                    filteredTransactions.map((transaction) => (
                       <tr
                         key={transaction.id}
                         className="hover:bg-gray-50 transition-colors"
@@ -499,7 +536,9 @@ function ClientWalletPageContent() {
                           </div>
                         </td>
                         <td className="px-4 sm:px-6 py-3 text-sm text-gray-500">
-                          {new Date(transaction.createdAt).toLocaleDateString()}
+                          {new Date(
+                            transaction.createdAt || Date.now(),
+                          ).toLocaleDateString()}
                         </td>
                         <td
                           className={`px-4 sm:px-6 py-3 text-sm font-bold ${

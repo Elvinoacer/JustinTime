@@ -31,7 +31,8 @@ function ServicesPageContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
-  const initialSearch = searchParams.get("search") ?? searchParams.get("q") ?? "";
+  const initialSearch =
+    searchParams.get("search") ?? searchParams.get("q") ?? "";
   const initialLocation = searchParams.get("location") ?? "";
   const initialCountry = searchParams.get("country") ?? "";
   const initialMinPrice = searchParams.get("minPrice");
@@ -39,8 +40,7 @@ function ServicesPageContent() {
   const initialMinRating = searchParams.get("minRating");
   const initialSort = searchParams.get("sort") ?? "relevance";
   const initialVerified = searchParams.get("verified") === "true";
-  const initialView =
-    searchParams.get("view") === "radar" ? "radar" : "cards";
+  const initialView = searchParams.get("view") === "radar" ? "radar" : "cards";
 
   const [searchInput, setSearchInput] = useState(initialSearch);
   const [searchQuery, setSearchQuery] = useState(initialSearch);
@@ -144,7 +144,9 @@ function ServicesPageContent() {
     }
 
     if (selectedCategory !== "All Services") {
-      const category = allCategories.find((item) => item.name === selectedCategory);
+      const category = allCategories.find(
+        (item) => item.name === selectedCategory,
+      );
       params.set("category", category?.slug || selectedCategory);
     }
 
@@ -243,6 +245,7 @@ function ServicesPageContent() {
 
   const sortSheetOptions = useMemo(() => {
     const base = [
+      { label: "Recommended for You", value: "recommended" },
       { label: "Relevance", value: "relevance" },
       { label: "Rating: High to Low", value: "rating" },
       { label: "Price: Low to High", value: "price_low" },

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -19,18 +19,69 @@ import {
 } from "recharts";
 
 interface BasicAnalyticsProps {
-  bookings: any[];
-  earnings: any[];
-  reviews: any[];
+  bookings: Array<{
+    status?: string;
+    createdAt?: string | Date;
+  }>;
+  earnings: Array<{ amount: number; createdAt: string | Date }>;
+  reviews: Array<{
+    rating?: number | string | null;
+  }>;
+  monthlySeries?: Array<{
+    name: string;
+    monthKey: string;
+    earnings: number;
+    bookings: number;
+  }>;
+  completionRate?: number;
 }
 
 const BasicAnalytics = ({
   bookings,
   earnings,
   reviews,
+  monthlySeries,
+  completionRate,
 }: BasicAnalyticsProps) => {
   const [isMobile, setIsMobile] = useState(false);
   const [activeChart, setActiveChart] = useState<"bar" | "pie" | "line">("bar");
+
+  const getMonthKey = (value: Date) => {
+    const year = value.getUTCFullYear();
+    const month = `${value.getUTCMonth() + 1}`.padStart(2, "0");
+    return `${year}-${month}`;
+  };
+
+  const asDate = (value: unknown): Date | null => {
+    if (value instanceof Date) return value;
+    if (typeof value === "string" || typeof value === "number") {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
+  };
+
+  const computeDeltaLabel = (current: number, previous: number) => {
+    if (!Number.isFinite(current) || !Number.isFinite(previous)) {
+      return { label: "—", changeType: "neutral" as const };
+    }
+    if (previous === 0 && current === 0) {
+      return { label: "0%", changeType: "neutral" as const };
+    }
+    if (previous === 0) {
+      return { label: "+100%", changeType: "increase" as const };
+    }
+
+    const delta = ((current - previous) / Math.abs(previous)) * 100;
+    const rounded = Math.round(delta * 10) / 10;
+    if (Math.abs(rounded) < 0.1) {
+      return { label: "0%", changeType: "neutral" as const };
+    }
+    return {
+      label: `${rounded > 0 ? "+" : ""}${rounded}%`,
+      changeType: rounded > 0 ? ("increase" as const) : ("decrease" as const),
+    };
+  };
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -42,41 +93,88 @@ const BasicAnalytics = ({
   // Calculate basic metrics
   const totalBookings = bookings.length;
   const totalEarnings = earnings.reduce(
-    (acc, curr) => acc + Number(curr.amount),
-    0
+    (acc, curr) => acc + Number(curr.amount || 0),
+    0,
   );
   const averageRating =
     reviews.length > 0
       ? reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviews.length
       : 0;
 
-  // Calculate monthly earnings (last 6 months)
-  const monthlyEarnings = Array.from({ length: 6 })
-    .map((_, i) => {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      const month = date.toLocaleDateString("en-US", { month: "short" });
-      const monthIndex = date.getMonth();
+  // Calculate monthly earnings (last 6 months), grouped by year-month.
+  const monthlyEarnings = useMemo(() => {
+    if (Array.isArray(monthlySeries) && monthlySeries.length > 0) {
+      return monthlySeries;
+    }
 
-      const monthEarnings = earnings
-        .filter((e) => new Date(e.createdAt).getMonth() === monthIndex)
-        .reduce((sum, e) => sum + Number(e.amount), 0);
+    const now = new Date();
+    const currentYear = now.getUTCFullYear();
+    const currentMonth = now.getUTCMonth();
 
-      return {
-        name: month,
-        earnings: monthEarnings,
-        bookings: bookings.filter(
-          (b) => new Date(b.createdAt).getMonth() === monthIndex
-        ).length,
-      };
-    })
-    .reverse();
+    const monthRows = Array.from({ length: 6 }, (_, idx) => {
+      const offset = 5 - idx;
+      const ref = new Date(Date.UTC(currentYear, currentMonth - offset, 15));
+      const monthKey = getMonthKey(ref);
+      const name = ref.toLocaleDateString("en-US", {
+        month: "short",
+        timeZone: "Africa/Nairobi",
+      });
+      return { monthKey, name, earnings: 0, bookings: 0 };
+    });
+
+    const monthIndex = new Map(monthRows.map((row) => [row.monthKey, row]));
+
+    for (const earning of earnings) {
+      const createdAt = asDate(earning.createdAt);
+      if (!createdAt) continue;
+      const key = getMonthKey(createdAt);
+      const row = monthIndex.get(key);
+      if (!row) continue;
+      row.earnings += Number(earning.amount || 0);
+    }
+
+    for (const booking of bookings) {
+      const createdAt = asDate(booking.createdAt);
+      if (!createdAt) continue;
+      const key = getMonthKey(createdAt);
+      const row = monthIndex.get(key);
+      if (!row) continue;
+      row.bookings += 1;
+    }
+
+    return monthRows;
+  }, [bookings, earnings, monthlySeries]);
+
+  const currentMonth = monthlyEarnings[monthlyEarnings.length - 1] || {
+    earnings: 0,
+    bookings: 0,
+  };
+  const previousMonth = monthlyEarnings[monthlyEarnings.length - 2] || {
+    earnings: 0,
+    bookings: 0,
+  };
+
+  const bookingsDelta = computeDeltaLabel(
+    Number(currentMonth.bookings || 0),
+    Number(previousMonth.bookings || 0),
+  );
+  const earningsDelta = computeDeltaLabel(
+    Number(currentMonth.earnings || 0),
+    Number(previousMonth.earnings || 0),
+  );
 
   // Calculate booking status distribution
-  const statusCounts = bookings.reduce((acc: any, booking) => {
-    acc[booking.status] = (acc[booking.status] || 0) + 1;
-    return acc;
-  }, {});
+  const statusCounts = bookings.reduce<Record<string, number>>(
+    (acc, booking) => {
+      const status =
+        typeof booking.status === "string" && booking.status.trim().length > 0
+          ? booking.status
+          : "UNKNOWN";
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    },
+    {},
+  );
 
   const statusData = Object.keys(statusCounts).map((status) => ({
     name: status.charAt(0) + status.slice(1).toLowerCase(),
@@ -87,8 +185,33 @@ const BasicAnalytics = ({
   // Review distribution
   const reviewData = [5, 4, 3, 2, 1].map((rating) => ({
     name: `${rating} Star`,
-    value: reviews.filter((r) => Math.round(r.rating) === rating).length,
+    value: reviews.filter((review) => {
+      const value = Number(review.rating);
+      if (!Number.isFinite(value)) return false;
+      const bucket = Math.max(1, Math.min(5, Math.floor(value)));
+      return bucket === rating;
+    }).length,
   }));
+
+  const completionRateValue =
+    typeof completionRate === "number"
+      ? completionRate
+      : (() => {
+          const terminal = bookings.filter(
+            (booking) =>
+              booking.status === "COMPLETED" || booking.status === "CANCELLED",
+          );
+          if (terminal.length === 0) return 0;
+          const completed = terminal.filter(
+            (booking) => booking.status === "COMPLETED",
+          ).length;
+          return (completed / terminal.length) * 100;
+        })();
+
+  const completionDelta = computeDeltaLabel(
+    completionRateValue,
+    completionRateValue,
+  );
 
   const stats = [
     {
@@ -96,8 +219,8 @@ const BasicAnalytics = ({
       value: totalBookings,
       icon: "calendar_month",
       color: "from-blue-500 to-blue-600",
-      change: "+12%",
-      changeType: "increase",
+      change: bookingsDelta.label,
+      changeType: bookingsDelta.changeType,
       prefix: "",
     },
     {
@@ -105,8 +228,8 @@ const BasicAnalytics = ({
       value: totalEarnings,
       icon: "payments",
       color: "from-emerald-500 to-emerald-600",
-      change: "+8%",
-      changeType: "increase",
+      change: earningsDelta.label,
+      changeType: earningsDelta.changeType,
       prefix: "$",
       format: (val: number) => val.toFixed(isMobile ? 0 : 2),
     },
@@ -115,23 +238,18 @@ const BasicAnalytics = ({
       value: averageRating,
       icon: "star",
       color: "from-amber-500 to-amber-600",
-      change: "+2%",
-      changeType: "increase",
+      change: "Live",
+      changeType: "neutral",
       prefix: "",
       format: (val: number) => val.toFixed(1),
     },
     {
       name: "Completion Rate",
-      value:
-        bookings.length > 0
-          ? (bookings.filter((b) => b.status === "COMPLETED").length /
-              bookings.length) *
-            100
-          : 0,
+      value: completionRateValue,
       icon: "check_circle",
       color: "from-purple-500 to-purple-600",
-      change: "+5%",
-      changeType: "increase",
+      change: completionDelta.label,
+      changeType: completionDelta.changeType,
       prefix: "",
       suffix: "%",
       format: (val: number) => val.toFixed(0),
@@ -139,7 +257,7 @@ const BasicAnalytics = ({
   ];
 
   function getStatusColor(status: string) {
-    const colors: any = {
+    const colors: Record<string, string> = {
       COMPLETED: "#10b981",
       CONFIRMED: "#3b82f6",
       PENDING: "#f59e0b",
@@ -165,7 +283,7 @@ const BasicAnalytics = ({
           >
             <div className="flex items-start justify-between mb-2 sm:mb-3">
               <div
-                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-xs`}
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-linear-to-br ${stat.color} flex items-center justify-center shadow-xs`}
               >
                 <span className="material-symbols-outlined text-white text-sm sm:text-lg">
                   {stat.icon}
@@ -175,7 +293,9 @@ const BasicAnalytics = ({
                 className={`text-[10px] xs:text-xs font-medium px-1.5 py-0.5 rounded-full ${
                   stat.changeType === "increase"
                     ? "bg-emerald-50 text-emerald-700"
-                    : "bg-red-50 text-red-700"
+                    : stat.changeType === "decrease"
+                      ? "bg-red-50 text-red-700"
+                      : "bg-slate-100 text-slate-700"
                 }`}
               >
                 {stat.change}
@@ -390,14 +510,14 @@ const BasicAnalytics = ({
 
               {/* Status Breakdown */}
               <div className="w-full sm:w-1/2 space-y-2 sm:space-y-3">
-                {statusData.map((status, index) => (
+                {statusData.map((status) => (
                   <div
                     key={status.name}
                     className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg"
                   >
                     <div className="flex items-center gap-2 sm:gap-3">
                       <div
-                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        className="w-3 h-3 rounded-full shrink-0"
                         style={{ backgroundColor: status.color }}
                       />
                       <span className="text-xs sm:text-sm font-medium text-gray-700">
@@ -432,7 +552,7 @@ const BasicAnalytics = ({
             </h3>
 
             <div className="space-y-3">
-              {reviewData.map((review, index) => {
+              {reviewData.map((review) => {
                 const percentage =
                   reviews.length > 0
                     ? (review.value / reviews.length) * 100
@@ -464,7 +584,7 @@ const BasicAnalytics = ({
                     </div>
                     <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-500"
+                        className="h-full bg-linear-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-500"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
@@ -474,7 +594,7 @@ const BasicAnalytics = ({
             </div>
 
             {/* Average Rating Card */}
-            <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg">
+            <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-linear-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs sm:text-sm text-amber-800 font-medium mb-1">
@@ -493,9 +613,9 @@ const BasicAnalytics = ({
                           {i < Math.floor(averageRating)
                             ? "star"
                             : i === Math.floor(averageRating) &&
-                              averageRating % 1 >= 0.5
-                            ? "star_half"
-                            : "star_border"}
+                                averageRating % 1 >= 0.5
+                              ? "star_half"
+                              : "star_border"}
                         </span>
                       ))}
                     </div>
@@ -518,11 +638,11 @@ const BasicAnalytics = ({
       {/* Mobile-Only Quick Actions */}
       {isMobile && (
         <div className="grid grid-cols-2 gap-3">
-          <button className="px-3 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-1.5 shadow-sm">
+          <button className="px-3 py-2 bg-linear-to-r from-emerald-500 to-emerald-600 text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-1.5 shadow-sm">
             <span className="material-symbols-outlined text-sm">download</span>
             Export Data
           </button>
-          <button className="px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-1.5 shadow-sm">
+          <button className="px-3 py-2 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-1.5 shadow-sm">
             <span className="material-symbols-outlined text-sm">insights</span>
             View Trends
           </button>

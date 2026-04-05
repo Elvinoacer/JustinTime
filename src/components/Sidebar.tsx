@@ -9,6 +9,7 @@ import LanguageSwitcher from "./common/LanguageSwitcher";
 import { hasRole } from "@/lib/auth/roles";
 import { useNotificationCounts } from "@/lib/hooks/useNotificationCounts";
 import { signOutWithNotificationCleanup } from "@/lib/auth/signOutWithNotificationCleanup";
+import WorkspaceSwitcher from "@/components/WorkspaceSwitcher";
 
 const navItems = [
   {
@@ -297,28 +298,10 @@ const Sidebar = ({
 
         {/* Secondary Actions */}
         <ul className="flex flex-col gap-1" role="list">
-          {/* Dashboard Switch - Only for PROVIDER role */}
-          {hasRole(session?.user, "PROVIDER") && (
+          {/* Dashboard Switch - Workspace Switcher */}
+          {!isCollapsed && (
             <li>
-              <Link
-                href="/client/dashboard"
-                onClick={handleLinkClick}
-                className={`group flex items-center gap-3 px-3 py-3 rounded-xl text-gray-300 hover:bg-gray-800/50 hover:text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${isCollapsed ? "justify-center" : ""}`}
-                aria-label="Switch to Client Dashboard"
-                title={isCollapsed ? "Client Dashboard" : undefined}
-              >
-                <span
-                  className="material-symbols-outlined text-xl text-gray-400 group-hover:text-emerald-400 shrink-0"
-                  aria-hidden="true"
-                >
-                  swap_horiz
-                </span>
-                {!isCollapsed && (
-                  <span className="text-sm font-semibold truncate">
-                    Client Dashboard
-                  </span>
-                )}
-              </Link>
+              <WorkspaceSwitcher variant="provider" onNavigate={handleLinkClick} />
             </li>
           )}
           <li>

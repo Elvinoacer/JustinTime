@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import {
   detectCurrentLocation,
-  getGeolocationPermissionState,
   getLocationFallbackToastMessage,
   getLocationFailureToastMessage,
   getLocationFromStorage,
@@ -66,13 +65,80 @@ export default function LocationPicker({
     [],
   );
   const [isSearchingManual, setIsSearchingManual] = useState(false);
+  const [accountSyncStatus, setAccountSyncStatus] = useState<
+    "idle" | "synced" | "device-only"
+  >("idle");
   const bootstrapIdentityRef = useRef<string | null>(null);
   const hasAttemptedInitialQueryRef = useRef(false);
+  const pendingServerSyncTimeoutRef = useRef<number | null>(null);
+  const latestServerSyncLocationRef = useRef<PickerLocation | null>(null);
+
+  const syncLocationToServer = useCallback(
+    async (location: PickerLocation, force = false) => {
+      if (!session?.user?.id) {
+        return;
+      }
+
+      const response = await fetch("/api/user/location", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          latitude: location.latitude,
+          longitude: location.longitude,
+          address: location.address,
+          source: location.source,
+          accuracy: location.accuracy,
+          force,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to persist location to account");
+      }
+
+      setAccountSyncStatus("synced");
+    },
+    [session?.user?.id],
+  );
+
+  const scheduleServerSync = useCallback(
+    (location: PickerLocation, options?: { force?: boolean }) => {
+      if (!session?.user?.id) {
+        return;
+      }
+
+      latestServerSyncLocationRef.current = location;
+
+      if (pendingServerSyncTimeoutRef.current !== null) {
+        window.clearTimeout(pendingServerSyncTimeoutRef.current);
+      }
+
+      pendingServerSyncTimeoutRef.current = window.setTimeout(async () => {
+        const payload = latestServerSyncLocationRef.current;
+        if (!payload) return;
+
+        try {
+          await syncLocationToServer(payload, Boolean(options?.force));
+        } catch (error) {
+          console.error("Failed to save location to server:", error);
+          setAccountSyncStatus("device-only");
+          toast.warning(
+            "Location saved on this device, but we could not sync it to your account yet.",
+          );
+        }
+      }, 450);
+    },
+    [session?.user?.id, syncLocationToServer],
+  );
 
   const syncLocation = useCallback(
     async (
       location: PickerLocation,
-      options?: { silent?: boolean; closeAfter?: boolean },
+      options?: {
+        silent?: boolean;
+        closeAfter?: boolean;
+        forceServerSave?: boolean;
+      },
     ) => {
       setCurrentLocation(location);
       onLocationChange({
@@ -84,21 +150,9 @@ export default function LocationPicker({
       saveLocationToStorage(location);
 
       if (session?.user?.id) {
-        try {
-          await fetch("/api/user/location", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              latitude: location.latitude,
-              longitude: location.longitude,
-              address: location.address,
-              source: location.source,
-              accuracy: location.accuracy,
-            }),
-          });
-        } catch (error) {
-          console.error("Failed to save location to server:", error);
-        }
+        scheduleServerSync(location, {
+          force: options?.forceServerSave,
+        });
       }
 
       if (!options?.silent) {
@@ -120,8 +174,16 @@ export default function LocationPicker({
         setIsOpen(false);
       }
     },
-    [onLocationChange, session?.user?.id],
+    [onLocationChange, scheduleServerSync, session?.user?.id],
   );
+
+  useEffect(() => {
+    return () => {
+      if (pendingServerSyncTimeoutRef.current !== null) {
+        window.clearTimeout(pendingServerSyncTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -169,6 +231,9 @@ export default function LocationPicker({
         existingLocation = storedLocation;
         setCurrentLocation(storedLocation);
         onLocationChange(storedLocation);
+        if (session?.user?.id) {
+          setAccountSyncStatus("synced");
+        }
       }
 
       if (!existingLocation && session?.user?.id) {
@@ -187,6 +252,7 @@ export default function LocationPicker({
               setCurrentLocation(existingLocation);
               onLocationChange(existingLocation);
               saveLocationToStorage(existingLocation);
+              setAccountSyncStatus("synced");
             }
           }
         } catch (error) {
@@ -194,8 +260,7 @@ export default function LocationPicker({
         }
       }
 
-      const permission = await getGeolocationPermissionState();
-      const shouldAutoDetect = !existingLocation || permission === "granted";
+      const shouldAutoDetect = !existingLocation;
 
       if (!shouldAutoDetect) {
         return;
@@ -212,7 +277,7 @@ export default function LocationPicker({
             accuracy: detected.accuracy,
             fallbackReason: detected.fallbackReason,
           },
-          { silent: true },
+          { silent: true, forceServerSave: false },
         );
       } catch {
         // Silent bootstrap should not interrupt normal manual flow.
@@ -235,7 +300,7 @@ export default function LocationPicker({
           accuracy: detected.accuracy,
           fallbackReason: detected.fallbackReason,
         },
-        { closeAfter: true },
+        { closeAfter: true, forceServerSave: true },
       );
     } catch (error) {
       toast.error(getLocationFailureToastMessage(error));
@@ -244,68 +309,102 @@ export default function LocationPicker({
     }
   };
 
-  const handleClearLocation = () => {
+  const handleClearLocation = async () => {
     setCurrentLocation(null);
     onLocationChange(null);
     clearLocationFromStorage();
     setManualResults([]);
+    setAccountSyncStatus("idle");
+
+    if (session?.user?.id) {
+      try {
+        const response = await fetch("/api/user/location", {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to clear location from account");
+        }
+      } catch (error) {
+        console.error("Failed to clear server location:", error);
+        toast.warning(
+          "Location cleared on this device, but account clearing failed. Please retry.",
+        );
+        setIsOpen(false);
+        return;
+      }
+    }
+
     toast.success("Location cleared");
     setIsOpen(false);
   };
 
-  const selectManualLocation = useCallback(async (
-    result: ManualLocationOption,
-    options?: { silent?: boolean; closeAfter?: boolean },
-  ) => {
-    await syncLocation(
-      {
-        latitude: result.latitude,
-        longitude: result.longitude,
-        address: result.address,
-        source: "MANUAL",
-        accuracy: null,
+  const selectManualLocation = useCallback(
+    async (
+      result: ManualLocationOption,
+      options?: {
+        silent?: boolean;
+        closeAfter?: boolean;
+        forceServerSave?: boolean;
       },
-      options,
-    );
-    setManualQuery(result.address);
-    setManualResults([]);
-  }, [syncLocation]);
+    ) => {
+      await syncLocation(
+        {
+          latitude: result.latitude,
+          longitude: result.longitude,
+          address: result.address,
+          source: "MANUAL",
+          accuracy: null,
+        },
+        {
+          ...options,
+          forceServerSave: options?.forceServerSave ?? true,
+        },
+      );
+      setManualQuery(result.address);
+      setManualResults([]);
+    },
+    [syncLocation],
+  );
 
-  const handleManualLocation = useCallback(async (
-    queryOverride?: string,
-    options?: { silent?: boolean; closeAfter?: boolean },
-  ) => {
-    const query = (queryOverride ?? manualQuery).trim();
-    if (!query) {
-      toast.info("Enter a city, town, estate, or county first.");
-      return;
-    }
-
-    setIsSearchingManual(true);
-
-    try {
-      const results = await searchManualLocations(query, {
-        countryCode: initialCountryCode,
-        limit: 5,
-      });
-
-      setManualResults(results);
-
-      if (results.length === 0) {
-        toast.error("No matching places found. Try a broader location.");
+  const handleManualLocation = useCallback(
+    async (
+      queryOverride?: string,
+      options?: { silent?: boolean; closeAfter?: boolean },
+    ) => {
+      const query = (queryOverride ?? manualQuery).trim();
+      if (!query) {
+        toast.info("Enter a city, town, estate, or county first.");
         return;
       }
 
-      if (results.length === 1) {
-        await selectManualLocation(results[0], options);
-        if (!options?.silent) {
-          toast.success("Location updated from manual search.");
+      setIsSearchingManual(true);
+
+      try {
+        const results = await searchManualLocations(query, {
+          countryCode: initialCountryCode,
+          limit: 5,
+        });
+
+        setManualResults(results);
+
+        if (results.length === 0) {
+          toast.error("No matching places found. Try a broader location.");
+          return;
         }
+
+        if (results.length === 1) {
+          await selectManualLocation(results[0], options);
+          if (!options?.silent) {
+            toast.success("Location updated from manual search.");
+          }
+        }
+      } finally {
+        setIsSearchingManual(false);
       }
-    } finally {
-      setIsSearchingManual(false);
-    }
-  }, [initialCountryCode, manualQuery, selectManualLocation]);
+    },
+    [initialCountryCode, manualQuery, selectManualLocation],
+  );
 
   useEffect(() => {
     setManualQuery(normalizedInitialQuery);
@@ -484,7 +583,7 @@ export default function LocationPicker({
                               Location Active
                             </p>
                             {currentLocation.address && (
-                              <p className="text-xs text-emerald-700 truncate sm:break-words">
+                              <p className="text-xs text-emerald-700 truncate sm:wrap-break-word">
                                 {currentLocation.address}
                               </p>
                             )}
@@ -492,6 +591,20 @@ export default function LocationPicker({
                               {currentLocation.latitude.toFixed(4)},{" "}
                               {currentLocation.longitude.toFixed(4)}
                             </p>
+                            {session?.user?.id &&
+                            accountSyncStatus !== "idle" ? (
+                              <p
+                                className={`text-[11px] mt-1 ${
+                                  accountSyncStatus === "device-only"
+                                    ? "text-amber-700"
+                                    : "text-emerald-700"
+                                }`}
+                              >
+                                {accountSyncStatus === "device-only"
+                                  ? "Saved on this device only"
+                                  : "Synced to your account"}
+                              </p>
+                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -520,7 +633,7 @@ export default function LocationPicker({
                       <button
                         onClick={handleDetectLocation}
                         disabled={isDetecting}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-lg sm:rounded-xl font-medium hover:from-emerald-700 hover:to-emerald-800 transition-all disabled:opacity-50 active:scale-[0.98]"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 bg-linear-to-r from-emerald-600 to-emerald-700 text-white rounded-lg sm:rounded-xl font-medium hover:from-emerald-700 hover:to-emerald-800 transition-all disabled:opacity-50 active:scale-[0.98]"
                       >
                         {isDetecting ? (
                           <>
@@ -553,13 +666,19 @@ export default function LocationPicker({
                         <input
                           type="text"
                           value={manualQuery}
-                          onChange={(event) => setManualQuery(event.target.value)}
+                          onChange={(event) =>
+                            setManualQuery(event.target.value)
+                          }
                           placeholder="Search area, town, or county"
                           className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-emerald-500/80 focus:ring-2 focus:ring-emerald-500/15"
                         />
                         <button
                           type="button"
-                          onClick={() => void handleManualLocation(undefined, { closeAfter: true })}
+                          onClick={() =>
+                            void handleManualLocation(undefined, {
+                              closeAfter: true,
+                            })
+                          }
                           disabled={isSearchingManual}
                           className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                         >
@@ -589,7 +708,7 @@ export default function LocationPicker({
                 ) : (
                   <>
                     {/* Empty State */}
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                    <div className="bg-linear-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
                       <div className="flex items-start gap-3">
                         <span className="material-symbols-outlined text-blue-600 text-sm sm:text-base">
                           info
@@ -609,7 +728,7 @@ export default function LocationPicker({
                     <button
                       onClick={handleDetectLocation}
                       disabled={isDetecting}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 sm:py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg sm:rounded-xl font-bold hover:from-emerald-700 hover:to-teal-700 transition-all disabled:opacity-50 active:scale-[0.98] shadow-lg shadow-emerald-500/30"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 sm:py-4 bg-linear-to-r from-emerald-600 to-teal-600 text-white rounded-lg sm:rounded-xl font-bold hover:from-emerald-700 hover:to-teal-700 transition-all disabled:opacity-50 active:scale-[0.98] shadow-lg shadow-emerald-500/30"
                     >
                       {isDetecting ? (
                         <>

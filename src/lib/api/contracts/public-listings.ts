@@ -69,6 +69,7 @@ export type ProfessionalListItem = {
     isActive: boolean;
   };
   distance?: number;
+  relevanceScore?: number;
 };
 
 export type ProfessionalsListPayload = {
@@ -90,7 +91,10 @@ export function parseApiData<T>(body: unknown): T {
   return body as T;
 }
 
-export function emptyPagination(page: number, pageSize: number): PaginationMeta {
+export function emptyPagination(
+  page: number,
+  pageSize: number,
+): PaginationMeta {
   return {
     page,
     pageSize,

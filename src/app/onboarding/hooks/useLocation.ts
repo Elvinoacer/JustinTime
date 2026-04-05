@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   detectCurrentLocation,
@@ -70,6 +70,45 @@ export function useLocation(): UseLocationReturn {
   const [status, setStatus] = useState<LocationStatus>("IDLE");
   const [permissionStatus, setPermissionStatus] =
     useState<PermissionState | null>(null);
+
+  useEffect(() => {
+    if (
+      typeof navigator === "undefined" ||
+      !("permissions" in navigator) ||
+      typeof navigator.permissions?.query !== "function"
+    ) {
+      return;
+    }
+
+    let permissionRef: PermissionStatus | null = null;
+
+    const bindPermissionListener = async () => {
+      try {
+        const permission = await navigator.permissions.query({
+          name: "geolocation",
+        });
+        permissionRef = permission;
+        setPermissionStatus(permission.state);
+
+        permission.onchange = () => {
+          setPermissionStatus(permission.state);
+          if (permission.state === "granted") {
+            setStatus((current) => (current === "DENIED" ? "IDLE" : current));
+          }
+        };
+      } catch {
+        // Ignore unsupported permission listeners.
+      }
+    };
+
+    void bindPermissionListener();
+
+    return () => {
+      if (permissionRef) {
+        permissionRef.onchange = null;
+      }
+    };
+  }, []);
 
   const applyDetectedLocation = useCallback(
     (detected: DetectedLocation, options?: { notify?: boolean }) => {

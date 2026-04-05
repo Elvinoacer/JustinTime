@@ -3,9 +3,12 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
 import { hasRole } from "@/lib/auth/roles";
-import { calculateBookingBreakdown } from "@/lib/financials";
+import {
+  buildDailyEarningsSeries,
+  PROVIDER_ANALYTICS_TIMEZONE,
+} from "@/lib/analytics/providerAnalytics";
 
-const EARNINGS_TIMEZONE = "Africa/Nairobi";
+const EARNINGS_TIMEZONE = PROVIDER_ANALYTICS_TIMEZONE;
 
 export async function GET() {
   try {
@@ -51,44 +54,12 @@ export async function GET() {
       },
     });
 
-    const dayFormatter = new Intl.DateTimeFormat("en-US", {
-      weekday: "short",
+    const chartData = buildDailyEarningsSeries(bookings, {
+      days: 7,
       timeZone: EARNINGS_TIMEZONE,
-    });
-
-    const orderedDayKeys: string[] = [];
-    const earningsByDay = new Map<string, number>();
-
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dayKey = dayFormatter.format(date);
-      orderedDayKeys.push(dayKey);
-      earningsByDay.set(dayKey, 0);
-    }
-
-    bookings.forEach((booking) => {
-      const dayKey = dayFormatter.format(new Date(booking.createdAt));
-      const baseAmount = Number(
-        booking.basePrice ||
-          booking.service?.price ||
-          booking.job?.budget ||
-          booking.totalAmount ||
-          0,
-      );
-      const discountAmount = Number(booking.discountAmount || 0);
-      const computed = calculateBookingBreakdown(baseAmount, discountAmount);
-      const netAmount = Number(booking.netAmount || computed.netAmount || 0);
-
-      if (!earningsByDay.has(dayKey)) {
-        earningsByDay.set(dayKey, 0);
-      }
-      earningsByDay.set(dayKey, (earningsByDay.get(dayKey) || 0) + netAmount);
-    });
-
-    const chartData = orderedDayKeys.map((name) => ({
-      name,
-      earnings: Math.round(earningsByDay.get(name) || 0),
+    }).map((item) => ({
+      name: item.name,
+      earnings: item.earnings,
     }));
 
     return NextResponse.json({ data: chartData });

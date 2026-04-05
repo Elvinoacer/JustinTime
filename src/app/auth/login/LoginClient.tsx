@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useEffect } from "react";
 import { loginWithCredentials, resendTwoFactorToken } from "@/app/actions/auth";
+import { getPreferredDashboard } from "@/lib/auth/workspace";
 import {
   AUTH_CONTEXT_COOKIE_NAME,
   buildOnboardingIntentUrl,
@@ -148,17 +149,7 @@ function LoginPageContent() {
             router.push(callbackUrl);
           } else {
             const session = await getSession();
-            const role = session?.user?.role;
-            const onboarded = session?.user?.onboardingCompleted;
-            if (role === "ADMIN") {
-              router.push("/admin/dashboard");
-            } else if (!onboarded) {
-              router.push("/onboarding");
-            } else if (role === "PROVIDER") {
-              router.push("/dashboard");
-            } else {
-              router.push("/client/dashboard");
-            }
+            router.push(getPreferredDashboard(session?.user));
           }
         }
       } else {
@@ -223,17 +214,7 @@ function LoginPageContent() {
               router.push(callbackUrl);
             } else {
               const session = await getSession();
-              const role = session?.user?.role;
-              const onboarded = session?.user?.onboardingCompleted;
-              if (role === "ADMIN") {
-                router.push("/admin/dashboard");
-              } else if (!onboarded) {
-                router.push("/onboarding");
-              } else if (role === "PROVIDER") {
-                router.push("/dashboard");
-              } else {
-                router.push("/client/dashboard");
-              }
+              router.push(getPreferredDashboard(session?.user));
             }
           }
         }
