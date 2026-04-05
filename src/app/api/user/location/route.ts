@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 
 const LOCATION_SOURCES = new Set(["GPS", "IP", "MANUAL"]);
 const SOURCE_PRIORITY: Record<string, number> = {
@@ -214,7 +215,7 @@ async function saveDiscoveryLocationForUser(
   await prisma.user.update({
     where: { id: userId },
     data: {
-      onboardingDraft: draft,
+      onboardingDraft: draft as Prisma.InputJsonValue,
     },
   });
 
@@ -241,7 +242,10 @@ async function clearDiscoveryLocationForUser(userId: string) {
   await prisma.user.update({
     where: { id: userId },
     data: {
-      onboardingDraft: Object.keys(draft).length > 0 ? draft : null,
+      onboardingDraft:
+        Object.keys(draft).length > 0
+          ? (draft as Prisma.InputJsonValue)
+          : Prisma.DbNull,
     },
   });
 
@@ -271,7 +275,6 @@ export async function GET() {
             location: true,
             locationSource: true,
             locationAccuracy: true,
-            updatedAt: true,
           },
         },
       },
@@ -301,7 +304,7 @@ export async function GET() {
         location: user.profile.location,
         source: user.profile.locationSource,
         accuracy: user.profile.locationAccuracy,
-        updatedAt: user.profile.updatedAt.toISOString(),
+        updatedAt: null,
         lastConfirmedAt: null,
         scope: "LEGACY_PROFILE_LOCATION",
       });

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { VALIDATION } from "@/lib/constants/validation";
 import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
+import { Prisma } from "@/generated/prisma/client";
 import {
   getDefaultRolesForPrimaryRole,
   mergeRoles,
@@ -26,6 +27,8 @@ const ALLOWED_LOCATION_SOURCES = new Set([
   "BROWSER_GEOLOCATION",
 ]);
 
+type DraftLocationSource = NonNullable<ClientOnboardingData["locationSource"]>;
+
 type ActingUserRecord = {
   id: string;
   email: string | null;
@@ -42,10 +45,22 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function normalizeLocationSource(value: unknown): string | undefined {
-  return typeof value === "string" && ALLOWED_LOCATION_SOURCES.has(value)
-    ? value
-    : undefined;
+function normalizeLocationSource(
+  value: unknown,
+): DraftLocationSource | undefined {
+  if (typeof value !== "string" || !ALLOWED_LOCATION_SOURCES.has(value)) {
+    return undefined;
+  }
+
+  if (value === "GPS" || value === "IP" || value === "MANUAL") {
+    return value;
+  }
+
+  return "MANUAL";
+}
+
+function toInputJsonValue(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 function normalizeLocationAccuracy(value: unknown): number | undefined {
@@ -416,10 +431,10 @@ export const PATCH = auth(async (req) => {
     await prisma.user.update({
       where: { id: actingUser.id },
       data: {
-        onboardingDraft: {
+        onboardingDraft: toInputJsonValue({
           ...sanitizedDraft,
           updatedAt: new Date().toISOString(),
-        },
+        }),
       },
     });
 
@@ -666,7 +681,7 @@ export const POST = auth(async (req) => {
         onboardingCompleted,
         clientInterests:
           role === "CLIENT" ? clientInterests : actingUser.clientInterests,
-        onboardingDraft: null,
+        onboardingDraft: Prisma.DbNull,
         ...(name ? { name } : {}),
         ...(image ? { image } : {}),
         phone: normalizedPhone,

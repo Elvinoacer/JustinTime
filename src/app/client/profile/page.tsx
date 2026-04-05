@@ -65,7 +65,7 @@ export default function ClientProfilePage() {
             typeof (category as { slug?: unknown }).slug === "string" &&
             (category as { id?: string }).id !== "all",
         )
-        .map((category) => ({
+        .map((category: { id: string; name: string; slug: string }) => ({
           id: category.id,
           name: category.name,
           slug: category.slug,

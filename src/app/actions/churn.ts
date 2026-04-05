@@ -421,6 +421,192 @@ export async function createManualIntervention(input: {
   }
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+async function sendManualInterventionEmail(input: {
+  email: string;
+  name: string | null;
+  message: string;
+}) {
+  const { sendEmail } = await import("@/lib/email");
+  const recipientName = input.name?.trim() || "there";
+  const safeMessage = escapeHtml(input.message).replaceAll("\n", "<br />");
+
+  await sendEmail({
+    to: input.email,
+    subject: "A quick update from JustInTime",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #111827;">
+        <h2 style="margin-bottom: 16px;">Hi ${escapeHtml(recipientName)},</h2>
+        <div style="line-height: 1.6; font-size: 15px;">${safeMessage}</div>
+      </div>
+    `,
+  });
+}
+
+async function sendManualInterventionPush(input: {
+  userId: string;
+  message: string;
+}) {
+  await prisma.notification.create({
+    data: {
+      userId: input.userId,
+      title: "JustInTime update",
+      message: input.message.slice(0, 400),
+      type: "CHURN_RE_ENGAGEMENT",
+    },
+  });
+}
+
+/**
+ * Execute a manual intervention draft immediately for EMAIL/PUSH channels.
+ */
+export async function executeManualInterventionDraft(input: {
+  interventionId: string;
+}) {
+  const session = await requireAdmin();
+  if (!session) {
+    return { success: false, error: "Unauthorized - Admin only" };
+  }
+
+  try {
+    const intervention = await prisma.churnIntervention.findUnique({
+      where: { id: input.interventionId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!intervention) {
+      return { success: false, error: "Intervention not found" };
+    }
+
+    if (intervention.executed) {
+      return {
+        success: true,
+        skipped: true,
+        intervention,
+      };
+    }
+
+    if (!["DRAFT", "SCHEDULED"].includes(intervention.status)) {
+      return {
+        success: false,
+        error: "Only DRAFT or SCHEDULED interventions can be executed now",
+      };
+    }
+
+    if (intervention.channel !== "EMAIL" && intervention.channel !== "PUSH") {
+      return {
+        success: false,
+        error: "Immediate execution is supported only for EMAIL or PUSH drafts",
+      };
+    }
+
+    const lock = await prisma.churnIntervention.updateMany({
+      where: {
+        id: intervention.id,
+        executed: false,
+        status: {
+          in: ["DRAFT", "SCHEDULED"],
+        },
+      },
+      data: {
+        status: "EXECUTING",
+      },
+    });
+
+    if (lock.count === 0) {
+      return {
+        success: false,
+        error:
+          "Intervention is already being processed or no longer executable",
+      };
+    }
+
+    try {
+      if (intervention.channel === "EMAIL") {
+        if (!intervention.user.email) {
+          throw new Error("Cannot execute email draft: user has no email");
+        }
+
+        await sendManualInterventionEmail({
+          email: intervention.user.email,
+          name: intervention.user.name,
+          message: intervention.message,
+        });
+      }
+
+      if (intervention.channel === "PUSH") {
+        await sendManualInterventionPush({
+          userId: intervention.user.id,
+          message: intervention.message,
+        });
+      }
+
+      const completed = await prisma.churnIntervention.update({
+        where: { id: intervention.id },
+        data: {
+          status: "SENT",
+          executed: true,
+          executedAt: new Date(),
+          deliveryOk: true,
+          successful: null,
+        },
+      });
+
+      revalidatePath("/admin/churn-analysis");
+
+      return {
+        success: true,
+        intervention: completed,
+      };
+    } catch (deliveryError) {
+      const failed = await prisma.churnIntervention.update({
+        where: { id: intervention.id },
+        data: {
+          status: "FAILED",
+          executed: true,
+          executedAt: new Date(),
+          deliveryOk: false,
+          successful: false,
+          response:
+            deliveryError instanceof Error
+              ? deliveryError.message
+              : "Manual execution failed",
+        },
+      });
+
+      revalidatePath("/admin/churn-analysis");
+
+      return {
+        success: false,
+        intervention: failed,
+        error:
+          deliveryError instanceof Error
+            ? deliveryError.message
+            : "Failed to execute manual draft",
+      };
+    }
+  } catch (error) {
+    console.error("[executeManualInterventionDraft]", error);
+    return { success: false, error: "Failed to execute manual intervention" };
+  }
+}
+
 /**
  * Update intervention status/outcome after follow-up.
  */

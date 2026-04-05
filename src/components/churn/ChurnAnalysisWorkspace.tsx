@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   createManualIntervention,
+  executeManualInterventionDraft,
   getAtRiskUsers,
   triggerChurnAnalysis,
   triggerUserReEngagement,
@@ -107,6 +108,7 @@ export function ChurnAnalysisWorkspace({
     offerText: "",
     scheduledFor: "",
     assignee: "",
+    executeNow: false,
   });
 
   const [outcomeForm, setOutcomeForm] = useState({
@@ -200,6 +202,15 @@ export function ChurnAnalysisWorkspace({
       return;
     }
 
+    if (
+      manualForm.executeNow &&
+      manualForm.channel !== "EMAIL" &&
+      manualForm.channel !== "PUSH"
+    ) {
+      toast.error("Immediate execution is available only for Email or Push");
+      return;
+    }
+
     const detailedMessage = [
       manualForm.message.trim(),
       manualForm.offerText.trim()
@@ -228,7 +239,25 @@ export function ChurnAnalysisWorkspace({
         return;
       }
 
-      toast.success("Manual intervention draft created");
+      if (manualForm.executeNow && result.intervention?.id) {
+        const executeResult = await executeManualInterventionDraft({
+          interventionId: result.intervention.id,
+        });
+
+        if (!executeResult.success) {
+          toast.error(
+            executeResult.error ||
+              "Draft created but immediate execution failed",
+          );
+        } else if (executeResult.skipped) {
+          toast.info("Draft created and already in an executed state");
+        } else {
+          toast.success("Draft created and executed immediately");
+        }
+      } else {
+        toast.success("Manual intervention draft created");
+      }
+
       setManualOpen(false);
       setManualForm((prev) => ({
         ...prev,
@@ -236,7 +265,47 @@ export function ChurnAnalysisWorkspace({
         offerText: "",
         scheduledFor: "",
         assignee: "",
+        executeNow: false,
       }));
+      applyFilters(meta.page);
+      router.refresh();
+    });
+  };
+
+  const handleExecuteManualDraftNow = () => {
+    if (!selectedRow?.lastIntervention) {
+      toast.error("Select a user with a draft intervention first");
+      return;
+    }
+
+    const target = selectedRow.lastIntervention;
+
+    if (!["DRAFT", "SCHEDULED"].includes(target.status)) {
+      toast.error("Only DRAFT or SCHEDULED interventions can be executed");
+      return;
+    }
+
+    if (target.channel !== "EMAIL" && target.channel !== "PUSH") {
+      toast.error("Immediate execution is only supported for Email or Push");
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await executeManualInterventionDraft({
+        interventionId: target.id,
+      });
+
+      if (!result.success) {
+        toast.error(result.error || "Failed to execute manual draft");
+        return;
+      }
+
+      if (result.skipped) {
+        toast.info("Draft was already executed");
+      } else {
+        toast.success("Manual draft executed");
+      }
+
       applyFilters(meta.page);
       router.refresh();
     });
@@ -594,6 +663,20 @@ export function ChurnAnalysisWorkspace({
                       }))
                     }
                   />
+
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={manualForm.executeNow}
+                      onChange={(event) =>
+                        setManualForm((prev) => ({
+                          ...prev,
+                          executeNow: event.target.checked,
+                        }))
+                      }
+                    />
+                    Execute draft now after save (Email/Push only)
+                  </label>
                 </div>
 
                 <DialogFooter className="mt-3">
@@ -930,6 +1013,23 @@ export function ChurnAnalysisWorkspace({
                   onClick={handleOutcomeUpdate}
                 >
                   {isPending ? "Updating..." : "Update Intervention"}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={
+                    isPending ||
+                    !selectedRow.lastIntervention ||
+                    !["DRAFT", "SCHEDULED"].includes(
+                      selectedRow.lastIntervention.status,
+                    ) ||
+                    (selectedRow.lastIntervention.channel !== "EMAIL" &&
+                      selectedRow.lastIntervention.channel !== "PUSH")
+                  }
+                  onClick={handleExecuteManualDraftNow}
+                >
+                  Execute Manual Draft Now
                 </Button>
 
                 <Button
