@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import { sendComprehensiveNotification } from "@/lib/notifications/adminNotifications";
@@ -33,12 +35,32 @@ function getClientIp(request: NextRequest): string | null {
   return value.split(",")[0].trim() || null;
 }
 
-function getInteractionIdentity(request: NextRequest): string | null {
-  return (
-    getClientIp(request) ||
-    request.headers.get("x-anonymous-id")?.trim() ||
-    null
-  );
+function buildFallbackIdentity(request: NextRequest): string {
+  const userAgent =
+    request.headers.get("user-agent")?.trim() || "unknown-agent";
+  const acceptLanguage =
+    request.headers.get("accept-language")?.trim() || "unknown-language";
+  return `fingerprint:${`${userAgent}|${acceptLanguage}`.slice(0, 180)}`;
+}
+
+function toIdentityKey(identity: string): string {
+  return createHash("sha256").update(identity).digest("hex");
+}
+
+async function getInteractionIdentity(request: NextRequest): Promise<string> {
+  const session = await auth();
+  if (session?.user?.id) {
+    return `user:${session.user.id}`;
+  }
+
+  const identity =
+    getClientIp(request) || request.headers.get("x-anonymous-id")?.trim();
+
+  if (identity) {
+    return identity;
+  }
+
+  return buildFallbackIdentity(request);
 }
 
 function isRateLimited(identity: string): boolean {
@@ -68,20 +90,15 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const identity = getInteractionIdentity(request);
+    const identity = await getInteractionIdentity(request);
+    const identityKey = toIdentityKey(identity);
 
-    if (!identity) {
-      return NextResponse.json(
-        { error: "Unable to validate request origin" },
-        { status: 400 },
-      );
-    }
-
-    if (isRateLimited(identity)) {
+    if (isRateLimited(identityKey)) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
-    const { type } = await request.json(); // 'view' or 'favorite'
+    const payload = await request.json().catch(() => ({}));
+    const type = payload?.type;
 
     if (!["view", "favorite"].includes(type)) {
       return NextResponse.json(
@@ -90,7 +107,7 @@ export async function POST(
       );
     }
 
-    const dedupeKey = `${type}:${id}:${identity}`;
+    const dedupeKey = `${type}:${id}:${identityKey}`;
     const now = Date.now();
     const lastSeen = interactionCooldownStore.get(dedupeKey);
     if (lastSeen && now - lastSeen < INTERACTION_COOLDOWN_MS) {
@@ -104,9 +121,20 @@ export async function POST(
       });
     }
 
-    const provider = await prisma.user.findUnique({
-      where: { id, role: "PROVIDER" },
-      include: { profile: true },
+    const provider = await prisma.user.findFirst({
+      where: {
+        id,
+        OR: [{ role: "PROVIDER" }, { roles: { has: "PROVIDER" } }],
+      },
+      select: {
+        id: true,
+        profile: {
+          select: {
+            views: true,
+            favorites: true,
+          },
+        },
+      },
     });
 
     if (!provider || !provider.profile) {

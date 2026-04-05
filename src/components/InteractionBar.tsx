@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -22,9 +21,58 @@ const InteractionBar = ({
   const [favorites, setFavorites] = useState(initialFavorites);
   const [isFavorited, setIsFavorited] = useState(false);
 
+  const readStorage = (key: string) => {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  };
+
+  const writeStorage = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // Ignore storage write failures (private mode, blocked storage, etc.).
+    }
+  };
+
+  const removeStorage = (key: string) => {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Ignore storage remove failures.
+    }
+  };
+
+  const readInteractionCounts = (
+    response: unknown,
+  ): { views: number; favorites: number } | null => {
+    const payload = response as {
+      data?: {
+        data?: {
+          views?: unknown;
+          favorites?: unknown;
+        };
+      };
+    };
+
+    const rawViews = payload?.data?.data?.views;
+    const rawFavorites = payload?.data?.data?.favorites;
+
+    if (typeof rawViews !== "number" || typeof rawFavorites !== "number") {
+      return null;
+    }
+
+    return {
+      views: rawViews,
+      favorites: rawFavorites,
+    };
+  };
+
   const getAnonymousInteractionId = () => {
     const storageKey = "jit_anonymous_interaction_id";
-    const existing = localStorage.getItem(storageKey);
+    const existing = readStorage(storageKey);
     if (existing) {
       return existing;
     }
@@ -33,30 +81,43 @@ const InteractionBar = ({
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
         : `anon_${Math.random().toString(36).slice(2)}_${Date.now()}`;
-    localStorage.setItem(storageKey, generated);
+    writeStorage(storageKey, generated);
     return generated;
   };
 
+  useEffect(() => {
+    setViews(initialViews);
+  }, [initialViews]);
+
+  useEffect(() => {
+    setFavorites(initialFavorites);
+  }, [initialFavorites]);
+
   // Load state from local storage and track view
   useEffect(() => {
+    let cancelled = false;
     const storageKeyView = `viewed_${type}_${id}`;
     const storageKeyFavorite = `favorited_${type}_${id}`;
 
-    const alreadyViewed = localStorage.getItem(storageKeyView);
-    const alreadyFavorited = localStorage.getItem(storageKeyFavorite);
+    const alreadyViewed = readStorage(storageKeyView);
+    const alreadyFavorited = readStorage(storageKeyFavorite);
 
     if (alreadyFavorited) {
       setIsFavorited(true);
     }
 
     if (!alreadyViewed) {
+      // Mark immediately to prevent duplicate track calls from multiple mounted bars.
+      writeStorage(storageKeyView, "pending");
+
       // Track view
       const trackView = async () => {
         try {
-          const endpoint = type === "professional" 
-            ? `/professionals/${id}/interactions` 
-            : `/services/${id}/interactions`;
-            
+          const endpoint =
+            type === "professional"
+              ? `/professionals/${id}/interactions`
+              : `/services/${id}/interactions`;
+
           const response = await apiClient.post(
             endpoint,
             { type: "view" },
@@ -66,33 +127,44 @@ const InteractionBar = ({
               },
             },
           );
-          
-          if (response.data?.data?.views) {
-            setViews(response.data.data.views);
-          } else {
-             setViews(prev => prev + 1);
+
+          if (cancelled) {
+            return;
           }
-          
-          localStorage.setItem(storageKeyView, "true");
+
+          const counts = readInteractionCounts(response);
+          if (counts) {
+            setViews(counts.views);
+            setFavorites(counts.favorites);
+          } else {
+            setViews((prev) => prev + 1);
+          }
+
+          writeStorage(storageKeyView, "true");
         } catch (error) {
           console.error("Failed to track view:", error);
+          removeStorage(storageKeyView);
         }
       };
 
       trackView();
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [id, type]);
 
   const handleFavorite = async () => {
     const storageKeyFavorite = `favorited_${type}_${id}`;
-    
+
     // Optimistic update
     if (isFavorited) {
-      // We don't support "un-favoriting" in this anonymous mode easily without auth, 
-      // but for UI feedback we can toggle it. 
-      // However, the requirement implies a "Like" counter. 
+      // We don't support "un-favoriting" in this anonymous mode easily without auth,
+      // but for UI feedback we can toggle it.
+      // However, the requirement implies a "Like" counter.
       // Usually anonymous likes are permanent per session/device.
-      // Let's allow toggling off locally, but we won't decrement server side to avoid abuse 
+      // Let's allow toggling off locally, but we won't decrement server side to avoid abuse
       // (or we could, but let's stick to increment only as per typical "like" behavior for ease)
       // Actually, let's just prevent un-liking for now to keep it simple and consistent with "views"
       toast.info("You have already favorited this.");
@@ -101,14 +173,15 @@ const InteractionBar = ({
 
     setIsFavorited(true);
     setFavorites((prev) => prev + 1);
-    localStorage.setItem(storageKeyFavorite, "true");
+    writeStorage(storageKeyFavorite, "true");
 
     try {
-      const endpoint = type === "professional" 
-        ? `/professionals/${id}/interactions` 
-        : `/services/${id}/interactions`;
+      const endpoint =
+        type === "professional"
+          ? `/professionals/${id}/interactions`
+          : `/services/${id}/interactions`;
 
-      await apiClient.post(
+      const response = await apiClient.post(
         endpoint,
         { type: "favorite" },
         {
@@ -117,13 +190,20 @@ const InteractionBar = ({
           },
         },
       );
+
+      const counts = readInteractionCounts(response);
+      if (counts) {
+        setViews(counts.views);
+        setFavorites(counts.favorites);
+      }
+
       toast.success("Added to favorites!");
     } catch (error) {
       console.error("Failed to track favorite:", error);
       // Revert on error
       setIsFavorited(false);
       setFavorites((prev) => prev - 1);
-      localStorage.removeItem(storageKeyFavorite);
+      removeStorage(storageKeyFavorite);
       toast.error("Failed to favorite. Please try again.");
     }
   };
@@ -131,8 +211,13 @@ const InteractionBar = ({
   return (
     <div className="flex items-center gap-4 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-gray-100">
       {/* Views */}
-      <div className="flex items-center gap-1.5 text-gray-500" title="Total Views">
-        <span className="material-symbols-outlined text-[20px]">visibility</span>
+      <div
+        className="flex items-center gap-1.5 text-gray-500"
+        title="Total Views"
+      >
+        <span className="material-symbols-outlined text-[20px]">
+          visibility
+        </span>
         <span className="text-sm font-medium">{views.toLocaleString()}</span>
       </div>
 
@@ -146,10 +231,14 @@ const InteractionBar = ({
         }`}
         title="Add to Favorites"
       >
-        <span className={`material-symbols-outlined text-[20px] ${isFavorited ? "fill-current" : ""}`}>
+        <span
+          className={`material-symbols-outlined text-[20px] ${isFavorited ? "fill-current" : ""}`}
+        >
           favorite
         </span>
-        <span className="text-sm font-medium">{favorites.toLocaleString()}</span>
+        <span className="text-sm font-medium">
+          {favorites.toLocaleString()}
+        </span>
       </button>
     </div>
   );

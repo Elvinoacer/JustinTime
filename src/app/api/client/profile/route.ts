@@ -10,18 +10,48 @@ const CLIENT_PROFILE_SELECT = {
   email: true,
   image: true,
   phone: true,
+  role: true,
+  roles: true,
+  preferredWorkspace: true,
   clientInterests: true,
   createdAt: true,
 } as const;
 
-export async function GET(req: Request) {
+async function hasClientProfileAccess(
+  userId: string,
+  source?: {
+    role?: unknown;
+    roles?: unknown;
+  },
+): Promise<boolean> {
+  if (hasClientAccess(source)) {
+    return true;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, roles: true },
+  });
+
+  return hasClientAccess(user);
+}
+
+export async function GET() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    if (!hasClientAccess(session.user)) {
+    const canAccessClientProfile = await hasClientProfileAccess(
+      session.user.id,
+      {
+        role: session.user.role,
+        roles: session.user.roles,
+      },
+    );
+
+    if (!canAccessClientProfile) {
       return NextResponse.json(
         { error: "Client profile required" },
         { status: 403 },
@@ -51,7 +81,15 @@ export async function PUT(req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    if (!hasClientAccess(session.user)) {
+    const canAccessClientProfile = await hasClientProfileAccess(
+      session.user.id,
+      {
+        role: session.user.role,
+        roles: session.user.roles,
+      },
+    );
+
+    if (!canAccessClientProfile) {
       return NextResponse.json(
         { error: "Client profile required" },
         { status: 403 },
@@ -79,16 +117,6 @@ export async function PUT(req: Request) {
 
               return normalized;
             })();
-
-    if (normalizedPhone === undefined && phone !== undefined) {
-      return NextResponse.json(
-        {
-          error:
-            "Use a valid Kenyan phone number format, for example 254712345678.",
-        },
-        { status: 400 },
-      );
-    }
 
     const updateData: {
       name?: string;

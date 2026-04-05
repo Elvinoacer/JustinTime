@@ -12,8 +12,12 @@ export async function generateMetadata({
 
   try {
     const professional = await getProfessionalById(id);
+    const hasProviderRole =
+      professional?.role === "PROVIDER" ||
+      (Array.isArray(professional?.roles) &&
+        professional.roles.includes("PROVIDER"));
 
-    if (!professional || professional.role !== "PROVIDER") {
+    if (!professional || !hasProviderRole) {
       return constructMetadata({
         title: "Professional Not Found | JustInTime",
         description: "The professional you are looking for could not be found.",
