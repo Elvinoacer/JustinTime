@@ -122,6 +122,29 @@ export function ChurnAnalysisWorkspace({
     [rows, selectedUserId],
   );
 
+  const executeManualDraftDisabledReason = useMemo(() => {
+    if (!selectedRow?.lastIntervention) {
+      return "Select a user with an intervention first.";
+    }
+
+    if (!["DRAFT", "SCHEDULED"].includes(selectedRow.lastIntervention.status)) {
+      return "Only DRAFT or SCHEDULED interventions can be executed immediately.";
+    }
+
+    if (
+      selectedRow.lastIntervention.channel !== "EMAIL" &&
+      selectedRow.lastIntervention.channel !== "PUSH"
+    ) {
+      return "This intervention uses a non-deliverable channel for immediate execution. Switch to EMAIL or PUSH.";
+    }
+
+    if (isPending) {
+      return "Execution in progress.";
+    }
+
+    return null;
+  }, [isPending, selectedRow]);
+
   const applyFilters = (page = 1) => {
     startTransition(async () => {
       const result = await getAtRiskUsers({
@@ -242,6 +265,7 @@ export function ChurnAnalysisWorkspace({
       if (manualForm.executeNow && result.intervention?.id) {
         const executeResult = await executeManualInterventionDraft({
           interventionId: result.intervention.id,
+          triggerSource: "create-dialog-execute-now",
         });
 
         if (!executeResult.success) {
@@ -293,6 +317,7 @@ export function ChurnAnalysisWorkspace({
     startTransition(async () => {
       const result = await executeManualInterventionDraft({
         interventionId: target.id,
+        triggerSource: "detail-panel-execute-now",
       });
 
       if (!result.success) {
@@ -1018,19 +1043,17 @@ export function ChurnAnalysisWorkspace({
                 <Button
                   variant="outline"
                   className="w-full"
-                  disabled={
-                    isPending ||
-                    !selectedRow.lastIntervention ||
-                    !["DRAFT", "SCHEDULED"].includes(
-                      selectedRow.lastIntervention.status,
-                    ) ||
-                    (selectedRow.lastIntervention.channel !== "EMAIL" &&
-                      selectedRow.lastIntervention.channel !== "PUSH")
-                  }
+                  disabled={Boolean(executeManualDraftDisabledReason)}
                   onClick={handleExecuteManualDraftNow}
                 >
                   Execute Manual Draft Now
                 </Button>
+
+                {executeManualDraftDisabledReason ? (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-2.5 py-2">
+                    {executeManualDraftDisabledReason}
+                  </p>
+                ) : null}
 
                 <Button
                   variant="outline"

@@ -465,16 +465,36 @@ async function sendManualInterventionPush(input: {
   });
 }
 
+type ManualExecutionTriggerSource =
+  | "create-dialog-execute-now"
+  | "detail-panel-execute-now";
+
+function appendExecutionAuditLog(params: {
+  existingResponse: string | null;
+  executedBy: string;
+  triggerSource: ManualExecutionTriggerSource;
+  executedAtIso: string;
+}): string {
+  const line = `[execution-audit] by=${params.executedBy} source=${params.triggerSource} at=${params.executedAtIso}`;
+  const existing = params.existingResponse?.trim();
+  return existing ? `${existing}\n${line}` : line;
+}
+
 /**
  * Execute a manual intervention draft immediately for EMAIL/PUSH channels.
  */
 export async function executeManualInterventionDraft(input: {
   interventionId: string;
+  triggerSource?: ManualExecutionTriggerSource;
 }) {
   const session = await requireAdmin();
   if (!session) {
     return { success: false, error: "Unauthorized - Admin only" };
   }
+
+  const executedBy = session.user.id;
+  const triggerSource =
+    input.triggerSource ?? ("detail-panel-execute-now" as const);
 
   try {
     const intervention = await prisma.churnIntervention.findUnique({
@@ -499,6 +519,11 @@ export async function executeManualInterventionDraft(input: {
         success: true,
         skipped: true,
         intervention,
+        audit: {
+          executedBy,
+          triggerSource,
+          executedAt: intervention.executedAt,
+        },
       };
     }
 
@@ -557,14 +582,24 @@ export async function executeManualInterventionDraft(input: {
         });
       }
 
+      const executedAt = new Date();
+      const executedAtIso = executedAt.toISOString();
+      const auditResponse = appendExecutionAuditLog({
+        existingResponse: intervention.response,
+        executedBy,
+        triggerSource,
+        executedAtIso,
+      });
+
       const completed = await prisma.churnIntervention.update({
         where: { id: intervention.id },
         data: {
           status: "SENT",
           executed: true,
-          executedAt: new Date(),
+          executedAt,
           deliveryOk: true,
           successful: null,
+          response: auditResponse,
         },
       });
 
@@ -573,20 +608,38 @@ export async function executeManualInterventionDraft(input: {
       return {
         success: true,
         intervention: completed,
+        audit: {
+          executedBy,
+          triggerSource,
+          executedAt,
+        },
       };
     } catch (deliveryError) {
+      const executedAt = new Date();
+      const executedAtIso = executedAt.toISOString();
+      const failureMessage =
+        deliveryError instanceof Error
+          ? deliveryError.message
+          : "Manual execution failed";
+      const failureBase = intervention.response?.trim()
+        ? `${intervention.response.trim()}\n[failure] ${failureMessage}`
+        : `[failure] ${failureMessage}`;
+      const auditResponse = appendExecutionAuditLog({
+        existingResponse: failureBase,
+        executedBy,
+        triggerSource,
+        executedAtIso,
+      });
+
       const failed = await prisma.churnIntervention.update({
         where: { id: intervention.id },
         data: {
           status: "FAILED",
           executed: true,
-          executedAt: new Date(),
+          executedAt,
           deliveryOk: false,
           successful: false,
-          response:
-            deliveryError instanceof Error
-              ? deliveryError.message
-              : "Manual execution failed",
+          response: auditResponse,
         },
       });
 
@@ -595,6 +648,11 @@ export async function executeManualInterventionDraft(input: {
       return {
         success: false,
         intervention: failed,
+        audit: {
+          executedBy,
+          triggerSource,
+          executedAt,
+        },
         error:
           deliveryError instanceof Error
             ? deliveryError.message
