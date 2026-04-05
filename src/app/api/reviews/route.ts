@@ -7,6 +7,7 @@ import {
   recordJobLifecycleEvent,
 } from "@/lib/jobs/lifecycleTimeline";
 import { createReviewSchema } from "@/lib/validations/schemas";
+import { applyLoyaltyRule } from "@/lib/loyalty/rule-engine";
 
 export async function POST(req: Request) {
   try {
@@ -33,6 +34,7 @@ export async function POST(req: Request) {
 
     const { rating: validatedRating, comment: validatedComment } =
       reviewValidation.data;
+    const numericRating = Number(validatedRating);
 
     // Fetch booking to verify ownership and status
     const booking = await prisma.booking.findUnique({
@@ -162,7 +164,9 @@ export async function POST(req: Request) {
         metadata: {
           reviewId: review.id,
           rating: review.rating,
-          hasComment: Boolean(comment && String(comment).trim()),
+          hasComment: Boolean(
+            validatedComment && String(validatedComment).trim(),
+          ),
           idempotencyKey:
             typeof idempotencyKey === "string" ? idempotencyKey : undefined,
         },
@@ -170,12 +174,40 @@ export async function POST(req: Request) {
       });
     }
 
+    try {
+      const { checkAndAwardBadges } =
+        await import("@/lib/gamification/badge-checker");
+
+      await Promise.all([
+        checkAndAwardBadges(targetUserId, {
+          trigger: "REVIEW_CREATED",
+          eventId: review.id,
+          actorUserId: session.user.id,
+        }),
+        applyLoyaltyRule({
+          type: "REVIEW_CREATED",
+          userId: targetUserId,
+          reviewId: review.id,
+          bookingId,
+          rating: numericRating,
+          metadata: {
+            reviewerId: session.user.id,
+          },
+        }),
+      ]);
+    } catch (gamificationError) {
+      console.error(
+        "[REVIEWS_POST] Error awarding review events:",
+        gamificationError,
+      );
+    }
+
     // Send notification to provider
     try {
       await sendComprehensiveNotification({
         userId: targetUserId,
         title: `New Review from ${session.user.name}`,
-        message: `You received a ${numericRating}-star review: "${comment ? (comment.length > 50 ? comment.substring(0, 50) + "..." : comment) : "No comment"}"`,
+        message: `You received a ${numericRating}-star review: "${validatedComment ? (validatedComment.length > 50 ? validatedComment.substring(0, 50) + "..." : validatedComment) : "No comment"}"`,
         type: "REVIEW",
         emailSubject: `New Review Received - JustInTime`,
         emailHtml: `
@@ -186,7 +218,7 @@ export async function POST(req: Request) {
               <div style="font-size: 24px; color: #fbbf24; margin-bottom: 10px;">
                 ${"★".repeat(numericRating)}${"☆".repeat(5 - numericRating)}
               </div>
-              <p style="font-style: italic; color: #4b5563;">"${comment || "No comment provided"}"</p>
+              <p style="font-style: italic; color: #4b5563;">"${validatedComment || "No comment provided"}"</p>
             </div>
             <a href="${process.env.NEXTAUTH_URL}/dashboard/reviews" style="background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">View All Reviews</a>
           </div>

@@ -1,15 +1,35 @@
 import prisma from "@/lib/prisma";
-import { LoyaltyTier } from "@/generated/prisma/client";
+import { LoyaltyTier, Prisma } from "@/generated/prisma/client";
 
 /**
  * Tier thresholds and benefits
  */
 export const TIER_THRESHOLDS = {
-  BRONZE: { minPoints: 0, maxPoints: 999, partnerCount: 1, color: '#CD7F32' },
-  SILVER: { minPoints: 1000, maxPoints: 2999, partnerCount: 3, color: '#C0C0C0' },
-  GOLD: { minPoints: 3000, maxPoints: 6999, partnerCount: 5, color: '#FFD700' },
-  PLATINUM: { minPoints: 7000, maxPoints: 14999, partnerCount: 10, color: '#E5E4E2' },
-  DIAMOND: { minPoints: 15000, maxPoints: Infinity, partnerCount: Infinity, color: '#B9F2FF' }
+  BRONZE: { minPoints: 0, maxPoints: 999, partnerCount: 1, color: "#CD7F32" },
+  SILVER: {
+    minPoints: 1000,
+    maxPoints: 2999,
+    partnerCount: 3,
+    color: "#C0C0C0",
+  },
+  GOLD: {
+    minPoints: 3000,
+    maxPoints: 6999,
+    partnerCount: 5,
+    color: "#FFD700",
+  },
+  PLATINUM: {
+    minPoints: 7000,
+    maxPoints: 14999,
+    partnerCount: 10,
+    color: "#E5E4E2",
+  },
+  DIAMOND: {
+    minPoints: 15000,
+    maxPoints: Infinity,
+    partnerCount: Infinity,
+    color: "#B9F2FF",
+  },
 };
 
 /**
@@ -21,146 +41,409 @@ export const POINT_RULES = {
   FOUR_STAR_REVIEW: 50,
   REPEAT_CLIENT: 75,
   FAST_RESPONSE: 25,
-  PERFECT_WEEK: 200, // 7 jobs with 5-star ratings in a week
+  PERFECT_WEEK: 200,
   REFERRAL: 150,
   PROFILE_COMPLETE: 100,
   TIER_BONUS_SILVER: 100,
   TIER_BONUS_GOLD: 250,
   TIER_BONUS_PLATINUM: 500,
-  TIER_BONUS_DIAMOND: 1000
+  TIER_BONUS_DIAMOND: 1000,
+};
+
+const TIER_ORDER: LoyaltyTier[] = [
+  "BRONZE",
+  "SILVER",
+  "GOLD",
+  "PLATINUM",
+  "DIAMOND",
+];
+
+type AwardPointsOptions = {
+  reasonCode?: string;
+  sourceType?: string;
+  sourceId?: string;
+  idempotencyKey?: string;
+  metadata?: Record<string, unknown>;
+};
+
+type AwardPointsResult = {
+  success: boolean;
+  newTier?: LoyaltyTier;
+  tierUpgrade?: boolean;
+  idempotent?: boolean;
+  pointsBalance?: number;
 };
 
 /**
  * Calculate tier from points
  */
 export function calculateTierFromPoints(points: number): LoyaltyTier {
-  if (points >= TIER_THRESHOLDS.DIAMOND.minPoints) return 'DIAMOND';
-  if (points >= TIER_THRESHOLDS.PLATINUM.minPoints) return 'PLATINUM';
-  if (points >= TIER_THRESHOLDS.GOLD.minPoints) return 'GOLD';
-  if (points >= TIER_THRESHOLDS.SILVER.minPoints) return 'SILVER';
-  return 'BRONZE';
+  if (points >= TIER_THRESHOLDS.DIAMOND.minPoints) return "DIAMOND";
+  if (points >= TIER_THRESHOLDS.PLATINUM.minPoints) return "PLATINUM";
+  if (points >= TIER_THRESHOLDS.GOLD.minPoints) return "GOLD";
+  if (points >= TIER_THRESHOLDS.SILVER.minPoints) return "SILVER";
+  return "BRONZE";
 }
 
 /**
  * Calculate progress to next tier (0-100%)
  */
-export function calculateTierProgress(currentPoints: number, currentTier: LoyaltyTier): number {
+export function calculateTierProgress(
+  currentPoints: number,
+  currentTier: LoyaltyTier,
+): number {
   const nextTier = getNextTier(currentTier);
-  if (!nextTier) return 100; // Already at max tier
-  
+  if (!nextTier) return 100;
+
   const currentThreshold = TIER_THRESHOLDS[currentTier];
   const nextThreshold = TIER_THRESHOLDS[nextTier];
-  
+
   const pointsInCurrentTier = currentPoints - currentThreshold.minPoints;
-  const pointsNeededForNext = nextThreshold.minPoints - currentThreshold.minPoints;
-  
-  return Math.min((pointsInCurrentTier / pointsNeededForNext) * 100, 100);
+  const pointsNeededForNext =
+    nextThreshold.minPoints - currentThreshold.minPoints;
+
+  if (pointsNeededForNext <= 0) return 100;
+
+  return Math.max(
+    0,
+    Math.min((pointsInCurrentTier / pointsNeededForNext) * 100, 100),
+  );
 }
 
 /**
  * Get next tier in the hierarchy
  */
 function getNextTier(currentTier: LoyaltyTier): LoyaltyTier | null {
-  const tiers: LoyaltyTier[] = ['BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND'];
-  const currentIndex = tiers.indexOf(currentTier);
-  return currentIndex < tiers.length - 1 ? tiers[currentIndex + 1] : null;
+  const currentIndex = TIER_ORDER.indexOf(currentTier);
+  return currentIndex < TIER_ORDER.length - 1
+    ? TIER_ORDER[currentIndex + 1]
+    : null;
+}
+
+function isTierUpgrade(oldTier: LoyaltyTier, newTier: LoyaltyTier): boolean {
+  return TIER_ORDER.indexOf(newTier) > TIER_ORDER.indexOf(oldTier);
+}
+
+function isSerializableConflict(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2034"
+  );
+}
+
+function buildIdempotencyKey(
+  userId: string,
+  reason: string,
+  options: AwardPointsOptions,
+): string | null {
+  if (options.idempotencyKey?.trim()) {
+    return options.idempotencyKey.trim();
+  }
+
+  if (options.sourceType?.trim() && options.sourceId?.trim()) {
+    const reasonCode = options.reasonCode?.trim() || reason.trim();
+    return `loyalty:${userId}:${options.sourceType.trim()}:${options.sourceId.trim()}:${reasonCode}`;
+  }
+
+  return null;
+}
+
+async function acquireLoyaltyLock(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  await tx.$executeRaw(
+    Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${`loyalty:${userId}`}))`,
+  );
+}
+
+async function hasIdempotencyTransaction(
+  tx: Prisma.TransactionClient,
+  loyaltyId: string,
+  idempotencyKey: string,
+): Promise<boolean> {
+  const existing = await tx.loyaltyPointTransaction.findFirst({
+    where: {
+      loyaltyId,
+      idempotencyKey,
+    },
+    select: { id: true },
+  });
+
+  return Boolean(existing);
+}
+
+function buildTransactionMetadata(
+  options: AwardPointsOptions,
+  idempotencyKey: string | null,
+): Record<string, unknown> {
+  return {
+    ...(options.metadata || {}),
+    ...(options.reasonCode ? { reasonCode: options.reasonCode } : {}),
+    ...(options.sourceType ? { sourceType: options.sourceType } : {}),
+    ...(options.sourceId ? { sourceId: options.sourceId } : {}),
+    ...(idempotencyKey ? { idempotencyKey } : {}),
+  };
+}
+
+async function awardPointsInTransaction(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  reason: string,
+  points: number,
+  options: AwardPointsOptions,
+): Promise<AwardPointsResult> {
+  const loyalty = await tx.userLoyalty.upsert({
+    where: { userId },
+    update: {},
+    create: { userId },
+  });
+
+  await acquireLoyaltyLock(tx, userId);
+
+  const idempotencyKey = buildIdempotencyKey(userId, reason, options);
+
+  if (idempotencyKey) {
+    const hasDuplicate = await hasIdempotencyTransaction(
+      tx,
+      loyalty.id,
+      idempotencyKey,
+    );
+
+    if (hasDuplicate) {
+      const current = await tx.userLoyalty.findUnique({
+        where: { id: loyalty.id },
+        select: { points: true, currentTier: true },
+      });
+
+      return {
+        success: true,
+        idempotent: true,
+        tierUpgrade: false,
+        pointsBalance: current?.points,
+        newTier: current?.currentTier,
+      };
+    }
+  }
+
+  const transactionMetadata = buildTransactionMetadata(options, idempotencyKey);
+
+  await tx.loyaltyPointTransaction.create({
+    data: {
+      loyaltyId: loyalty.id,
+      points,
+      reason,
+      reasonCode: options.reasonCode,
+      sourceType: options.sourceType,
+      sourceId: options.sourceId,
+      idempotencyKey: idempotencyKey || undefined,
+      metadata: transactionMetadata as unknown as Prisma.InputJsonValue,
+    },
+  });
+
+  let updatedLoyalty = await tx.userLoyalty.update({
+    where: { id: loyalty.id },
+    data: {
+      points: {
+        increment: points,
+      },
+      availablePoints: {
+        increment: points,
+      },
+      ...(points > 0
+        ? {
+            lifetimePoints: {
+              increment: points,
+            },
+            lifetimeEarnedPoints: {
+              increment: points,
+            },
+          }
+        : {
+            lifetimeSpentPoints: {
+              increment: Math.abs(points),
+            },
+          }),
+    },
+    select: {
+      points: true,
+      currentTier: true,
+      lastTierUpdate: true,
+    },
+  });
+
+  const oldTier = loyalty.currentTier;
+  const provisionalTier = calculateTierFromPoints(updatedLoyalty.points);
+  const tierUpgrade = isTierUpgrade(oldTier, provisionalTier);
+
+  if (tierUpgrade && provisionalTier !== "BRONZE") {
+    const bonusKey =
+      `TIER_BONUS_${provisionalTier}` as keyof typeof POINT_RULES;
+    const bonusPoints = POINT_RULES[bonusKey] || 0;
+
+    if (bonusPoints > 0) {
+      const tierBonusIdempotencyKey = idempotencyKey
+        ? `${idempotencyKey}:tier-bonus:${provisionalTier}`
+        : `loyalty:${userId}:tier-bonus:${provisionalTier}:${Date.now()}`;
+
+      const bonusAlreadyApplied = await hasIdempotencyTransaction(
+        tx,
+        loyalty.id,
+        tierBonusIdempotencyKey,
+      );
+
+      if (!bonusAlreadyApplied) {
+        await tx.loyaltyPointTransaction.create({
+          data: {
+            loyaltyId: loyalty.id,
+            points: bonusPoints,
+            reason: `Tier Upgrade Bonus - ${provisionalTier}`,
+            reasonCode: "TIER_BONUS",
+            sourceType: "TIER_UPGRADE",
+            sourceId: provisionalTier,
+            idempotencyKey: tierBonusIdempotencyKey,
+            metadata: {
+              reasonCode: "TIER_BONUS",
+              sourceType: "TIER_UPGRADE",
+              sourceId: provisionalTier,
+              idempotencyKey: tierBonusIdempotencyKey,
+              fromTier: oldTier,
+              toTier: provisionalTier,
+            },
+          },
+        });
+
+        updatedLoyalty = await tx.userLoyalty.update({
+          where: { id: loyalty.id },
+          data: {
+            points: {
+              increment: bonusPoints,
+            },
+            availablePoints: {
+              increment: bonusPoints,
+            },
+            lifetimePoints: {
+              increment: bonusPoints,
+            },
+            lifetimeEarnedPoints: {
+              increment: bonusPoints,
+            },
+          },
+          select: {
+            points: true,
+            currentTier: true,
+            lastTierUpdate: true,
+          },
+        });
+      }
+    }
+
+    await tx.notification.create({
+      data: {
+        userId,
+        title: `🎉 Tier Upgrade: Welcome to ${provisionalTier}!`,
+        message: `Congratulations! You've been promoted to ${provisionalTier} tier. Unlock exclusive partner rewards!`,
+        type: "TIER_UPGRADE",
+      },
+    });
+  }
+
+  const finalTier = calculateTierFromPoints(updatedLoyalty.points);
+
+  const finalized = await tx.userLoyalty.update({
+    where: { id: loyalty.id },
+    data: {
+      currentTier: finalTier,
+      tierProgress: calculateTierProgress(updatedLoyalty.points, finalTier),
+      ...(tierUpgrade
+        ? {
+            lastTierUpdate: new Date(),
+          }
+        : {}),
+    },
+    select: {
+      points: true,
+      currentTier: true,
+    },
+  });
+
+  return {
+    success: true,
+    newTier: tierUpgrade ? finalized.currentTier : undefined,
+    tierUpgrade,
+    idempotent: false,
+    pointsBalance: finalized.points,
+  };
 }
 
 /**
- * Award points to a user
+ * Award points to a user (positive or negative).
+ * For production event flows prefer earnPoints/spendPoints wrappers.
  */
 export async function awardPoints(
   userId: string,
   reason: string,
   points: number,
-  metadata?: any
-): Promise<{ success: boolean; newTier?: LoyaltyTier; tierUpgrade?: boolean }> {
-  try {
-    // Get or create loyalty record
-    let loyalty = await prisma.userLoyalty.findUnique({
-      where: { userId }
-    });
-
-    if (!loyalty) {
-      loyalty = await prisma.userLoyalty.create({
-        data: { userId }
-      });
-    }
-
-    const oldTier = loyalty.currentTier;
-    const newPoints = loyalty.points + points;
-    const newTier = calculateTierFromPoints(newPoints);
-    const tierUpgrade = newTier !== oldTier;
-
-    // Update loyalty record
-    await prisma.$transaction(async (tx) => {
-      // Add point transaction
-      await tx.loyaltyPointTransaction.create({
-        data: {
-          loyaltyId: loyalty!.id,
-          points,
-          reason,
-          metadata: metadata || {}
-        }
-      });
-
-      // Update loyalty record
-      await tx.userLoyalty.update({
-        where: { id: loyalty!.id },
-        data: {
-          points: newPoints,
-          lifetimePoints: loyalty!.lifetimePoints + points,
-          currentTier: newTier,
-          tierProgress: calculateTierProgress(newPoints, newTier),
-          lastTierUpdate: tierUpgrade ? new Date() : loyalty!.lastTierUpdate
-        }
-      });
-
-      // If tier upgraded, award tier bonus
-      if (tierUpgrade && newTier !== 'BRONZE') {
-        const bonusKey = `TIER_BONUS_${newTier}` as keyof typeof POINT_RULES;
-        const bonusPoints = POINT_RULES[bonusKey] || 0;
-        
-        if (bonusPoints > 0) {
-          await tx.loyaltyPointTransaction.create({
-            data: {
-              loyaltyId: loyalty!.id,
-              points: bonusPoints,
-              reason: `Tier Upgrade Bonus - ${newTier}`,
-              metadata: { tierUpgrade: true, fromTier: oldTier, toTier: newTier }
-            }
-          });
-
-          await tx.userLoyalty.update({
-            where: { id: loyalty!.id },
-            data: {
-              points: newPoints + bonusPoints,
-              lifetimePoints: loyalty!.lifetimePoints + points + bonusPoints
-            }
-          });
-        }
-
-        // Create notification
-        await tx.notification.create({
-          data: {
-            userId,
-            title: `🎉 Tier Upgrade: Welcome to ${newTier}!`,
-            message: `Congratulations! You've been promoted to ${newTier} tier. Unlock exclusive partner rewards!`,
-            type: 'TIER_UPGRADE'
-          }
-        });
-      }
-    });
-
-    return {
-      success: true,
-      newTier: tierUpgrade ? newTier : undefined,
-      tierUpgrade
-    };
-  } catch (error) {
-    console.error("[awardPoints]", error);
+  metadata?: Record<string, unknown> | null,
+  options: AwardPointsOptions = {},
+): Promise<AwardPointsResult> {
+  if (!Number.isFinite(points) || points === 0) {
     return { success: false };
   }
+
+  const mergedOptions: AwardPointsOptions = {
+    ...options,
+    metadata: {
+      ...(options.metadata || {}),
+      ...(metadata && typeof metadata === "object" ? metadata : {}),
+    },
+  };
+
+  let attempts = 0;
+  while (attempts < 3) {
+    attempts += 1;
+
+    try {
+      const result = await prisma.$transaction(
+        (tx) =>
+          awardPointsInTransaction(tx, userId, reason, points, mergedOptions),
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
+
+      return result;
+    } catch (error) {
+      if (isSerializableConflict(error) && attempts < 3) {
+        continue;
+      }
+
+      console.error("[awardPoints]", error);
+      return { success: false };
+    }
+  }
+
+  return { success: false };
+}
+
+export async function earnPoints(
+  userId: string,
+  reason: string,
+  points: number,
+  options: AwardPointsOptions = {},
+): Promise<AwardPointsResult> {
+  const amount = Math.abs(points);
+  return awardPoints(userId, reason, amount, options.metadata, options);
+}
+
+export async function spendPoints(
+  userId: string,
+  reason: string,
+  points: number,
+  options: AwardPointsOptions = {},
+): Promise<AwardPointsResult> {
+  const amount = Math.abs(points);
+  return awardPoints(userId, reason, -amount, options.metadata, options);
 }
 
 /**
@@ -171,27 +454,27 @@ export async function getUserLoyaltyStatus(userId: string) {
     where: { userId },
     include: {
       pointHistory: {
-        orderBy: { createdAt: 'desc' },
-        take: 10
-      }
-    }
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      },
+    },
   });
 
   if (!loyalty) {
     loyalty = await prisma.userLoyalty.create({
       data: { userId },
       include: {
-        pointHistory: true
-      }
+        pointHistory: true,
+      },
     });
   }
 
   const currentTierInfo = TIER_THRESHOLDS[loyalty.currentTier];
   const nextTier = getNextTier(loyalty.currentTier);
   const nextTierInfo = nextTier ? TIER_THRESHOLDS[nextTier] : null;
-  
-  const pointsToNextTier = nextTierInfo 
-    ? nextTierInfo.minPoints - loyalty.points 
+
+  const pointsToNextTier = nextTierInfo
+    ? Math.max(nextTierInfo.minPoints - loyalty.points, 0)
     : 0;
 
   return {
@@ -200,36 +483,67 @@ export async function getUserLoyaltyStatus(userId: string) {
     nextTier,
     nextTierInfo,
     pointsToNextTier,
-    progress: calculateTierProgress(loyalty.points, loyalty.currentTier)
+    progress: calculateTierProgress(loyalty.points, loyalty.currentTier),
   };
+}
+
+function getIsoWeekKey(date: Date): string {
+  const utc = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+  const day = utc.getUTCDay() || 7;
+  utc.setUTCDate(utc.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(
+    ((utc.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+  );
+
+  return `${utc.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 }
 
 /**
  * Check for perfect week achievement
  */
-export async function checkPerfectWeekAchievement(userId: string): Promise<boolean> {
+export async function checkPerfectWeekAchievement(
+  userId: string,
+): Promise<boolean> {
   const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  
+
   const recentJobs = await prisma.booking.findMany({
     where: {
       providerId: userId,
-      status: 'COMPLETED',
-      updatedAt: { gte: oneWeekAgo }
+      status: "COMPLETED",
+      updatedAt: { gte: oneWeekAgo },
     },
     include: {
-      review: true
-    }
+      review: true,
+    },
   });
 
-  // Check if we have exactly 7 jobs, all with 5-star reviews
   if (recentJobs.length >= 7) {
-    const fiveStarCount = recentJobs.filter(job => 
-      job.review && job.review.rating === 5
+    const fiveStarCount = recentJobs.filter(
+      (job) => job.review && job.review.rating === 5,
     ).length;
-    
+
     if (fiveStarCount >= 7) {
-      await awardPoints(userId, 'Perfect Week - 7 Five-Star Jobs', POINT_RULES.PERFECT_WEEK);
-      return true;
+      const weekKey = getIsoWeekKey(new Date());
+      const awarded = await earnPoints(
+        userId,
+        "Perfect Week - 7 Five-Star Jobs",
+        POINT_RULES.PERFECT_WEEK,
+        {
+          reasonCode: "PERFECT_WEEK",
+          sourceType: "WEEKLY_PERFORMANCE",
+          sourceId: weekKey,
+          idempotencyKey: `loyalty:${userId}:perfect-week:${weekKey}`,
+          metadata: {
+            fiveStarCount,
+            totalJobs: recentJobs.length,
+          },
+        },
+      );
+
+      return awarded.success;
     }
   }
 
@@ -242,38 +556,23 @@ export async function checkPerfectWeekAchievement(userId: string): Promise<boole
 export async function deductPoints(
   userId: string,
   reason: string,
-  points: number
+  points: number,
+  options: AwardPointsOptions = {},
 ): Promise<boolean> {
   const loyalty = await prisma.userLoyalty.findUnique({
-    where: { userId }
+    where: { userId },
+    select: { availablePoints: true },
   });
 
-  if (!loyalty || loyalty.points < points) {
+  const amount = Math.abs(points);
+  if (!loyalty || loyalty.availablePoints < amount) {
     return false;
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.loyaltyPointTransaction.create({
-      data: {
-        loyaltyId: loyalty.id,
-        points: -points,
-        reason,
-        metadata: { deduction: true }
-      }
-    });
-
-    const newPoints = loyalty.points - points;
-    const newTier = calculateTierFromPoints(newPoints);
-
-    await tx.userLoyalty.update({
-      where: { id: loyalty.id },
-      data: {
-        points: newPoints,
-        currentTier: newTier,
-        tierProgress: calculateTierProgress(newPoints, newTier)
-      }
-    });
+  const result = await spendPoints(userId, reason, amount, {
+    ...options,
+    reasonCode: options.reasonCode || "POINTS_SPENT",
   });
 
-  return true;
+  return result.success;
 }

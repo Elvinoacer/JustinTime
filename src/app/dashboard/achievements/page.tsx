@@ -22,20 +22,8 @@ export default async function AchievementsPage() {
 
   const { badges, stats } = result;
   const inProgressBadges = badges
-    .filter((badge) => !badge.earned && badge.progress?.required > 0)
+    .filter((badge) => !badge.earned && badge.progressRequired > 0)
     .slice(0, 4);
-  const badgesForGrid = badges.map((badge) => ({
-    ...badge,
-    progress:
-      typeof badge.progress === "number"
-        ? badge.progress
-        : badge.progress?.current,
-    requirement:
-      badge.requirement ??
-      (badge.progress?.required != null
-        ? { value: badge.progress.required }
-        : undefined),
-  }));
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-7xl">
@@ -120,14 +108,14 @@ export default async function AchievementsPage() {
         </div>
       )}
 
-      {stats.newlyAwarded > 0 && (
+      {stats.recentlyAwarded > 0 && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 mb-8">
           <h3 className="text-lg font-semibold text-emerald-900 mb-2">
-            🎉 New Badge Activity
+            🎉 Recent Badge Activity
           </h3>
           <p className="text-emerald-800">
-            You earned {stats.newlyAwarded} new badge
-            {stats.newlyAwarded === 1 ? "" : "s"} from your latest activity.
+            You earned {stats.recentlyAwarded} badge
+            {stats.recentlyAwarded === 1 ? "" : "s"} in the last 24 hours.
           </p>
         </div>
       )}
@@ -139,8 +127,8 @@ export default async function AchievementsPage() {
           </h2>
           <div className="space-y-4">
             {inProgressBadges.map((badge) => {
-              const current = Number(badge.progress.current || 0);
-              const required = Number(badge.progress.required || 0);
+              const current = Number(badge.progressCurrent || 0);
+              const required = Number(badge.progressRequired || 0);
               const percentage =
                 required > 0
                   ? Math.min(100, Math.round((current / required) * 100))
@@ -172,7 +160,7 @@ export default async function AchievementsPage() {
       {/* Badge Grid */}
       <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
         <h2 className="text-xl font-bold text-gray-900 mb-6">All Badges</h2>
-        <BadgeGrid badges={badgesForGrid} />
+        <BadgeGrid badges={badges} />
       </div>
 
       {/* Tips */}

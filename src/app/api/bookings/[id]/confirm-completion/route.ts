@@ -15,6 +15,7 @@ import {
   recordJobLifecycleEvent,
 } from "@/lib/jobs/lifecycleTimeline";
 import { createInvoiceForBooking } from "@/app/actions/invoice";
+import { applyLoyaltyRule } from "@/lib/loyalty/rule-engine";
 
 export async function POST(
   _request: Request,
@@ -253,6 +254,33 @@ export async function POST(
     );
 
     try {
+      const { checkAndAwardBadges } =
+        await import("@/lib/gamification/badge-checker");
+
+      await Promise.all([
+        checkAndAwardBadges(booking.providerId, {
+          trigger: "BOOKING_COMPLETED",
+          eventId: booking.id,
+          actorUserId: session.user.id,
+        }),
+        applyLoyaltyRule({
+          type: "BOOKING_COMPLETED",
+          userId: booking.providerId,
+          bookingId: booking.id,
+          metadata: {
+            clientId: booking.clientId,
+            serviceId: booking.serviceId,
+          },
+        }),
+      ]);
+    } catch (gamificationError) {
+      console.error(
+        "[BOOKING_CONFIRM_COMPLETION] Error awarding badge/loyalty events:",
+        gamificationError,
+      );
+    }
+
+    try {
       const { sendBookingStatusUpdateEmail, sendReviewRequestEmail } =
         await import("@/lib/email");
 
@@ -281,17 +309,6 @@ export async function POST(
           providerName,
           booking.service?.title || "Service",
           booking.id,
-        );
-      }
-
-      try {
-        const { checkAndAwardBadges } =
-          await import("@/lib/gamification/badge-checker");
-        await checkAndAwardBadges(booking.providerId);
-      } catch (badgeError) {
-        console.error(
-          "[BOOKING_CONFIRM_COMPLETION] Error checking badges:",
-          badgeError,
         );
       }
     } catch (emailError) {

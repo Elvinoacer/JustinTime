@@ -1,11 +1,12 @@
 "use server";
 
 import { auth } from "@/auth";
-import prisma from "@/lib/prisma";
 import {
+  awardBadge,
+  evaluateBadgeProgress,
+  getBadgesForUser,
   syncBadgeDefinitions,
-  checkAndAwardBadges,
-} from "@/lib/gamification/badge-checker";
+} from "@/lib/gamification/badge-service";
 import { revalidatePath } from "next/cache";
 import { hasRole } from "@/lib/auth/roles";
 
@@ -19,48 +20,20 @@ export async function getUserBadges(userId?: string) {
   }
 
   const targetUserId = userId || session.user.id;
+  const canReadTargetUser =
+    targetUserId === session.user.id || hasRole(session.user, "ADMIN");
+
+  if (!canReadTargetUser) {
+    return { success: false, error: "Forbidden" };
+  }
 
   try {
-    await syncBadgeDefinitions();
-    const evaluation = await checkAndAwardBadges(targetUserId);
-
-    const badges = await prisma.badge.findMany({
-      where: { isActive: true },
-      include: {
-        userBadges: {
-          where: { userId: targetUserId },
-        },
-      },
-      orderBy: [{ category: "asc" }, { points: "asc" }],
-    });
-
-    const earnedBadges = badges.filter((b) => b.userBadges.length > 0);
-    const totalPoints = earnedBadges.reduce((sum, b) => sum + b.points, 0);
-    const progressMap = new Map(
-      evaluation.progress.map((item) => [item.badgeSlug, item]),
-    );
-
-    const completionPercentage =
-      badges.length > 0
-        ? Math.round((earnedBadges.length / badges.length) * 100)
-        : 0;
+    const result = await getBadgesForUser(targetUserId);
 
     return {
       success: true,
-      badges: badges.map((b) => ({
-        ...b,
-        earned: b.userBadges.length > 0,
-        awardedAt: b.userBadges[0]?.awardedAt || null,
-        progress:
-          b.userBadges.length > 0 ? null : progressMap.get(b.slug) || null,
-      })),
-      stats: {
-        totalBadges: badges.length,
-        earnedBadges: earnedBadges.length,
-        totalPoints,
-        completionPercentage,
-        newlyAwarded: evaluation.awarded.length,
-      },
+      badges: result.badges,
+      stats: result.stats,
     };
   } catch (error) {
     console.error("[getUserBadges]", error);
@@ -78,13 +51,20 @@ export async function getBadgeProgress() {
   }
 
   try {
-    await syncBadgeDefinitions();
-    const result = await checkAndAwardBadges(session.user.id);
+    const badges = await evaluateBadgeProgress(session.user.id);
     revalidatePath("/dashboard/achievements");
 
     return {
       success: true,
-      ...result,
+      checked: badges.length,
+      awarded: [],
+      progress: badges
+        .filter((badge) => !badge.earned)
+        .map((badge) => ({
+          badgeSlug: badge.slug,
+          current: badge.progressCurrent,
+          required: badge.progressRequired,
+        })),
     };
   } catch (error) {
     console.error("[getBadgeProgress]", error);
@@ -97,14 +77,16 @@ export async function getBadgeProgress() {
  */
 export async function getAllBadges() {
   try {
-    const badges = await prisma.badge.findMany({
-      where: { isActive: true },
-      orderBy: [{ category: "asc" }, { points: "asc" }],
-    });
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const result = await getBadgesForUser(session.user.id);
 
     return {
       success: true,
-      badges,
+      badges: result.badges,
     };
   } catch (error) {
     console.error("[getAllBadges]", error);
@@ -145,9 +127,20 @@ export async function manuallyAwardBadge(userId: string, badgeSlug: string) {
   }
 
   try {
-    const { awardBadge } = await import("@/lib/gamification/badge-checker");
-    await awardBadge(userId, badgeSlug);
+    const result = await awardBadge(userId, badgeSlug, {
+      trigger: "ADMIN_MANUAL_AWARD",
+      actorUserId: session.user.id,
+    });
+
+    if (!result.awarded) {
+      return {
+        success: true,
+        message: `Badge ${badgeSlug} already exists for user ${userId}`,
+      };
+    }
+
     revalidatePath("/dashboard/achievements");
+    revalidatePath("/dashboard/loyalty");
 
     return {
       success: true,

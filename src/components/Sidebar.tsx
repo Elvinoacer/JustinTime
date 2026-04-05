@@ -135,7 +135,13 @@ const navItems = [
     name: "Achievements",
     href: "/dashboard/achievements",
     icon: "emoji_events",
-    description: "Badges & Points",
+    description: "Badges & milestones",
+  },
+  {
+    name: "Loyalty",
+    href: "/dashboard/loyalty",
+    icon: "loyalty",
+    description: "Points & rewards",
   },
   {
     name: "Reviews",

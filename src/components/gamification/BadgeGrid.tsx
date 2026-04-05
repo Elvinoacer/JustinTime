@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 interface BadgeGridProps {
   badges: Array<{
+    id?: string;
     slug: string;
     name: string;
     description: string;
@@ -16,6 +17,9 @@ interface BadgeGridProps {
     earned: boolean;
     awardedAt?: Date | null;
     progress?: number;
+    progressCurrent?: number;
+    progressRequired?: number;
+    progressPercent?: number;
     requirement?: any;
   }>;
 }
@@ -26,13 +30,14 @@ export function BadgeGrid({ badges }: BadgeGridProps) {
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [showEarnedOnly, setShowEarnedOnly] = useState(false);
 
-  const filteredBadges = badges.filter(badge => {
-    const categoryMatch = selectedCategory === "ALL" || badge.category === selectedCategory;
+  const filteredBadges = badges.filter((badge) => {
+    const categoryMatch =
+      selectedCategory === "ALL" || badge.category === selectedCategory;
     const earnedMatch = !showEarnedOnly || badge.earned;
     return categoryMatch && earnedMatch;
   });
 
-  const earnedCount = badges.filter(b => b.earned).length;
+  const earnedCount = badges.filter((b) => b.earned).length;
 
   return (
     <div className="space-y-6">
@@ -40,11 +45,12 @@ export function BadgeGrid({ badges }: BadgeGridProps) {
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         {/* Category Pills */}
         <div className="flex flex-wrap gap-2">
-          {CATEGORIES.map(category => {
-            const count = category === "ALL" 
-              ? badges.length 
-              : badges.filter(b => b.category === category).length;
-            
+          {CATEGORIES.map((category) => {
+            const count =
+              category === "ALL"
+                ? badges.length
+                : badges.filter((b) => b.category === category).length;
+
             return (
               <button
                 key={category}
@@ -53,7 +59,7 @@ export function BadgeGrid({ badges }: BadgeGridProps) {
                   "px-4 py-2 rounded-lg text-sm font-medium transition-all",
                   selectedCategory === category
                     ? "bg-emerald-600 text-white shadow-md"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200",
                 )}
               >
                 {category} ({count})
@@ -67,7 +73,7 @@ export function BadgeGrid({ badges }: BadgeGridProps) {
           <input
             type="checkbox"
             checked={showEarnedOnly}
-            onChange={e => setShowEarnedOnly(e.target.checked)}
+            onChange={(e) => setShowEarnedOnly(e.target.checked)}
             className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
           />
           <span className="text-sm font-medium text-gray-700">
@@ -78,7 +84,7 @@ export function BadgeGrid({ badges }: BadgeGridProps) {
 
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filteredBadges.map(badge => (
+        {filteredBadges.map((badge) => (
           <BadgeCard key={badge.slug} badge={badge} />
         ))}
       </div>

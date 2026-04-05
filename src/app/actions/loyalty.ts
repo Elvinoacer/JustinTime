@@ -133,7 +133,10 @@ export async function getRedemptionHistory() {
  */
 export async function getLoyaltyLeaderboard(limit: number = 10) {
   try {
-    const leaderboard = await getLeaderboard(limit);
+    const leaderboard = await getLeaderboard(limit, {
+      period: "all-time",
+      providerOnly: true,
+    });
     return {
       success: true,
       leaderboard,
@@ -180,7 +183,20 @@ export async function manuallyAwardPoints(
   }
 
   try {
-    const result = await awardPoints(userId, reason, points);
+    const result = await awardPoints(
+      userId,
+      reason,
+      points,
+      {
+        awardedByAdminId: session.user.id,
+      },
+      {
+        reasonCode: "ADMIN_ADJUSTMENT",
+        sourceType: "ADMIN",
+        sourceId: session.user.id,
+        idempotencyKey: `admin-adjustment:${session.user.id}:${userId}:${Date.now()}`,
+      },
+    );
     revalidatePath("/dashboard/loyalty");
     return result;
   } catch (error) {

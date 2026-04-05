@@ -119,6 +119,7 @@ model User {
   churnScores             ChurnScore[]
   churnInterventions      ChurnIntervention[]
   loyalty                 UserLoyalty?
+  partnerMemberships      PartnerUser[]
   taxSettings             TaxSettings?
   verificationAudits      VerificationAudit[]
 
@@ -1698,17 +1699,22 @@ enum BadgeCategory {
 }
 
 model Badge {
-  id          String        @id @default(cuid())
-  name        String        @unique
-  slug        String        @unique
-  description String
-  category    BadgeCategory
-  icon        String // Emoji or icon name
-  color       String // Hex color for badge display
-  requirement Json // Flexible requirements: { type: "JOB_COUNT", value: 100 }
-  points      Int           @default(0)
-  isActive    Boolean       @default(true)
-  createdAt   DateTime      @default(now())
+  id              String        @id @default(cuid())
+  name            String        @unique
+  slug            String        @unique
+  description     String
+  category        BadgeCategory
+  icon            String // Emoji or icon name
+  color           String // Hex color for badge display
+  requirementType String?       @default("GENERIC")
+  requirement     Json // Flexible requirements: { type: "JOB_COUNT", value: 100 }
+  points          Int           @default(0)
+  isActive        Boolean       @default(true)
+  isHidden        Boolean       @default(false)
+  isManualOnly    Boolean       @default(false)
+  isRevocable     Boolean       @default(false)
+  version         Int           @default(1)
+  createdAt       DateTime      @default(now())
 
   userBadges UserBadge[]
 
@@ -1717,11 +1723,16 @@ model Badge {
 }
 
 model UserBadge {
-  id        String   @id @default(cuid())
-  userId    String
-  badgeId   String
-  awardedAt DateTime @default(now())
-  progress  Int      @default(0) // For tracking progress toward badge
+  id                 String    @id @default(cuid())
+  userId             String
+  badgeId            String
+  awardedAt          DateTime  @default(now())
+  progress           Int       @default(0) // For tracking progress toward badge
+  awardedByEventType String?
+  awardedByEventId   String?
+  awardedByUserId    String?
+  revokedAt          DateTime?
+  revokedReason      String?
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
@@ -1788,15 +1799,18 @@ enum LoyaltyTier {
 }
 
 model UserLoyalty {
-  id             String      @id @default(cuid())
-  userId         String      @unique
-  currentTier    LoyaltyTier @default(BRONZE)
-  points         Int         @default(0)
-  lifetimePoints Int         @default(0)
-  tierProgress   Float       @default(0) // % to next tier
-  lastTierUpdate DateTime    @default(now())
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id                   String      @id @default(cuid())
+  userId               String      @unique
+  currentTier          LoyaltyTier @default(BRONZE)
+  points               Int         @default(0)
+  availablePoints      Int         @default(0)
+  lifetimePoints       Int         @default(0)
+  lifetimeEarnedPoints Int         @default(0)
+  lifetimeSpentPoints  Int         @default(0)
+  tierProgress         Float       @default(0) // % to next tier
+  lastTierUpdate       DateTime    @default(now())
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
 
   user         User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   pointHistory LoyaltyPointTransaction[]
@@ -1807,17 +1821,30 @@ model UserLoyalty {
 }
 
 model LoyaltyPointTransaction {
-  id        String   @id @default(cuid())
-  loyaltyId String
-  points    Int // Can be positive (earned) or negative (spent)
-  reason    String // "Job Completion", "5-Star Review", "Tier Bonus", etc.
-  metadata  Json? // Additional context
-  createdAt DateTime @default(now())
+  id                    String    @id @default(cuid())
+  loyaltyId             String
+  points                Int // Can be positive (earned) or negative (spent)
+  reason                String // "Job Completion", "5-Star Review", "Tier Bonus", etc.
+  reasonCode            String?
+  sourceType            String?
+  sourceId              String?
+  idempotencyKey        String?   @unique
+  status                String    @default("POSTED")
+  reversedTransactionId String?
+  expiresAt             DateTime?
+  createdByUserId       String?
+  createdByType         String?
+  adjustmentReason      String?
+  metadata              Json? // Additional context
+  createdAt             DateTime  @default(now())
 
   loyalty UserLoyalty @relation(fields: [loyaltyId], references: [id], onDelete: Cascade)
 
   @@index([loyaltyId])
   @@index([createdAt])
+  @@index([sourceType, sourceId])
+  @@index([reasonCode])
+  @@index([status])
 }
 
 enum PartnerCategory {
@@ -1831,6 +1858,12 @@ enum PartnerCategory {
   OTHER
 }
 
+enum PartnerUserRole {
+  OWNER
+  MANAGER
+  STAFF
+}
+
 model Partner {
   id          String          @id @default(cuid())
   name        String
@@ -1841,24 +1874,52 @@ model Partner {
   isActive    Boolean         @default(true)
   createdAt   DateTime        @default(now())
 
-  rewards PartnerReward[]
+  rewards     PartnerReward[]
+  memberships PartnerUser[]
 
   @@index([category])
 }
 
+model PartnerUser {
+  id        String          @id @default(cuid())
+  partnerId String
+  userId    String
+  role      PartnerUserRole @default(STAFF)
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerId, userId])
+  @@index([partnerId])
+  @@index([userId])
+  @@index([isActive])
+}
+
 model PartnerReward {
-  id              String      @id @default(cuid())
-  partnerId       String
-  title           String
-  description     String      @db.Text
-  discountType    String // PERCENTAGE, FIXED_AMOUNT, FREE_ITEM
-  discountValue   Float
-  minTierRequired LoyaltyTier
-  maxRedemptions  Int? // Null = unlimited
-  expiryDate      DateTime?
-  termsConditions String?     @db.Text
-  isActive        Boolean     @default(true)
-  createdAt       DateTime    @default(now())
+  id                     String      @id @default(cuid())
+  partnerId              String
+  title                  String
+  description            String      @db.Text
+  discountType           String // PERCENTAGE, FIXED_AMOUNT, FREE_ITEM
+  discountValue          Float
+  minTierRequired        LoyaltyTier
+  pointsCost             Int         @default(0)
+  maxRedemptions         Int? // Null = unlimited
+  maxPerUser             Int?
+  maxActivePerUser       Int?
+  inventoryCount         Int?
+  redemptionWindowDays   Int         @default(30)
+  requiresManualApproval Boolean     @default(false)
+  partnerValidationMode  String?     @default("PARTNER_ONLY")
+  expiryDate             DateTime?
+  status                 String      @default("PUBLISHED")
+  termsConditions        String?     @db.Text
+  metadata               Json?
+  isActive               Boolean     @default(true)
+  createdAt              DateTime    @default(now())
 
   partner     Partner            @relation(fields: [partnerId], references: [id], onDelete: Cascade)
   redemptions RewardRedemption[]
@@ -1866,17 +1927,32 @@ model PartnerReward {
   @@index([partnerId])
   @@index([minTierRequired])
   @@index([isActive])
+  @@index([status])
+}
+
+enum RewardRedemptionStatus {
+  PENDING
+  ACTIVE
+  USED
+  EXPIRED
+  CANCELLED
+  REVOKED
 }
 
 model RewardRedemption {
-  id         String    @id @default(cuid())
-  loyaltyId  String
-  rewardId   String
-  code       String    @unique // Unique redemption code
-  redeemedAt DateTime  @default(now())
-  usedAt     DateTime? // When actually used at partner
-  expiresAt  DateTime
-  status     String    @default("ACTIVE") // ACTIVE, USED, EXPIRED
+  id                   String                 @id @default(cuid())
+  loyaltyId            String
+  rewardId             String
+  code                 String                 @unique // Unique redemption code
+  redeemedAt           DateTime               @default(now())
+  usedAt               DateTime? // When actually used at partner
+  expiresAt            DateTime
+  status               RewardRedemptionStatus @default(ACTIVE)
+  validatedByPartnerId String?
+  usedByActorId        String?
+  cancelledAt          DateTime?
+  revokedAt            DateTime?
+  metadata             Json?
 
   loyalty UserLoyalty   @relation(fields: [loyaltyId], references: [id], onDelete: Cascade)
   reward  PartnerReward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
