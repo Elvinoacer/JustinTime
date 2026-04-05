@@ -1,15 +1,30 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getDefaultRolesForPrimaryRole } from "@/lib/auth/roles";
+import { getDefaultRolesForPrimaryRole, hasRole } from "@/lib/auth/roles";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import crypto from "crypto";
+import { Prisma } from "@/generated/prisma/client";
 import {
   sendComprehensiveNotification,
   emailTemplates,
 } from "@/lib/notifications/adminNotifications";
-import { hasRole } from "@/lib/auth/roles";
+import {
+  type AdminLogAccessType,
+  type BookingFilters,
+  type DisputeFilters,
+  type SupportTicketFilters,
+  type TransactionFilters,
+  buildAdminLogsWhere,
+  buildBackgroundCheckWhere,
+  buildBookingsWhere,
+  buildDisputesWhere,
+  buildSupportTicketsWhere,
+  buildTransactionsWhere,
+  buildUsersWhere,
+  buildWalletsWhere,
+} from "./admin.helpers";
 
 export async function checkAdmin() {
   const session = await auth();
@@ -31,24 +46,7 @@ export async function getUsers(
 
     const skip = (page - 1) * limit;
 
-    const where: any = {};
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
-      ];
-    }
-
-    if (role && role !== "ALL") {
-      where.role = role;
-    }
-
-    if (verificationStatus) {
-      where.profile = {
-        verificationStatus: verificationStatus,
-      };
-    }
+    const where = buildUsersWhere(search, role, verificationStatus);
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({
@@ -680,73 +678,13 @@ export async function toggleBanUser(userId: string, isBanned: boolean) {
 export async function getBookings(
   page = 1,
   limit = 10,
-  filters: {
-    status?: string;
-    search?: string;
-    dateFrom?: string;
-    dateTo?: string;
-    minAmount?: string;
-    maxAmount?: string;
-  } = {},
+  filters: BookingFilters = {},
 ) {
   try {
     await checkAdmin();
 
     const skip = (page - 1) * limit;
-    const where: any = {};
-
-    // Status filter
-    if (filters.status && filters.status !== "ALL") {
-      where.status = filters.status;
-    }
-
-    // Search filter (search in service title, client name/email, provider name/email, booking ID)
-    if (filters.search) {
-      where.OR = [
-        { id: { contains: filters.search, mode: "insensitive" } },
-        {
-          service: { title: { contains: filters.search, mode: "insensitive" } },
-        },
-        {
-          client: {
-            OR: [
-              { name: { contains: filters.search, mode: "insensitive" } },
-              { email: { contains: filters.search, mode: "insensitive" } },
-            ],
-          },
-        },
-        {
-          provider: {
-            OR: [
-              { name: { contains: filters.search, mode: "insensitive" } },
-              { email: { contains: filters.search, mode: "insensitive" } },
-            ],
-          },
-        },
-      ];
-    }
-
-    // Date range filter
-    if (filters.dateFrom || filters.dateTo) {
-      where.date = {};
-      if (filters.dateFrom) {
-        where.date.gte = new Date(filters.dateFrom);
-      }
-      if (filters.dateTo) {
-        where.date.lte = new Date(filters.dateTo);
-      }
-    }
-
-    // Amount range filter
-    if (filters.minAmount || filters.maxAmount) {
-      where.totalAmount = {};
-      if (filters.minAmount) {
-        where.totalAmount.gte = parseFloat(filters.minAmount);
-      }
-      if (filters.maxAmount) {
-        where.totalAmount.lte = parseFloat(filters.maxAmount);
-      }
-    }
+    const where = buildBookingsWhere(filters);
 
     const [bookings, total, statusCounts] = await Promise.all([
       prisma.booking.findMany({
@@ -782,7 +720,7 @@ export async function getBookings(
       avgBookingValue: 0,
     };
 
-    statusCounts.forEach((item: any) => {
+    statusCounts.forEach((item) => {
       stats.total += item._count;
       const revenue = Number(item._sum.totalAmount || 0);
       stats.totalRevenue += revenue;
@@ -824,10 +762,7 @@ export async function getBookings(
 export async function getBackgroundChecks(status?: string) {
   try {
     await checkAdmin();
-    const where: any = {};
-    if (status && status !== "ALL") {
-      where.status = status;
-    }
+    const where = buildBackgroundCheckWhere(status);
 
     const checks = await prisma.backgroundCheck.findMany({
       where,
@@ -850,73 +785,13 @@ export async function getBackgroundChecks(status?: string) {
 export async function getDisputes(
   page = 1,
   limit = 10,
-  filters: {
-    status?: string;
-    search?: string;
-    dateFrom?: string;
-    dateTo?: string;
-    creatorRole?: string;
-  } = {},
+  filters: DisputeFilters = {},
 ) {
   try {
     await checkAdmin();
 
     const skip = (page - 1) * limit;
-    const where: any = {};
-
-    // Status filter
-    if (filters.status && filters.status !== "ALL") {
-      where.status = filters.status;
-    }
-
-    // Search filter (dispute ID, reason, parties, booking)
-    if (filters.search) {
-      where.OR = [
-        { id: { contains: filters.search, mode: "insensitive" } },
-        { reason: { contains: filters.search, mode: "insensitive" } },
-        {
-          creator: {
-            OR: [
-              { name: { contains: filters.search, mode: "insensitive" } },
-              { email: { contains: filters.search, mode: "insensitive" } },
-            ],
-          },
-        },
-        {
-          defendant: {
-            OR: [
-              { name: { contains: filters.search, mode: "insensitive" } },
-              { email: { contains: filters.search, mode: "insensitive" } },
-            ],
-          },
-        },
-        {
-          booking: {
-            service: {
-              title: { contains: filters.search, mode: "insensitive" },
-            },
-          },
-        },
-      ];
-    }
-
-    // Date range filter
-    if (filters.dateFrom || filters.dateTo) {
-      where.createdAt = {};
-      if (filters.dateFrom) {
-        where.createdAt.gte = new Date(filters.dateFrom);
-      }
-      if (filters.dateTo) {
-        where.createdAt.lte = new Date(filters.dateTo);
-      }
-    }
-
-    // Creator role filter
-    if (filters.creatorRole && filters.creatorRole !== "ALL") {
-      where.creator = {
-        role: filters.creatorRole,
-      };
-    }
+    const where = buildDisputesWhere(filters);
 
     const [disputes, total, statusCounts, resolvedDisputes] = await Promise.all(
       [
@@ -967,7 +842,7 @@ export async function getDisputes(
       avgResolutionTime: 0,
     };
 
-    statusCounts.forEach((item: any) => {
+    statusCounts.forEach((item) => {
       stats.total += item._count;
       switch (item.status) {
         case "OPEN":
@@ -1399,63 +1274,13 @@ export async function resolveDisputeWithSettlement(params: {
 export async function getSupportTickets(
   page = 1,
   limit = 10,
-  filters: {
-    status?: string;
-    priority?: string;
-    search?: string;
-    category?: string;
-    dateFrom?: string;
-    dateTo?: string;
-  } = {},
+  filters: SupportTicketFilters = {},
 ) {
   try {
     await checkAdmin();
 
     const skip = (page - 1) * limit;
-    const where: any = {};
-
-    // Status filter
-    if (filters.status && filters.status !== "ALL") {
-      where.status = filters.status;
-    }
-
-    // Priority filter
-    if (filters.priority && filters.priority !== "ALL") {
-      where.priority = filters.priority;
-    }
-
-    // Category filter
-    if (filters.category && filters.category !== "ALL") {
-      where.category = filters.category;
-    }
-
-    // Search filter (ID, subject, description, user)
-    if (filters.search) {
-      where.OR = [
-        { id: { contains: filters.search, mode: "insensitive" } },
-        { subject: { contains: filters.search, mode: "insensitive" } },
-        { description: { contains: filters.search, mode: "insensitive" } },
-        {
-          user: {
-            OR: [
-              { name: { contains: filters.search, mode: "insensitive" } },
-              { email: { contains: filters.search, mode: "insensitive" } },
-            ],
-          },
-        },
-      ];
-    }
-
-    // Date range filter
-    if (filters.dateFrom || filters.dateTo) {
-      where.createdAt = {};
-      if (filters.dateFrom) {
-        where.createdAt.gte = new Date(filters.dateFrom);
-      }
-      if (filters.dateTo) {
-        where.createdAt.lte = new Date(filters.dateTo);
-      }
-    }
+    const where = buildSupportTicketsWhere(filters);
 
     const [tickets, total, statusCounts, priorityCounts, resolvedTickets] =
       await Promise.all([
@@ -1501,7 +1326,7 @@ export async function getSupportTickets(
       avgResponseTime: 0,
     };
 
-    statusCounts.forEach((item: any) => {
+    statusCounts.forEach((item) => {
       stats.total += item._count;
       switch (item.status) {
         case "OPEN":
@@ -1517,7 +1342,7 @@ export async function getSupportTickets(
       }
     });
 
-    priorityCounts.forEach((item: any) => {
+    priorityCounts.forEach((item) => {
       if (item.priority === "URGENT") {
         stats.urgent = item._count;
       }
@@ -1551,8 +1376,8 @@ export async function getSupportTickets(
 export async function updateSupportTicket(
   ticketId: string,
   data: {
-    status?: string;
-    priority?: string;
+    status?: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+    priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
     adminNotes?: string;
     resolution?: string;
   },
@@ -1560,7 +1385,7 @@ export async function updateSupportTicket(
   try {
     const admin = await checkAdmin();
 
-    const updateData: any = { ...data };
+    const updateData: Prisma.SupportTicketUpdateInput = { ...data };
 
     if (data.status === "RESOLVED" || data.status === "CLOSED") {
       updateData.resolvedAt = new Date();
@@ -1745,64 +1570,13 @@ export async function getFinanceSummary() {
 export async function getTransactions(
   page = 1,
   limit = 10,
-  filters: {
-    type?: string;
-    search?: string;
-    dateFrom?: string;
-    dateTo?: string;
-    minAmount?: string;
-    maxAmount?: string;
-  } = {},
+  filters: TransactionFilters = {},
 ) {
   try {
     await checkAdmin();
 
     const skip = (page - 1) * limit;
-    const where: any = {};
-
-    // Type filter
-    if (filters.type && filters.type !== "ALL") {
-      where.type = filters.type;
-    }
-
-    // Search filter (Transaction ID, User Name, User Email)
-    if (filters.search) {
-      where.OR = [
-        { id: { contains: filters.search, mode: "insensitive" } },
-        {
-          wallet: {
-            user: {
-              OR: [
-                { name: { contains: filters.search, mode: "insensitive" } },
-                { email: { contains: filters.search, mode: "insensitive" } },
-              ],
-            },
-          },
-        },
-      ];
-    }
-
-    // Date range filter
-    if (filters.dateFrom || filters.dateTo) {
-      where.createdAt = {};
-      if (filters.dateFrom) {
-        where.createdAt.gte = new Date(filters.dateFrom);
-      }
-      if (filters.dateTo) {
-        where.createdAt.lte = new Date(filters.dateTo);
-      }
-    }
-
-    // Amount range filter
-    if (filters.minAmount || filters.maxAmount) {
-      where.amount = {};
-      if (filters.minAmount) {
-        where.amount.gte = parseFloat(filters.minAmount);
-      }
-      if (filters.maxAmount) {
-        where.amount.lte = parseFloat(filters.maxAmount);
-      }
-    }
+    const where = buildTransactionsWhere(filters);
 
     const [transactions, total] = await Promise.all([
       prisma.transaction.findMany({
@@ -1838,16 +1612,7 @@ export async function getWallets(page = 1, limit = 10, search = "") {
     await checkAdmin();
 
     const skip = (page - 1) * limit;
-    const where: any = {};
-
-    if (search) {
-      where.user = {
-        OR: [
-          { name: { contains: search, mode: "insensitive" } },
-          { email: { contains: search, mode: "insensitive" } },
-        ],
-      };
-    }
+    const where = buildWalletsWhere(search);
 
     const [wallets, total] = await Promise.all([
       prisma.wallet.findMany({
@@ -1874,14 +1639,23 @@ export async function getWallets(page = 1, limit = 10, search = "") {
   }
 }
 
-export async function getPaymentLifecycleReconciliation(limit = 100) {
+export async function getPaymentLifecycleReconciliation(
+  limit = 100,
+  staleThresholdMinutes = 48 * 60,
+) {
   try {
     await checkAdmin();
 
     const safeLimit = Math.min(Math.max(limit, 10), 250);
-    const staleThresholdHours = 48;
+    const parsedThreshold = Number(staleThresholdMinutes);
+    const safeStaleThresholdMinutes = Number.isFinite(parsedThreshold)
+      ? Math.min(Math.max(Math.floor(parsedThreshold), 5), 60 * 24 * 14)
+      : 48 * 60;
+    const staleThresholdHours = Number(
+      (safeStaleThresholdMinutes / 60).toFixed(2),
+    );
     const staleBefore = new Date(
-      Date.now() - staleThresholdHours * 60 * 60 * 1000,
+      Date.now() - safeStaleThresholdMinutes * 60 * 1000,
     );
 
     const bookings = await prisma.booking.findMany({
@@ -2187,6 +1961,7 @@ export async function getPaymentLifecycleReconciliation(limit = 100) {
     return {
       generatedAt: new Date().toISOString(),
       staleThresholdHours,
+      staleThresholdMinutes: safeStaleThresholdMinutes,
       mismatchCount: mismatches.length,
       unresolvedCount: allUnresolvedFinancialEvents.length,
       mismatches,
@@ -2531,7 +2306,7 @@ export async function getSystemSettings() {
 
 export async function updateSystemSetting(
   key: string,
-  value: any,
+  value: Prisma.InputJsonValue,
   description?: string,
 ) {
   try {
@@ -2564,18 +2339,13 @@ export async function updateSystemSetting(
 export async function getAdminLogs(
   page = 1,
   limit = 20,
-  accessType: "ALL" | "PAID" | "WAIVED" = "ALL",
+  accessType: AdminLogAccessType = "ALL",
 ) {
   try {
     await checkAdmin();
     const skip = (page - 1) * limit;
 
-    const where: any = {};
-    if (accessType === "PAID") {
-      where.action = "ONBOARDING_FEE_PAID_ACCESS_GRANTED";
-    } else if (accessType === "WAIVED") {
-      where.action = "WAIVED_ONBOARDING_FEE";
-    }
+    const where = buildAdminLogsWhere(accessType);
 
     const [logs, total] = await Promise.all([
       prisma.adminLog.findMany({

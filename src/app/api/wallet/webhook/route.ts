@@ -209,6 +209,29 @@ export async function POST(req: Request) {
 
       const previousStatus = topUp.status;
 
+      if (previousStatus === "SETTLED" && gatewayState !== "SETTLED") {
+        await tx.walletTopUp.update({
+          where: { id: topUp.id },
+          data: {
+            gatewayInvoiceId: gatewayInvoiceId || topUp.gatewayInvoiceId,
+            gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
+            rawWebhookPayload: body as Prisma.InputJsonValue,
+          },
+        });
+
+        return {
+          received: true,
+          success: true,
+          skipped: true,
+          reason: "ignored_non_terminal_after_settlement",
+          apiRef,
+          topUpId: topUp.id,
+          previousStatus,
+          status: previousStatus,
+          incomingState: gatewayState,
+        };
+      }
+
       const ledgerEntry = await tx.transaction.findFirst({
         where: {
           OR: [

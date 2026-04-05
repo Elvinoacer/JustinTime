@@ -1,6 +1,9 @@
 import { auth } from "@/auth";
 import { hasRole } from "@/lib/auth/roles";
-import { prisma } from "@/lib/prisma";
+import {
+  getWalletSummaryForUser,
+  getWalletTransactionsForUser,
+} from "@/lib/wallet/queries";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Wallet, Coins, ArrowUpRight, Plus, History } from "lucide-react";
@@ -19,65 +22,17 @@ export default async function WalletPage() {
   if (!session?.user?.id) redirect("/auth/login");
   if (!hasRole(session.user, "PROVIDER")) redirect("/client/wallet");
 
-  let wallet = await prisma.wallet.findUnique({
-    where: { userId: session.user.id },
-    include: {
-      transactions: {
-        orderBy: { createdAt: "desc" },
-        take: 20,
-      },
-    },
-  });
-
-  if (!wallet) {
-    wallet = await prisma.wallet.create({
-      data: {
-        userId: session.user.id,
-        balance: 0,
-        pendingBalance: 0,
-        currency: "KES",
-      },
-      include: {
-        transactions: {
-          orderBy: { createdAt: "desc" },
-          take: 20,
-        },
-      },
-    });
-  }
-
-  const [pendingTopUpsCount, failedTopUpsCount] = await Promise.all([
-    prisma.walletTopUp.count({
-      where: {
-        walletId: wallet.id,
-        status: { in: ["PENDING", "PROCESSING"] },
-      },
-    }),
-    prisma.walletTopUp.count({
-      where: {
-        walletId: wallet.id,
-        status: { in: ["FAILED", "CANCELLED", "REVERSED"] },
-      },
+  const [wallet, walletHistory] = await Promise.all([
+    getWalletSummaryForUser(session.user.id),
+    getWalletTransactionsForUser(session.user.id, {
+      page: 1,
+      pageSize: 20,
     }),
   ]);
 
-  type WalletTx = (typeof wallet.transactions)[number] & {
-    status?: string;
-    direction?: "CREDIT" | "DEBIT" | null;
-  };
-
-  const walletTransactions = wallet.transactions as WalletTx[];
-
-  const pendingIncoming = walletTransactions
-    .filter((tx) => ["PENDING", "PROCESSING"].includes(tx.status || "SETTLED"))
-    .filter((tx) => {
-      const direction = tx.direction;
-      if (direction) {
-        return direction === "CREDIT";
-      }
-      return ["DEPOSIT", "REFUND", "EARNING"].includes(tx.type);
-    })
-    .reduce((sum, tx) => sum + Number(tx.amount), 0);
+  const pendingTopUpsCount =
+    wallet.topUpStats.pendingCount + wallet.topUpStats.processingCount;
+  const failedTopUpsCount = wallet.topUpStats.failedCount;
 
   return (
     <div className="container mx-auto py-8 space-y-8 px-4 md:px-6 max-w-6xl">
@@ -90,7 +45,7 @@ export default async function WalletPage() {
             Manage your earnings and spending.
           </p>
         </div>
-        <WalletActions currentBalance={Number(wallet.balance)} />
+        <WalletActions currentBalance={Number(wallet.availableBalance)} />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -103,14 +58,14 @@ export default async function WalletPage() {
           </div>
 
           <div className="text-4xl font-bold mb-3">
-            KES {Number(wallet.balance).toLocaleString()}
+            KES {Number(wallet.availableBalance).toLocaleString()}
           </div>
 
           <div className="mb-5 space-y-1 text-xs text-blue-100">
             <p>
               Pending incoming: KES{" "}
               {Number(
-                wallet.pendingBalance || pendingIncoming,
+                wallet.pendingIncoming || wallet.pendingBalance,
               ).toLocaleString()}
             </p>
             <p>
@@ -170,7 +125,7 @@ export default async function WalletPage() {
           </h2>
         </div>
         <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
-          <TransactionList transactions={wallet.transactions} />
+          <TransactionList transactions={walletHistory.items} />
         </div>
       </div>
     </div>

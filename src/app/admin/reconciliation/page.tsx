@@ -7,6 +7,20 @@ import { AlertTriangle, CircleAlert, Scale, Wallet } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
+interface ReconciliationSearchParams {
+  staleValue?: string | string[];
+  staleUnit?: string | string[];
+  limit?: string | string[];
+}
+
+function firstQueryValue(value?: string | string[]) {
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+
+  return value;
+}
+
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-KE", {
     style: "currency",
@@ -33,8 +47,42 @@ async function handleManualWalletAdjustmentFormAction(formData: FormData) {
   await processWalletManualAdjustmentAction(formData);
 }
 
-export default async function AdminReconciliationPage() {
-  const data = await getPaymentLifecycleReconciliation(100);
+export default async function AdminReconciliationPage({
+  searchParams,
+}: {
+  searchParams?: Promise<ReconciliationSearchParams>;
+}) {
+  const params = (await searchParams) ?? {};
+  const staleUnit =
+    firstQueryValue(params.staleUnit) === "minutes" ? "minutes" : "hours";
+  const staleValueRaw = Number.parseInt(
+    firstQueryValue(params.staleValue) ||
+      (staleUnit === "minutes" ? "60" : "48"),
+    10,
+  );
+  const staleValue = Number.isFinite(staleValueRaw)
+    ? Math.max(1, staleValueRaw)
+    : staleUnit === "minutes"
+      ? 60
+      : 48;
+
+  const limitRaw = Number.parseInt(firstQueryValue(params.limit) || "100", 10);
+  const limit = Number.isFinite(limitRaw)
+    ? Math.min(Math.max(limitRaw, 10), 250)
+    : 100;
+
+  const staleThresholdMinutes =
+    staleUnit === "minutes" ? staleValue : staleValue * 60;
+
+  const data = await getPaymentLifecycleReconciliation(
+    limit,
+    staleThresholdMinutes,
+  );
+
+  const staleThresholdLabel =
+    data.staleThresholdMinutes >= 60 && data.staleThresholdMinutes % 60 === 0
+      ? `${data.staleThresholdMinutes / 60}h`
+      : `${data.staleThresholdMinutes}m`;
 
   return (
     <div className="space-y-6">
@@ -79,10 +127,72 @@ export default async function AdminReconciliationPage() {
             Stale Threshold
           </p>
           <p className="text-2xl font-bold text-slate-900">
-            {data.staleThresholdHours}h
+            {staleThresholdLabel}
           </p>
         </div>
       </div>
+
+      <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h2 className="font-semibold text-slate-900">Detection Filters</h2>
+          <p className="text-xs text-slate-500 mt-1">
+            Configure stale age threshold and record window for unresolved event
+            detection.
+          </p>
+        </div>
+
+        <form
+          method="get"
+          className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3"
+        >
+          <label className="text-xs font-medium text-slate-600 space-y-1">
+            Stale Value
+            <input
+              name="staleValue"
+              type="number"
+              min="1"
+              required
+              defaultValue={String(staleValue)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+            />
+          </label>
+
+          <label className="text-xs font-medium text-slate-600 space-y-1">
+            Unit
+            <select
+              name="staleUnit"
+              defaultValue={staleUnit}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+            >
+              <option value="hours">Hours</option>
+              <option value="minutes">Minutes</option>
+            </select>
+          </label>
+
+          <label className="text-xs font-medium text-slate-600 space-y-1">
+            Max Records
+            <select
+              name="limit"
+              defaultValue={String(limit)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+            >
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="150">150</option>
+              <option value="250">250</option>
+            </select>
+          </label>
+
+          <div className="flex items-end">
+            <button
+              type="submit"
+              className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              Apply Filters
+            </button>
+          </div>
+        </form>
+      </section>
 
       <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="border-b border-slate-200 px-5 py-4 flex items-center gap-2">
