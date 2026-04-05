@@ -5,6 +5,7 @@ import React from "react";
 import { useLocation, LocationSource } from "../hooks/useLocation";
 import LocationDeniedModal from "./LocationDeniedModal";
 import { VALIDATION } from "@/lib/constants/validation";
+import type { ClientOnboardingData } from "@/lib/onboarding/draft";
 
 interface Category {
   id: string;
@@ -15,20 +16,9 @@ interface Category {
   count: number;
 }
 
-interface ClientData {
-  name: string;
-  phone: string;
-  address: string;
-  location: string;
-  latitude: number | null;
-  longitude: number | null;
-  locationSource?: LocationSource;
-  locationAccuracy?: number | null;
-}
-
 interface StepClientDetailsProps {
-  clientData: ClientData;
-  setClientData: React.Dispatch<React.SetStateAction<ClientData>>;
+  clientData: ClientOnboardingData;
+  setClientData: React.Dispatch<React.SetStateAction<ClientOnboardingData>>;
   clientInterests: string[];
   onInterestToggle: (id: string) => void;
   categories: Category[];

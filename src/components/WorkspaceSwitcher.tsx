@@ -1,14 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { hasRole } from "@/lib/auth/roles";
 import { getWorkspaceSwitchUrl } from "@/lib/auth/workspace";
 
 interface WorkspaceSwitcherProps {
   /** Which sidebar variant to style for */
-  variant?: "client" | "provider";
+  variant?: "client" | "provider" | "mobile";
   /** Called after navigation (e.g., to close mobile sidebar) */
   onNavigate?: () => void;
 }
@@ -25,26 +27,78 @@ export default function WorkspaceSwitcher({
   const isClient = hasRole(session?.user, "CLIENT");
   const hasMultipleRoles = isProvider && isClient;
 
-  // If user doesn't have both roles, don't render the switcher
-  if (!hasMultipleRoles) return null;
-
   const currentWorkspace =
     (session?.user?.preferredWorkspace as "CLIENT" | "PROVIDER") ?? "CLIENT";
   const targetWorkspace: "CLIENT" | "PROVIDER" =
     currentWorkspace === "PROVIDER" ? "CLIENT" : "PROVIDER";
   const targetUrl = getWorkspaceSwitchUrl(currentWorkspace);
+  const targetWorkspaceLabel =
+    targetWorkspace === "PROVIDER" ? "Provider" : "Client";
   const targetLabel =
     targetWorkspace === "PROVIDER" ? "Provider Dashboard" : "Client Dashboard";
+
+  if (!hasMultipleRoles) {
+    if (isClient && !isProvider) {
+      if (variant === "provider") {
+        return (
+          <Link
+            href="/become-a-provider"
+            className="group flex w-full items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-3 text-sm font-semibold text-emerald-300 transition-all duration-200 hover:border-emerald-400/40 hover:bg-emerald-500/20 hover:text-emerald-200"
+          >
+            <span className="material-symbols-outlined text-xl text-emerald-300 shrink-0">
+              add_business
+            </span>
+            Become a Provider
+          </Link>
+        );
+      }
+
+      if (variant === "mobile") {
+        return (
+          <Link
+            href="/become-a-provider"
+            className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
+          >
+            <span className="material-symbols-outlined text-sm">
+              add_business
+            </span>
+            Become a Provider
+          </Link>
+        );
+      }
+
+      return (
+        <Link
+          href="/become-a-provider"
+          className="group flex w-full items-center gap-3 px-3 py-3 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all duration-200 text-sm font-semibold"
+        >
+          <span className="material-symbols-outlined text-xl text-emerald-600 shrink-0">
+            add_business
+          </span>
+          Become a Provider
+        </Link>
+      );
+    }
+
+    return null;
+  }
 
   const handleSwitch = async () => {
     setIsSwitching(true);
     try {
-      await fetch("/api/user/workspace", {
+      const response = await fetch("/api/user/workspace", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ workspace: targetWorkspace }),
       });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(body.error || "Failed to switch workspace");
+      }
 
       await update({
         user: {
@@ -56,12 +110,27 @@ export default function WorkspaceSwitcher({
       onNavigate?.();
       router.push(targetUrl);
       router.refresh();
+      toast.success(`Switched to ${targetWorkspaceLabel} mode`);
     } catch (error) {
       console.error("[WORKSPACE_SWITCH_ERROR]", error);
+      toast.error("Could not switch workspace. Try again.");
     } finally {
       setIsSwitching(false);
     }
   };
+
+  if (variant === "mobile") {
+    return (
+      <button
+        onClick={handleSwitch}
+        disabled={isSwitching}
+        className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 disabled:opacity-50"
+      >
+        <span className="material-symbols-outlined text-sm">swap_horiz</span>
+        {isSwitching ? "Switching..." : `Switch to ${targetWorkspaceLabel}`}
+      </button>
+    );
+  }
 
   if (variant === "provider") {
     return (

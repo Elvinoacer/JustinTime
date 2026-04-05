@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import LanguageSwitcher from "./common/LanguageSwitcher";
-import { hasRole } from "@/lib/auth/roles";
 import { useNotificationCounts } from "@/lib/hooks/useNotificationCounts";
 import { signOutWithNotificationCleanup } from "@/lib/auth/signOutWithNotificationCleanup";
 import WorkspaceSwitcher from "@/components/WorkspaceSwitcher";
@@ -159,6 +158,8 @@ const Sidebar = ({
 }: SidebarProps) => {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const currentWorkspace =
+    (session?.user?.preferredWorkspace as "CLIENT" | "PROVIDER") ?? "PROVIDER";
   const { unreadCount } = useNotificationCounts(pathname);
 
   const handleLogout = async () => {
@@ -300,8 +301,17 @@ const Sidebar = ({
         <ul className="flex flex-col gap-1" role="list">
           {/* Dashboard Switch - Workspace Switcher */}
           {!isCollapsed && (
-            <li>
-              <WorkspaceSwitcher variant="provider" onNavigate={handleLinkClick} />
+            <li className="space-y-2">
+              <div className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-semibold text-emerald-300 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                {currentWorkspace === "PROVIDER"
+                  ? "Provider Mode"
+                  : "Client Mode"}
+              </div>
+              <WorkspaceSwitcher
+                variant="provider"
+                onNavigate={handleLinkClick}
+              />
             </li>
           )}
           <li>

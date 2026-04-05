@@ -1,16 +1,8 @@
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { CreatePromoModal } from "@/components/admin/CreatePromoModal";
 import { PromoList } from "@/components/admin/PromoList";
 
 export default async function AdminPromosPage() {
-  const session = await auth();
-
-  if (!session?.user?.id || session.user.role !== "ADMIN") {
-    redirect("/auth/login");
-  }
-
   const promos = await prisma.promoCode.findMany({
     orderBy: { createdAt: "desc" },
     include: {

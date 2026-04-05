@@ -6,7 +6,6 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { hasRole } from "@/lib/auth/roles";
 import { useNotificationCounts } from "@/lib/hooks/useNotificationCounts";
 import { signOutWithNotificationCleanup } from "@/lib/auth/signOutWithNotificationCleanup";
 import WorkspaceSwitcher from "@/components/WorkspaceSwitcher";
@@ -41,6 +40,8 @@ interface ClientSidebarProps {
 const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const currentWorkspace =
+    (session?.user?.preferredWorkspace as "CLIENT" | "PROVIDER") ?? "CLIENT";
   const [isMobile, setIsMobile] = useState(false);
   const { unreadCount } = useNotificationCounts(pathname);
 
@@ -318,25 +319,13 @@ const ClientSidebar = ({ isOpen, onClose }: ClientSidebarProps) => {
 
           {/* Dashboard Switch - Role-based */}
           <div className="pt-2 mt-2 border-t border-gray-100">
-            {hasRole(session?.user, "PROVIDER") ? (
-              <WorkspaceSwitcher variant="client" onNavigate={onClose} />
-            ) : (
-              <Link
-                href="/become-a-provider"
-                onClick={onClose}
-                className="flex items-center gap-2 lg:gap-3 px-3 py-2 lg:py-2.5 rounded-xl transition-all duration-200 group bg-emerald-50 text-emerald-700 hover:bg-emerald-100 w-full"
-              >
-                <span
-                  className="material-symbols-outlined text-[18px] lg:text-[20px] transition-colors text-emerald-600 shrink-0"
-                  aria-hidden="true"
-                >
-                  work
-                </span>
-                <span className="text-xs lg:text-sm font-medium truncate">
-                  Become a Provider
-                </span>
-              </Link>
-            )}
+            <div className="mb-2 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 text-xs font-semibold text-emerald-700 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {currentWorkspace === "PROVIDER"
+                ? "Provider Mode"
+                : "Client Mode"}
+            </div>
+            <WorkspaceSwitcher variant="client" onNavigate={onClose} />
           </div>
         </div>
 

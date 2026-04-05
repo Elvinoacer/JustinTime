@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -46,6 +46,12 @@ export default function ProviderSetupPage() {
   const [providerData, setProviderData] = useState<ProviderOnboardingData>({
     ...DEFAULT_PROVIDER_ONBOARDING_DATA,
   });
+  const [prefilledFields, setPrefilledFields] = useState({
+    businessName: false,
+    phone: false,
+    location: false,
+  });
+  const hasHydratedProfileRef = useRef(false);
 
   const { data: categoriesData = [], isLoading: isLoadingCategories } =
     useQuery({
@@ -76,6 +82,56 @@ export default function ProviderSetupPage() {
     }
   }, [session, isLoading, router]);
 
+  useEffect(() => {
+    if (!session?.user?.id || hasHydratedProfileRef.current) {
+      return;
+    }
+
+    hasHydratedProfileRef.current = true;
+
+    const hydrateProviderDefaults = async () => {
+      try {
+        const response = await apiClient.get("/users/me");
+        const user =
+          typeof response?.data === "object" && response?.data
+            ? (response.data as {
+                name?: string | null;
+                phone?: string | null;
+                location?: string | null;
+                profile?: {
+                  businessName?: string | null;
+                  location?: string | null;
+                } | null;
+              })
+            : {};
+
+        const businessName =
+          user.profile?.businessName?.trim() || user.name?.trim() || "";
+        const phone =
+          normalizeKenyanPhone(user.phone || "") || user.phone?.trim() || "";
+        const location =
+          user.location?.trim() || user.profile?.location?.trim() || "";
+
+        setProviderData((prev) => ({
+          ...prev,
+          businessName: prev.businessName || businessName,
+          phone: prev.phone || phone,
+          location: prev.location || location,
+        }));
+
+        setPrefilledFields((prev) => ({
+          businessName: prev.businessName || Boolean(businessName),
+          phone: prev.phone || Boolean(phone),
+          location: prev.location || Boolean(location),
+        }));
+      } catch (error) {
+        console.error("[PROVIDER_SETUP_PREFILL_ERROR]", error);
+      }
+    };
+
+    void hydrateProviderDefaults();
+  }, [session?.user?.id]);
+
   const formatPhoneNumber = useCallback((input: string): string => {
     return normalizeKenyanPhone(input);
   }, []);
@@ -91,7 +147,11 @@ export default function ProviderSetupPage() {
     }> => {
       const normalizedPhone = normalizeKenyanPhone(phone);
       if (!normalizedPhone) {
-        return { ok: false, normalizedPhone, message: "Phone number is required" };
+        return {
+          ok: false,
+          normalizedPhone,
+          message: "Phone number is required",
+        };
       }
       if (!isValidKenyanPhone(normalizedPhone)) {
         return {
@@ -269,7 +329,10 @@ export default function ProviderSetupPage() {
         <div className="max-w-3xl mx-auto px-4 pb-3">
           <div className="flex items-center gap-2">
             {Array.from({ length: totalSteps }).map((_, i) => (
-              <div key={i} className="flex-1 h-1.5 rounded-full overflow-hidden bg-gray-100">
+              <div
+                key={i}
+                className="flex-1 h-1.5 rounded-full overflow-hidden bg-gray-100"
+              >
                 <motion.div
                   className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"
                   initial={{ width: "0%" }}
@@ -317,6 +380,7 @@ export default function ProviderSetupPage() {
               <StepProviderDetails
                 providerData={providerData}
                 setProviderData={setProviderData}
+                prefilledFields={prefilledFields}
                 categories={categoriesData}
                 isLoadingCategories={isLoadingCategories}
                 onBack={() => router.push("/become-a-provider")}

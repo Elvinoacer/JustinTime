@@ -1,6 +1,8 @@
 import { auth } from "@/auth";
+import { hasRole } from "@/lib/auth/roles";
 import { hasClientAccess } from "@/lib/auth/clientAccess";
 import { getPendingDeletionRedirect } from "@/lib/auth/lifecycle";
+import { getPreferredDashboard } from "@/lib/auth/workspace";
 import { NextResponse } from "next/server";
 
 type ProxyRateLimitEntry = {
@@ -449,6 +451,7 @@ export default auth((req) => {
   const isOnAnyDashboard = isOnProviderDashboard || isOnClientDashboard;
   const isOnOnboarding = nextUrl.pathname.startsWith("/onboarding");
   const isOnAuth = nextUrl.pathname.startsWith("/auth");
+  const isAdminInviteAuthPage = nextUrl.pathname === "/auth/admin-invite";
   const isOnProviderPages = nextUrl.pathname.startsWith("/provider");
 
   // Public pages accessible to everyone
@@ -477,6 +480,17 @@ export default auth((req) => {
   const hasCompletedOnboarding = req.auth?.user?.onboardingCompleted;
   const userRole = user?.role;
   const userRoles = user?.roles as string[] | undefined;
+  const userPreferredWorkspace =
+    typeof user?.preferredWorkspace === "string"
+      ? user.preferredWorkspace
+      : null;
+  const roleSource = {
+    role: userRole,
+    roles: userRoles,
+  };
+  const isAdmin = hasRole(roleSource, "ADMIN");
+  const hasProviderRole = hasRole(roleSource, "PROVIDER");
+  const hasClientRole = hasRole(roleSource, "CLIENT");
   const hasClientWorkspaceAccess = hasClientAccess({
     role: userRole,
     roles: userRoles,
@@ -511,10 +525,10 @@ export default auth((req) => {
   // Admin Route Protection
   if (isOnAdmin) {
     if (isOnAdminLogin) {
-      if (isLoggedIn && userRole === "ADMIN") {
+      if (isLoggedIn && isAdmin) {
         return NextResponse.redirect(new URL("/admin/dashboard", nextUrl));
       }
-      if (isLoggedIn && userRole !== "ADMIN") {
+      if (isLoggedIn && !isAdmin) {
         return NextResponse.redirect(new URL("/", nextUrl));
       }
       return NextResponse.next();
@@ -523,18 +537,14 @@ export default auth((req) => {
     if (!isLoggedIn) {
       return NextResponse.redirect(new URL("/admin/login", nextUrl));
     }
-    if (userRole !== "ADMIN") {
+    if (!isAdmin) {
       return NextResponse.redirect(new URL("/", nextUrl));
     }
     return NextResponse.next();
   }
 
   // Redirect Admin away from client/provider apps
-  if (
-    isLoggedIn &&
-    userRole === "ADMIN" &&
-    (isOnAnyDashboard || isOnOnboarding)
-  ) {
+  if (isLoggedIn && isAdmin && (isOnAnyDashboard || isOnOnboarding)) {
     return NextResponse.redirect(new URL("/admin/dashboard", nextUrl));
   }
 
@@ -543,7 +553,7 @@ export default auth((req) => {
     if (!isLoggedIn) {
       return NextResponse.redirect(new URL("/auth/login", nextUrl));
     }
-    if (userRole === "ADMIN") {
+    if (isAdmin) {
       return NextResponse.redirect(new URL("/admin/dashboard", nextUrl));
     }
     return NextResponse.next();
@@ -558,11 +568,10 @@ export default auth((req) => {
     }
 
     // Role-based dashboard access
-    const effectivelyClientOnly =
-      userRole === "CLIENT" && !userRoles?.includes("PROVIDER");
+    const effectivelyClientOnly = hasClientRole && !hasProviderRole;
 
     if (isOnClientDashboard && !hasClientWorkspaceAccess) {
-      if (userRole === "PROVIDER" || userRoles?.includes("PROVIDER")) {
+      if (hasProviderRole) {
         return NextResponse.redirect(new URL("/dashboard", nextUrl));
       }
 
@@ -587,18 +596,28 @@ export default auth((req) => {
       hasCompletedOnboarding &&
       !(isUpgradeRequest && userRole === "CLIENT")
     ) {
-      if (userRole === "PROVIDER") {
-        return NextResponse.redirect(new URL("/dashboard", nextUrl));
-      } else {
-        return NextResponse.redirect(new URL("/client/dashboard", nextUrl));
-      }
+      return NextResponse.redirect(
+        new URL(
+          getPreferredDashboard({
+            role: userRole,
+            roles: userRoles,
+            onboardingCompleted: true,
+            preferredWorkspace: userPreferredWorkspace,
+          }),
+          nextUrl,
+        ),
+      );
     }
     return NextResponse.next();
   }
 
   if (isOnAuth) {
     if (isLoggedIn) {
-      if (userRole === "ADMIN") {
+      if (isAdminInviteAuthPage) {
+        return NextResponse.next();
+      }
+
+      if (isAdmin) {
         return NextResponse.redirect(new URL("/admin/dashboard", nextUrl));
       }
 
@@ -611,11 +630,18 @@ export default auth((req) => {
       if (!hasCompletedOnboarding) {
         return NextResponse.redirect(new URL("/onboarding", nextUrl));
       }
-      if (userRole === "PROVIDER") {
-        return NextResponse.redirect(new URL("/dashboard", nextUrl));
-      } else {
-        return NextResponse.redirect(new URL("/client/dashboard", nextUrl));
-      }
+
+      return NextResponse.redirect(
+        new URL(
+          getPreferredDashboard({
+            role: userRole,
+            roles: userRoles,
+            onboardingCompleted: true,
+            preferredWorkspace: userPreferredWorkspace,
+          }),
+          nextUrl,
+        ),
+      );
     }
     return NextResponse.next();
   }

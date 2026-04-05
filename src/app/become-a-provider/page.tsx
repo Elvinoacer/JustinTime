@@ -74,7 +74,7 @@ export default function BecomeAProviderPage() {
 
   const handleCTA = () => {
     if (!isAuthenticated) {
-      router.push("/auth/login?callbackUrl=/provider/setup");
+      router.push("/auth/signup?intent=provider&callbackUrl=/provider/setup");
       return;
     }
     if (isProvider && providerSetupDone) {

@@ -24,27 +24,29 @@ enum UserRole {
 
 // User Model (NextAuth compatible)
 model User {
-  id                    String                 @id @default(cuid())
-  name                  String?
-  email                 String?                @unique
-  emailVerified         DateTime?
-  password              String? // For credentials authentication
-  image                 String?
-  phone                 String?                @unique
-  whatsappNumber        String?
-  role                  UserRole               @default(CLIENT)
-  roles                 UserRole[]             @default([CLIENT])
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  onboardingCompleted   Boolean                @default(false)
-  onboardingDraft       Json?
-  providerSetupCompleted Boolean               @default(false)
-  preferredWorkspace    String?                @default("CLIENT") // CLIENT | PROVIDER | ADMIN
-  clientInterests       String[]
-  isBanned              Boolean                @default(false)
-  isTwoFactorEnabled    Boolean                @default(false)
-  twoFactorConfirmation TwoFactorConfirmation?
-  adminLogs             AdminLog[]
+  id                     String                 @id @default(cuid())
+  name                   String?
+  email                  String?                @unique
+  emailVerified          DateTime?
+  password               String? // For credentials authentication
+  image                  String?
+  phone                  String?                @unique
+  whatsappNumber         String?
+  role                   UserRole               @default(CLIENT)
+  roles                  UserRole[]             @default([CLIENT])
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  onboardingCompleted    Boolean                @default(false)
+  onboardingDraft        Json?
+  providerSetupCompleted Boolean                @default(false)
+  preferredWorkspace     String?                @default("CLIENT") // CLIENT | PROVIDER | ADMIN
+  clientInterests        String[]
+  isBanned               Boolean                @default(false)
+  isTwoFactorEnabled     Boolean                @default(false)
+  twoFactorConfirmation  TwoFactorConfirmation?
+  adminLogs              AdminLog[]
+  createdAdminInvites    AdminInvite[]          @relation("AdminInviteCreator")
+  redeemedAdminInvites   AdminInvite[]          @relation("AdminInviteRedeemer")
 
   // Settings preferences (stored as JSON)
   notificationPreferences Json? @default("{\"emailJobAlerts\":true,\"emailMessages\":true,\"emailBookings\":true,\"emailReviews\":true,\"emailMarketing\":false,\"pushNotifications\":true,\"allowMarketing\":true,\"allowMessages\":true,\"allowBookingUpdates\":true}")
@@ -143,6 +145,19 @@ model User {
   webAuthnPublicKey     String?            @db.Text
   biometricRegisteredAt DateTime?
   proposalTemplates     ProposalTemplate[]
+}
+
+model AdminInvite {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  email       String
+  createdById String
+  createdBy   User      @relation("AdminInviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  usedById    String?
+  usedBy      User?     @relation("AdminInviteRedeemer", fields: [usedById], references: [id], onDelete: SetNull)
+  usedAt      DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
 }
 
 // Promo Codes / Vouchers

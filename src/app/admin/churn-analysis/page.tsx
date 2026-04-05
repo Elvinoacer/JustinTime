@@ -1,18 +1,16 @@
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
-import { getAtRiskUsers, getInterventionStats, triggerChurnAnalysis, triggerUserReEngagement } from "@/app/actions/churn";
+import {
+  getAtRiskUsers,
+  getInterventionStats,
+  triggerChurnAnalysis,
+  triggerUserReEngagement,
+} from "@/app/actions/churn";
 import { ChurnRiskBadge } from "@/components/churn/ChurnRiskBadge";
 import { AlertTriangle, TrendingUp, Users, Mail, Calendar } from "lucide-react";
 
 export default async function ChurnAnalysisPage() {
-  const session = await auth();
-  if (!session?.user?.role || session.user.role !== "ADMIN") {
-    redirect("/dashboard");
-  }
-
   const [atRiskResult, statsResult] = await Promise.all([
     getAtRiskUsers(),
-    getInterventionStats()
+    getInterventionStats(),
   ]);
 
   if (!atRiskResult.success || !statsResult.success) {
@@ -53,13 +51,17 @@ export default async function ChurnAnalysisPage() {
             <Users className="h-8 w-8" />
             <span className="text-2xl font-bold">{stats?.total || 0}</span>
           </div>
-          <p className="text-blue-100 text-sm font-medium">Total Interventions</p>
+          <p className="text-blue-100 text-sm font-medium">
+            Total Interventions
+          </p>
         </div>
 
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
           <div className="flex items-center justify-between mb-2">
             <TrendingUp className="h-8 w-8" />
-            <span className="text-2xl font-bold">{stats?.successRate || 0}%</span>
+            <span className="text-2xl font-bold">
+              {stats?.successRate || 0}%
+            </span>
           </div>
           <p className="text-green-100 text-sm font-medium">Success Rate</p>
         </div>
@@ -109,7 +111,10 @@ export default async function ChurnAnalysisPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {atRiskUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                  <td
+                    colSpan={6}
+                    className="px-6 py-8 text-center text-gray-500"
+                  >
                     No at-risk users found
                   </td>
                 </tr>
@@ -120,18 +125,22 @@ export default async function ChurnAnalysisPage() {
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
                           {item.user.image ? (
-                            <img className="h-10 w-10 rounded-full" src={item.user.image} alt="" />
+                            <img
+                              className="h-10 w-10 rounded-full"
+                              src={item.user.image}
+                              alt=""
+                            />
                           ) : (
                             <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
                               <span className="text-gray-600 font-medium text-sm">
-                                {item.user.name?.charAt(0) || '?'}
+                                {item.user.name?.charAt(0) || "?"}
                               </span>
                             </div>
                           )}
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {item.user.name || 'Unknown'}
+                            {item.user.name || "Unknown"}
                           </div>
                           <div className="text-sm text-gray-500">
                             {item.user.email}
@@ -151,9 +160,13 @@ export default async function ChurnAnalysisPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {item.interventions[0] ? (
                         <div>
-                          <div className="text-sm text-gray-900">{item.interventions[0].type}</div>
+                          <div className="text-sm text-gray-900">
+                            {item.interventions[0].type}
+                          </div>
                           <div className="text-xs text-gray-500">
-                            {new Date(item.interventions[0].createdAt).toLocaleDateString()}
+                            {new Date(
+                              item.interventions[0].createdAt,
+                            ).toLocaleDateString()}
                           </div>
                         </div>
                       ) : (
@@ -161,11 +174,13 @@ export default async function ChurnAnalysisPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <form action={async () => {
-                        "use server";
-                        await triggerUserReEngagement(item.userId);
-                      }}>
-                        <button 
+                      <form
+                        action={async () => {
+                          "use server";
+                          await triggerUserReEngagement(item.userId);
+                        }}
+                      >
+                        <button
                           type="submit"
                           className="text-emerald-600 hover:text-emerald-900"
                         >
@@ -183,11 +198,13 @@ export default async function ChurnAnalysisPage() {
 
       {/* Actions */}
       <div className="mt-8 flex gap-4">
-        <form action={async () => {
-          "use server";
-          await triggerChurnAnalysis();
-        }}>
-          <button 
+        <form
+          action={async () => {
+            "use server";
+            await triggerChurnAnalysis();
+          }}
+        >
+          <button
             type="submit"
             className="bg-emerald-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-emerald-700 transition-colors"
           >

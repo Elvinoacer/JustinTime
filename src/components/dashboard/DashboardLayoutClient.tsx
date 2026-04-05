@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { useProviderProfile } from "@/lib/api/hooks/useProvider";
 import { OnboardingAccessNotice } from "@/components/revenue/OnboardingAccessNotice";
 import { hasRole } from "@/lib/auth/roles";
+import WorkspaceSwitcher from "@/components/WorkspaceSwitcher";
 
 export default function DashboardLayoutClient({
   children,
@@ -49,13 +50,19 @@ export default function DashboardLayoutClient({
             </div>
             <span className="font-bold text-lg text-gray-900">JustInTime</span>
           </div>
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            aria-label="Open menu"
-          >
-            <span className="material-symbols-outlined">menu</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <WorkspaceSwitcher
+              variant="mobile"
+              onNavigate={() => setSidebarOpen(false)}
+            />
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Open menu"
+            >
+              <span className="material-symbols-outlined">menu</span>
+            </button>
+          </div>
         </div>
 
         {/* Sidebar Wrapper */}

@@ -3,7 +3,15 @@
 import EnhancedCategoryManagement from "@/components/admin/EnhancedCategoryManagement";
 import EnhancedSystemSettings from "@/components/admin/EnhancedSystemSettings";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, Layers, Settings } from "lucide-react";
+import {
+  Bell,
+  Check,
+  Copy,
+  Layers,
+  Loader2,
+  Settings,
+  UserPlus,
+} from "lucide-react";
 import { useState } from "react";
 
 import { useFcmToken } from "@/lib/hooks/useFcmToken";
@@ -34,6 +42,13 @@ export default function SettingsClient({
       shortLabel: "System",
       icon: Settings,
       description: "Platform-wide settings",
+    },
+    {
+      id: "invites",
+      label: "Admin Invites",
+      shortLabel: "Invites",
+      icon: UserPlus,
+      description: "Invite trusted admins",
     },
     {
       id: "notifications",
@@ -214,10 +229,189 @@ export default function SettingsClient({
                   </div>
                 </div>
               )}
+
+              {activeTab === "invites" && (
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="flex items-center gap-3 pb-4 sm:pb-6 border-b border-slate-100">
+                    <div className="p-2 bg-emerald-50 rounded-lg">
+                      <UserPlus className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="text-lg sm:text-xl font-bold text-slate-900">
+                        Admin Invite Management
+                      </h2>
+                      <p className="text-xs sm:text-sm text-slate-500">
+                        Generate one-time admin invite links for verified users
+                      </p>
+                    </div>
+                  </div>
+
+                  <AdminInviteManager />
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>
       </div>
+    </div>
+  );
+}
+
+function AdminInviteManager() {
+  const [email, setEmail] = useState("");
+  const [expiryDays, setExpiryDays] = useState(7);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [invite, setInvite] = useState<{
+    inviteUrl: string;
+    email: string;
+    expiresAt: string;
+  } | null>(null);
+
+  const createInvite = async () => {
+    setError(null);
+    setCopied(false);
+
+    if (!email.trim()) {
+      setError("Email is required");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/admin/invites", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ email: email.trim(), expiryDays }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        inviteUrl?: string;
+        email?: string;
+        expiresAt?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to create invite");
+      }
+
+      setInvite({
+        inviteUrl: payload.inviteUrl || "",
+        email: payload.email || email.trim(),
+        expiresAt: payload.expiresAt || new Date().toISOString(),
+      });
+    } catch (createError) {
+      const message =
+        createError instanceof Error
+          ? createError.message
+          : "Could not create invite";
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const copyInviteUrl = async () => {
+    if (!invite?.inviteUrl) return;
+
+    try {
+      await navigator.clipboard.writeText(invite.inviteUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError("Could not copy invite link");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-6 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">
+              Invite email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+              placeholder="admin@example.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">
+              Expires in
+            </label>
+            <select
+              value={expiryDays}
+              onChange={(event) => setExpiryDays(Number(event.target.value))}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+            >
+              <option value={1}>1 day</option>
+              <option value={3}>3 days</option>
+              <option value={7}>7 days</option>
+              <option value={14}>14 days</option>
+              <option value={30}>30 days</option>
+            </select>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={createInvite}
+          disabled={isSubmitting}
+          className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+        >
+          {isSubmitting ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Generating invite...
+            </span>
+          ) : (
+            "Generate admin invite"
+          )}
+        </button>
+
+        {error ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        ) : null}
+      </div>
+
+      {invite ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:p-6 space-y-3">
+          <p className="text-sm font-semibold text-emerald-900">
+            Invite ready for {invite.email}
+          </p>
+          <p className="text-xs text-emerald-700">
+            Expires on {new Date(invite.expiresAt).toLocaleString()}
+          </p>
+          <div className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs sm:text-sm text-slate-700 break-all">
+            {invite.inviteUrl}
+          </div>
+          <button
+            type="button"
+            onClick={copyInviteUrl}
+            className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
+          >
+            {copied ? (
+              <Check className="w-4 h-4" />
+            ) : (
+              <Copy className="w-4 h-4" />
+            )}
+            {copied ? "Copied" : "Copy invite link"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -251,8 +445,8 @@ function PushNotificationToggle() {
           {isEnabled
             ? "You are receiving real-time updates on this device."
             : notificationPermission === "denied"
-            ? "Notifications are blocked in your browser settings."
-            : "Enable to receive real-time updates."}
+              ? "Notifications are blocked in your browser settings."
+              : "Enable to receive real-time updates."}
         </p>
       </div>
       <label

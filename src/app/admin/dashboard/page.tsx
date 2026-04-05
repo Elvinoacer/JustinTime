@@ -20,8 +20,16 @@ async function getDashboardStats() {
     recentDisputes,
   ] = await Promise.all([
     prisma.user.count(),
-    prisma.user.count({ where: { role: "PROVIDER" } }),
-    prisma.user.count({ where: { role: "CLIENT" } }),
+    prisma.user.count({
+      where: {
+        OR: [{ role: "PROVIDER" }, { roles: { has: "PROVIDER" } }],
+      },
+    }),
+    prisma.user.count({
+      where: {
+        OR: [{ role: "CLIENT" }, { roles: { has: "CLIENT" } }],
+      },
+    }),
     prisma.profile.count({ where: { verificationStatus: "PENDING" } }),
     prisma.booking.count(),
     prisma.booking.count({ where: { status: "COMPLETED" } }),

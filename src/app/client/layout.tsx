@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import ClientSidebar from "@/components/ClientSidebar";
+import WorkspaceSwitcher from "@/components/WorkspaceSwitcher";
 
 export default function ClientLayout({
   children,
@@ -23,25 +24,29 @@ export default function ClientLayout({
           </button>
           <span className="font-bold text-lg text-gray-900">JustInTime</span>
         </div>
+        <WorkspaceSwitcher
+          variant="mobile"
+          onNavigate={() => setIsSidebarOpen(false)}
+        />
       </div>
 
       {/* Sidebar Wrapper */}
-      <div 
+      <div
         className={`
           fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
           w-72
         `}
       >
-        <ClientSidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+        <ClientSidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
       </div>
 
       {/* Backdrop Overlay */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
           aria-hidden="true"
@@ -49,9 +54,7 @@ export default function ClientLayout({
       )}
 
       <main className="flex-1 p-4 lg:p-8 overflow-y-auto w-full">
-        <div className="max-w-7xl mx-auto">
-          {children}
-        </div>
+        <div className="max-w-7xl mx-auto">{children}</div>
       </main>
     </div>
   );

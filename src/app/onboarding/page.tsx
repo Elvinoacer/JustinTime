@@ -5,7 +5,13 @@ import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
 import { getPreferredDashboard } from "@/lib/auth/workspace";
@@ -71,7 +77,9 @@ function OnboardingPageContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { data: session, update } = useSession();
-  const onboardingIntent = normalizeOnboardingIntent(searchParams.get("intent"));
+  const onboardingIntent = normalizeOnboardingIntent(
+    searchParams.get("intent"),
+  );
   const referralFromUrl = searchParams.get("ref")?.trim().toUpperCase() || "";
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -117,7 +125,9 @@ function OnboardingPageContent() {
 
         let draft: OnboardingDraftState | null = null;
         if (response.ok) {
-          const data = (await response.json()) as { draft?: OnboardingDraftState };
+          const data = (await response.json()) as {
+            draft?: OnboardingDraftState;
+          };
           draft = data.draft || null;
         }
 
@@ -125,7 +135,10 @@ function OnboardingPageContent() {
           return;
         }
 
-        const effectiveRole = onboardingIntent || draft?.role || null;
+        const roleFromDraftOrIntent = onboardingIntent || draft?.role || null;
+        const effectiveRole =
+          roleFromDraftOrIntent ||
+          (session.user.onboardingCompleted ? "PROVIDER" : null);
         const defaultClientName = session.user.name || "";
         const nextClientData = {
           ...DEFAULT_CLIENT_ONBOARDING_DATA,
@@ -152,8 +165,11 @@ function OnboardingPageContent() {
       } catch (error) {
         if (!cancelled) {
           console.error("[ONBOARDING_DRAFT_HYDRATE_ERROR]", error);
-          setSelectedRole(onboardingIntent);
-          setCurrentStep(onboardingIntent ? 2 : 1);
+          const fallbackRole =
+            onboardingIntent ||
+            (session.user?.onboardingCompleted ? "PROVIDER" : null);
+          setSelectedRole(fallbackRole);
+          setCurrentStep(fallbackRole ? 2 : 1);
           setClientData((prev) => ({
             ...prev,
             name: prev.name || session.user?.name || "",
@@ -172,7 +188,12 @@ function OnboardingPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [onboardingIntent, referralFromUrl, session?.user?.id, session?.user?.name]);
+  }, [
+    onboardingIntent,
+    referralFromUrl,
+    session?.user?.id,
+    session?.user?.name,
+  ]);
 
   useEffect(() => {
     if (!didHydrateDraft || !persistDrafts || !session?.user?.id) {
@@ -470,7 +491,9 @@ function OnboardingPageContent() {
       const paymentData = await paymentResponse.json();
 
       if (!paymentResponse.ok && !paymentData?.alreadyActivated) {
-        throw new Error(paymentData?.error || "Failed to start onboarding payment");
+        throw new Error(
+          paymentData?.error || "Failed to start onboarding payment",
+        );
       }
 
       const checkoutUrl =
@@ -616,21 +639,19 @@ function OnboardingPageContent() {
                 ? providerCheckoutUrl || "/dashboard/onboarding-complete"
                 : "/client/dashboard"
             }
-            title={selectedRole === "PROVIDER" ? "Profile Submitted" : "All Set!"}
+            title={
+              selectedRole === "PROVIDER" ? "Profile Submitted" : "All Set!"
+            }
             message={
               selectedRole === "PROVIDER"
                 ? providerSuccessMessage
                 : "Your account is ready. Redirecting you to your dashboard..."
             }
             primaryActionLabel={
-              selectedRole === "PROVIDER"
-                ? "Continue to payment"
-                : undefined
+              selectedRole === "PROVIDER" ? "Continue to payment" : undefined
             }
             secondaryActionLabel={
-              selectedRole === "PROVIDER"
-                ? "Verification overview"
-                : undefined
+              selectedRole === "PROVIDER" ? "Verification overview" : undefined
             }
             secondaryActionHref={
               selectedRole === "PROVIDER"

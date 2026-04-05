@@ -32,6 +32,11 @@ interface ProviderData {
 interface StepProviderDetailsProps {
   providerData: ProviderData;
   setProviderData: React.Dispatch<React.SetStateAction<ProviderData>>;
+  prefilledFields?: {
+    businessName?: boolean;
+    phone?: boolean;
+    location?: boolean;
+  };
   categories: Category[];
   isLoadingCategories: boolean;
   onBack: () => void;
@@ -48,6 +53,7 @@ interface StepProviderDetailsProps {
 export default function StepProviderDetails({
   providerData,
   setProviderData,
+  prefilledFields,
   categories,
   onBack,
   onNext,
@@ -222,7 +228,10 @@ export default function StepProviderDetails({
     setIsCheckingPhone(true);
     const result = await validatePhone(providerData.phone);
 
-    if (result.normalizedPhone && result.normalizedPhone !== providerData.phone) {
+    if (
+      result.normalizedPhone &&
+      result.normalizedPhone !== providerData.phone
+    ) {
       setProviderData((prev) => ({
         ...prev,
         phone: result.normalizedPhone || prev.phone,
@@ -334,6 +343,11 @@ export default function StepProviderDetails({
             >
               Business Name *
             </label>
+            {prefilledFields?.businessName && providerData.businessName ? (
+              <p className="mb-2 text-[11px] sm:text-xs text-emerald-700 font-medium">
+                Pre-filled from your profile. You can edit it.
+              </p>
+            ) : null}
             <div className="relative">
               <span className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
                 <span className="material-symbols-outlined text-gray-400 group-focus-within:text-emerald-500 transition-colors text-sm sm:text-base">
@@ -670,6 +684,11 @@ export default function StepProviderDetails({
           >
             Phone Number *
           </label>
+          {prefilledFields?.phone && providerData.phone ? (
+            <p className="mb-2 text-[11px] sm:text-xs text-emerald-700 font-medium">
+              Pre-filled from your profile. You can edit it.
+            </p>
+          ) : null}
           <div className="relative">
             <span className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
               <span className="material-symbols-outlined text-gray-400 group-focus-within:text-emerald-500 transition-colors text-sm sm:text-base">
@@ -837,6 +856,11 @@ export default function StepProviderDetails({
             >
               Service location *
             </label>
+            {prefilledFields?.location && providerData.location ? (
+              <p className="mb-2 text-[11px] sm:text-xs text-emerald-700 font-medium">
+                Pre-filled from your profile. You can edit it.
+              </p>
+            ) : null}
             <div className="relative">
               <span className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
                 <span className="material-symbols-outlined text-gray-400 group-focus-within:text-emerald-500 transition-colors text-sm sm:text-base">
