@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Copy,
@@ -24,6 +24,13 @@ export default function ReferralPage() {
     null,
   );
   const [isPreparingShare, setIsPreparingShare] = useState(false);
+  const [activeShareAction, setActiveShareAction] = useState<string | null>(
+    null,
+  );
+  const initializationPromiseRef = useRef<Promise<{
+    referralCode: string;
+    referralLink: string;
+  } | null> | null>(null);
   const { data: referralData, isLoading } = useReferralData();
 
   // Check for mobile
@@ -34,6 +41,29 @@ export default function ReferralPage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  const writeTextFallback = (text: string): boolean => {
+    if (typeof document === "undefined") {
+      return false;
+    }
+
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      textarea.style.pointerEvents = "none";
+      document.body.appendChild(textarea);
+      textarea.select();
+
+      const copied = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return copied;
+    } catch {
+      return false;
+    }
+  };
+
   const copyToClipboard = async (text: string, target: "code" | "link") => {
     if (!text) {
       toast.error("Referral data is not ready yet");
@@ -41,12 +71,20 @@ export default function ReferralPage() {
     }
 
     try {
-      await navigator.clipboard.writeText(text);
+      if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const copied = writeTextFallback(text);
+        if (!copied) {
+          throw new Error("Clipboard unavailable");
+        }
+      }
+
       setCopiedTarget(target);
       toast.success("Copied to clipboard!");
       setTimeout(() => setCopiedTarget(null), 2000);
     } catch {
-      toast.error("Failed to copy");
+      toast.error("Copy is unavailable on this browser/session");
     }
   };
 
@@ -61,42 +99,53 @@ export default function ReferralPage() {
       };
     }
 
+    if (initializationPromiseRef.current) {
+      return initializationPromiseRef.current;
+    }
+
     setIsPreparingShare(true);
 
-    try {
-      const response = await fetch("/api/client/referral", {
-        method: "POST",
-      });
-      const result = await response.json().catch(() => null);
+    initializationPromiseRef.current = (async () => {
+      try {
+        const response = await fetch("/api/client/referral", {
+          method: "POST",
+        });
+        const result = await response.json().catch(() => null);
 
-      if (!response.ok) {
-        throw new Error(result?.error || "Failed to initialize referral code");
+        if (!response.ok) {
+          throw new Error(
+            result?.error || "Failed to initialize referral code",
+          );
+        }
+
+        const payload = result?.data ?? result;
+        const initializedCode = payload?.referralCode;
+        const initializedLink = payload?.referralLink;
+
+        if (!initializedCode || !initializedLink) {
+          throw new Error("Referral data is still unavailable");
+        }
+
+        await queryClient.invalidateQueries({ queryKey: ["referral-data"] });
+
+        return {
+          referralCode: initializedCode,
+          referralLink: initializedLink,
+        };
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Unable to prepare referral share details",
+        );
+        return null;
+      } finally {
+        initializationPromiseRef.current = null;
+        setIsPreparingShare(false);
       }
+    })();
 
-      const payload = result?.data ?? result;
-      const initializedCode = payload?.referralCode;
-      const initializedLink = payload?.referralLink;
-
-      if (!initializedCode || !initializedLink) {
-        throw new Error("Referral data is still unavailable");
-      }
-
-      await queryClient.invalidateQueries({ queryKey: ["referral-data"] });
-
-      return {
-        referralCode: initializedCode,
-        referralLink: initializedLink,
-      };
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Unable to prepare referral share details",
-      );
-      return null;
-    } finally {
-      setIsPreparingShare(false);
-    }
+    return initializationPromiseRef.current;
   };
 
   const shareReferral = async () => {
@@ -114,7 +163,9 @@ export default function ReferralPage() {
         });
         toast.success("Shared successfully!");
       } catch (err) {
-        console.error("Error sharing:", err);
+        if (!(err instanceof DOMException && err.name === "AbortError")) {
+          toast.error("Unable to share right now");
+        }
       }
     } else {
       await copyToClipboard(payload.referralLink, "link");
@@ -150,6 +201,8 @@ export default function ReferralPage() {
     tiers,
     needsInitialization,
   } = referralData;
+  const pendingReferralCount = stats.pendingReferrals ?? stats.pendingRewards;
+  const earnedPoints = stats.earnedPoints ?? stats.totalPoints;
   const redeemableKes = Number(stats.redeemableValue || 0);
   const shareMessage =
     "Get professional services at amazing rates on JustInTime. Use my referral link to sign up:";
@@ -199,8 +252,8 @@ export default function ReferralPage() {
 
   const rewards = [
     {
-      title: "Total Points",
-      value: stats.totalPoints.toString(),
+      title: "Earned Points",
+      value: earnedPoints.toString(),
       icon: <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />,
       change: `${stats.completedReferrals} completed`,
       color: "from-emerald-50 to-emerald-100",
@@ -221,13 +274,13 @@ export default function ReferralPage() {
       title: "Friends Referred",
       value: stats.totalReferrals.toString(),
       icon: <Users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />,
-      change: `${stats.pendingRewards} pending`,
+      change: `${pendingReferralCount} pending`,
       color: "from-purple-50 to-purple-100",
       border: "border-purple-200",
     },
     {
-      title: "Pending Rewards",
-      value: stats.pendingRewards.toString(),
+      title: "Pending Referrals",
+      value: pendingReferralCount.toString(),
       icon: <Award className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />,
       change: "Processing",
       color: "from-amber-50 to-amber-100",
@@ -301,12 +354,15 @@ export default function ReferralPage() {
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <button
                   onClick={async () => {
+                    setActiveShareAction("copy-code");
                     const payload = await ensureReferralShareData();
                     if (!payload) {
+                      setActiveShareAction(null);
                       return;
                     }
 
                     await copyToClipboard(payload.referralCode, "code");
+                    setActiveShareAction(null);
                   }}
                   disabled={isPreparingShare}
                   className={`px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-medium transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
@@ -321,17 +377,27 @@ export default function ReferralPage() {
                     }`}
                   />
                   <span className="text-sm sm:text-base">
-                    {copiedTarget === "code" ? "Copied!" : "Copy Code"}
+                    {copiedTarget === "code"
+                      ? "Copied!"
+                      : isPreparingShare && activeShareAction === "copy-code"
+                        ? "Preparing..."
+                        : "Copy Code"}
                   </span>
                 </button>
                 <button
-                  onClick={shareReferral}
+                  onClick={async () => {
+                    setActiveShareAction("share");
+                    await shareReferral();
+                    setActiveShareAction(null);
+                  }}
                   disabled={isPreparingShare}
                   className="px-3 sm:px-4 py-2.5 sm:py-3 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg sm:rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm disabled:opacity-60"
                 >
                   <Share2 className="w-4 h-4" />
                   <span className="text-sm sm:text-base">
-                    {isPreparingShare ? "Preparing..." : "Share"}
+                    {isPreparingShare && activeShareAction === "share"
+                      ? "Preparing..."
+                      : "Share"}
                   </span>
                 </button>
               </div>
@@ -345,9 +411,17 @@ export default function ReferralPage() {
                       <button
                         key={method.platform}
                         className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${method.color}`}
-                        onClick={() => void shareViaPlatform(method.platform)}
+                        onClick={async () => {
+                          setActiveShareAction(`platform-${method.platform}`);
+                          await shareViaPlatform(method.platform);
+                          setActiveShareAction(null);
+                        }}
+                        disabled={isPreparingShare}
                       >
-                        {method.icon} {method.platform}
+                        {isPreparingShare &&
+                        activeShareAction === `platform-${method.platform}`
+                          ? "Preparing..."
+                          : `${method.icon} ${method.platform}`}
                       </button>
                     ))}
                   </div>
@@ -367,17 +441,24 @@ export default function ReferralPage() {
                   </div>
                   <button
                     onClick={async () => {
+                      setActiveShareAction("copy-link");
                       const payload = await ensureReferralShareData();
                       if (!payload) {
+                        setActiveShareAction(null);
                         return;
                       }
 
                       await copyToClipboard(payload.referralLink, "link");
+                      setActiveShareAction(null);
                     }}
                     disabled={isPreparingShare}
                     className="px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg sm:rounded-xl font-medium transition-colors text-xs sm:text-sm"
                   >
-                    {copiedTarget === "link" ? "Copied!" : "Copy"}
+                    {copiedTarget === "link"
+                      ? "Copied!"
+                      : isPreparingShare && activeShareAction === "copy-link"
+                        ? "Preparing..."
+                        : "Copy"}
                   </button>
                 </div>
               </div>
@@ -554,10 +635,24 @@ export default function ReferralPage() {
                   <button
                     key={method.platform}
                     className={`p-2.5 sm:p-3 rounded-lg sm:rounded-xl text-sm font-medium transition-colors flex flex-col items-center justify-center gap-1.5 ${method.color}`}
-                    onClick={() => void shareViaPlatform(method.platform)}
+                    onClick={async () => {
+                      setActiveShareAction(`platform-${method.platform}`);
+                      await shareViaPlatform(method.platform);
+                      setActiveShareAction(null);
+                    }}
+                    disabled={isPreparingShare}
                   >
-                    <span className="text-lg">{method.icon}</span>
-                    <span>{method.platform}</span>
+                    {isPreparingShare &&
+                    activeShareAction === `platform-${method.platform}` ? (
+                      <>
+                        <span className="text-xs">Preparing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-lg">{method.icon}</span>
+                        <span>{method.platform}</span>
+                      </>
+                    )}
                   </button>
                 ))}
               </div>

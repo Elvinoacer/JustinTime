@@ -1,45 +1,56 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { z } from "zod";
+import { jobsEventSchema } from "@/lib/analytics/jobs-events-schema";
+import { readJsonBodyWithLimit } from "@/lib/http/read-json-with-limit";
+import { sanitizeForLog } from "@/lib/logging/sanitize";
+import { persistMarketingEvent } from "@/lib/analytics/event-store";
+import {
+  enforceRateLimits,
+  getClientIpFromHeaders,
+} from "@/lib/auth/rate-limit";
 
-const jobsEventSchema = z.object({
-  event: z.enum([
-    "job_post_started",
-    "job_post_minimal_submitted",
-    "job_post_details_completed",
-    "job_post_published",
-    "proposal_first_received",
-    "proposal_card_viewed",
-    "proposal_compare_opened",
-    "proposal_accepted",
-    "provider_apply_started",
-    "provider_apply_submitted",
-    "pricing_hint_seen",
-    "pricing_hint_applied",
-    "risk_badge_seen",
-  ]),
-  userRole: z.enum(["CLIENT", "PROVIDER", "ADMIN", "GUEST"]).optional(),
-  jobCategory: z.string().max(80).optional(),
-  budgetBand: z.string().max(40).optional(),
-  locationBand: z.string().max(80).optional(),
-  sourcePage: z.string().max(120).optional(),
-  experimentVariant: z.string().max(80).optional(),
-  timestamp: z.number().int().positive().optional(),
-  jobId: z.string().max(64).optional(),
-  proposalId: z.string().max(64).optional(),
-  url: z.string().max(220).optional(),
-  referrer: z.string().max(220).optional(),
-});
+const JOBS_EVENTS_RATE_LIMIT_ERROR =
+  "Too many analytics requests. Please try again shortly.";
 
-function truncate(value: string | null, max = 220): string | undefined {
-  if (!value) return undefined;
-  return value.length > max ? `${value.slice(0, max)}...` : value;
-}
-
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const parsed = jobsEventSchema.safeParse(body);
+    const clientIp = getClientIpFromHeaders(req.headers) || "unknown";
+    const limitResult = enforceRateLimits("public.analytics.jobs", [
+      {
+        suffix: `ip:${clientIp}`,
+        limit: 90,
+        windowMs: 60 * 1000,
+      },
+    ]);
+
+    if (!limitResult.ok) {
+      return NextResponse.json(
+        { ok: false, error: JOBS_EVENTS_RATE_LIMIT_ERROR },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(limitResult.retryAfterSeconds ?? 60),
+          },
+        },
+      );
+    }
+
+    const parsedBody = await readJsonBodyWithLimit<Record<string, unknown>>(
+      req,
+      {
+        maxBytes: 12_000,
+        expectObject: true,
+      },
+    );
+
+    if (!parsedBody.ok) {
+      return NextResponse.json(
+        { ok: false, error: parsedBody.error },
+        { status: parsedBody.status },
+      );
+    }
+
+    const parsed = jobsEventSchema.safeParse(parsedBody.data);
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -49,19 +60,39 @@ export async function POST(req: Request) {
     }
 
     const hdrs = await headers();
-    const userAgent = truncate(hdrs.get("user-agent"), 220);
-    const forwardedFor = truncate(hdrs.get("x-forwarded-for"), 140);
-
-    console.info("[jobs-event]", {
+    const userAgent = sanitizeForLog(hdrs.get("user-agent"), 220);
+    const forwardedFor = sanitizeForLog(hdrs.get("x-forwarded-for"), 140);
+    const payload = {
       ...parsed.data,
+      recommendationLabel: sanitizeForLog(parsed.data.recommendationLabel, 120),
+      sourcePage: sanitizeForLog(parsed.data.sourcePage, 120),
+      url: sanitizeForLog(parsed.data.url, 220),
+      referrer: sanitizeForLog(parsed.data.referrer, 220),
       timestamp: parsed.data.timestamp ?? Date.now(),
       userAgent,
       forwardedFor,
+    };
+
+    await persistMarketingEvent({
+      channel: "jobs",
+      event: parsed.data.event,
+      payload,
+    });
+
+    console.info("[jobs-event]", {
+      event: payload.event,
+      userRole: payload.userRole,
+      sourcePage: payload.sourcePage,
+      recommendationLabel: payload.recommendationLabel,
+      isRecommended: payload.isRecommended,
+      timestamp: payload.timestamp,
     });
 
     return NextResponse.json({ ok: true }, { status: 202 });
   } catch (error) {
-    console.error("jobs event capture failed", error);
+    console.error("jobs event capture failed", {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ ok: false }, { status: 202 });
   }
 }

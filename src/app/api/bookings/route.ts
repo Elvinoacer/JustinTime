@@ -594,6 +594,75 @@ export async function POST(request: Request) {
           throw new Error("PRICING_QUOTE_INVALID");
         }
 
+        if (validPromoCodeId) {
+          const promoSnapshot = await tx.promoCode.findUnique({
+            where: { id: validPromoCodeId },
+            select: {
+              id: true,
+              isActive: true,
+              startDate: true,
+              endDate: true,
+              usageLimit: true,
+              usageCount: true,
+              perUserLimit: true,
+            },
+          });
+
+          if (!promoSnapshot || !promoSnapshot.isActive) {
+            throw new Error("PROMO_INVALID");
+          }
+
+          const promoNow = new Date();
+          if (promoSnapshot.startDate > promoNow) {
+            throw new Error("PROMO_INVALID");
+          }
+
+          if (promoSnapshot.endDate && promoSnapshot.endDate < promoNow) {
+            throw new Error("PROMO_INVALID");
+          }
+
+          const userPromoUsageCount = await tx.booking.count({
+            where: {
+              clientId: session.user.id,
+              promoCodeId: promoSnapshot.id,
+              status: { not: "CANCELLED" },
+            },
+          });
+
+          if (userPromoUsageCount >= promoSnapshot.perUserLimit) {
+            throw new Error("PROMO_PER_USER_LIMIT");
+          }
+
+          if (promoSnapshot.usageLimit !== null) {
+            const updatedPromo = await tx.promoCode.updateMany({
+              where: {
+                id: promoSnapshot.id,
+                usageCount: {
+                  lt: promoSnapshot.usageLimit,
+                },
+              },
+              data: {
+                usageCount: {
+                  increment: 1,
+                },
+              },
+            });
+
+            if (updatedPromo.count !== 1) {
+              throw new Error("PROMO_LIMIT_REACHED");
+            }
+          } else {
+            await tx.promoCode.update({
+              where: { id: promoSnapshot.id },
+              data: {
+                usageCount: {
+                  increment: 1,
+                },
+              },
+            });
+          }
+        }
+
         const newBooking = await tx.booking.create({
           data: {
             clientId: session.user.id,
@@ -637,13 +706,6 @@ export async function POST(request: Request) {
             slots: true,
           },
         });
-
-        if (validPromoCodeId) {
-          await tx.promoCode.update({
-            where: { id: validPromoCodeId },
-            data: { usageCount: { increment: 1 } },
-          });
-        }
 
         if (shouldCreateNegotiation && normalizedNegotiation) {
           await tx.bookingNegotiation.create({
@@ -828,6 +890,36 @@ export async function POST(request: Request) {
           code: "PRICING_QUOTE_INVALID",
         },
         { status: 409 },
+      );
+    }
+
+    if (error instanceof Error && error.message === "PROMO_LIMIT_REACHED") {
+      return NextResponse.json(
+        {
+          error: "Promo code usage limit reached",
+          code: "PROMO_LIMIT_REACHED",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (error instanceof Error && error.message === "PROMO_PER_USER_LIMIT") {
+      return NextResponse.json(
+        {
+          error: "You have already used this promo code the maximum times",
+          code: "PROMO_PER_USER_LIMIT",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (error instanceof Error && error.message === "PROMO_INVALID") {
+      return NextResponse.json(
+        {
+          error: "Promo code is no longer valid",
+          code: "PROMO_INVALID",
+        },
+        { status: 400 },
       );
     }
 

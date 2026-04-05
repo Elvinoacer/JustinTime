@@ -16,12 +16,8 @@ import {
   User,
   Clock,
   HelpCircle,
-  Globe,
-  Facebook,
-  Twitter,
-  Instagram,
-  Linkedin,
 } from "lucide-react";
+import { VALIDATION } from "@/lib/constants/validation";
 
 const ContactPage = () => {
   const [formState, setFormState] = useState({
@@ -29,9 +25,11 @@ const ContactPage = () => {
     email: "",
     subject: "",
     message: "",
+    website: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [ticketReference, setTicketReference] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,12 +53,21 @@ const ContactPage = () => {
       }
 
       setIsSubmitted(true);
-      setFormState({ name: "", email: "", subject: "", message: "" });
+      setTicketReference(
+        typeof data.ticketReference === "string" ? data.ticketReference : null,
+      );
+      setFormState({
+        name: "",
+        email: "",
+        subject: "",
+        message: "",
+        website: "",
+      });
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "An error occurred. Please try again."
+          : "An error occurred. Please try again.",
       );
     } finally {
       setIsSubmitting(false);
@@ -68,7 +75,7 @@ const ContactPage = () => {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     setFormState({ ...formState, [e.target.name]: e.target.value });
   };
@@ -147,12 +154,11 @@ const ContactPage = () => {
                   </div>
                   <div>
                     <h4 className="font-semibold text-gray-900 text-sm sm:text-base">
-                      Our Office
+                      Support Hub
                     </h4>
                     <p className="text-gray-600 text-xs sm:text-sm mt-1">
-                      123 Business Avenue, Westlands
-                      <br />
-                      Nairobi, Kenya
+                      Remote-first support for clients and providers across
+                      Kenya.
                     </p>
                   </div>
                 </div>
@@ -190,27 +196,30 @@ const ContactPage = () => {
                 </div>
               </div>
 
-              {/* Social Links */}
+              {/* Support Channels */}
               <div className="mt-6 sm:mt-8 pt-5 sm:pt-6 border-t border-gray-100">
                 <h4 className="font-semibold text-gray-900 text-sm sm:text-base mb-3">
-                  Follow Us
+                  Quick Actions
                 </h4>
-                <div className="flex gap-2 sm:gap-3">
-                  {[
-                    { icon: Facebook, label: "Facebook" },
-                    { icon: Twitter, label: "Twitter" },
-                    { icon: Instagram, label: "Instagram" },
-                    { icon: Linkedin, label: "LinkedIn" },
-                  ].map((social, index) => (
-                    <a
-                      key={index}
-                      href="#"
-                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 hover:bg-emerald-500 hover:text-white transition-all duration-300 group"
-                      aria-label={social.label}
-                    >
-                      <social.icon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
-                    </a>
-                  ))}
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href="mailto:support@gtss.software"
+                    className="px-3 py-2 rounded-lg bg-gray-50 text-gray-700 text-xs sm:text-sm font-medium hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                  >
+                    Email Support
+                  </a>
+                  <a
+                    href="tel:+254790670542"
+                    className="px-3 py-2 rounded-lg bg-gray-50 text-gray-700 text-xs sm:text-sm font-medium hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                  >
+                    Call Support
+                  </a>
+                  <a
+                    href="/faq"
+                    className="px-3 py-2 rounded-lg bg-gray-50 text-gray-700 text-xs sm:text-sm font-medium hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                  >
+                    Visit FAQ
+                  </a>
                 </div>
               </div>
             </motion.div>
@@ -299,8 +308,16 @@ const ContactPage = () => {
                     Thank you for contacting us. We will respond to your inquiry
                     shortly.
                   </p>
+                  {ticketReference ? (
+                    <p className="text-emerald-700 text-xs sm:text-sm mb-4">
+                      Ticket reference: {ticketReference}
+                    </p>
+                  ) : null}
                   <button
-                    onClick={() => setIsSubmitted(false)}
+                    onClick={() => {
+                      setIsSubmitted(false);
+                      setTicketReference(null);
+                    }}
                     className="text-emerald-600 font-semibold hover:text-emerald-700 underline text-sm sm:text-base"
                   >
                     Send another message
@@ -311,6 +328,17 @@ const ContactPage = () => {
                   onSubmit={handleSubmit}
                   className="space-y-4 sm:space-y-6"
                 >
+                  <input
+                    type="text"
+                    name="website"
+                    value={formState.website}
+                    onChange={handleChange}
+                    autoComplete="off"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    className="hidden"
+                  />
+
                   {/* Name & Email - Stacked on mobile, side-by-side on larger screens */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                     <div className="space-y-2">
@@ -326,7 +354,7 @@ const ContactPage = () => {
                         id="name"
                         name="name"
                         required
-                        maxLength={100}
+                        maxLength={VALIDATION.MAX_NAME_LENGTH}
                         value={formState.name}
                         onChange={handleChange}
                         className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-gray-50 focus:bg-white text-sm sm:text-base"
@@ -367,6 +395,7 @@ const ContactPage = () => {
                       id="subject"
                       name="subject"
                       required
+                      maxLength={VALIDATION.MAX_SUBJECT_LENGTH}
                       value={formState.subject}
                       onChange={handleChange}
                       className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-gray-50 focus:bg-white text-sm sm:text-base"
@@ -387,7 +416,7 @@ const ContactPage = () => {
                       name="message"
                       required
                       rows={4}
-                      maxLength={2000}
+                      maxLength={VALIDATION.MAX_MESSAGE_LENGTH}
                       value={formState.message}
                       onChange={handleChange}
                       className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all bg-gray-50 focus:bg-white text-sm sm:text-base resize-none"

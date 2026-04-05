@@ -1778,6 +1778,125 @@ You can reply directly to this email to respond to ${name}.
   }
 };
 
+export const sendNewsletterConfirmationEmail = async (
+  email: string,
+  confirmationUrl: string,
+  source = "website",
+) => {
+  try {
+    const sanitizedSource = source
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
+    await resend.emails.send({
+      from: `JustInTime Updates <${getFromEmail()}>`,
+      to: email,
+      subject: "Confirm your JustInTime newsletter subscription",
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Confirm Subscription</title>
+        </head>
+        <body style="margin: 0; padding: 0; background: #f5f7fb; font-family: Arial, sans-serif; color: #111827;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding: 28px 16px;">
+            <tr>
+              <td align="center">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 560px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden;">
+                  <tr>
+                    <td style="padding: 28px 28px 16px; background: linear-gradient(135deg, #0f766e 0%, #059669 100%); color: #ffffff;">
+                      <h1 style="margin: 0; font-size: 24px; line-height: 1.3;">Confirm your subscription</h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 24px 28px;">
+                      <p style="margin: 0 0 14px; font-size: 15px; line-height: 1.6; color: #374151;">
+                        We received a newsletter request from <strong>${sanitizedSource}</strong> for this email address.
+                      </p>
+                      <p style="margin: 0 0 22px; font-size: 15px; line-height: 1.6; color: #374151;">
+                        Confirm your subscription to start receiving product updates, service highlights, and growth tips.
+                      </p>
+                      <a href="${confirmationUrl}" style="display: inline-block; background: #059669; color: #ffffff; text-decoration: none; font-weight: 700; padding: 12px 20px; border-radius: 8px;">
+                        Confirm subscription
+                      </a>
+                      <p style="margin: 18px 0 0; font-size: 12px; color: #6b7280; line-height: 1.6;">
+                        If you did not request this, you can safely ignore this email.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `,
+      text: `Confirm your JustInTime newsletter subscription\n\nPlease confirm your subscription by opening this link:\n${confirmationUrl}\n\nIf you did not request this, you can ignore this email.`,
+    });
+
+    return true;
+  } catch (error) {
+    console.error("Error sending newsletter confirmation email:", error);
+    return false;
+  }
+};
+
+export const sendNewsletterWelcomeEmail = async (email: string) => {
+  try {
+    await resend.emails.send({
+      from: `JustInTime Updates <${getFromEmail()}>`,
+      to: email,
+      subject: "Welcome to the JustInTime newsletter",
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Subscription confirmed</title>
+        </head>
+        <body style="margin: 0; padding: 0; background: #f5f7fb; font-family: Arial, sans-serif; color: #111827;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding: 28px 16px;">
+            <tr>
+              <td align="center">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 560px; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden;">
+                  <tr>
+                    <td style="padding: 28px 28px 16px; background: linear-gradient(135deg, #0f766e 0%, #059669 100%); color: #ffffff;">
+                      <h1 style="margin: 0; font-size: 24px; line-height: 1.3;">You are subscribed</h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 24px 28px;">
+                      <p style="margin: 0 0 14px; font-size: 15px; line-height: 1.6; color: #374151;">
+                        Thanks for confirming your newsletter subscription.
+                      </p>
+                      <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #374151;">
+                        You will now receive occasional updates from JustInTime. You can unsubscribe at any time.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `,
+      text: "Your newsletter subscription has been confirmed. Thanks for joining the JustInTime updates list.",
+    });
+
+    return true;
+  } catch (error) {
+    console.error("Error sending newsletter welcome email:", error);
+    return false;
+  }
+};
+
 // Send email verification email
 export const sendVerificationEmail = async (
   userEmail: string,

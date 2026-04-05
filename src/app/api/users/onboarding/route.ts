@@ -18,6 +18,7 @@ import {
   type ProviderOnboardingData,
   type VerificationDraftData,
 } from "@/lib/onboarding/draft";
+import { completePendingSignupReferralsForUser } from "@/lib/referrals/reward-service";
 
 const ALLOWED_LOCATION_SOURCES = new Set([
   "GPS",
@@ -867,6 +868,10 @@ export const POST = auth(async (req) => {
             : {}),
         },
       });
+    }
+
+    if (onboardingCompleted) {
+      await completePendingSignupReferralsForUser(actingUser.id);
     }
 
     return NextResponse.json({

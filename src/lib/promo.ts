@@ -70,8 +70,8 @@ export async function validatePromoCode(
       where: {
         clientId: userId,
         promoCodeId: promo.id,
-        status: { not: "CANCELLED" }, // Don't count cancelled bookings? Or should we?
-        // Usually cancelled bookings should return the coupon usage.
+        // Business rule: cancelled bookings do not consume per-user promo quota.
+        status: { not: "CANCELLED" },
       },
     });
 

@@ -9,7 +9,6 @@ import {
   PAYMENT_AMOUNTS,
   PROMOTION_PLANS,
 } from "@/lib/constants/pricing";
-import { validatePromoCode } from "@/lib/promo";
 
 // --- Types ---
 export interface PurchaseCreditsResult {
@@ -78,19 +77,96 @@ async function resolvePromoDiscount(
     };
   }
 
-  const promoResult = await validatePromoCode(
-    normalizedPromoCode,
-    userId,
-    baseAmount,
-  );
+  const promo = await tx.promoCode.findUnique({
+    where: { code: normalizedPromoCode },
+    select: {
+      id: true,
+      type: true,
+      value: true,
+      maxDiscountAmount: true,
+      minOrderAmount: true,
+      isActive: true,
+      startDate: true,
+      endDate: true,
+      usageLimit: true,
+      usageCount: true,
+      perUserLimit: true,
+    },
+  });
 
-  if (!promoResult.isValid) {
-    throw new Error(promoResult.error || "Invalid promo code");
+  if (!promo) {
+    throw new Error("Invalid promo code");
   }
 
-  if (promoResult.promoCodeId) {
+  if (!promo.isActive) {
+    throw new Error("This promo code is inactive");
+  }
+
+  const now = new Date();
+  if (promo.startDate > now) {
+    throw new Error("Promo code is not yet active");
+  }
+
+  if (promo.endDate && promo.endDate < now) {
+    throw new Error("Promo code has expired");
+  }
+
+  const userUsageCount = await tx.booking.count({
+    where: {
+      clientId: userId,
+      promoCodeId: promo.id,
+      status: { not: "CANCELLED" },
+    },
+  });
+
+  if (userUsageCount >= promo.perUserLimit) {
+    throw new Error(
+      `You have already used this code ${userUsageCount} time(s)`,
+    );
+  }
+
+  if (promo.minOrderAmount && baseAmount < Number(promo.minOrderAmount)) {
+    throw new Error(`Minimum order amount is ${promo.minOrderAmount}`);
+  }
+
+  let discountAmount = 0;
+  if (promo.type === "PERCENTAGE") {
+    discountAmount = (baseAmount * Number(promo.value)) / 100;
+    if (
+      promo.maxDiscountAmount &&
+      discountAmount > Number(promo.maxDiscountAmount)
+    ) {
+      discountAmount = Number(promo.maxDiscountAmount);
+    }
+  } else {
+    discountAmount = Number(promo.value);
+  }
+
+  if (discountAmount > baseAmount) {
+    discountAmount = baseAmount;
+  }
+
+  if (promo.usageLimit !== null) {
+    const consumedPromo = await tx.promoCode.updateMany({
+      where: {
+        id: promo.id,
+        usageCount: {
+          lt: promo.usageLimit,
+        },
+      },
+      data: {
+        usageCount: {
+          increment: 1,
+        },
+      },
+    });
+
+    if (consumedPromo.count !== 1) {
+      throw new Error("Promo code usage limit reached");
+    }
+  } else {
     await tx.promoCode.update({
-      where: { id: promoResult.promoCodeId },
+      where: { id: promo.id },
       data: {
         usageCount: {
           increment: 1,
@@ -101,7 +177,7 @@ async function resolvePromoDiscount(
 
   return {
     appliedPromoCode: normalizedPromoCode,
-    discountAmount: promoResult.discountAmount,
+    discountAmount,
   };
 }
 

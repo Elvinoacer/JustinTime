@@ -7,9 +7,12 @@ export interface ReferralData {
   needsInitialization?: boolean;
   stats: {
     totalPoints: number;
+    earnedPoints?: number;
+    pendingPoints?: number;
     redeemableValue: string;
     totalReferrals: number;
     completedReferrals: number;
+    pendingReferrals?: number;
     pendingRewards: number;
   };
   recentReferrals: Array<{

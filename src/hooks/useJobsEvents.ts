@@ -1,21 +1,5 @@
 import { useCallback } from "react";
-
-export type JobsEventName =
-  | "job_post_started"
-  | "job_post_minimal_submitted"
-  | "job_post_details_completed"
-  | "job_post_published"
-  | "proposal_first_received"
-  | "proposal_card_viewed"
-  | "proposal_compare_opened"
-  | "proposal_accepted"
-  | "provider_apply_started"
-  | "provider_apply_submitted"
-  | "pricing_hint_seen"
-  | "pricing_hint_applied"
-  | "risk_badge_seen"
-  | "proposal_recommendation_impression"
-  | "proposal_recommendation_clicked";
+import type { JobsEventName } from "@/lib/analytics/jobs-events-schema";
 
 export interface JobsEventPayload {
   userRole?: "CLIENT" | "PROVIDER" | "ADMIN" | "GUEST";

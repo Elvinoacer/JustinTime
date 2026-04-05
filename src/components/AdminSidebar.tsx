@@ -23,6 +23,8 @@ import {
   ChevronRight,
   TrendingUp,
   TicketPercent,
+  Activity,
+  Mail,
 } from "lucide-react";
 import { signOutWithNotificationCleanup } from "@/lib/auth/signOutWithNotificationCleanup";
 
@@ -36,6 +38,8 @@ const navItems = [
   { name: "Support", href: "/admin/support", icon: Headphones },
   { name: "Finance", href: "/admin/finance", icon: CreditCard },
   { name: "Promotions", href: "/admin/marketing/promos", icon: TicketPercent },
+  { name: "Newsletter", href: "/admin/marketing/newsletter", icon: Mail },
+  { name: "Marketing Events", href: "/admin/marketing/events", icon: Activity },
   { name: "Churn Analysis", href: "/admin/churn-analysis", icon: TrendingUp },
   { name: "Reconciliation", href: "/admin/reconciliation", icon: Scale },
   { name: "Audit Logs", href: "/admin/logs", icon: History },

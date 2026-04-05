@@ -14,24 +14,61 @@ import { Label } from "@/components/ui/label";
 import { Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createPromoCodeAction } from "@/app/actions/promo";
+import { useRouter } from "next/navigation";
+
+function convertDateTimeLocalToIso(value: FormDataEntryValue | null): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+
+  return parsed.toISOString();
+}
 
 export function CreatePromoModal() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
+    const normalizedStartDate = convertDateTimeLocalToIso(
+      formData.get("startDate"),
+    );
+    const normalizedEndDate = convertDateTimeLocalToIso(
+      formData.get("endDate"),
+    );
+
+    if (normalizedStartDate) {
+      formData.set("startDate", normalizedStartDate);
+    } else {
+      formData.delete("startDate");
+    }
+
+    if (normalizedEndDate) {
+      formData.set("endDate", normalizedEndDate);
+    } else {
+      formData.delete("endDate");
+    }
 
     try {
       const result = await createPromoCodeAction(formData);
       if (result.success) {
         toast.success("Promo code created successfully");
         setOpen(false);
-        // Ideally revalidatePath or router.refresh()
-        window.location.reload();
+        router.refresh();
       } else {
         toast.error(result.error);
       }
@@ -146,6 +183,9 @@ export function CreatePromoModal() {
               <Input id="endDate" name="endDate" type="datetime-local" />
             </div>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Dates are saved using your local timezone.
+          </p>
 
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>

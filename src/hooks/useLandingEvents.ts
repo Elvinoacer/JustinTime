@@ -1,16 +1,10 @@
 import { useCallback } from "react";
+import type { LandingEventName } from "@/lib/analytics/landing-events-schema";
 
 /**
  * Lightweight event tracking for landing page CRO
  * Sends events to analytics without blocking page performance
  */
-
-type EventName =
-  | "landing:variant_assigned"
-  | "landing:variant_switched"
-  | "landing:cta_clicked"
-  | "landing:search_initiated"
-  | "landing:secondary_cta_clicked";
 
 interface EventPayload {
   variant?: "booking" | "pro";
@@ -29,7 +23,7 @@ const useLandingEvents = () => {
    * Falls back to fetch with keepalive for older browsers
    */
   const trackEvent = useCallback(
-    (eventName: EventName, payload: EventPayload = {}) => {
+    (eventName: LandingEventName, payload: EventPayload = {}) => {
       const eventData = {
         event: eventName,
         ...payload,
