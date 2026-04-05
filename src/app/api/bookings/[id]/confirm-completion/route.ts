@@ -277,6 +277,15 @@ export async function POST(
             serviceId: booking.serviceId,
           },
         }),
+        applyLoyaltyRule({
+          type: "REVENUE_SETTLED",
+          userId: booking.providerId,
+          bookingId: booking.id,
+          metadata: {
+            clientId: booking.clientId,
+            serviceId: booking.serviceId,
+          },
+        }),
       ]);
     } catch (gamificationError) {
       console.error(

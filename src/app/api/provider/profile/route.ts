@@ -6,6 +6,7 @@ import { z } from "zod";
 import { hasRole } from "@/lib/auth/roles";
 import { isPubliclyVerified } from "@/lib/trust/publicTrust";
 import { checkAndAwardBadges } from "@/lib/gamification/badge-checker";
+import { applyLoyaltyRule } from "@/lib/loyalty/rule-engine";
 
 // Schema for profile update
 const updateProfileSchema = z.object({
@@ -300,13 +301,22 @@ export async function PUT(request: NextRequest) {
     });
 
     try {
-      await checkAndAwardBadges(userId, {
-        trigger: "PROFILE_UPDATED",
-        eventId: `profile:${userId}:${Date.now()}`,
-        actorUserId: userId,
-      });
+      await Promise.all([
+        checkAndAwardBadges(userId, {
+          trigger: "PROFILE_UPDATED",
+          eventId: `profile:${userId}:${Date.now()}`,
+          actorUserId: userId,
+        }),
+        applyLoyaltyRule({
+          type: "PROFILE_UPDATED",
+          userId,
+          metadata: {
+            source: "provider-profile",
+          },
+        }),
+      ]);
     } catch (badgeError) {
-      console.error("[PROVIDER_PROFILE_BADGES]", badgeError);
+      console.error("[PROVIDER_PROFILE_GAMIFICATION]", badgeError);
     }
 
     return successResponse({ message: "Profile updated successfully" });

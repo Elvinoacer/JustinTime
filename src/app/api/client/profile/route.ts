@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { hasClientAccess } from "@/lib/auth/clientAccess";
 import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
 import { checkAndAwardBadges } from "@/lib/gamification/badge-checker";
+import { applyLoyaltyRule } from "@/lib/loyalty/rule-engine";
 
 const CLIENT_PROFILE_SELECT = {
   id: true,
@@ -149,13 +150,22 @@ export async function PUT(req: Request) {
       });
 
       try {
-        await checkAndAwardBadges(session.user.id, {
-          trigger: "PROFILE_UPDATED",
-          eventId: `client-profile:${session.user.id}:${Date.now()}`,
-          actorUserId: session.user.id,
-        });
+        await Promise.all([
+          checkAndAwardBadges(session.user.id, {
+            trigger: "PROFILE_UPDATED",
+            eventId: `client-profile:${session.user.id}:${Date.now()}`,
+            actorUserId: session.user.id,
+          }),
+          applyLoyaltyRule({
+            type: "PROFILE_UPDATED",
+            userId: session.user.id,
+            metadata: {
+              source: "client-profile",
+            },
+          }),
+        ]);
       } catch (badgeError) {
-        console.error("[CLIENT_PROFILE_BADGES]", badgeError);
+        console.error("[CLIENT_PROFILE_GAMIFICATION]", badgeError);
       }
 
       return NextResponse.json(updatedUser);

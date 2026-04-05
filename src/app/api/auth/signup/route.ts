@@ -23,6 +23,7 @@ import { getDefaultRolesForPrimaryRole } from "@/lib/auth/roles";
 import { buildAppUrl } from "@/lib/app-url";
 import { getPasswordValidationError } from "@/lib/auth/lifecycle";
 import { checkAndAwardBadges } from "@/lib/gamification/badge-checker";
+import { applyLoyaltyRule } from "@/lib/loyalty/rule-engine";
 
 export async function POST(request: NextRequest) {
   try {
@@ -152,13 +153,23 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      await checkAndAwardBadges(user.id, {
-        trigger: "ACCOUNT_CREATED",
-        eventId: user.id,
-        actorUserId: user.id,
-      });
+      await Promise.all([
+        checkAndAwardBadges(user.id, {
+          trigger: "ACCOUNT_CREATED",
+          eventId: user.id,
+          actorUserId: user.id,
+        }),
+        applyLoyaltyRule({
+          type: "ACCOUNT_CREATED",
+          userId: user.id,
+          metadata: {
+            role: user.role,
+            referredById: referrerId,
+          },
+        }),
+      ]);
     } catch (badgeError) {
-      console.error("[SIGNUP_BADGE_CHECK]", badgeError);
+      console.error("[SIGNUP_GAMIFICATION]", badgeError);
     }
 
     // Generate verification token

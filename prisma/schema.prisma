@@ -1727,7 +1727,6 @@ model UserBadge {
   userId             String
   badgeId            String
   awardedAt          DateTime  @default(now())
-  progress           Int       @default(0) // For tracking progress toward badge
   awardedByEventType String?
   awardedByEventId   String?
   awardedByUserId    String?
@@ -1821,22 +1820,22 @@ model UserLoyalty {
 }
 
 model LoyaltyPointTransaction {
-  id                    String    @id @default(cuid())
+  id                    String                   @id @default(cuid())
   loyaltyId             String
   points                Int // Can be positive (earned) or negative (spent)
   reason                String // "Job Completion", "5-Star Review", "Tier Bonus", etc.
   reasonCode            String?
   sourceType            String?
   sourceId              String?
-  idempotencyKey        String?   @unique
-  status                String    @default("POSTED")
+  idempotencyKey        String?                  @unique
+  status                LoyaltyTransactionStatus @default(POSTED)
   reversedTransactionId String?
   expiresAt             DateTime?
   createdByUserId       String?
   createdByType         String?
   adjustmentReason      String?
   metadata              Json? // Additional context
-  createdAt             DateTime  @default(now())
+  createdAt             DateTime                 @default(now())
 
   loyalty UserLoyalty @relation(fields: [loyaltyId], references: [id], onDelete: Cascade)
 
@@ -1845,6 +1844,15 @@ model LoyaltyPointTransaction {
   @@index([sourceType, sourceId])
   @@index([reasonCode])
   @@index([status])
+}
+
+enum LoyaltyTransactionStatus {
+  PENDING
+  POSTED
+  REVERSED
+  CANCELLED
+  EXPIRED
+  FAILED
 }
 
 enum PartnerCategory {
@@ -1899,27 +1907,27 @@ model PartnerUser {
 }
 
 model PartnerReward {
-  id                     String      @id @default(cuid())
+  id                     String              @id @default(cuid())
   partnerId              String
   title                  String
-  description            String      @db.Text
+  description            String              @db.Text
   discountType           String // PERCENTAGE, FIXED_AMOUNT, FREE_ITEM
   discountValue          Float
   minTierRequired        LoyaltyTier
-  pointsCost             Int         @default(0)
+  pointsCost             Int                 @default(0)
   maxRedemptions         Int? // Null = unlimited
   maxPerUser             Int?
   maxActivePerUser       Int?
   inventoryCount         Int?
-  redemptionWindowDays   Int         @default(30)
-  requiresManualApproval Boolean     @default(false)
-  partnerValidationMode  String?     @default("PARTNER_ONLY")
+  redemptionWindowDays   Int                 @default(30)
+  requiresManualApproval Boolean             @default(false)
+  partnerValidationMode  String?             @default("PARTNER_ONLY")
   expiryDate             DateTime?
-  status                 String      @default("PUBLISHED")
-  termsConditions        String?     @db.Text
+  status                 PartnerRewardStatus @default(PUBLISHED)
+  termsConditions        String?             @db.Text
   metadata               Json?
-  isActive               Boolean     @default(true)
-  createdAt              DateTime    @default(now())
+  isActive               Boolean             @default(true)
+  createdAt              DateTime            @default(now())
 
   partner     Partner            @relation(fields: [partnerId], references: [id], onDelete: Cascade)
   redemptions RewardRedemption[]
@@ -1928,6 +1936,14 @@ model PartnerReward {
   @@index([minTierRequired])
   @@index([isActive])
   @@index([status])
+}
+
+enum PartnerRewardStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  ARCHIVED
+  EXPIRED
 }
 
 enum RewardRedemptionStatus {

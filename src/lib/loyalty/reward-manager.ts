@@ -195,6 +195,18 @@ export async function getAvailableRewards(userId: string) {
     orderBy: [{ minTierRequired: "asc" }, { createdAt: "desc" }],
   });
 
+  const hasPointsCostRewards = rewards.some(
+    (reward) => getRewardNumericOption(reward, "pointsCost") > 0,
+  );
+  const hasTierPerkRewards = rewards.some(
+    (reward) => getRewardNumericOption(reward, "pointsCost") <= 0,
+  );
+  const redemptionModel = hasPointsCostRewards
+    ? hasTierPerkRewards
+      ? "HYBRID"
+      : "POINTS_COST"
+    : "TIER_PERK";
+
   const rewardIds = rewards.map((reward) => reward.id);
 
   if (rewardIds.length === 0) {
@@ -202,7 +214,7 @@ export async function getAvailableRewards(userId: string) {
       rewards: [],
       userTier: loyalty.currentTier,
       userPoints: loyalty.availablePoints,
-      redemptionModel: "TIER_PERK",
+      redemptionModel,
     };
   }
 
@@ -279,7 +291,7 @@ export async function getAvailableRewards(userId: string) {
     }),
     userTier: loyalty.currentTier,
     userPoints: loyalty.availablePoints,
-    redemptionModel: "TIER_PERK",
+    redemptionModel,
   };
 }
 

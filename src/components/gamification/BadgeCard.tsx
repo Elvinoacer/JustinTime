@@ -14,7 +14,6 @@ interface BadgeCardProps {
     category: string;
     earned: boolean;
     awardedAt?: Date | null;
-    progress?: number;
     progressCurrent?: number;
     progressRequired?: number;
     progressPercent?: number;
@@ -35,7 +34,7 @@ export function BadgeCard({
     badge.requirement?.value ??
     badge.requirement?.minReviews ??
     0;
-  const currentAmount = badge.progressCurrent ?? badge.progress ?? 0;
+  const currentAmount = badge.progressCurrent ?? 0;
   const progressPercent =
     badge.progressPercent ??
     (requiredAmount > 0
