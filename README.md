@@ -94,3 +94,32 @@ curl -X POST "https://<your-domain>/api/internal/notifications/outbox/process?li
   -H "Content-Type: application/json" \
   -d '{"processorId":"external-cron"}'
 ```
+
+## Churn Analysis Cron Processor
+
+Use this endpoint to run churn scoring and automatic re-engagement from an external scheduler:
+
+- Endpoint: `POST /api/internal/cron/churn`
+- Auth header options:
+  - `Authorization: Bearer <CHURN_CRON_SECRET>`
+  - `x-cron-secret: <CHURN_CRON_SECRET>`
+
+Required environment variable:
+
+- `CHURN_CRON_SECRET`: shared secret used by external schedulers and internal cron calls.
+
+GitHub Actions scheduler:
+
+- Workflow file: `.github/workflows/churn-analysis-cron.yml`
+- Schedule: `30 1 * * *` (daily, UTC)
+- Required GitHub repository secrets:
+  - `CHURN_CRON_URL`: full endpoint URL (for example, `https://your-domain/api/internal/cron/churn`)
+  - `CHURN_CRON_SECRET`: same secret value configured in the app runtime environment
+
+Example:
+
+```bash
+curl -X POST "https://<your-domain>/api/internal/cron/churn" \
+  -H "Authorization: Bearer ${CHURN_CRON_SECRET}" \
+  -H "x-cron-secret: ${CHURN_CRON_SECRET}"
+```

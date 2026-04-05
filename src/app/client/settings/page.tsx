@@ -1,6 +1,12 @@
 "use client";
 
-import React, { Suspense, useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  Suspense,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSettings, useUpdateSettings } from "@/lib/api/hooks/useSettings";
 import { useQueryClient } from "@tanstack/react-query";
@@ -287,7 +293,9 @@ function ClientSettingsPageContent() {
     if (settingsData?.settings) {
       setNotifications(settingsData.settings.notifications);
       setPrivacy(settingsData.settings.privacy);
-      setDeletionScheduledAt(settingsData.settings.account.deletionScheduledAt);
+      setDeletionScheduledAt(
+        settingsData.settings.account.deletionScheduledAt ?? null,
+      );
       setDeletionReason(settingsData.settings.account.deletionReason ?? null);
 
       if (settingsData.serverTime) {
@@ -994,7 +1002,6 @@ function ClientSettingsPageContent() {
                         </div>
                       </div>
                     </div>
-
                   </div>
                 )}
 

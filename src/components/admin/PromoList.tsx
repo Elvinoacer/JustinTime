@@ -9,7 +9,7 @@ interface PromoItem {
   id: string;
   code: string;
   description?: string | null;
-  type: "PERCENTAGE" | "FIXED";
+  type: "PERCENTAGE" | "FIXED" | "FIXED_AMOUNT";
   value: number | string;
   minOrderAmount?: number | string | null;
   usageCount: number;

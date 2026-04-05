@@ -61,6 +61,21 @@ async function fetchDbUserByEmail(
   }
 }
 
+function toEpochSeconds(value: unknown): number | null {
+  if (value instanceof Date) {
+    return Math.floor(value.getTime() / 1000);
+  }
+
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return Math.floor(parsed.getTime() / 1000);
+    }
+  }
+
+  return null;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.NEXTAUTH_SECRET,
   session: {
@@ -175,9 +190,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               },
             });
           } else {
-            const initialRole = authContext?.intent === "provider"
-              ? "PROVIDER"
-              : "CLIENT";
+            const initialRole =
+              authContext?.intent === "provider" ? "PROVIDER" : "CLIENT";
             let referrerId: string | null = null;
 
             if (authContext?.ref) {
@@ -312,17 +326,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
 
-      const invalidatedAt =
-        token.authInvalidatedAt instanceof Date
-          ? Math.floor(token.authInvalidatedAt.getTime() / 1000)
-          : token.authInvalidatedAt
-            ? Math.floor(new Date(token.authInvalidatedAt).getTime() / 1000)
-            : null;
+      const invalidatedAt = toEpochSeconds(token.authInvalidatedAt);
 
       token.sessionInvalidated = Boolean(
         invalidatedAt &&
-          token.authenticatedAt &&
-          invalidatedAt > Number(token.authenticatedAt),
+        token.authenticatedAt &&
+        invalidatedAt > Number(token.authenticatedAt),
       );
 
       // Handle session updates (e.g., after onboarding completion)
@@ -365,13 +374,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
         session.user.id = token.id as string;
         session.user.onboardingCompleted = token.onboardingCompleted as boolean;
-        session.user.providerSetupCompleted = Boolean(token.providerSetupCompleted);
-        session.user.preferredWorkspace = (token.preferredWorkspace as string | undefined) ?? "CLIENT";
+        session.user.providerSetupCompleted = Boolean(
+          token.providerSetupCompleted,
+        );
+        session.user.preferredWorkspace =
+          (token.preferredWorkspace as string | undefined) ?? "CLIENT";
         session.user.clientInterests = token.clientInterests as string[];
         session.user.emailVerified = token.emailVerified as Date | null;
         session.user.authProvider = token.authProvider as string; // B2/B6
         session.user.isBanned = Boolean(token.isBanned);
-        session.user.deletionScheduledAt = token.deletionScheduledAt as Date | null;
+        session.user.deletionScheduledAt =
+          token.deletionScheduledAt as Date | null;
         session.user.authInvalidatedAt = token.authInvalidatedAt as Date | null;
         session.user.sessionInvalidated = Boolean(token.sessionInvalidated);
         session.user.image =

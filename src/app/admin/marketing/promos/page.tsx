@@ -12,6 +12,13 @@ export default async function AdminPromosPage() {
     },
   });
 
+  const normalizedPromos = promos.map((promo) => ({
+    ...promo,
+    value: Number(promo.value),
+    minOrderAmount:
+      promo.minOrderAmount == null ? null : Number(promo.minOrderAmount),
+  }));
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -25,7 +32,7 @@ export default async function AdminPromosPage() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <PromoList promos={promos} />
+        <PromoList promos={normalizedPromos} />
       </div>
     </div>
   );

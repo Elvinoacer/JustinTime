@@ -96,9 +96,13 @@ const BasicAnalytics = ({
     (acc, curr) => acc + Number(curr.amount || 0),
     0,
   );
+  const normalizedRatings = reviews
+    .map((review) => Number(review.rating))
+    .filter((rating) => Number.isFinite(rating));
   const averageRating =
-    reviews.length > 0
-      ? reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviews.length
+    normalizedRatings.length > 0
+      ? normalizedRatings.reduce((acc, rating) => acc + rating, 0) /
+        normalizedRatings.length
       : 0;
 
   // Calculate monthly earnings (last 6 months), grouped by year-month.

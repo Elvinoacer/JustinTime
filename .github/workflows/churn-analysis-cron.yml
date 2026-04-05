@@ -1,0 +1,59 @@
+name: Churn Analysis Processor
+
+on:
+  schedule:
+    - cron: "30 1 * * *"
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  process-churn:
+    name: Run churn analysis and re-engagement
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: churn-analysis-cron
+      cancel-in-progress: false
+
+    steps:
+      - name: Validate required secrets
+        env:
+          CHURN_ENDPOINT: ${{ secrets.CHURN_CRON_URL }}
+          CHURN_SECRET: ${{ secrets.CHURN_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CHURN_ENDPOINT}" ]; then
+            echo "Missing secret: CHURN_CRON_URL"
+            exit 1
+          fi
+
+          if [ -z "${CHURN_SECRET}" ]; then
+            echo "Missing secret: CHURN_CRON_SECRET"
+            exit 1
+          fi
+
+      - name: Trigger churn processor endpoint
+        env:
+          CHURN_ENDPOINT: ${{ secrets.CHURN_CRON_URL }}
+          CHURN_SECRET: ${{ secrets.CHURN_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          response_file="$(mktemp)"
+          status_code="$(curl --silent --show-error \
+            --output "${response_file}" \
+            --write-out "%{http_code}" \
+            --request POST "${CHURN_ENDPOINT}" \
+            --header "Authorization: Bearer ${CHURN_SECRET}" \
+            --header "x-cron-secret: ${CHURN_SECRET}")"
+
+          echo "HTTP status: ${status_code}"
+          echo "Response body:"
+          cat "${response_file}"
+
+          if [ "${status_code}" -lt 200 ] || [ "${status_code}" -ge 300 ]; then
+            echo "Churn processing request failed"
+            exit 1
+          fi

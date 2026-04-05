@@ -42,6 +42,12 @@ interface EnhancedSupportTicketsTableProps {
   totalPages: number;
 }
 
+type SupportTicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+
+function isSupportTicketStatus(value: string): value is SupportTicketStatus {
+  return ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"].includes(value);
+}
+
 export default function EnhancedSupportTicketsTable({
   tickets,
   total,
@@ -55,7 +61,7 @@ export default function EnhancedSupportTicketsTable({
   );
   const [adminNotes, setAdminNotes] = useState("");
   const [resolution, setResolution] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<SupportTicketStatus>("OPEN");
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -142,7 +148,7 @@ export default function EnhancedSupportTicketsTable({
     setSelectedTicket(ticket);
     setAdminNotes(ticket.adminNotes || "");
     setResolution(ticket.resolution || "");
-    setStatus(ticket.status);
+    setStatus(isSupportTicketStatus(ticket.status) ? ticket.status : "OPEN");
   };
 
   const handleUpdate = async () => {
@@ -354,6 +360,13 @@ export default function EnhancedSupportTicketsTable({
                 const priorityConfig = getPriorityConfig(ticket.priority);
                 const StatusIcon = statusConfig.icon;
                 const PriorityIcon = priorityConfig.icon;
+                const daysSinceCreated = Math.max(
+                  0,
+                  Math.floor(
+                    (Date.now() - new Date(ticket.createdAt).getTime()) /
+                      (1000 * 60 * 60 * 24),
+                  ),
+                );
 
                 return (
                   <motion.tr
@@ -688,7 +701,7 @@ export default function EnhancedSupportTicketsTable({
                         (s) => (
                           <button
                             key={s}
-                            onClick={() => setStatus(s)}
+                            onClick={() => setStatus(s as SupportTicketStatus)}
                             className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-bold transition-all ${
                               status === s
                                 ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 scale-105"

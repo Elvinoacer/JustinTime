@@ -19,12 +19,14 @@ export interface User {
 
 // Get current authenticated user
 export function useCurrentUser(
-  options?: Omit<UseQueryOptions<User, Error>, "queryKey" | "queryFn">
+  options?: Omit<UseQueryOptions<User, Error>, "queryKey" | "queryFn">,
 ) {
   return useQuery<User, Error>({
     queryKey: queryKeys.auth.currentUser(),
     queryFn: async () => {
-      const { data } = await apiClient.get<ApiResponse<User>>(API_ENDPOINTS.users.me);
+      const { data } = await apiClient.get<ApiResponse<User>>(
+        API_ENDPOINTS.users.me,
+      );
       return data.data;
     },
     ...options,
@@ -34,14 +36,16 @@ export function useCurrentUser(
 // Get list of users (admin only)
 export function useUsers(
   filters?: FilterParams<User>,
-  options?: Omit<UseQueryOptions<User[], Error>, "queryKey" | "queryFn">
+  options?: Omit<UseQueryOptions<User[], Error>, "queryKey" | "queryFn">,
 ) {
+  const queryFilters = filters as Record<string, unknown> | undefined;
+
   return useQuery<User[], Error>({
-    queryKey: queryKeys.users.list(filters),
+    queryKey: queryKeys.users.list(queryFilters),
     queryFn: async () => {
       const { data } = await apiClient.get<ApiResponse<User[]>>(
         API_ENDPOINTS.users.list,
-        { params: filters }
+        { params: filters },
       );
       return data.data;
     },
@@ -52,13 +56,13 @@ export function useUsers(
 // Get single user by ID
 export function useUser(
   id: string,
-  options?: Omit<UseQueryOptions<User, Error>, "queryKey" | "queryFn">
+  options?: Omit<UseQueryOptions<User, Error>, "queryKey" | "queryFn">,
 ) {
   return useQuery<User, Error>({
     queryKey: queryKeys.users.detail(id),
     queryFn: async () => {
       const { data } = await apiClient.get<ApiResponse<User>>(
-        API_ENDPOINTS.users.byId(id)
+        API_ENDPOINTS.users.byId(id),
       );
       return data.data;
     },

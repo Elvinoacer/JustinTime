@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     // Validate review data with schema
     const reviewValidation = createReviewSchema.safeParse({ rating, comment });
     if (!reviewValidation.success) {
-      return new NextResponse(reviewValidation.error.errors[0].message, {
+      return new NextResponse(reviewValidation.error.issues[0].message, {
         status: 400,
       });
     }

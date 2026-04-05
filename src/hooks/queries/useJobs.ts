@@ -32,14 +32,16 @@ export interface JobProposal {
 // Get list of jobs
 export function useJobs(
   filters?: FilterParams<Job>,
-  options?: Omit<UseQueryOptions<Job[], Error>, "queryKey" | "queryFn">
+  options?: Omit<UseQueryOptions<Job[], Error>, "queryKey" | "queryFn">,
 ) {
+  const queryFilters = filters as Record<string, unknown> | undefined;
+
   return useQuery<Job[], Error>({
-    queryKey: queryKeys.jobs.list(filters),
+    queryKey: queryKeys.jobs.list(queryFilters),
     queryFn: async () => {
       const { data } = await apiClient.get<ApiResponse<Job[]>>(
         API_ENDPOINTS.jobs.list,
-        { params: filters }
+        { params: filters },
       );
       return data.data;
     },
@@ -50,13 +52,13 @@ export function useJobs(
 // Get single job by ID
 export function useJob(
   id: string,
-  options?: Omit<UseQueryOptions<Job, Error>, "queryKey" | "queryFn">
+  options?: Omit<UseQueryOptions<Job, Error>, "queryKey" | "queryFn">,
 ) {
   return useQuery<Job, Error>({
     queryKey: queryKeys.jobs.detail(id),
     queryFn: async () => {
       const { data } = await apiClient.get<ApiResponse<Job>>(
-        API_ENDPOINTS.jobs.byId(id)
+        API_ENDPOINTS.jobs.byId(id),
       );
       return data.data;
     },
@@ -68,13 +70,13 @@ export function useJob(
 // Get job proposals
 export function useJobProposals(
   jobId: string,
-  options?: Omit<UseQueryOptions<JobProposal[], Error>, "queryKey" | "queryFn">
+  options?: Omit<UseQueryOptions<JobProposal[], Error>, "queryKey" | "queryFn">,
 ) {
   return useQuery<JobProposal[], Error>({
     queryKey: queryKeys.jobs.proposals(jobId),
     queryFn: async () => {
-      const { data} = await apiClient.get<ApiResponse<JobProposal[]>>(
-        API_ENDPOINTS.jobs.proposals(jobId)
+      const { data } = await apiClient.get<ApiResponse<JobProposal[]>>(
+        API_ENDPOINTS.jobs.proposals(jobId),
       );
       return data.data;
     },

@@ -1752,6 +1752,7 @@ enum ChurnRiskLevel {
 model ChurnScore {
   id               String         @id @default(cuid())
   userId           String
+  isCurrent        Boolean        @default(true)
   riskLevel        ChurnRiskLevel
   score            Float // 0.0 to 1.0 (1.0 = highest risk)
   factors          Json // Contributing factors breakdown
@@ -1764,26 +1765,61 @@ model ChurnScore {
   interventions ChurnIntervention[]
 
   @@index([userId])
+  @@index([userId, calculatedAt])
+  @@index([userId, isCurrent])
   @@index([riskLevel])
   @@index([calculatedAt])
 }
 
+enum ChurnInterventionChannel {
+  EMAIL
+  PUSH
+  CALL
+  DISCOUNT
+  MANUAL_OUTREACH
+}
+
+enum ChurnInterventionStatus {
+  DRAFT
+  SCHEDULED
+  EXECUTING
+  SENT
+  FAILED
+  RESPONDED
+  CONVERTED
+}
+
+enum ChurnInterventionOutcome {
+  NO_RESPONSE
+  REOPENED
+  BOOKED
+  RETAINED
+}
+
 model ChurnIntervention {
-  id           String    @id @default(cuid())
+  id           String                    @id @default(cuid())
   churnScoreId String
   userId       String
-  type         String // EMAIL, NOTIFICATION, DISCOUNT, CALL
-  message      String    @db.Text
-  executed     Boolean   @default(false)
+  type         String // Legacy strategy label
+  channel      ChurnInterventionChannel?
+  status       ChurnInterventionStatus   @default(DRAFT)
+  message      String                    @db.Text
+  executed     Boolean                   @default(false)
   executedAt   DateTime?
+  deliveryOk   Boolean?
   successful   Boolean?
-  response     String?   @db.Text
-  createdAt    DateTime  @default(now())
+  outcome      ChurnInterventionOutcome?
+  respondedAt  DateTime?
+  convertedAt  DateTime?
+  response     String?                   @db.Text
+  createdAt    DateTime                  @default(now())
 
   churnScore ChurnScore @relation(fields: [churnScoreId], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, status, createdAt])
+  @@index([userId, channel, createdAt])
   @@index([executed])
   @@index([createdAt])
 }

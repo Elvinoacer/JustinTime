@@ -416,8 +416,10 @@ async function fetchCategories(): Promise<Category[]> {
 export function useServices(
   filters: ServicesFilters = {},
 ): UseQueryResult<ServicesResponse, Error> {
+  const queryFilters = filters as Record<string, unknown>;
+
   return useQuery({
-    queryKey: queryKeys.services.list(filters),
+    queryKey: queryKeys.services.list(queryFilters),
     queryFn: () => fetchServices(filters),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -425,8 +427,10 @@ export function useServices(
 
 // Infinite Hook to fetch services
 export function useServicesInfinite(filters: ServicesFilters = {}) {
+  const queryFilters = filters as Record<string, unknown>;
+
   return useInfiniteQuery({
-    queryKey: [...queryKeys.services.list(filters), "infinite"],
+    queryKey: [...queryKeys.services.list(queryFilters), "infinite"],
     queryFn: async ({ pageParam = 1 }) =>
       fetchServices({ ...filters, page: pageParam as number, limit: 12 }),
     getNextPageParam: (lastPage: ServicesResponse) => {

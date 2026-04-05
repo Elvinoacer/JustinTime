@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import type { Prisma } from "@/generated/prisma/client";
 import {
   Area,
   AreaChart,
@@ -28,9 +29,9 @@ interface AdvancedAnalyticsProps {
         }
       | string
       | null;
-    amount?: number | string | null;
-    totalAmount?: number | string | null;
-    netAmount?: number | string | null;
+    amount?: number | string | Prisma.Decimal | null;
+    totalAmount?: number | string | Prisma.Decimal | null;
+    netAmount?: number | string | Prisma.Decimal | null;
     review?: {
       rating?: number | null;
     } | null;

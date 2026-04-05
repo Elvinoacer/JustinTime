@@ -56,12 +56,14 @@ export default function ClientProfilePage() {
 
       return rawData
         .filter(
-          (category): category is { id: string; name: string; slug: string } =>
+          (
+            category: unknown,
+          ): category is { id: string; name: string; slug: string } =>
             Boolean(category) &&
-            typeof category.id === "string" &&
-            typeof category.name === "string" &&
-            typeof category.slug === "string" &&
-            category.id !== "all",
+            typeof (category as { id?: unknown }).id === "string" &&
+            typeof (category as { name?: unknown }).name === "string" &&
+            typeof (category as { slug?: unknown }).slug === "string" &&
+            (category as { id?: string }).id !== "all",
         )
         .map((category) => ({
           id: category.id,

@@ -424,7 +424,7 @@ export default function ClientProposalsPage() {
       const data = await getClientProposals(selectedJob || undefined);
       const normalizedData: Proposal[] = Array.isArray(data)
         ? data.map((proposal) => {
-            const candidate = proposal as IncomingProposal;
+            const candidate = proposal as unknown as IncomingProposal;
             const providerProfile = candidate.provider?.profile;
 
             return {

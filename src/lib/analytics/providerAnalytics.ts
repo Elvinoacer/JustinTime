@@ -1,28 +1,39 @@
 import { calculateBookingBreakdown } from "@/lib/financials";
+import { Prisma } from "@/generated/prisma/client";
 
 export const PROVIDER_ANALYTICS_TIMEZONE = "Africa/Nairobi";
 
 type EarningBooking = {
   createdAt: Date | string;
-  basePrice?: number | string | null;
-  discountAmount?: number | string | null;
-  totalAmount?: number | string | null;
-  netAmount?: number | string | null;
-  service?: {
-    price?: number | string | null;
-  } | null;
-  job?: {
-    budget?: number | string | null;
-  } | null;
+  basePrice?: number | string | Prisma.Decimal | null;
+  discountAmount?: number | string | Prisma.Decimal | null;
+  totalAmount?: number | string | Prisma.Decimal | null;
+  netAmount?: number | string | Prisma.Decimal | null;
+  service?:
+    | ({
+        price?: number | string | Prisma.Decimal | null;
+      } & Record<string, unknown>)
+    | null;
+  job?:
+    | ({
+        budget?: number | string | Prisma.Decimal | null;
+      } & Record<string, unknown>)
+    | null;
 };
 
 function toNumber(value: unknown): number {
+  if (value instanceof Prisma.Decimal) {
+    return value.toNumber();
+  }
+
   const numeric =
     typeof value === "number"
       ? value
       : typeof value === "string"
         ? Number(value)
-        : NaN;
+        : value && typeof value === "object" && "toString" in value
+          ? Number(String(value))
+          : NaN;
   return Number.isFinite(numeric) ? numeric : 0;
 }
 

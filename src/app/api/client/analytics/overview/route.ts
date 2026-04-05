@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { handleError } from "@/lib/middleware/errorHandler";
 import { hasClientAccess } from "@/lib/auth/clientAccess";
-import { Prisma } from "@/generated/prisma/client";
+import { BookingStatus, Prisma } from "@/generated/prisma/client";
 
 function parseDateRange(
   startDate?: string | null,
@@ -21,6 +21,23 @@ function parseDateRange(
   }
 
   return { start, end };
+}
+
+function getCountValue(
+  count: true | Record<string, number | undefined>,
+  key: string,
+): number {
+  if (count === true) {
+    return 0;
+  }
+
+  const value = count[key];
+  if (typeof value === "number") {
+    return value;
+  }
+
+  const all = count._all;
+  return typeof all === "number" ? all : 0;
 }
 
 export async function GET(request: NextRequest) {
@@ -76,12 +93,12 @@ export async function GET(request: NextRequest) {
           }
         : {};
 
-    const activeProviderStatuses = [
+    const activeProviderStatuses: BookingStatus[] = [
       "CONFIRMED",
       "IN_PROGRESS",
       "AWAITING_CLIENT_CONFIRMATION",
       "COMPLETED",
-    ] as const;
+    ];
 
     const [
       completedSpending,
@@ -279,7 +296,11 @@ export async function GET(request: NextRequest) {
 
     const uniqueProviders = providerHireCounts.length;
     const repeatHires = providerHireCounts.filter(
-      (group) => group._count.providerId > 1,
+      (group) =>
+        getCountValue(
+          group._count as true | Record<string, number | undefined>,
+          "providerId",
+        ) > 1,
     ).length;
     const repeatHireRate =
       uniqueProviders > 0 ? (repeatHires / uniqueProviders) * 100 : 0;
@@ -320,7 +341,10 @@ export async function GET(request: NextRequest) {
     const topProviders = topProviderCounts.map((provider) => ({
       id: provider.providerId,
       name: providerNameById.get(provider.providerId) || "Unknown",
-      jobsCompleted: provider._count.providerId,
+      jobsCompleted: getCountValue(
+        provider._count as true | Record<string, number | undefined>,
+        "providerId",
+      ),
       avgRating: Number(
         (providerRatingById.get(provider.providerId) || 0).toFixed(1),
       ),

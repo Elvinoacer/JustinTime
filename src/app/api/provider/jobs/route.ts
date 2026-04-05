@@ -260,13 +260,12 @@ export async function GET(request: Request) {
             }
 
             const jobLocation = normalizeLocationText(job.location);
-            const hasGeoCoordinates =
-              typeof providerLatitude === "number" &&
-              typeof providerLongitude === "number" &&
-              typeof job.latitude === "number" &&
-              typeof job.longitude === "number";
-
-            if (hasGeoCoordinates) {
+            if (
+              providerLatitude != null &&
+              providerLongitude != null &&
+              job.latitude != null &&
+              job.longitude != null
+            ) {
               const distanceKm = calculateDistanceKm(
                 providerLatitude,
                 providerLongitude,
