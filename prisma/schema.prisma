@@ -2361,7 +2361,7 @@ model VerticalProject {
   verticalId String
   templateId String?
   clientId   String
-  providerId String
+  providerId String?
   bookingId  String? @unique // Link to booking if applicable
 
   // Project details
@@ -2372,6 +2372,7 @@ model VerticalProject {
   // Site information (solar-specific)
   siteAddress     String
   siteCoordinates Json? // {lat, lng}
+  county          String?
   propertyType    String? // "Residential", "Commercial", "Industrial"
   roofType        String? // "Flat", "Pitched", "Metal Sheet"
   roofArea        Float? // m²
@@ -2381,9 +2382,16 @@ model VerticalProject {
   systemSize      Float? // kW
   panelCount      Int?
   panelType       String? // "Monocrystalline", "Polycrystalline"
+  batteryType     String?
+  backupHours     Int?
   inverterType    String?
   batteryCapacity Float? // kWh
   isOffGrid       Boolean @default(false)
+
+  // Snapshot data for reproducibility and audits
+  estimateInput            Json?
+  estimationConfigSnapshot Json?
+  statusHistory            Json  @default("[]")
 
   // Financials
   quotedAmount  Decimal? @db.Decimal(12, 2)
@@ -2395,6 +2403,7 @@ model VerticalProject {
   siteAssessmentDate DateTime?
   proposalDate       DateTime?
   approvalDate       DateTime?
+  assignedAt         DateTime?
   startDate          DateTime?
   completionDate     DateTime?
 
@@ -2413,7 +2422,7 @@ model VerticalProject {
   vertical   VerticalCategory   @relation(fields: [verticalId], references: [id])
   template   ProjectTemplate?   @relation(fields: [templateId], references: [id])
   client     User               @relation("ClientProjects", fields: [clientId], references: [id])
-  provider   User               @relation("ProviderProjects", fields: [providerId], references: [id])
+  provider   User?              @relation("ProviderProjects", fields: [providerId], references: [id])
   booking    Booking?           @relation(fields: [bookingId], references: [id])
   milestones ProjectMilestone[]
 
@@ -2459,6 +2468,9 @@ model ProjectMilestone {
 model SolarEstimationConfig {
   id String @id @default(cuid())
 
+  name    String?
+  version Int     @default(1)
+
   // Panel pricing (per watt)
   monocrystallinePerWatt Decimal @db.Decimal(6, 2) // KES per watt
   polycrystallinePerWatt Decimal @db.Decimal(6, 2)
@@ -2483,6 +2495,7 @@ model SolarEstimationConfig {
   // Location multipliers (JSON: {county: multiplier})
   locationMultipliers Json?
 
+  createdAt DateTime @default(now())
   isActive  Boolean  @default(true)
   updatedAt DateTime @updatedAt
 }

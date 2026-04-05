@@ -1,4 +1,8 @@
-import { getFeaturedSolarSpecialists } from "@/app/actions/solar";
+import {
+  getFeaturedSolarSpecialists,
+  getQuickSolarEstimate,
+  getSolarVertical,
+} from "@/app/actions/solar";
 import {
   Sun,
   Battery,
@@ -11,11 +15,25 @@ import {
   Leaf,
 } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function SolarLandingPage() {
+  const defaultMonthlyBill = 15000;
   const specialistsResult = await getFeaturedSolarSpecialists(6);
+  const quickEstimateResult = await getQuickSolarEstimate(defaultMonthlyBill);
+  const verticalResult = await getSolarVertical();
+
+  const verifiedCount =
+    specialistsResult.success && specialistsResult.specialists
+      ? specialistsResult.specialists.length
+      : 0;
+
+  const templateCount =
+    verticalResult.success && verticalResult.vertical
+      ? verticalResult.vertical.templates.length
+      : 0;
 
   const formatAmount = (amount: number) =>
     new Intl.NumberFormat("en-KE", {
@@ -42,8 +60,8 @@ export default async function SolarLandingPage() {
             </h1>
 
             <p className="text-xl text-gray-600 mb-8">
-              Government-verified solar installers. Premium quality systems.
-              Save up to 90% on your electricity bills.
+              Compare verified installers, model your expected savings, and
+              request a structured site assessment in minutes.
             </p>
 
             <div className="flex flex-wrap gap-4">
@@ -67,15 +85,15 @@ export default async function SolarLandingPage() {
             <div className="flex items-center gap-6 mt-10">
               <div className="flex items-center gap-2 text-gray-600">
                 <Shield className="h-5 w-5 text-emerald-600" />
-                <span>Verified Installers</span>
+                <span>{verifiedCount}+ verified installers</span>
               </div>
               <div className="flex items-center gap-2 text-gray-600">
                 <CheckCircle className="h-5 w-5 text-emerald-600" />
-                <span>5-Year Warranty</span>
+                <span>Milestone-based project tracking</span>
               </div>
               <div className="flex items-center gap-2 text-gray-600">
                 <Leaf className="h-5 w-5 text-emerald-600" />
-                <span>EPRA Certified</span>
+                <span>{templateCount}+ vetted install templates</span>
               </div>
             </div>
           </div>
@@ -98,7 +116,21 @@ export default async function SolarLandingPage() {
             <form
               action={async (formData: FormData) => {
                 "use server";
-                // This would redirect to full estimate page
+                const monthlyBillRaw = String(
+                  formData.get("monthlyBill") ?? "",
+                ).trim();
+                const parsedMonthlyBill = Number.parseFloat(monthlyBillRaw);
+
+                if (
+                  !Number.isFinite(parsedMonthlyBill) ||
+                  parsedMonthlyBill <= 0
+                ) {
+                  redirect("/solar/estimate");
+                }
+
+                redirect(
+                  `/solar/estimate?monthlyBill=${Math.round(parsedMonthlyBill)}`,
+                );
               }}
               className="flex flex-col md:flex-row items-center gap-4 max-w-xl mx-auto"
             >
@@ -110,29 +142,45 @@ export default async function SolarLandingPage() {
                   type="number"
                   name="monthlyBill"
                   placeholder="15,000"
+                  min={500}
+                  step={100}
+                  defaultValue={defaultMonthlyBill}
+                  required
                   className="w-full px-4 pl-14 py-4 rounded-xl text-lg font-medium focus:ring-4 focus:ring-white/30"
                 />
               </div>
-              <Link
-                href="/solar/estimate"
+              <button
+                type="submit"
                 className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 bg-gray-900 text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors"
               >
                 Calculate
                 <ArrowRight className="h-5 w-5" />
-              </Link>
+              </button>
             </form>
 
             <div className="grid grid-cols-3 gap-6 mt-10 text-center text-white">
               <div>
-                <p className="text-3xl font-bold">5kW</p>
+                <p className="text-3xl font-bold">
+                  {quickEstimateResult.success
+                    ? `${quickEstimateResult.systemKw.toFixed(1)}kW`
+                    : "5.0kW"}
+                </p>
                 <p className="text-amber-100 text-sm">Avg System Size</p>
               </div>
               <div>
-                <p className="text-3xl font-bold">KES 450K</p>
+                <p className="text-3xl font-bold">
+                  {quickEstimateResult.success
+                    ? formatAmount(quickEstimateResult.priceRange.max)
+                    : "KES 450K"}
+                </p>
                 <p className="text-amber-100 text-sm">Average Cost</p>
               </div>
               <div>
-                <p className="text-3xl font-bold">3.5 yrs</p>
+                <p className="text-3xl font-bold">
+                  {quickEstimateResult.success
+                    ? `${quickEstimateResult.paybackRange.min.toFixed(1)}-${quickEstimateResult.paybackRange.max.toFixed(1)} yrs`
+                    : "3.5 yrs"}
+                </p>
                 <p className="text-amber-100 text-sm">Avg Payback</p>
               </div>
             </div>
@@ -200,26 +248,29 @@ export default async function SolarLandingPage() {
       </section>
 
       {/* Featured Installers */}
-      {specialistsResult.success && specialistsResult.specialists && (
-        <section className="py-16 bg-gray-50">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                  Top Solar Installers
-                </h2>
-                <p className="text-gray-600">
-                  Government-verified professionals ready to power your home
-                </p>
-              </div>
-              <Link
-                href="/solar/installers"
-                className="text-amber-600 hover:text-amber-700 font-medium inline-flex items-center gap-1"
-              >
-                View All <ArrowRight className="h-4 w-4" />
-              </Link>
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                Top Solar Installers
+              </h2>
+              <p className="text-gray-600">
+                Reviewed professionals ready to assess your site and build your
+                system plan.
+              </p>
             </div>
+            <Link
+              href="/solar/installers"
+              className="text-amber-600 hover:text-amber-700 font-medium inline-flex items-center gap-1"
+            >
+              View All <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
 
+          {specialistsResult.success &&
+          specialistsResult.specialists &&
+          specialistsResult.specialists.length > 0 ? (
             <div className="grid md:grid-cols-3 gap-6">
               {specialistsResult.specialists.map((specialist: any) => (
                 <div
@@ -281,7 +332,7 @@ export default async function SolarLandingPage() {
                     </div>
 
                     <Link
-                      href={`/profile/${specialist.user.id}`}
+                      href={`/professionals/${specialist.user.id}`}
                       className="block w-full py-2 text-center bg-amber-50 text-amber-700 rounded-lg font-medium hover:bg-amber-100 transition-colors"
                     >
                       View Profile
@@ -290,9 +341,33 @@ export default async function SolarLandingPage() {
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-      )}
+          ) : (
+            <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-8 text-center">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                No verified solar installers listed yet
+              </h3>
+              <p className="text-gray-600 mb-6">
+                You can still request a quote and we will help route it to the
+                next available specialist.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Link
+                  href="/solar/estimate"
+                  className="inline-flex items-center gap-2 px-5 py-3 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700"
+                >
+                  Request a Quote
+                </Link>
+                <Link
+                  href="/dashboard/verticals/solar/apply"
+                  className="inline-flex items-center gap-2 px-5 py-3 bg-white text-gray-900 rounded-lg font-medium border border-gray-300 hover:bg-gray-50"
+                >
+                  Apply as Specialist
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* CTA Section */}
       <section className="py-20 bg-gray-900">

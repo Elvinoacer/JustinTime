@@ -48,6 +48,12 @@ const navItems = [
     description: "Manage services",
   },
   {
+    name: "Solar",
+    href: "/dashboard/solar",
+    icon: "solar_power",
+    description: "Solar vertical ops",
+  },
+  {
     name: "Invoices",
     href: "/dashboard/invoices",
     icon: "receipt",
