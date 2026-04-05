@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import {
   getUserLoyaltyStatus,
   awardPoints,
+  reversePointTransaction,
 } from "@/lib/loyalty/tier-calculator";
 import {
   getAvailableRewards,
@@ -147,6 +148,28 @@ export async function getLoyaltyLeaderboard(limit: number = 10) {
   }
 }
 
+export async function getLoyaltyLeaderboardWithFilters(
+  limit: number = 10,
+  options: {
+    period?: "all-time" | "weekly" | "monthly";
+    providerOnly?: boolean;
+  } = {},
+) {
+  try {
+    const leaderboard = await getLeaderboard(limit, {
+      period: options.period || "all-time",
+      providerOnly: options.providerOnly ?? true,
+    });
+    return {
+      success: true,
+      leaderboard,
+    };
+  } catch (error) {
+    console.error("[getLoyaltyLeaderboardWithFilters]", error);
+    return { success: false, error: "Failed to fetch leaderboard" };
+  }
+}
+
 /**
  * Seed partner ecosystem (admin only)
  */
@@ -202,5 +225,29 @@ export async function manuallyAwardPoints(
   } catch (error) {
     console.error("[manuallyAwardPoints]", error);
     return { success: false, error: "Failed to award points" };
+  }
+}
+
+export async function reverseLoyaltyTransaction(
+  transactionId: string,
+  adjustmentReason: string,
+) {
+  const session = await auth();
+  if (!session?.user?.id || !hasRole(session.user, "ADMIN")) {
+    return { success: false, error: "Unauthorized - Admin only" };
+  }
+
+  try {
+    const result = await reversePointTransaction(
+      transactionId,
+      session.user.id,
+      adjustmentReason,
+    );
+
+    revalidatePath("/dashboard/loyalty");
+    return result;
+  } catch (error) {
+    console.error("[reverseLoyaltyTransaction]", error);
+    return { success: false, error: "Failed to reverse transaction" };
   }
 }

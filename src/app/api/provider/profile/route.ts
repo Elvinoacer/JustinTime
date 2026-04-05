@@ -5,6 +5,7 @@ import { handleError, successResponse } from "@/lib/middleware/errorHandler";
 import { z } from "zod";
 import { hasRole } from "@/lib/auth/roles";
 import { isPubliclyVerified } from "@/lib/trust/publicTrust";
+import { checkAndAwardBadges } from "@/lib/gamification/badge-checker";
 
 // Schema for profile update
 const updateProfileSchema = z.object({
@@ -287,7 +288,7 @@ export async function PUT(request: NextRequest) {
       profileData.isVerified = false;
     }
 
-    const updatedProfile = await prisma.profile.upsert({
+    await prisma.profile.upsert({
       where: { userId },
       update: profileData,
       create: {
@@ -297,6 +298,16 @@ export async function PUT(request: NextRequest) {
         isVerified: false,
       },
     });
+
+    try {
+      await checkAndAwardBadges(userId, {
+        trigger: "PROFILE_UPDATED",
+        eventId: `profile:${userId}:${Date.now()}`,
+        actorUserId: userId,
+      });
+    } catch (badgeError) {
+      console.error("[PROVIDER_PROFILE_BADGES]", badgeError);
+    }
 
     return successResponse({ message: "Profile updated successfully" });
   } catch (error) {

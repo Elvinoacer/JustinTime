@@ -87,8 +87,7 @@ export const POST = auth(async (request) => {
     const safeFolder = allowedFolders.includes(folder) ? folder : "uploads";
     const fileName = `${safeFolder}/${session.user.id}/${timestamp}-${safeName}`;
 
-    let url;
-    url = await uploadFile(buffer, fileName, file.type);
+    const url = await uploadFile(buffer, fileName, file.type);
 
     return NextResponse.json({
       url,

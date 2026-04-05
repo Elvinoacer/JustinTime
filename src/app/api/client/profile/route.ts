@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { hasClientAccess } from "@/lib/auth/clientAccess";
 import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
+import { checkAndAwardBadges } from "@/lib/gamification/badge-checker";
 
 const CLIENT_PROFILE_SELECT = {
   id: true,
@@ -146,6 +147,16 @@ export async function PUT(req: Request) {
         data: updateData,
         select: CLIENT_PROFILE_SELECT,
       });
+
+      try {
+        await checkAndAwardBadges(session.user.id, {
+          trigger: "PROFILE_UPDATED",
+          eventId: `client-profile:${session.user.id}:${Date.now()}`,
+          actorUserId: session.user.id,
+        });
+      } catch (badgeError) {
+        console.error("[CLIENT_PROFILE_BADGES]", badgeError);
+      }
 
       return NextResponse.json(updatedUser);
     } catch (error: any) {

@@ -8,7 +8,7 @@
     "build": "npx prisma generate && next build --turbopack",
     "start": "next start",
     "test": "tsx --test \"src/**/*.test.ts\"",
-    "lint": "eslint",
+    "lint": "eslint src scripts prisma server.js next.config.ts tailwind.config.ts eslint.config.mjs --ignore-pattern src/generated/**",
     "roles:backfill": "prisma db execute --file scripts/backfill-multi-role.sql",
     "studio": "BROWSER=none prisma studio 2>&1 | grep -v 'ERR_STREAM_UNABLE_TO_PIPE\\|ERR_STREAM_PREMATURE_CLOSE\\|pipelineImpl\\|node:internal/streams\\|node:stream/promises\\|at new Promise\\|at pipeline\\|at _nr\\|at Server\\|processTicksAndRejections\\|runNextTicks\\|listOnTimeout\\|processTimers\\|code:.*ERR_STREAM\\|^\\s*}$\\|^\\s*at\\s'",
     "studio:5555": "BROWSER=none prisma studio --port 5555 2>&1 | grep -v 'ERR_STREAM_UNABLE_TO_PIPE\\|ERR_STREAM_PREMATURE_CLOSE\\|pipelineImpl\\|node:internal/streams\\|node:stream/promises\\|at new Promise\\|at pipeline\\|at _nr\\|at Server\\|processTicksAndRejections\\|runNextTicks\\|listOnTimeout\\|processTimers\\|code:.*ERR_STREAM\\|^\\s*}$\\|^\\s*at\\s'"

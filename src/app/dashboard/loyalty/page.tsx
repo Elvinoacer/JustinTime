@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import {
   getAvailablePartnerRewards,
-  getLoyaltyLeaderboard,
+  getLoyaltyLeaderboardWithFilters,
   getLoyaltyStatus,
   getPointHistory,
   getRedemptionHistory,
@@ -19,6 +19,11 @@ import {
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+
+type LoyaltySearchParams = {
+  period?: string;
+  scope?: string;
+};
 
 type RewardView = {
   id: string;
@@ -68,11 +73,26 @@ function formatPoints(value: number | null | undefined) {
   return Number(value || 0).toLocaleString();
 }
 
-export default async function LoyaltyPage() {
+export default async function LoyaltyPage({
+  searchParams,
+}: {
+  searchParams?: Promise<LoyaltySearchParams>;
+}) {
   const session = await auth();
   if (!session?.user?.id) {
     redirect("/auth/login");
   }
+
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const periodParam = resolvedSearchParams.period;
+  const scopeParam = resolvedSearchParams.scope;
+
+  const selectedPeriod: "all-time" | "weekly" | "monthly" =
+    periodParam === "weekly" || periodParam === "monthly"
+      ? periodParam
+      : "all-time";
+  const selectedScope: "provider" | "all" =
+    scopeParam === "all" ? "all" : "provider";
 
   const [
     loyaltyResult,
@@ -85,7 +105,10 @@ export default async function LoyaltyPage() {
     getAvailablePartnerRewards(),
     getPointHistory(15),
     getRedemptionHistory(),
-    getLoyaltyLeaderboard(10),
+    getLoyaltyLeaderboardWithFilters(10, {
+      period: selectedPeriod,
+      providerOnly: selectedScope !== "all",
+    }),
   ]);
 
   if (!loyaltyResult.success || !loyaltyResult.loyalty) {
@@ -97,14 +120,22 @@ export default async function LoyaltyPage() {
   }
 
   const loyalty = loyaltyResult.loyalty;
-  const rewards = rewardsResult.success ? rewardsResult.rewards || [] : [];
-  const history = historyResult.success ? historyResult.history || [] : [];
-  const redemptions = redemptionResult.success
-    ? redemptionResult.redemptions || []
-    : [];
-  const leaderboard = leaderboardResult.success
-    ? leaderboardResult.leaderboard || []
-    : [];
+  const rewards =
+    rewardsResult.success && "rewards" in rewardsResult
+      ? rewardsResult.rewards || []
+      : [];
+  const history =
+    historyResult.success && "history" in historyResult
+      ? historyResult.history || []
+      : [];
+  const redemptions =
+    redemptionResult.success && "redemptions" in redemptionResult
+      ? redemptionResult.redemptions || []
+      : [];
+  const leaderboard =
+    leaderboardResult.success && "leaderboard" in leaderboardResult
+      ? leaderboardResult.leaderboard || []
+      : [];
 
   const rewardsView = rewards as RewardView[];
   const historyView = history as HistoryView[];
@@ -231,7 +262,12 @@ export default async function LoyaltyPage() {
                       </p>
                     )}
                   </div>
-                  <form action={redeemPartnerReward.bind(null, reward.id)}>
+                  <form
+                    action={async () => {
+                      "use server";
+                      await redeemPartnerReward(reward.id);
+                    }}
+                  >
                     <button
                       type="submit"
                       disabled={!reward.canRedeem}
@@ -251,6 +287,43 @@ export default async function LoyaltyPage() {
             <Trophy className="h-5 w-5 text-amber-600" />
             <h2 className="text-lg font-semibold text-gray-900">Leaderboard</h2>
           </div>
+
+          <form
+            method="GET"
+            className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-3"
+          >
+            <label className="text-sm text-gray-700">
+              Period
+              <select
+                name="period"
+                defaultValue={selectedPeriod}
+                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+              >
+                <option value="all-time">All Time</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </label>
+
+            <label className="text-sm text-gray-700">
+              Scope
+              <select
+                name="scope"
+                defaultValue={selectedScope}
+                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+              >
+                <option value="provider">Providers Only</option>
+                <option value="all">All Users</option>
+              </select>
+            </label>
+
+            <button
+              type="submit"
+              className="sm:col-span-2 rounded-md bg-gray-900 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+            >
+              Apply Leaderboard Filters
+            </button>
+          </form>
 
           {leaderboard.length === 0 ? (
             <p className="text-sm text-gray-500">No leaderboard data yet.</p>

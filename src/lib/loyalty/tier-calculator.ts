@@ -74,6 +74,14 @@ type AwardPointsResult = {
   pointsBalance?: number;
 };
 
+type ReversePointsResult = {
+  success: boolean;
+  reversed?: boolean;
+  idempotent?: boolean;
+  reversalTransactionId?: string;
+  error?: string;
+};
+
 /**
  * Calculate tier from points
  */
@@ -575,4 +583,182 @@ export async function deductPoints(
   });
 
   return result.success;
+}
+
+/**
+ * Reverse a previously posted loyalty transaction with an auditable counter-entry.
+ */
+export async function reversePointTransaction(
+  transactionId: string,
+  actorUserId: string,
+  adjustmentReason: string,
+): Promise<ReversePointsResult> {
+  const reason = adjustmentReason.trim();
+  if (!reason) {
+    return { success: false, error: "Adjustment reason is required" };
+  }
+
+  let attempts = 0;
+  while (attempts < 3) {
+    attempts += 1;
+
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const original = await tx.loyaltyPointTransaction.findUnique({
+            where: { id: transactionId },
+            include: {
+              loyalty: {
+                select: {
+                  id: true,
+                  userId: true,
+                },
+              },
+            },
+          });
+
+          if (!original) {
+            return { success: false, error: "Transaction not found" };
+          }
+
+          await acquireLoyaltyLock(tx, original.loyalty.userId);
+
+          if (original.reasonCode === "POINT_REVERSAL") {
+            return {
+              success: false,
+              error: "Cannot reverse a reversal transaction",
+            };
+          }
+
+          const existingReversal = await tx.loyaltyPointTransaction.findFirst({
+            where: {
+              reversedTransactionId: original.id,
+            },
+            select: { id: true },
+          });
+
+          if (existingReversal) {
+            return {
+              success: true,
+              reversed: false,
+              idempotent: true,
+              reversalTransactionId: existingReversal.id,
+            };
+          }
+
+          const loyalty = await tx.userLoyalty.findUnique({
+            where: { id: original.loyaltyId },
+            select: {
+              id: true,
+              points: true,
+              availablePoints: true,
+              lifetimePoints: true,
+              lifetimeEarnedPoints: true,
+              lifetimeSpentPoints: true,
+            },
+          });
+
+          if (!loyalty) {
+            return { success: false, error: "Loyalty account not found" };
+          }
+
+          const reversalPoints = -original.points;
+          const nextPoints = loyalty.points + reversalPoints;
+          const nextAvailablePoints = loyalty.availablePoints + reversalPoints;
+
+          if (nextPoints < 0 || nextAvailablePoints < 0) {
+            return {
+              success: false,
+              error:
+                "Cannot reverse transaction because spendable balance is insufficient",
+            };
+          }
+
+          const nextLifetimePoints =
+            original.points > 0
+              ? Math.max(loyalty.lifetimePoints - original.points, 0)
+              : loyalty.lifetimePoints;
+
+          const nextLifetimeEarned =
+            original.points > 0
+              ? Math.max(loyalty.lifetimeEarnedPoints - original.points, 0)
+              : loyalty.lifetimeEarnedPoints;
+
+          const nextLifetimeSpent =
+            original.points < 0
+              ? Math.max(
+                  loyalty.lifetimeSpentPoints - Math.abs(original.points),
+                  0,
+                )
+              : loyalty.lifetimeSpentPoints;
+
+          const reversal = await tx.loyaltyPointTransaction.create({
+            data: {
+              loyaltyId: loyalty.id,
+              points: reversalPoints,
+              reason: `Reversal - ${original.reason}`,
+              reasonCode: "POINT_REVERSAL",
+              sourceType: "REVERSAL",
+              sourceId: original.id,
+              idempotencyKey: `loyalty-reversal:${original.id}`,
+              status: "POSTED",
+              reversedTransactionId: original.id,
+              createdByUserId: actorUserId,
+              createdByType: "ADMIN",
+              adjustmentReason: reason,
+              metadata: {
+                reversedTransactionId: original.id,
+                originalPoints: original.points,
+                adjustmentReason: reason,
+                actorUserId,
+              },
+            },
+            select: { id: true },
+          });
+
+          const recalculatedTier = calculateTierFromPoints(nextPoints);
+
+          await tx.userLoyalty.update({
+            where: { id: loyalty.id },
+            data: {
+              points: nextPoints,
+              availablePoints: nextAvailablePoints,
+              lifetimePoints: nextLifetimePoints,
+              lifetimeEarnedPoints: nextLifetimeEarned,
+              lifetimeSpentPoints: nextLifetimeSpent,
+              currentTier: recalculatedTier,
+              tierProgress: calculateTierProgress(nextPoints, recalculatedTier),
+            },
+          });
+
+          await tx.loyaltyPointTransaction.update({
+            where: { id: original.id },
+            data: {
+              status: "REVERSED",
+              adjustmentReason: reason,
+            },
+          });
+
+          return {
+            success: true,
+            reversed: true,
+            idempotent: false,
+            reversalTransactionId: reversal.id,
+          };
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
+    } catch (error) {
+      if (isSerializableConflict(error) && attempts < 3) {
+        continue;
+      }
+
+      console.error("[reversePointTransaction]", error);
+      return { success: false, error: "Failed to reverse transaction" };
+    }
+  }
+
+  return { success: false, error: "Failed to reverse transaction" };
 }

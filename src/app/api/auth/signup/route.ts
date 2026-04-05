@@ -22,6 +22,7 @@ import {
 import { getDefaultRolesForPrimaryRole } from "@/lib/auth/roles";
 import { buildAppUrl } from "@/lib/app-url";
 import { getPasswordValidationError } from "@/lib/auth/lifecycle";
+import { checkAndAwardBadges } from "@/lib/gamification/badge-checker";
 
 export async function POST(request: NextRequest) {
   try {
@@ -148,6 +149,16 @@ export async function POST(request: NextRequest) {
           points: 100,
         },
       });
+    }
+
+    try {
+      await checkAndAwardBadges(user.id, {
+        trigger: "ACCOUNT_CREATED",
+        eventId: user.id,
+        actorUserId: user.id,
+      });
+    } catch (badgeError) {
+      console.error("[SIGNUP_BADGE_CHECK]", badgeError);
     }
 
     // Generate verification token

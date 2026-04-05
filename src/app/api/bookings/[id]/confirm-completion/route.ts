@@ -263,6 +263,11 @@ export async function POST(
           eventId: booking.id,
           actorUserId: session.user.id,
         }),
+        checkAndAwardBadges(booking.providerId, {
+          trigger: "REVENUE_SETTLED",
+          eventId: `revenue:${booking.id}`,
+          actorUserId: session.user.id,
+        }),
         applyLoyaltyRule({
           type: "BOOKING_COMPLETED",
           userId: booking.providerId,

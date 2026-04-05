@@ -76,10 +76,8 @@ export default function ServiceDetailClient({
   const categoryHref = `/services?category=${encodeURIComponent(service.category.name)}`;
   const bookingHref = `/booking?professional=${provider.id}&service=${service.id}`;
   const messageHref = `/client/messages?partnerId=${provider.id}&partnerName=${encodeURIComponent(provider.name)}`;
-  const guestSignupBookingHref =
-    `/auth/signup?callbackUrl=${encodeURIComponent(bookingHref)}&returnTo=${encodeURIComponent(`/services/${service.id}`)}&intent=book`;
-  const guestLoginMessageHref =
-    `/auth/login?callbackUrl=${encodeURIComponent(messageHref)}`;
+  const guestSignupBookingHref = `/auth/signup?callbackUrl=${encodeURIComponent(bookingHref)}&returnTo=${encodeURIComponent(`/services/${service.id}`)}&intent=book`;
+  const guestLoginMessageHref = `/auth/login?callbackUrl=${encodeURIComponent(messageHref)}`;
 
   const crumbs = useMemo(
     () => [
@@ -134,7 +132,6 @@ export default function ServiceDetailClient({
           onClick={() => setLightboxUrl(null)}
           aria-label="Close image preview"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={lightboxUrl}
             alt=""
