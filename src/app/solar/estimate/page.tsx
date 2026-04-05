@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import {
   getDetailedSolarEstimate,
   getSolarInstallers,
@@ -88,7 +88,7 @@ function parseOptionalPositiveNumber(value: string): number | undefined {
   return parsed;
 }
 
-export default function SolarEstimatePage() {
+function SolarEstimatePageContent() {
   const searchParams = useSearchParams();
 
   const [step, setStep] = useState(1);
@@ -1091,5 +1091,23 @@ export default function SolarEstimatePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SolarEstimatePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-linear-to-b from-amber-50 to-white py-12">
+          <div className="container mx-auto px-4">
+            <div className="max-w-3xl mx-auto rounded-2xl border border-gray-200 bg-white p-8 text-center text-gray-600">
+              Loading solar calculator...
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <SolarEstimatePageContent />
+    </Suspense>
   );
 }
