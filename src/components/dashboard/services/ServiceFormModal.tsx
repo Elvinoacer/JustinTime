@@ -498,7 +498,7 @@ const ServiceFormModal = ({
               </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600 flex-shrink-0 ml-2"
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600 shrink-0 ml-2"
                 aria-label="Close modal"
               >
                 <span className="material-symbols-outlined text-xl">close</span>
@@ -529,7 +529,7 @@ const ServiceFormModal = ({
                 <div className="space-y-3">
                   {/* Location Info Banner */}
                   <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 sm:p-4 flex items-start gap-3">
-                    <div className="bg-blue-100 rounded-full p-1.5 flex-shrink-0">
+                    <div className="bg-blue-100 rounded-full p-1.5 shrink-0">
                       <span className="material-symbols-outlined text-blue-600 text-sm sm:text-base">
                         location_on
                       </span>
@@ -923,7 +923,7 @@ const ServiceFormModal = ({
                               key={idx}
                               className="bg-gray-50 rounded-md p-2 flex items-center gap-2"
                             >
-                              <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
+                              <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center shrink-0">
                                 <span className="material-symbols-outlined text-gray-500 text-xs">
                                   image
                                 </span>
@@ -1004,7 +1004,7 @@ const ServiceFormModal = ({
                               key={idx}
                               className="bg-gray-50 rounded-md p-2 flex items-center gap-2"
                             >
-                              <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
+                              <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center shrink-0">
                                 <span className="material-symbols-outlined text-gray-500 text-xs">
                                   videocam
                                 </span>
@@ -1069,7 +1069,7 @@ const ServiceFormModal = ({
               >
                 {(createServiceMutation.isPending ||
                   updateServiceMutation.isPending) && (
-                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin flex-shrink-0" />
+                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0" />
                 )}
                 <span className="truncate">
                   {step === 3 ? (isEditMode ? "Save" : "Create") : "Continue"}
@@ -1124,7 +1124,7 @@ const ServiceFormModal = ({
                 <button
                   type="button"
                   onClick={() => setIsFullscreen((prev) => !prev)}
-                  className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-700"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-700"
                   aria-label={
                     isFullscreen ? "Exit fullscreen editor" : "Expand editor"
                   }
@@ -1135,7 +1135,7 @@ const ServiceFormModal = ({
                 </button>
                 <button
                   onClick={onClose}
-                  className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-700"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-700"
                   aria-label="Close modal"
                 >
                   <span className="material-symbols-outlined text-xl">
@@ -1155,7 +1155,7 @@ const ServiceFormModal = ({
                   initial={{ width: 0 }}
                   animate={{ width: `${(step / STEP_META.length) * 100}%` }}
                   transition={{ duration: 0.35, ease: "easeOut" }}
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
+                  className="h-full rounded-full bg-linear-to-r from-emerald-500 to-teal-500"
                 />
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -1204,9 +1204,9 @@ const ServiceFormModal = ({
           <div className="flex-1 overflow-y-auto px-6 py-5 lg:px-8 lg:py-6">
             {step === 1 && (
               <div className="mx-auto max-w-3xl space-y-5">
-                <div className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-sky-50 p-4">
+                <div className="rounded-2xl border border-blue-100 bg-linear-to-r from-blue-50 to-sky-50 p-4">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm">
                       <span className="material-symbols-outlined">
                         location_on
                       </span>
@@ -1733,7 +1733,7 @@ const ServiceFormModal = ({
                           key={idx}
                           className="flex items-center gap-3 rounded-xl bg-gray-50 p-3"
                         >
-                          <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center shrink-0">
                             <span className="material-symbols-outlined text-gray-500 text-sm">
                               {file.type === "image" ? "image" : "videocam"}
                             </span>

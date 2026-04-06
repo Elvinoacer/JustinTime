@@ -108,7 +108,7 @@ const ContactPage = () => {
       <Header />
 
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-16 pb-12 sm:pt-20 sm:pb-16 md:py-28 overflow-hidden">
+      <section className="relative bg-linear-to-br from-emerald-600 via-green-600 to-teal-700 pt-16 pb-12 sm:pt-20 sm:pb-16 md:py-28 overflow-hidden">
         <div className="absolute inset-0 bg-black/10"></div>
 
         <div className="container mx-auto px-3 sm:px-4 relative z-10 text-center">
@@ -149,7 +149,7 @@ const ContactPage = () => {
               <div className="space-y-4 sm:space-y-6">
                 {/* Office Location */}
                 <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0 text-emerald-600">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 flex items-center justify-center shrink-0 text-emerald-600">
                     <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div>
@@ -165,7 +165,7 @@ const ContactPage = () => {
 
                 {/* Email */}
                 <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0 text-emerald-600">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 flex items-center justify-center shrink-0 text-emerald-600">
                     <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div>
@@ -180,7 +180,7 @@ const ContactPage = () => {
 
                 {/* Phone */}
                 <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0 text-emerald-600">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-50 flex items-center justify-center shrink-0 text-emerald-600">
                     <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div>
@@ -245,7 +245,7 @@ const ContactPage = () => {
             </motion.div>
 
             {/* Quick Help - Mobile Only */}
-            <div className="lg:hidden bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+            <div className="lg:hidden bg-linear-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
               <h4 className="font-bold text-blue-900 text-sm mb-2 flex items-center gap-2">
                 <Clock className="w-4 h-4" />
                 Quick Help
@@ -286,7 +286,7 @@ const ContactPage = () => {
                   className="bg-red-50 border border-red-100 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 text-red-700 text-sm"
                 >
                   <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 flex-shrink-0" />
+                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 shrink-0" />
                     <p>{errorMessage}</p>
                   </div>
                 </motion.div>
@@ -428,7 +428,7 @@ const ContactPage = () => {
                   <motion.button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white font-bold py-3 sm:py-4 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl hover:from-emerald-600 hover:to-green-700 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
+                    className="w-full bg-linear-to-r from-emerald-500 to-green-600 text-white font-bold py-3 sm:py-4 rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl hover:from-emerald-600 hover:to-green-700 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                   >
@@ -472,7 +472,7 @@ const ContactPage = () => {
 
             {/* Additional Contact Options - Mobile Only */}
             <div className="lg:hidden mt-8">
-              <div className="bg-gradient-to-r from-gray-50 to-white rounded-xl p-4 border border-gray-200">
+              <div className="bg-linear-to-r from-gray-50 to-white rounded-xl p-4 border border-gray-200">
                 <h4 className="font-bold text-gray-900 text-sm mb-3">
                   Other Ways to Reach Us
                 </h4>
@@ -504,7 +504,7 @@ const ContactPage = () => {
 
       {/* Business Hours - Desktop Only */}
       <div className="hidden lg:block container mx-auto px-4 pb-12">
-        <div className="bg-gradient-to-r from-gray-50 to-white rounded-2xl p-8 border border-gray-200 max-w-4xl mx-auto">
+        <div className="bg-linear-to-r from-gray-50 to-white rounded-2xl p-8 border border-gray-200 max-w-4xl mx-auto">
           <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
             <Clock className="w-5 h-5 text-emerald-500" />
             Business Hours
@@ -555,7 +555,7 @@ const FAQItem = ({
           {question}
         </span>
         <ChevronDown
-          className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-400 transition-transform duration-300 flex-shrink-0 ${
+          className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-400 transition-transform duration-300 shrink-0 ${
             isOpen ? "rotate-180" : ""
           }`}
         />

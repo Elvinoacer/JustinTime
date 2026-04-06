@@ -12,6 +12,7 @@ import {
 } from "@/lib/notifications/adminNotifications";
 import {
   type AdminLogAccessType,
+  type AdminLogFilters,
   type BookingFilters,
   type DisputeFilters,
   type SupportTicketFilters,
@@ -25,6 +26,44 @@ import {
   buildUsersWhere,
   buildWalletsWhere,
 } from "./admin.helpers";
+import { reviewIdentityVerificationRequest } from "./verification";
+import {
+  applySupportTicketLifecycleUpdate,
+  SupportTicketLifecycleError,
+} from "@/lib/support/ticket-lifecycle";
+
+function normalizePage(page: number) {
+  if (!Number.isFinite(page) || page < 1) {
+    return 1;
+  }
+
+  return Math.floor(page);
+}
+
+function normalizeLimit(limit: number, fallback: number) {
+  if (!Number.isFinite(limit) || limit < 1) {
+    return fallback;
+  }
+
+  return Math.min(Math.floor(limit), 200);
+}
+
+function hasAdminRoleShape(user: {
+  role?: string | null;
+  roles?: Array<string> | null;
+}) {
+  return user.role === "ADMIN" || Boolean(user.roles?.includes("ADMIN"));
+}
+
+async function countActiveAdmins() {
+  return prisma.user.count({
+    where: {
+      isBanned: false,
+      deletionScheduledAt: null,
+      OR: [{ role: "ADMIN" }, { roles: { has: "ADMIN" } }],
+    },
+  });
+}
 
 export async function checkAdmin() {
   const session = await auth();
@@ -44,7 +83,9 @@ export async function getUsers(
   try {
     await checkAdmin();
 
-    const skip = (page - 1) * limit;
+    const safePage = normalizePage(page);
+    const safeLimit = normalizeLimit(limit, 10);
+    const skip = (safePage - 1) * safeLimit;
 
     const where = buildUsersWhere(search, role, verificationStatus);
 
@@ -52,7 +93,7 @@ export async function getUsers(
       prisma.user.findMany({
         where,
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { createdAt: "desc" },
         include: {
           profile: true,
@@ -64,12 +105,63 @@ export async function getUsers(
     return {
       users,
       total,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+      currentPage: safePage,
     };
   } catch (error) {
     console.error("Error fetching users:", error);
     throw new Error("Failed to fetch users");
+  }
+}
+
+export async function getUserStats() {
+  try {
+    await checkAdmin();
+
+    const providerWhere: Prisma.UserWhereInput = {
+      OR: [{ role: "PROVIDER" }, { roles: { has: "PROVIDER" } }],
+    };
+    const clientWhere: Prisma.UserWhereInput = {
+      OR: [{ role: "CLIENT" }, { roles: { has: "CLIENT" } }],
+    };
+
+    const [
+      totalUsers,
+      totalClients,
+      totalProviders,
+      bannedUsers,
+      pendingVerifications,
+      verifiedProviders,
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: clientWhere }),
+      prisma.user.count({ where: providerWhere }),
+      prisma.user.count({ where: { isBanned: true } }),
+      prisma.profile.count({
+        where: {
+          verificationStatus: "PENDING",
+          user: providerWhere,
+        },
+      }),
+      prisma.profile.count({
+        where: {
+          verificationStatus: "VERIFIED",
+          user: providerWhere,
+        },
+      }),
+    ]);
+
+    return {
+      totalUsers,
+      totalClients,
+      totalProviders,
+      bannedUsers,
+      pendingVerifications,
+      verifiedProviders,
+    };
+  } catch (error) {
+    console.error("Error fetching user stats:", error);
+    throw new Error("Failed to fetch user stats");
   }
 }
 
@@ -234,30 +326,98 @@ export async function updateUserRole(
     // Get user details and old role
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, email: true, role: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        roles: true,
+        isBanned: true,
+        deletionScheduledAt: true,
+      },
     });
 
     if (!user) {
       return { success: false, error: "User not found" };
     }
 
+    if (newRole === "ADMIN" && !hasAdminRoleShape(user)) {
+      return {
+        success: false,
+        error:
+          "Direct admin promotion is disabled. Use the Admin Invite workflow instead.",
+      };
+    }
+
+    const targetIsAdmin = hasAdminRoleShape(user);
+    const targetWillRemainAdmin = newRole === "ADMIN";
+
+    if (admin.id === userId && !targetWillRemainAdmin) {
+      return {
+        success: false,
+        error: "You cannot remove your own admin access.",
+      };
+    }
+
+    if (targetIsAdmin && !targetWillRemainAdmin) {
+      const activeAdminCount = await countActiveAdmins();
+      if (activeAdminCount <= 1) {
+        return {
+          success: false,
+          error: "Cannot remove the last active admin account.",
+        };
+      }
+    }
+
     const oldRole = user.role;
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        role: newRole,
-        roles: getDefaultRolesForPrimaryRole(newRole),
-      },
-    });
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          role: newRole,
+          roles: getDefaultRolesForPrimaryRole(newRole),
+        },
+      });
 
-    await prisma.adminLog.create({
-      data: {
-        adminId: admin.id,
-        action: "UPDATED_USER_ROLE",
-        targetId: userId,
-        details: { newRole, oldRole },
-      },
+      if (newRole === "PROVIDER") {
+        await tx.profile.upsert({
+          where: { userId },
+          update: {},
+          create: {
+            userId,
+            skills: [],
+            portfolio: [],
+            verificationStatus: "PENDING",
+          },
+        });
+      }
+
+      if (newRole === "CLIENT") {
+        await tx.profile.updateMany({
+          where: { userId },
+          data: {
+            premiumPricingEnabled: false,
+            premiumMultiplier: 1,
+          },
+        });
+      }
+
+      await tx.adminLog.create({
+        data: {
+          adminId: admin.id,
+          action: "UPDATED_USER_ROLE",
+          targetId: userId,
+          details: {
+            newRole,
+            oldRole,
+            previousRoles: user.roles,
+            wasBanned: user.isBanned,
+            deletionScheduledAt: user.deletionScheduledAt,
+            roleArtifactsReconciled: true,
+          },
+        },
+      });
     });
 
     // Send comprehensive notification
@@ -306,7 +466,12 @@ export async function updateUserPlan(
     // Get user details
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, email: true },
+      select: {
+        name: true,
+        email: true,
+        role: true,
+        roles: true,
+      },
     });
 
     if (!user) {
@@ -319,31 +484,62 @@ export async function updateUserPlan(
     });
 
     const oldPlan = currentSubscription?.plan || "NONE";
+    const isProviderLike =
+      user.role === "PROVIDER" || Boolean(user.roles?.includes("PROVIDER"));
+
+    const premiumPricingEnabled = newPlan !== "FREE";
+    const premiumMultiplier =
+      newPlan === "BUSINESS" ? 1.1 : newPlan === "PRO" ? 1.05 : 1.0;
 
     // Upsert subscription
-    await prisma.subscription.upsert({
-      where: { userId },
-      update: {
-        plan: newPlan,
-        isActive: true,
-        startDate: new Date(), // Reset start date on plan change? Maybe keep original? Let's reset for now as it's a "new" plan
-        endDate: null, // Clear end date if any
-      },
-      create: {
-        userId,
-        plan: newPlan,
-        isActive: true,
-        startDate: new Date(),
-      },
-    });
+    await prisma.$transaction(async (tx) => {
+      await tx.subscription.upsert({
+        where: { userId },
+        update: {
+          plan: newPlan,
+          isActive: true,
+          endDate: null, // Clear end date if any
+        },
+        create: {
+          userId,
+          plan: newPlan,
+          isActive: true,
+          startDate: new Date(),
+        },
+      });
 
-    await prisma.adminLog.create({
-      data: {
-        adminId: admin.id,
-        action: "UPDATED_USER_PLAN",
-        targetId: userId,
-        details: { newPlan, oldPlan },
-      },
+      if (isProviderLike) {
+        await tx.profile.upsert({
+          where: { userId },
+          update: {
+            premiumPricingEnabled,
+            premiumMultiplier,
+          },
+          create: {
+            userId,
+            skills: [],
+            portfolio: [],
+            verificationStatus: "PENDING",
+            premiumPricingEnabled,
+            premiumMultiplier,
+          },
+        });
+      }
+
+      await tx.adminLog.create({
+        data: {
+          adminId: admin.id,
+          action: "UPDATED_USER_PLAN",
+          targetId: userId,
+          details: {
+            newPlan,
+            oldPlan,
+            premiumPricingEnabled,
+            premiumMultiplier,
+            entitlementsReconciled: isProviderLike,
+          },
+        },
+      });
     });
 
     // Send comprehensive notification
@@ -396,11 +592,94 @@ export async function scheduleUserDeletion(userId: string, reason: string) {
     // Get user details
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, email: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        roles: true,
+      },
     });
 
     if (!user) {
       return { success: false, error: "User not found" };
+    }
+
+    if (admin.id === userId) {
+      return {
+        success: false,
+        error: "You cannot schedule deletion for your own account.",
+      };
+    }
+
+    if (hasAdminRoleShape(user)) {
+      const activeAdminCount = await countActiveAdmins();
+      if (activeAdminCount <= 1) {
+        return {
+          success: false,
+          error: "Cannot schedule deletion for the last active admin.",
+        };
+      }
+
+      return {
+        success: false,
+        error:
+          "Scheduling deletion for admin accounts is disabled in this workflow.",
+      };
+    }
+
+    const [
+      activeBookings,
+      openDisputes,
+      unresolvedSupportTickets,
+      pendingPayments,
+    ] = await Promise.all([
+      prisma.booking.count({
+        where: {
+          OR: [{ clientId: userId }, { providerId: userId }],
+          status: {
+            in: [
+              "PENDING",
+              "CONFIRMED",
+              "IN_PROGRESS",
+              "AWAITING_CLIENT_CONFIRMATION",
+              "DISPUTED",
+            ],
+          },
+        },
+      }),
+      prisma.dispute.count({
+        where: {
+          OR: [{ creatorId: userId }, { defendantId: userId }],
+          status: "OPEN",
+        },
+      }),
+      prisma.supportTicket.count({
+        where: {
+          userId,
+          status: { in: ["OPEN", "IN_PROGRESS"] },
+        },
+      }),
+      prisma.payment.count({
+        where: {
+          status: "PENDING",
+          booking: {
+            OR: [{ clientId: userId }, { providerId: userId }],
+          },
+        },
+      }),
+    ]);
+
+    if (
+      activeBookings > 0 ||
+      openDisputes > 0 ||
+      unresolvedSupportTickets > 0 ||
+      pendingPayments > 0
+    ) {
+      return {
+        success: false,
+        error: `Cannot schedule deletion while obligations remain (bookings: ${activeBookings}, disputes: ${openDisputes}, support tickets: ${unresolvedSupportTickets}, pending payments: ${pendingPayments}).`,
+      };
     }
 
     const deletionDate = new Date();
@@ -522,11 +801,40 @@ export async function sendPasswordReset(userId: string) {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, name: true },
+      select: {
+        email: true,
+        name: true,
+        isBanned: true,
+        deletionScheduledAt: true,
+        role: true,
+        roles: true,
+      },
     });
 
     if (!user?.email) {
       return { success: false, error: "User has no email address" };
+    }
+
+    if (user.isBanned) {
+      return {
+        success: false,
+        error: "Password reset is blocked for banned accounts.",
+      };
+    }
+
+    if (user.deletionScheduledAt) {
+      return {
+        success: false,
+        error: "Password reset is blocked for accounts scheduled for deletion.",
+      };
+    }
+
+    if (hasAdminRoleShape(user) && admin.id !== userId) {
+      return {
+        success: false,
+        error:
+          "Password reset for admin accounts is disabled in this workflow.",
+      };
     }
 
     // Generate reset token
@@ -589,23 +897,67 @@ export async function verifyProvider(
   try {
     const admin = await checkAdmin();
 
-    await prisma.profile.update({
-      where: { userId },
-      data: {
-        verificationStatus: status,
-        isVerified: status === "VERIFIED",
+    if (status === "PENDING") {
+      return {
+        success: false,
+        error:
+          "Direct status reset is disabled. Reopen the verification request from the Trust Center.",
+      };
+    }
+
+    const request = await prisma.identityVerificationRequest.findFirst({
+      where: {
+        userId,
+        status: {
+          in: ["SUBMITTED", "UNDER_REVIEW"],
+        },
+      },
+      orderBy: {
+        submittedAt: "desc",
+      },
+      select: {
+        id: true,
+        status: true,
       },
     });
+
+    if (!request) {
+      return {
+        success: false,
+        error:
+          "No pending identity verification request found for this provider.",
+      };
+    }
+
+    const review = await reviewIdentityVerificationRequest({
+      requestId: request.id,
+      decision: status,
+      reviewNotes: `Reviewed by admin ${admin.email || admin.id} from admin users workflow`,
+    });
+
+    if (!review.success) {
+      return {
+        success: false,
+        error: review.error || "Failed to review identity verification request",
+      };
+    }
 
     await prisma.adminLog.create({
       data: {
         adminId: admin.id,
-        action: `VERIFIED_PROVIDER_${status}`,
+        action: `IDENTITY_REVIEW_DELEGATED_${status}`,
         targetId: userId,
+        details: {
+          requestId: request.id,
+          previousRequestStatus: request.status,
+          nextStatus: status,
+        },
       },
     });
 
     revalidatePath("/admin/users");
+    revalidatePath("/admin/verifications");
+    revalidatePath("/admin/trust");
     return { success: true };
   } catch (error) {
     console.error("Error verifying provider:", error);
@@ -620,11 +972,41 @@ export async function toggleBanUser(userId: string, isBanned: boolean) {
     // Get user details for notifications
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, email: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        roles: true,
+      },
     });
 
     if (!user) {
       return { success: false, error: "User not found" };
+    }
+
+    if (isBanned && admin.id === userId) {
+      return {
+        success: false,
+        error: "You cannot ban your own account.",
+      };
+    }
+
+    const targetIsAdmin = hasAdminRoleShape(user);
+    if (isBanned && targetIsAdmin) {
+      const activeAdminCount = await countActiveAdmins();
+      if (activeAdminCount <= 1) {
+        return {
+          success: false,
+          error: "Cannot ban the last active admin account.",
+        };
+      }
+
+      return {
+        success: false,
+        error:
+          "Banning admin accounts is disabled in this workflow. Use privileged security controls.",
+      };
     }
 
     await prisma.user.update({
@@ -668,6 +1050,7 @@ export async function toggleBanUser(userId: string, isBanned: boolean) {
     );
 
     revalidatePath("/admin/users");
+    revalidatePath(`/admin/users/${userId}`);
     return { success: true };
   } catch (error) {
     console.error("Error banning user:", error);
@@ -683,14 +1066,16 @@ export async function getBookings(
   try {
     await checkAdmin();
 
-    const skip = (page - 1) * limit;
+    const safePage = normalizePage(page);
+    const safeLimit = normalizeLimit(limit, 10);
+    const skip = (safePage - 1) * safeLimit;
     const where = buildBookingsWhere(filters);
 
     const [bookings, total, statusCounts] = await Promise.all([
       prisma.booking.findMany({
         where,
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { createdAt: "desc" },
         include: {
           client: { select: { name: true, email: true } },
@@ -749,8 +1134,8 @@ export async function getBookings(
     return {
       bookings,
       total,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+      currentPage: safePage,
       stats,
     };
   } catch (error) {
@@ -782,6 +1167,106 @@ export async function getBackgroundChecks(status?: string) {
   }
 }
 
+export async function getIdentityVerificationRequestsForAdmin(
+  page = 1,
+  limit = 12,
+  search = "",
+  status: "PENDING" | "VERIFIED" | "REJECTED" | "ALL" = "PENDING",
+) {
+  try {
+    await checkAdmin();
+
+    const safePage = normalizePage(page);
+    const safeLimit = normalizeLimit(limit, 12);
+    const skip = (safePage - 1) * safeLimit;
+    const normalizedSearch = search.trim();
+
+    let statusFilter: Prisma.IdentityVerificationRequestWhereInput["status"];
+    if (status === "VERIFIED") {
+      statusFilter = "VERIFIED";
+    } else if (status === "REJECTED") {
+      statusFilter = "REJECTED";
+    } else if (status === "PENDING") {
+      statusFilter = { in: ["SUBMITTED", "UNDER_REVIEW"] };
+    } else {
+      statusFilter = undefined;
+    }
+
+    const where: Prisma.IdentityVerificationRequestWhereInput = {
+      ...(statusFilter ? { status: statusFilter } : {}),
+      ...(normalizedSearch
+        ? {
+            OR: [
+              {
+                id: {
+                  contains: normalizedSearch,
+                  mode: "insensitive",
+                },
+              },
+              {
+                user: {
+                  is: {
+                    name: {
+                      contains: normalizedSearch,
+                      mode: "insensitive",
+                    },
+                  },
+                },
+              },
+              {
+                user: {
+                  is: {
+                    email: {
+                      contains: normalizedSearch,
+                      mode: "insensitive",
+                    },
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const [requests, total] = await Promise.all([
+      prisma.identityVerificationRequest.findMany({
+        where,
+        skip,
+        take: safeLimit,
+        orderBy: { submittedAt: "desc" },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+              profile: {
+                select: {
+                  bio: true,
+                  location: true,
+                  verificationStatus: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.identityVerificationRequest.count({ where }),
+    ]);
+
+    return {
+      requests,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+      currentPage: safePage,
+    };
+  } catch (error) {
+    console.error("Error fetching identity verification requests:", error);
+    throw new Error("Failed to fetch identity verification requests");
+  }
+}
+
 export async function getDisputes(
   page = 1,
   limit = 10,
@@ -790,7 +1275,9 @@ export async function getDisputes(
   try {
     await checkAdmin();
 
-    const skip = (page - 1) * limit;
+    const safePage = normalizePage(page);
+    const safeLimit = normalizeLimit(limit, 10);
+    const skip = (safePage - 1) * safeLimit;
     const where = buildDisputesWhere(filters);
 
     const [disputes, total, statusCounts, resolvedDisputes] = await Promise.all(
@@ -798,7 +1285,7 @@ export async function getDisputes(
         prisma.dispute.findMany({
           where,
           skip,
-          take: limit,
+          take: safeLimit,
           orderBy: { createdAt: "desc" },
           include: {
             booking: {
@@ -877,8 +1364,8 @@ export async function getDisputes(
     return {
       disputes,
       total,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+      currentPage: safePage,
       stats,
     };
   } catch (error) {
@@ -892,126 +1379,94 @@ export async function resolveDispute(
   resolution: string,
   status: "RESOLVED" | "CLOSED",
 ) {
-  try {
-    const admin = await checkAdmin();
-
-    const dispute = await prisma.dispute.findUnique({
-      where: { id: disputeId },
-      include: {
-        booking: {
-          select: {
-            id: true,
-            status: true,
-          },
-        },
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        defendant: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    if (!dispute) {
-      return { success: false, error: "Dispute not found" };
-    }
-
-    await prisma.$transaction(async (tx) => {
-      await tx.dispute.update({
-        where: { id: disputeId },
-        data: {
-          status,
-          resolution,
-          assignedAdminId: admin.id,
-          resolutionType: status === "CLOSED" ? "REFUND_CLIENT" : "OTHER",
-          internalNotes: resolution,
-          resolvedAt:
-            status === "RESOLVED" || status === "CLOSED" ? new Date() : null,
-        },
-      });
-
-      if (status === "RESOLVED") {
-        await tx.booking.update({
-          where: { id: dispute.booking.id },
-          data: {
-            status:
-              dispute.booking.status === "COMPLETED"
-                ? "COMPLETED"
-                : "IN_PROGRESS",
-          },
-        });
-      }
-
-      if (status === "CLOSED") {
-        await tx.booking.update({
-          where: { id: dispute.booking.id },
-          data: {
-            status: "CANCELLED",
-          },
-        });
-
-        await tx.payment.updateMany({
-          where: {
-            bookingId: dispute.booking.id,
-            status: {
-              in: ["PENDING", "COMPLETED"],
-            },
-          },
-          data: {
-            status: "REFUNDED",
-            transactionId: `dispute_refund_${dispute.booking.id}`,
-          },
-        });
-      }
-    });
-
-    await Promise.all([
-      sendComprehensiveNotification({
-        userId: dispute.creator.id,
-        title: "Dispute updated",
-        message: `Your dispute has been ${status.toLowerCase()}.`,
-        type: "SYSTEM",
-        emailSubject: `Dispute update: ${status}`,
-        emailHtml: `<p>Hello ${dispute.creator.name || "there"},</p><p>Your dispute has been <strong>${status.toLowerCase()}</strong>.</p><p><strong>Resolution:</strong> ${resolution}</p>`,
-      }),
-      sendComprehensiveNotification({
-        userId: dispute.defendant.id,
-        title: "Dispute updated",
-        message: `A dispute involving your booking has been ${status.toLowerCase()}.`,
-        type: "SYSTEM",
-        emailSubject: `Dispute update: ${status}`,
-        emailHtml: `<p>Hello ${dispute.defendant.name || "there"},</p><p>A dispute involving your booking has been <strong>${status.toLowerCase()}</strong>.</p><p><strong>Resolution:</strong> ${resolution}</p>`,
-      }),
-    ]);
-
-    await prisma.adminLog.create({
-      data: {
-        adminId: admin.id,
-        action: `RESOLVED_DISPUTE_${status}`,
-        targetId: disputeId,
-        details: { resolution },
-      },
-    });
-
-    revalidatePath("/admin/disputes");
-    return { success: true };
-  } catch (error) {
-    console.error("Error resolving dispute:", error);
-    return { success: false, error: "Failed to resolve dispute" };
-  }
+  return resolveDisputeWithSettlement({
+    disputeId,
+    resolution,
+    settlement: status === "CLOSED" ? "REFUND_CLIENT" : "RELEASE_PROVIDER",
+  });
 }
 
 function roundCurrencyAmount(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+async function creditWalletWithIdempotency(
+  tx: Prisma.TransactionClient,
+  params: {
+    userId: string;
+    amount: number;
+    type: "REFUND" | "EARNING";
+    description: string;
+    sourceType: string;
+    sourceId: string;
+    adminId: string;
+    metadata?: Prisma.InputJsonValue;
+  },
+) {
+  const amount = roundCurrencyAmount(Number(params.amount || 0));
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { credited: false, ledgerEntryId: null as string | null };
+  }
+
+  const idempotencyKey = `${params.sourceType}:${params.sourceId}:${params.userId}:${params.type}`;
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${idempotencyKey}, 0))`;
+
+  const wallet = await tx.wallet.upsert({
+    where: { userId: params.userId },
+    update: {},
+    create: {
+      userId: params.userId,
+      balance: 0,
+      pendingBalance: 0,
+      currency: "KES",
+    },
+  });
+
+  const existingLedgerEntry = await tx.transaction.findFirst({
+    where: {
+      walletId: wallet.id,
+      type: params.type,
+      sourceType: params.sourceType,
+      sourceId: params.sourceId,
+      status: "SETTLED",
+    },
+    select: { id: true },
+  });
+
+  if (existingLedgerEntry) {
+    return { credited: false, ledgerEntryId: existingLedgerEntry.id };
+  }
+
+  await tx.wallet.update({
+    where: { id: wallet.id },
+    data: {
+      balance: {
+        increment: amount,
+      },
+    },
+  });
+
+  const ledgerEntry = await tx.transaction.create({
+    data: {
+      walletId: wallet.id,
+      amount,
+      type: params.type,
+      status: "SETTLED",
+      direction: "CREDIT",
+      category: params.type === "REFUND" ? "REFUND" : "EARNING",
+      currency: wallet.currency || "KES",
+      sourceType: params.sourceType,
+      sourceId: params.sourceId,
+      description: params.description,
+      metadata: params.metadata,
+      settledAt: new Date(),
+      createdByType: "ADMIN",
+      createdById: params.adminId,
+    },
+    select: { id: true },
+  });
+
+  return { credited: true, ledgerEntryId: ledgerEntry.id };
 }
 
 export async function resolveDisputeWithSettlement(params: {
@@ -1126,53 +1581,37 @@ export async function resolveDisputeWithSettlement(params: {
       bookingStatusAfterSettlement === "CANCELLED";
 
     await prisma.$transaction(async (tx) => {
-      if (clientAmount > 0) {
-        const clientWallet = await tx.wallet.upsert({
-          where: { userId: dispute.booking.clientId },
-          update: {
-            balance: {
-              increment: clientAmount,
-            },
-          },
-          create: {
-            userId: dispute.booking.clientId,
-            balance: clientAmount,
-          },
-        });
+      const clientCredit = await creditWalletWithIdempotency(tx, {
+        userId: dispute.booking.clientId,
+        amount: clientAmount,
+        type: "REFUND",
+        description: `Dispute settlement refund for booking ${dispute.booking.id}`,
+        sourceType: "DISPUTE_SETTLEMENT",
+        sourceId: `${params.disputeId}:CLIENT`,
+        adminId: admin.id,
+        metadata: {
+          disputeId: params.disputeId,
+          bookingId: dispute.booking.id,
+          settlement: params.settlement,
+          recipient: "CLIENT",
+        },
+      });
 
-        await tx.transaction.create({
-          data: {
-            walletId: clientWallet.id,
-            amount: clientAmount,
-            type: "REFUND",
-            description: `Dispute settlement refund for booking ${dispute.booking.id}`,
-          },
-        });
-      }
-
-      if (providerAmount > 0) {
-        const providerWallet = await tx.wallet.upsert({
-          where: { userId: dispute.booking.providerId },
-          update: {
-            balance: {
-              increment: providerAmount,
-            },
-          },
-          create: {
-            userId: dispute.booking.providerId,
-            balance: providerAmount,
-          },
-        });
-
-        await tx.transaction.create({
-          data: {
-            walletId: providerWallet.id,
-            amount: providerAmount,
-            type: "EARNING",
-            description: `Dispute settlement release for booking ${dispute.booking.id}`,
-          },
-        });
-      }
+      const providerCredit = await creditWalletWithIdempotency(tx, {
+        userId: dispute.booking.providerId,
+        amount: providerAmount,
+        type: "EARNING",
+        description: `Dispute settlement release for booking ${dispute.booking.id}`,
+        sourceType: "DISPUTE_SETTLEMENT",
+        sourceId: `${params.disputeId}:PROVIDER`,
+        adminId: admin.id,
+        metadata: {
+          disputeId: params.disputeId,
+          bookingId: dispute.booking.id,
+          settlement: params.settlement,
+          recipient: "PROVIDER",
+        },
+      });
 
       if (dispute.booking.payment?.id) {
         await tx.payment.update({
@@ -1225,6 +1664,8 @@ export async function resolveDisputeWithSettlement(params: {
             clientSharePercent,
             clientAmount,
             providerAmount,
+            clientLedgerEntryId: clientCredit.ledgerEntryId,
+            providerLedgerEntryId: providerCredit.ledgerEntryId,
           },
         },
       });
@@ -1279,39 +1720,69 @@ export async function getSupportTickets(
   try {
     await checkAdmin();
 
-    const skip = (page - 1) * limit;
+    const safePage = normalizePage(page);
+    const safeLimit = normalizeLimit(limit, 10);
+    const skip = (safePage - 1) * safeLimit;
     const where = buildSupportTicketsWhere(filters);
+    const resolvedTicketsWhere: Prisma.SupportTicketWhereInput = {
+      ...where,
+      status: { in: ["RESOLVED", "CLOSED"] },
+    };
 
     const [tickets, total, statusCounts, priorityCounts, resolvedTickets] =
       await Promise.all([
         prisma.supportTicket.findMany({
           where,
           skip,
-          take: limit,
+          take: safeLimit,
           orderBy: { createdAt: "desc" },
           include: {
             user: { select: { name: true, email: true, role: true } },
+            messages: {
+              orderBy: { createdAt: "asc" },
+              include: {
+                author: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
           },
         }),
         prisma.supportTicket.count({ where }),
         // Get status stats
         prisma.supportTicket.groupBy({
+          where,
           by: ["status"],
           _count: true,
         }),
         // Get priority stats
         prisma.supportTicket.groupBy({
+          where,
           by: ["priority"],
           _count: true,
         }),
         // Get resolved tickets for avg response time
         prisma.supportTicket.findMany({
-          where: {
-            status: { in: ["RESOLVED", "CLOSED"] },
-          },
+          where: resolvedTicketsWhere,
           select: {
             createdAt: true,
-            updatedAt: true,
+            resolvedAt: true,
+            messages: {
+              where: {
+                authorRole: "ADMIN",
+              },
+              orderBy: {
+                createdAt: "asc",
+              },
+              take: 1,
+              select: {
+                createdAt: true,
+              },
+            },
           },
         }),
       ]);
@@ -1348,23 +1819,43 @@ export async function getSupportTickets(
       }
     });
 
-    // Calculate average response time in hours
+    // Calculate average first-response time in hours from explicit support events.
     if (resolvedTickets.length > 0) {
-      const totalResponseTime = resolvedTickets.reduce((sum, ticket) => {
-        const created = new Date(ticket.createdAt).getTime();
-        const resolved = new Date(ticket.updatedAt).getTime();
-        return sum + (resolved - created);
+      const responseDurations = resolvedTickets
+        .map((ticket) => {
+          const firstAdminResponseAt = ticket.messages[0]?.createdAt;
+          const responseAt = firstAdminResponseAt || ticket.resolvedAt;
+
+          if (!responseAt) {
+            return null;
+          }
+
+          const created = new Date(ticket.createdAt).getTime();
+          const responded = new Date(responseAt).getTime();
+
+          if (!Number.isFinite(created) || !Number.isFinite(responded)) {
+            return null;
+          }
+
+          return Math.max(0, responded - created);
+        })
+        .filter((duration): duration is number => duration !== null);
+
+      const totalResponseTime = responseDurations.reduce((sum, duration) => {
+        return sum + duration;
       }, 0);
 
-      const avgTimeMs = totalResponseTime / resolvedTickets.length;
-      stats.avgResponseTime = Math.round(avgTimeMs / (1000 * 60 * 60)); // Convert to hours
+      if (responseDurations.length > 0) {
+        const avgTimeMs = totalResponseTime / responseDurations.length;
+        stats.avgResponseTime = Math.round(avgTimeMs / (1000 * 60 * 60));
+      }
     }
 
     return {
       tickets,
       total,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+      currentPage: safePage,
       stats,
     };
   } catch (error) {
@@ -1380,28 +1871,35 @@ export async function updateSupportTicket(
     priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
     adminNotes?: string;
     resolution?: string;
+    replyMessage?: string;
   },
 ) {
   try {
     const admin = await checkAdmin();
 
-    const updateData: Prisma.SupportTicketUpdateInput = { ...data };
-
-    if (data.status === "RESOLVED" || data.status === "CLOSED") {
-      updateData.resolvedAt = new Date();
-    }
-
-    await prisma.supportTicket.update({
-      where: { id: ticketId },
-      data: updateData,
+    const result = await applySupportTicketLifecycleUpdate({
+      ticketId,
+      actorId: admin.id,
+      isAdmin: true,
+      payload: {
+        action: "ADMIN_UPDATE",
+        status: data.status,
+        priority: data.priority,
+        adminNotes: data.adminNotes,
+        resolution: data.resolution,
+        replyMessage: data.replyMessage,
+      },
     });
 
     await prisma.adminLog.create({
       data: {
         adminId: admin.id,
-        action: `UPDATED_TICKET_${ticketId}`,
+        action: "UPDATED_SUPPORT_TICKET",
         targetId: ticketId,
-        details: data,
+        details: {
+          ...data,
+          lifecycleAction: result.action,
+        },
       },
     });
 
@@ -1409,6 +1907,9 @@ export async function updateSupportTicket(
     return { success: true };
   } catch (error) {
     console.error("Error updating support ticket:", error);
+    if (error instanceof SupportTicketLifecycleError) {
+      return { success: false, error: error.message };
+    }
     return { success: false, error: "Failed to update support ticket" };
   }
 }
@@ -1417,25 +1918,29 @@ export async function getFinanceSummary() {
   try {
     await checkAdmin();
 
-    // Get total revenue from completed bookings
-    const completedBookings = await prisma.booking.findMany({
-      where: { status: "COMPLETED" },
-      select: { totalAmount: true },
-    });
-    const totalRevenue = completedBookings.reduce(
-      (sum, b) => sum + Number(b.totalAmount),
-      0,
-    );
+    const [paymentAggregate, platformFeeSetting] = await Promise.all([
+      prisma.payment.aggregate({
+        where: { status: "COMPLETED" },
+        _sum: {
+          amount: true,
+        },
+      }),
+      prisma.systemSetting.findUnique({
+        where: { key: "platform_fee_percentage" },
+        select: { value: true },
+      }),
+    ]);
 
-    // Get successful payments
-    const payments = await prisma.payment.findMany({
-      where: { status: "COMPLETED" },
-      select: { amount: true },
-    });
-    const totalPayments = payments.reduce(
-      (sum, p) => sum + Number(p.amount),
-      0,
-    );
+    const totalPayments = Number(paymentAggregate._sum.amount || 0);
+    const totalRevenue = totalPayments;
+
+    const rawPlatformFeePercentage =
+      typeof platformFeeSetting?.value === "number"
+        ? platformFeeSetting.value
+        : Number(platformFeeSetting?.value);
+    const platformFeePercentage = Number.isFinite(rawPlatformFeePercentage)
+      ? rawPlatformFeePercentage
+      : 10;
 
     // Get pending payments
     const pendingPayments = await prisma.payment.count({
@@ -1454,8 +1959,8 @@ export async function getFinanceSummary() {
       0,
     );
 
-    // Calculate platform fees (assuming 10% fee - could be retrieved from SystemSettings)
-    const platformFee = totalRevenue * 0.1;
+    // Calculate platform fee from persisted setting.
+    const platformFee = (totalPayments * platformFeePercentage) / 100;
 
     // Get recent transactions for trend
     const thirtyDaysAgo = new Date();
@@ -1542,6 +2047,7 @@ export async function getFinanceSummary() {
       totalTransactions,
       totalWalletBalance,
       platformFee,
+      platformFeePercentage,
       totalInvoices,
       failedInvoices,
       pendingInvoiceSubmissions,
@@ -1575,14 +2081,16 @@ export async function getTransactions(
   try {
     await checkAdmin();
 
-    const skip = (page - 1) * limit;
+    const safePage = normalizePage(page);
+    const safeLimit = normalizeLimit(limit, 10);
+    const skip = (safePage - 1) * safeLimit;
     const where = buildTransactionsWhere(filters);
 
     const [transactions, total] = await Promise.all([
       prisma.transaction.findMany({
         where,
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { createdAt: "desc" },
         include: {
           wallet: {
@@ -1598,8 +2106,8 @@ export async function getTransactions(
     return {
       transactions,
       total,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+      currentPage: safePage,
     };
   } catch (error) {
     console.error("Error fetching transactions:", error);
@@ -1611,14 +2119,16 @@ export async function getWallets(page = 1, limit = 10, search = "") {
   try {
     await checkAdmin();
 
-    const skip = (page - 1) * limit;
+    const safePage = normalizePage(page);
+    const safeLimit = normalizeLimit(limit, 10);
+    const skip = (safePage - 1) * safeLimit;
     const where = buildWalletsWhere(search);
 
     const [wallets, total] = await Promise.all([
       prisma.wallet.findMany({
         where,
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { balance: "desc" },
         include: {
           user: { select: { name: true, email: true, role: true } },
@@ -1630,8 +2140,8 @@ export async function getWallets(page = 1, limit = 10, search = "") {
     return {
       wallets,
       total,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+      currentPage: safePage,
     };
   } catch (error) {
     console.error("Error fetching wallets:", error);
@@ -1658,16 +2168,72 @@ export async function getPaymentLifecycleReconciliation(
       Date.now() - safeStaleThresholdMinutes * 60 * 1000,
     );
 
-    const bookings = await prisma.booking.findMany({
+    const mismatchedBookings = await prisma.booking.findMany({
       where: {
         payment: {
           isNot: null,
         },
+        OR: [
+          {
+            status: "COMPLETED",
+            payment: {
+              is: {
+                status: {
+                  not: "COMPLETED",
+                },
+              },
+            },
+          },
+          {
+            status: "CANCELLED",
+            payment: {
+              is: {
+                status: {
+                  not: "REFUNDED",
+                },
+              },
+            },
+          },
+          {
+            status: {
+              not: "CANCELLED",
+            },
+            payment: {
+              is: {
+                status: "REFUNDED",
+              },
+            },
+          },
+          {
+            status: "DISPUTED",
+            payment: {
+              is: {
+                status: "COMPLETED",
+              },
+            },
+          },
+          {
+            status: "CONFIRMED",
+            payment: {
+              is: {
+                status: "FAILED",
+              },
+            },
+          },
+          {
+            status: "PENDING",
+            payment: {
+              is: {
+                status: "COMPLETED",
+              },
+            },
+          },
+        ],
       },
       orderBy: {
         updatedAt: "desc",
       },
-      take: safeLimit * 3,
+      take: safeLimit,
       include: {
         payment: true,
         job: {
@@ -1692,7 +2258,7 @@ export async function getPaymentLifecycleReconciliation(
       },
     });
 
-    const mismatches = bookings
+    const mismatches = mismatchedBookings
       .map((booking) => {
         const payment = booking.payment;
         if (!payment) {
@@ -1722,6 +2288,17 @@ export async function getPaymentLifecycleReconciliation(
           payment.status === "COMPLETED"
         ) {
           issue = "Disputed booking already has completed payment settlement.";
+        } else if (
+          booking.status === "CONFIRMED" &&
+          payment.status === "FAILED"
+        ) {
+          issue = "Booking is confirmed while payment is marked failed.";
+          severity = "high";
+        } else if (
+          booking.status === "PENDING" &&
+          payment.status === "COMPLETED"
+        ) {
+          issue = "Payment is completed but booking remains pending.";
         }
 
         if (!issue) {
@@ -1736,7 +2313,7 @@ export async function getPaymentLifecycleReconciliation(
           paymentId: payment.id,
           paymentStatus: payment.status,
           amount: Number(payment.amount),
-          updatedAt: booking.updatedAt,
+          updatedAt: payment.updatedAt,
           issue,
           severity,
           clientName: booking.client?.name || booking.client?.email || null,
@@ -1744,8 +2321,7 @@ export async function getPaymentLifecycleReconciliation(
             booking.provider?.name || booking.provider?.email || null,
         };
       })
-      .filter((item): item is NonNullable<typeof item> => Boolean(item))
-      .slice(0, safeLimit);
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
     const stalePendingPayments = await prisma.payment.findMany({
       where: {
@@ -2136,6 +2712,21 @@ export async function resolveReconciliationEventAction(formData: FormData) {
               cancelledBy: admin.id,
             },
           });
+
+          await creditWalletWithIdempotency(tx, {
+            userId: payment.booking.clientId,
+            amount: Number(payment.amount),
+            type: "REFUND",
+            description: `Reconciliation refund for booking ${payment.bookingId}`,
+            sourceType: "RECONCILIATION_REFUND",
+            sourceId: payment.id,
+            adminId: admin.id,
+            metadata: {
+              paymentId: payment.id,
+              bookingId: payment.bookingId,
+              reason,
+            },
+          });
         }
       }
 
@@ -2267,6 +2858,29 @@ export async function deleteCategory(categoryId: string) {
   try {
     const admin = await checkAdmin();
 
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: {
+        _count: {
+          select: {
+            services: true,
+            jobs: true,
+          },
+        },
+      },
+    });
+
+    if (!category) {
+      return { success: false, error: "Category not found" };
+    }
+
+    if (category._count.services > 0 || category._count.jobs > 0) {
+      return {
+        success: false,
+        error: `Cannot delete category with dependencies (services: ${category._count.services}, jobs: ${category._count.jobs}). Reassign records first.`,
+      };
+    }
+
     await prisma.category.delete({
       where: { id: categoryId },
     });
@@ -2312,6 +2926,37 @@ export async function updateSystemSetting(
   try {
     const admin = await checkAdmin();
 
+    if (typeof value === "number" && !Number.isFinite(value)) {
+      return {
+        success: false,
+        error: "Numeric settings must be finite values.",
+      };
+    }
+
+    if (key === "platform_fee_percentage" && typeof value === "number") {
+      if (value < 0 || value > 100) {
+        return {
+          success: false,
+          error: "Platform fee percentage must be between 0 and 100.",
+        };
+      }
+    }
+
+    if (
+      [
+        "min_withdrawal_amount",
+        "max_file_upload_mb",
+        "booking_cancellation_window_hours",
+      ].includes(key) &&
+      typeof value === "number" &&
+      value < 0
+    ) {
+      return {
+        success: false,
+        error: "This setting must be zero or greater.",
+      };
+    }
+
     const setting = await prisma.systemSetting.upsert({
       where: { key },
       update: { value, description },
@@ -2340,18 +2985,21 @@ export async function getAdminLogs(
   page = 1,
   limit = 20,
   accessType: AdminLogAccessType = "ALL",
+  filters: AdminLogFilters = {},
 ) {
   try {
     await checkAdmin();
-    const skip = (page - 1) * limit;
+    const safePage = normalizePage(page);
+    const safeLimit = normalizeLimit(limit, 20);
+    const skip = (safePage - 1) * safeLimit;
 
-    const where = buildAdminLogsWhere(accessType);
+    const where = buildAdminLogsWhere(accessType, filters);
 
     const [logs, total] = await Promise.all([
       prisma.adminLog.findMany({
         where,
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { createdAt: "desc" },
         include: {
           admin: { select: { name: true, email: true, image: true } },
@@ -2363,9 +3011,10 @@ export async function getAdminLogs(
     return {
       logs,
       total,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+      currentPage: safePage,
       accessType,
+      filters,
     };
   } catch (error) {
     console.error("Error fetching admin logs:", error);
@@ -2381,18 +3030,29 @@ export async function processManualRefund(
   try {
     const admin = await checkAdmin();
 
+    const normalizedAmount = roundCurrencyAmount(Number(amount));
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+      return { success: false, error: "Refund amount must be greater than 0" };
+    }
+
     // 1. Get booking and related payment
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
         payment: true,
-        client: {
-          include: { wallet: true },
-        },
+        client: true,
       },
     });
 
     if (!booking) return { success: false, error: "Booking not found" };
+
+    const bookingTotal = Number(booking.totalAmount || 0);
+    if (normalizedAmount > bookingTotal) {
+      return {
+        success: false,
+        error: "Refund amount cannot exceed the booking total.",
+      };
+    }
 
     // 2. Perform transaction in a multi-step update (Prisma transaction)
     await prisma.$transaction(async (tx) => {
@@ -2401,7 +3061,7 @@ export async function processManualRefund(
         where: { id: bookingId },
         data: {
           status: "CANCELLED",
-          refundAmount: amount,
+          refundAmount: normalizedAmount,
           cancellationReason: `[Admin Manual Refund] ${reason}`,
           cancelledAt: new Date(),
           cancelledBy: admin.id,
@@ -2416,25 +3076,19 @@ export async function processManualRefund(
         });
       }
 
-      // Update Wallet
-      if (booking.client.wallet) {
-        await tx.wallet.update({
-          where: { id: booking.client.wallet.id },
-          data: {
-            balance: { increment: amount },
-          },
-        });
-
-        // Record Wallet Transaction
-        await tx.transaction.create({
-          data: {
-            walletId: booking.client.wallet.id,
-            amount: amount,
-            type: "REFUND",
-            description: `Manual refund for booking ${bookingId}: ${reason}`,
-          },
-        });
-      }
+      const walletCredit = await creditWalletWithIdempotency(tx, {
+        userId: booking.clientId,
+        amount: normalizedAmount,
+        type: "REFUND",
+        description: `Manual refund for booking ${bookingId}: ${reason}`,
+        sourceType: "ADMIN_MANUAL_REFUND",
+        sourceId: bookingId,
+        adminId: admin.id,
+        metadata: {
+          bookingId,
+          reason,
+        },
+      });
 
       // Create Admin Log
       await tx.adminLog.create({
@@ -2442,7 +3096,12 @@ export async function processManualRefund(
           adminId: admin.id,
           action: "MANUAL_REFUND_PROCESSED",
           targetId: bookingId,
-          details: { amount, reason, clientId: booking.clientId },
+          details: {
+            amount: normalizedAmount,
+            reason,
+            clientId: booking.clientId,
+            walletLedgerEntryId: walletCredit.ledgerEntryId,
+          },
         },
       });
     });
@@ -2517,7 +3176,19 @@ export async function processWalletManualAdjustmentAction(formData: FormData) {
         },
       });
 
-      const beforeBalance = Number(wallet.balance);
+      const adjustmentLockKey = `wallet-adjustment:${wallet.id}`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${adjustmentLockKey}, 0))`;
+
+      const lockedWallet = await tx.wallet.findUniqueOrThrow({
+        where: { id: wallet.id },
+        select: {
+          id: true,
+          balance: true,
+          currency: true,
+        },
+      });
+
+      const beforeBalance = Number(lockedWallet.balance);
       const adjustmentValue = Number(amount);
 
       if (direction === "DEBIT" && beforeBalance < adjustmentValue) {
@@ -2525,7 +3196,7 @@ export async function processWalletManualAdjustmentAction(formData: FormData) {
       }
 
       const updatedWallet = await tx.wallet.update({
-        where: { id: wallet.id },
+        where: { id: lockedWallet.id },
         data: {
           balance:
             direction === "CREDIT"
@@ -2536,13 +3207,13 @@ export async function processWalletManualAdjustmentAction(formData: FormData) {
 
       const ledgerEntry = await tx.transaction.create({
         data: {
-          walletId: wallet.id,
+          walletId: lockedWallet.id,
           amount: adjustmentValue,
           type: "ADJUSTMENT",
           status: "SETTLED",
           direction: direction as "CREDIT" | "DEBIT",
           category: "ADJUSTMENT",
-          currency: updatedWallet.currency || "KES",
+          currency: lockedWallet.currency || "KES",
           sourceType: "ADMIN_ADJUSTMENT",
           sourceId: sourceReference || null,
           description: `Manual wallet adjustment (${direction}) - ${reason}`,
@@ -2566,7 +3237,7 @@ export async function processWalletManualAdjustmentAction(formData: FormData) {
           action: "WALLET_MANUAL_ADJUSTMENT",
           targetId: wallet.id,
           details: {
-            walletId: wallet.id,
+            walletId: lockedWallet.id,
             ledgerEntryId: ledgerEntry.id,
             direction,
             amount: adjustmentValue,
@@ -2581,7 +3252,7 @@ export async function processWalletManualAdjustmentAction(formData: FormData) {
       });
 
       return {
-        walletId: wallet.id,
+        walletId: lockedWallet.id,
         ledgerEntryId: ledgerEntry.id,
         beforeBalance,
         afterBalance: Number(updatedWallet.balance),

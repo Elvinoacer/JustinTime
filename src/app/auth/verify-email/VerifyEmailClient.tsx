@@ -71,7 +71,7 @@ function VerifyEmailContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-3 sm:p-4">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-blue-50 flex items-center justify-center p-3 sm:p-4">
       <div className="max-w-md w-full">
         {/* Header for Mobile */}
         <motion.div
@@ -163,7 +163,7 @@ function VerifyEmailContent() {
               <div className="max-w-[180px] sm:max-w-[200px] mx-auto mb-6 sm:mb-8">
                 <div className="h-1.5 sm:h-2 bg-slate-100 rounded-full overflow-hidden">
                   <motion.div
-                    className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600"
+                    className="h-full bg-linear-to-r from-indigo-500 to-indigo-600"
                     initial={{ width: "0%" }}
                     animate={{ width: "100%" }}
                     transition={{ duration: 2, repeat: Infinity }}
@@ -182,7 +182,7 @@ function VerifyEmailContent() {
                 <div className="space-y-4">
                   <Link
                     href={verifiedLoginHref}
-                    className="flex items-center justify-center gap-2 px-4 sm:px-8 py-3 sm:py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl sm:rounded-xl font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-all active:scale-[0.98] shadow-md shadow-emerald-500/20"
+                    className="flex items-center justify-center gap-2 px-4 sm:px-8 py-3 sm:py-3.5 bg-linear-to-r from-emerald-600 to-emerald-700 text-white rounded-xl sm:rounded-xl font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-all active:scale-[0.98] shadow-md shadow-emerald-500/20"
                   >
                     <span className="text-sm sm:text-base">
                       Continue to Login
@@ -317,7 +317,7 @@ export default function VerifyEmailPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-linear-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
           <div className="text-center">
             <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full flex items-center justify-center shadow-lg mb-4 mx-auto">
               <Loader2 className="w-7 h-7 sm:w-10 sm:h-10 text-indigo-600 animate-spin" />

@@ -40,7 +40,7 @@ const NearbyBanner: React.FC<NearbyBannerProps> = ({
 
   return (
     <motion.div
-      className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 mb-6 sm:mb-8 overflow-hidden relative"
+      className="bg-linear-to-br from-emerald-600 via-green-600 to-teal-700 rounded-2xl sm:rounded-3xl p-4 sm:p-6 mb-6 sm:mb-8 overflow-hidden relative"
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
@@ -142,7 +142,7 @@ const NearbyBanner: React.FC<NearbyBannerProps> = ({
                       {/* Current Location Card */}
                       <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/10">
                         <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center shrink-0">
                             <span className="material-symbols-outlined text-white text-lg">
                               check_circle
                             </span>
@@ -188,7 +188,7 @@ const NearbyBanner: React.FC<NearbyBannerProps> = ({
                       {/* Empty State */}
                       <div className="bg-white/10 backdrop-blur-md rounded-xl p-5 border border-white/10">
                         <div className="flex items-start gap-3 mb-4">
-                          <div className="w-10 h-10 bg-blue-500/50 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <div className="w-10 h-10 bg-blue-500/50 rounded-lg flex items-center justify-center shrink-0">
                             <span className="material-symbols-outlined text-white text-lg">
                               info
                             </span>

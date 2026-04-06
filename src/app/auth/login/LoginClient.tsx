@@ -308,7 +308,7 @@ function LoginPageContent() {
           {/* Header */}
           <div className="text-center mb-6 sm:mb-8">
             <div className="flex justify-center mb-4">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-linear-to-br from-emerald-500 to-emerald-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
                 <KeyRound className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
             </div>
@@ -342,7 +342,7 @@ function LoginPageContent() {
                 className="mb-4 sm:mb-6 rounded-lg sm:rounded-xl bg-red-50 border border-red-200 p-3 sm:p-4"
               >
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-sm text-red-800">{error}</p>
                     {showVerifyAction && (

@@ -51,17 +51,67 @@ export default function FinanceClient({ initialData }: FinanceClientProps) {
     params.set("tab", activeTab);
 
     if (filters.search) params.set("search", filters.search);
-    if (filters.type && filters.type !== "ALL")
-      params.set("type", filters.type);
-    if (filters.status && filters.status !== "ALL")
-      params.set("status", filters.status);
-    if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
-    if (filters.dateTo) params.set("dateTo", filters.dateTo);
-    if (filters.minAmount) params.set("minAmount", filters.minAmount);
-    if (filters.maxAmount) params.set("maxAmount", filters.maxAmount);
+
+    if (activeTab === "transactions") {
+      if (filters.type && filters.type !== "ALL") {
+        params.set("type", filters.type);
+      }
+      if (filters.status && filters.status !== "ALL") {
+        params.set("status", filters.status);
+      }
+      if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+      if (filters.dateTo) params.set("dateTo", filters.dateTo);
+      if (filters.minAmount) params.set("minAmount", filters.minAmount);
+      if (filters.maxAmount) params.set("maxAmount", filters.maxAmount);
+    }
 
     router.push(`/admin/finance?${params.toString()}`);
     setIsFiltersOpen(false);
+  };
+
+  const handleExportOverviewData = () => {
+    const summary = initialData.summary;
+    const rows = [
+      ["Metric", "Value"],
+      ["Total Revenue", String(summary.totalRevenue ?? 0)],
+      ["Total Payments", String(summary.totalPayments ?? 0)],
+      ["Pending Payments", String(summary.pendingPayments ?? 0)],
+      ["Platform Fee", String(summary.platformFee ?? 0)],
+      ["Platform Fee Percentage", String(summary.platformFeePercentage ?? 0)],
+      ["Total Wallet Balance", String(summary.totalWalletBalance ?? 0)],
+      [
+        "Completed without Invoice",
+        String(summary.reconciliation?.completedWithoutInvoice ?? 0),
+      ],
+      [
+        "Invoice without Completion",
+        String(summary.reconciliation?.invoiceWithoutCompletedBooking ?? 0),
+      ],
+      [
+        "Paid without Invoice",
+        String(summary.reconciliation?.completedPaymentWithoutInvoice ?? 0),
+      ],
+      [
+        "Failed eTIMS + Paid",
+        String(summary.reconciliation?.failedEtimsWithCompletedPayment ?? 0),
+      ],
+    ];
+
+    const csv = rows
+      .map((row) =>
+        row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","),
+      )
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `finance-overview-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleTabChange = (tab: string) => {
@@ -331,25 +381,37 @@ export default function FinanceClient({ initialData }: FinanceClientProps) {
                     Quick Actions
                   </h3>
                   <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                    <button className="p-3 xs:p-4 bg-emerald-50 rounded-lg sm:rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors text-center">
+                    <button
+                      onClick={() => handleTabChange("wallets")}
+                      className="p-3 xs:p-4 bg-emerald-50 rounded-lg sm:rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors text-center"
+                    >
                       <Wallet className="w-5 h-5 xs:w-6 xs:h-6 text-emerald-600 mx-auto mb-2" />
                       <p className="text-xs xs:text-sm font-medium text-emerald-700">
                         Wallet Balances
                       </p>
                     </button>
-                    <button className="p-3 xs:p-4 bg-blue-50 rounded-lg sm:rounded-xl border border-blue-100 hover:bg-blue-100 transition-colors text-center">
+                    <button
+                      onClick={() => handleTabChange("transactions")}
+                      className="p-3 xs:p-4 bg-blue-50 rounded-lg sm:rounded-xl border border-blue-100 hover:bg-blue-100 transition-colors text-center"
+                    >
                       <ArrowRightLeft className="w-5 h-5 xs:w-6 xs:h-6 text-blue-600 mx-auto mb-2" />
                       <p className="text-xs xs:text-sm font-medium text-blue-700">
                         All Transactions
                       </p>
                     </button>
-                    <button className="p-3 xs:p-4 bg-purple-50 rounded-lg sm:rounded-xl border border-purple-100 hover:bg-purple-100 transition-colors text-center">
+                    <button
+                      onClick={() => router.push("/admin/logs?access=FINANCE")}
+                      className="p-3 xs:p-4 bg-purple-50 rounded-lg sm:rounded-xl border border-purple-100 hover:bg-purple-100 transition-colors text-center"
+                    >
                       <LayoutDashboard className="w-5 h-5 xs:w-6 xs:h-6 text-purple-600 mx-auto mb-2" />
                       <p className="text-xs xs:text-sm font-medium text-purple-700">
                         Reports
                       </p>
                     </button>
-                    <button className="p-3 xs:p-4 bg-orange-50 rounded-lg sm:rounded-xl border border-orange-100 hover:bg-orange-100 transition-colors text-center">
+                    <button
+                      onClick={handleExportOverviewData}
+                      className="p-3 xs:p-4 bg-orange-50 rounded-lg sm:rounded-xl border border-orange-100 hover:bg-orange-100 transition-colors text-center"
+                    >
                       <ArrowUpRight className="w-5 h-5 xs:w-6 xs:h-6 text-orange-600 mx-auto mb-2" />
                       <p className="text-xs xs:text-sm font-medium text-orange-700">
                         Export Data

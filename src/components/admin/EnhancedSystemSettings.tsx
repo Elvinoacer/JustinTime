@@ -244,7 +244,7 @@ export default function EnhancedSystemSettings({
                     <div className="p-4 xs:p-5 sm:p-6">
                       <div className="flex items-start gap-3 xs:gap-4">
                         <div
-                          className={`p-2 xs:p-3 rounded-lg xs:rounded-xl ${defaultSetting.bgColor} ${defaultSetting.color} flex-shrink-0`}
+                          className={`p-2 xs:p-3 rounded-lg xs:rounded-xl ${defaultSetting.bgColor} ${defaultSetting.color} shrink-0`}
                         >
                           <Icon className="w-4 h-4 xs:w-5 xs:h-5 sm:w-6 sm:h-6" />
                         </div>

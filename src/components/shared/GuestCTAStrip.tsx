@@ -64,7 +64,7 @@ const GuestCTAStrip: React.FC<GuestCTAStripProps> = ({
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className="relative mt-12 flex flex-col items-center justify-between gap-6 overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 p-6 text-white shadow-[0_24px_60px_-28px_rgba(5,150,105,0.55)] sm:p-10 md:flex-row"
+      className="relative mt-12 flex flex-col items-center justify-between gap-6 overflow-hidden rounded-3xl bg-linear-to-br from-emerald-600 via-emerald-700 to-teal-800 p-6 text-white shadow-[0_24px_60px_-28px_rgba(5,150,105,0.55)] sm:p-10 md:flex-row"
     >
       {/* Background Decor */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none" />

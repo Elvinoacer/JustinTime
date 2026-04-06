@@ -460,7 +460,7 @@ export default function ClientBookingsPage() {
                   <div className="px-3 sm:px-4 md:px-6 py-4 md:py-5 hover:bg-gray-50 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-3 md:gap-4 flex-1 min-w-0">
-                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-linear-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 shadow-sm">
                           {booking.provider.image ? (
                             <img
                               src={booking.provider.image}
@@ -497,7 +497,7 @@ export default function ClientBookingsPage() {
                                     key={slot.id}
                                     className="flex items-center gap-1.5"
                                   >
-                                    <span className="material-symbols-outlined text-xs md:text-sm flex-shrink-0">
+                                    <span className="material-symbols-outlined text-xs md:text-sm shrink-0">
                                       event
                                     </span>
                                     <span className="truncate">
@@ -512,7 +512,7 @@ export default function ClientBookingsPage() {
                                         |
                                       </span>
                                       <span className="flex items-center gap-1">
-                                        <span className="material-symbols-outlined text-xs md:text-sm flex-shrink-0">
+                                        <span className="material-symbols-outlined text-xs md:text-sm shrink-0">
                                           schedule
                                         </span>
                                         {slot.startTime} - {slot.endTime}
@@ -529,7 +529,7 @@ export default function ClientBookingsPage() {
                               </div>
                             ) : (
                               <div className="flex items-center gap-1.5 truncate">
-                                <span className="material-symbols-outlined text-xs md:text-sm flex-shrink-0">
+                                <span className="material-symbols-outlined text-xs md:text-sm shrink-0">
                                   schedule
                                 </span>
                                 <span className="truncate">
@@ -572,7 +572,7 @@ export default function ClientBookingsPage() {
                       </div>
 
                       {/* Status Badge - Positioned better on mobile */}
-                      <div className="flex flex-col items-end gap-2 ml-2 md:ml-4 flex-shrink-0">
+                      <div className="flex flex-col items-end gap-2 ml-2 md:ml-4 shrink-0">
                         <span
                           className={`px-2 py-1 md:px-3 md:py-1.5 inline-flex items-center gap-1 text-[10px] md:text-xs font-bold rounded-full border-2 ${
                             statusColors[booking.status] ||
@@ -725,9 +725,9 @@ export default function ClientBookingsPage() {
         {selectedBooking && (
           <div className="space-y-4 md:space-y-6">
             {/* Provider Info */}
-            <div className="flex items-center justify-between gap-3 md:gap-4 p-3 md:p-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg md:rounded-xl border border-emerald-200">
+            <div className="flex items-center justify-between gap-3 md:gap-4 p-3 md:p-4 bg-linear-to-br from-emerald-50 to-teal-50 rounded-lg md:rounded-xl border border-emerald-200">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-md md:shadow-lg flex-shrink-0">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-linear-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-md md:shadow-lg shrink-0">
                   {selectedBooking.provider.image ? (
                     <img
                       src={selectedBooking.provider.image}
@@ -852,7 +852,7 @@ export default function ClientBookingsPage() {
                         key={i}
                         className="flex items-center gap-2 text-xs md:text-sm text-gray-900 bg-white p-1.5 md:p-2 rounded-lg"
                       >
-                        <span className="material-symbols-outlined text-blue-600 text-sm md:text-base flex-shrink-0">
+                        <span className="material-symbols-outlined text-blue-600 text-sm md:text-base shrink-0">
                           event
                         </span>
                         <span className="truncate">

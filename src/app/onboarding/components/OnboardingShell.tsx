@@ -38,7 +38,7 @@ export default function OnboardingShell({
           {/* Logo + Header */}
           <div className="mb-6 sm:mb-8 md:mb-10 text-center">
             <div className="flex justify-center mb-4 sm:mb-6 md:mb-8">
-              <div className="relative w-full max-w-[200px] xs:max-w-[240px] sm:max-w-[280px] md:max-w-[320px] lg:max-w-[360px] aspect-[3/1] transition-transform duration-500 hover:scale-105">
+              <div className="relative w-full max-w-[200px] xs:max-w-[240px] sm:max-w-70 md:max-w-[320px] lg:max-w-[360px] aspect-[3/1] transition-transform duration-500 hover:scale-105">
                 <div className="absolute inset-0 bg-emerald-500/20 blur-3xl rounded-full opacity-20" />
                 <Image
                   src="/images/JustinTimeLogo.png"
@@ -50,7 +50,7 @@ export default function OnboardingShell({
                 />
               </div>
             </div>
-            <h1 className="text-2xl xs:text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight mb-2 sm:mb-3 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+            <h1 className="text-2xl xs:text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight mb-2 sm:mb-3 bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
               Welcome to JustInTime
             </h1>
             <p className="text-sm xs:text-base sm:text-lg text-gray-600 font-medium max-w-md mx-auto px-2">
@@ -78,7 +78,7 @@ export default function OnboardingShell({
               <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 -translate-y-1/2 z-0" />
               {/* Active line */}
               <motion.div
-                className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-emerald-500 to-teal-400 -translate-y-1/2 z-[1]"
+                className="absolute top-1/2 left-0 h-0.5 bg-linear-to-r from-emerald-500 to-teal-400 -translate-y-1/2 z-[1]"
                 initial={{ width: "0%" }}
                 animate={{
                   width: `${((Math.min(currentStep, totalSteps) - 1) / (totalSteps - 1)) * 100}%`,

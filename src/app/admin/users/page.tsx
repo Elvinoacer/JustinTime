@@ -1,37 +1,9 @@
-import { getUsers } from "@/app/actions/admin";
+import { getUserStats, getUsers } from "@/app/actions/admin";
 import UsersFilters from "@/components/admin/UsersFilters";
 import UsersTable from "@/components/admin/UsersTable";
-import { prisma } from "@/lib/prisma";
 import { Ban, Clock, Shield, Users } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-
-async function getUserStats() {
-  const [
-    totalUsers,
-    totalClients,
-    totalProviders,
-    bannedUsers,
-    pendingVerifications,
-    verifiedProviders,
-  ] = await Promise.all([
-    prisma.user.count(),
-    prisma.user.count({ where: { role: "CLIENT" } }),
-    prisma.user.count({ where: { role: "PROVIDER" } }),
-    prisma.user.count({ where: { isBanned: true } }),
-    prisma.profile.count({ where: { verificationStatus: "PENDING" } }),
-    prisma.profile.count({ where: { verificationStatus: "VERIFIED" } }),
-  ]);
-
-  return {
-    totalUsers,
-    totalClients,
-    totalProviders,
-    bannedUsers,
-    pendingVerifications,
-    verifiedProviders,
-  };
-}
 
 export default async function AdminUsersPage({
   searchParams,
@@ -44,7 +16,7 @@ export default async function AdminUsersPage({
   }>;
 }) {
   const params = await searchParams;
-  const page = Number(params.page) || 1;
+  const page = Number(params.page) > 0 ? Number(params.page) : 1;
   const search = params.search || "";
   const role = params.role || "";
   const status = params.status || "";
@@ -192,11 +164,11 @@ export default async function AdminUsersPage({
               {/* Progress bar for visual interest */}
               <div className="mt-2 sm:mt-3 w-full bg-slate-100 rounded-full h-1">
                 <div
-                  className={`h-1 rounded-full bg-gradient-to-r ${stat.gradient} transition-all duration-500`}
+                  className={`h-1 rounded-full bg-linear-to-r ${stat.gradient} transition-all duration-500`}
                   style={{
                     width: `${Math.min(
                       (stat.value / Math.max(stats.totalUsers, 1)) * 100,
-                      100
+                      100,
                     )}%`,
                   }}
                 />
@@ -216,7 +188,7 @@ export default async function AdminUsersPage({
             return (
               <div
                 key={stat.label}
-                className="flex-shrink-0 w-32 bg-white p-3 rounded-lg border border-slate-200 shadow-xs"
+                className="shrink-0 w-32 bg-white p-3 rounded-lg border border-slate-200 shadow-xs"
               >
                 <div className="flex items-center gap-2 mb-2">
                   <div className={`p-1.5 rounded-lg ${colorClasses.bg}`}>

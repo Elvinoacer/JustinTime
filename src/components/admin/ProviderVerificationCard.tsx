@@ -51,10 +51,10 @@ export default function ProviderVerificationCard({
 
   if (!user.profile) return null;
 
-  const handleVerify = (status: "VERIFIED" | "REJECTED" | "PENDING") => {
+  const handleVerify = (status: "VERIFIED" | "REJECTED") => {
     if (
       !confirm(
-        `Are you sure you want to set this provider's status to ${status}?`
+        `Are you sure you want to set this provider's status to ${status}?`,
       )
     )
       return;
@@ -68,11 +68,11 @@ export default function ProviderVerificationCard({
   return (
     <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm sm:shadow-lg overflow-hidden mb-4 sm:mb-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="bg-linear-to-r from-slate-900 via-slate-800 to-slate-900 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-2">
           <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
           <h3 className="font-bold text-lg sm:text-xl text-white">
-            <span className="bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">
               Provider Verification
             </span>
           </h3>
@@ -333,8 +333,8 @@ export default function ProviderVerificationCard({
                 user.profile.verificationStatus === "VERIFIED"
                   ? "bg-emerald-500/10 border-emerald-500 text-emerald-400"
                   : user.profile.verificationStatus === "REJECTED"
-                  ? "bg-red-500/10 border-red-500 text-red-400"
-                  : "bg-amber-500/10 border-amber-500 text-amber-400"
+                    ? "bg-red-500/10 border-red-500 text-red-400"
+                    : "bg-amber-500/10 border-amber-500 text-amber-400"
               }`}
             >
               {user.profile.verificationStatus === "VERIFIED" ? (
@@ -354,8 +354,8 @@ export default function ProviderVerificationCard({
                   user.profile.verificationStatus === "VERIFIED"
                     ? "text-emerald-400"
                     : user.profile.verificationStatus === "REJECTED"
-                    ? "text-red-400"
-                    : "text-amber-400"
+                      ? "text-red-400"
+                      : "text-amber-400"
                 }`}
               >
                 {user.profile.verificationStatus || "PENDING"}
@@ -365,24 +365,11 @@ export default function ProviderVerificationCard({
 
           <div className="flex flex-wrap gap-2 sm:gap-3 justify-center sm:justify-end">
             <button
-              onClick={() => handleVerify("PENDING")}
-              disabled={
-                isPending || user.profile.verificationStatus === "PENDING"
-              }
-              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-xs sm:text-sm transition-all min-w-[80px] ${
-                user.profile.verificationStatus === "PENDING"
-                  ? "bg-amber-500 text-white cursor-default shadow-lg shadow-amber-500/20"
-                  : "bg-slate-800 text-slate-300 hover:bg-amber-500 hover:text-white border border-slate-700 hover:border-amber-500"
-              }`}
-            >
-              Pending
-            </button>
-            <button
               onClick={() => handleVerify("REJECTED")}
               disabled={
                 isPending || user.profile.verificationStatus === "REJECTED"
               }
-              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-xs sm:text-sm transition-all min-w-[80px] ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-xs sm:text-sm transition-all min-w-20 ${
                 user.profile.verificationStatus === "REJECTED"
                   ? "bg-red-500 text-white cursor-default shadow-lg shadow-red-500/20"
                   : "bg-slate-800 text-slate-300 hover:bg-red-500 hover:text-white border border-slate-700 hover:border-red-500"
@@ -395,7 +382,7 @@ export default function ProviderVerificationCard({
               disabled={
                 isPending || user.profile.verificationStatus === "VERIFIED"
               }
-              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-xs sm:text-sm transition-all min-w-[80px] ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-xs sm:text-sm transition-all min-w-20 ${
                 user.profile.verificationStatus === "VERIFIED"
                   ? "bg-emerald-500 text-white cursor-default shadow-lg shadow-emerald-500/20"
                   : "bg-slate-800 text-slate-300 hover:bg-emerald-500 hover:text-white border border-slate-700 hover:border-emerald-500"
@@ -410,7 +397,7 @@ export default function ProviderVerificationCard({
       {/* Image Modal */}
       {showImageModal && (
         <div
-          className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-2 sm:p-4 cursor-zoom-out backdrop-blur-sm"
+          className="fixed inset-0 z-9999 bg-black/95 flex items-center justify-center p-2 sm:p-4 cursor-zoom-out backdrop-blur-sm"
           onClick={() => setShowImageModal(null)}
         >
           <div className="relative w-full max-w-4xl lg:max-w-5xl h-[80vh] sm:h-[85vh]">

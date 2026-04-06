@@ -14,7 +14,8 @@ async function getDashboardStats() {
     completedBookings,
     activeDisputes,
     openTickets,
-    totalRevenue,
+    paymentAggregate,
+    platformFeeSetting,
     recentUsers,
     recentBookings,
     recentDisputes,
@@ -35,9 +36,13 @@ async function getDashboardStats() {
     prisma.booking.count({ where: { status: "COMPLETED" } }),
     prisma.dispute.count({ where: { status: "OPEN" } }),
     prisma.supportTicket.count({ where: { status: "OPEN" } }),
-    prisma.booking.aggregate({
+    prisma.payment.aggregate({
       where: { status: "COMPLETED" },
-      _sum: { totalAmount: true },
+      _sum: { amount: true },
+    }),
+    prisma.systemSetting.findUnique({
+      where: { key: "platform_fee_percentage" },
+      select: { value: true },
     }),
     prisma.user.findMany({
       take: 5,
@@ -47,6 +52,7 @@ async function getDashboardStats() {
         name: true,
         email: true,
         role: true,
+        roles: true,
         createdAt: true,
       },
     }),
@@ -68,6 +74,16 @@ async function getDashboardStats() {
     }),
   ]);
 
+  const totalRevenue = Number(paymentAggregate._sum.amount || 0);
+  const rawPlatformFeePercentage =
+    typeof platformFeeSetting?.value === "number"
+      ? platformFeeSetting.value
+      : Number(platformFeeSetting?.value);
+  const platformFeePercentage = Number.isFinite(rawPlatformFeePercentage)
+    ? rawPlatformFeePercentage
+    : 10;
+  const platformFee = (totalRevenue * platformFeePercentage) / 100;
+
   return {
     totalUsers,
     totalProviders,
@@ -77,7 +93,9 @@ async function getDashboardStats() {
     completedBookings,
     activeDisputes,
     openTickets,
-    totalRevenue: Number(totalRevenue._sum.totalAmount || 0),
+    totalRevenue,
+    platformFee,
+    platformFeePercentage,
     recentUsers,
     recentBookings,
     recentDisputes,
@@ -99,7 +117,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl shadow-sm border border-blue-200">
+        <div className="bg-linear-to-br from-blue-50 to-blue-100 p-6 rounded-xl shadow-sm border border-blue-200">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-blue-700 text-sm font-medium">Total Users</h3>
@@ -116,7 +134,7 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-6 rounded-xl shadow-sm border border-amber-200">
+        <div className="bg-linear-to-br from-amber-50 to-amber-100 p-6 rounded-xl shadow-sm border border-amber-200">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-amber-700 text-sm font-medium">
@@ -138,7 +156,7 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-6 rounded-xl shadow-sm border border-emerald-200">
+        <div className="bg-linear-to-br from-emerald-50 to-emerald-100 p-6 rounded-xl shadow-sm border border-emerald-200">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-emerald-700 text-sm font-medium">
@@ -157,7 +175,7 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl shadow-sm border border-purple-200">
+        <div className="bg-linear-to-br from-purple-50 to-purple-100 p-6 rounded-xl shadow-sm border border-purple-200">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-purple-700 text-sm font-medium">
@@ -167,7 +185,8 @@ export default async function AdminDashboardPage() {
                 KES {stats.totalRevenue.toLocaleString()}
               </p>
               <p className="text-purple-600 text-xs mt-1">
-                Platform fees: KES {(stats.totalRevenue * 0.1).toLocaleString()}
+                Platform fees ({stats.platformFeePercentage}%): KES{" "}
+                {stats.platformFee.toLocaleString()}
               </p>
             </div>
             <span className="material-symbols-outlined text-5xl text-purple-300">
@@ -246,14 +265,18 @@ export default async function AdminDashboardPage() {
                   </div>
                   <span
                     className={`px-2 py-1 rounded text-xs font-medium ${
+                      (user.roles || []).includes("PROVIDER") ||
                       user.role === "PROVIDER"
                         ? "bg-purple-100 text-purple-700"
-                        : user.role === "CLIENT"
+                        : (user.roles || []).includes("CLIENT") ||
+                            user.role === "CLIENT"
                           ? "bg-blue-100 text-blue-700"
                           : "bg-slate-100 text-slate-700"
                     }`}
                   >
-                    {user.role}
+                    {Array.isArray(user.roles) && user.roles.length > 1
+                      ? `${user.role} (${user.roles.join(",")})`
+                      : user.role}
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">

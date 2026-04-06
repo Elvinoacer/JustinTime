@@ -435,7 +435,7 @@ export default function ReviewSubmissionPage({
             className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-xs sm:shadow-sm lg:shadow-md border border-gray-200 overflow-hidden"
           >
             {/* Header Section */}
-            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-4 sm:p-6 lg:p-8 text-center text-white">
+            <div className="bg-linear-to-r from-emerald-500 to-teal-600 p-4 sm:p-6 lg:p-8 text-center text-white">
               <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 sm:py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-xs sm:text-sm font-medium mb-2 sm:mb-3">
                 <Award className="w-3 h-3 sm:w-4 sm:h-4" />
                 Share Your Experience
@@ -450,11 +450,11 @@ export default function ReviewSubmissionPage({
 
             <div className="p-4 sm:p-6 lg:p-8">
               {/* Service Details */}
-              <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6 lg:mb-8 p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-white rounded-lg sm:rounded-xl border border-gray-100">
+              <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6 lg:mb-8 p-3 sm:p-4 bg-linear-to-r from-gray-50 to-white rounded-lg sm:rounded-xl border border-gray-100">
                 <div
                   className={`${
                     isMobile ? "w-12 h-12" : "w-14 h-14 sm:w-16 sm:h-16"
-                  } rounded-full bg-gray-200 bg-cover bg-center flex-shrink-0 border-2 border-white shadow-sm`}
+                  } rounded-full bg-gray-200 bg-cover bg-center shrink-0 border-2 border-white shadow-sm`}
                   style={{
                     backgroundImage: `url(${
                       booking.providerProfile.image || "/placeholder-avatar.png"
@@ -586,16 +586,16 @@ export default function ReviewSubmissionPage({
                     </h4>
                     <ul className="text-xs sm:text-sm text-blue-700 space-y-1">
                       <li className="flex items-start gap-1.5">
-                        <CheckCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                        <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" />
                         Be specific about what you liked or didn&apos;t like
                       </li>
                       <li className="flex items-start gap-1.5">
-                        <CheckCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                        <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" />
                         Mention the provider&apos;s punctuality and
                         professionalism
                       </li>
                       <li className="flex items-start gap-1.5">
-                        <CheckCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                        <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" />
                         Note the quality of work and communication
                       </li>
                     </ul>
@@ -620,7 +620,7 @@ export default function ReviewSubmissionPage({
                     disabled={isSubmitting || rating === 0}
                     className={`${
                       isMobile ? "w-full" : "flex-1"
-                    } bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 sm:py-3.5 rounded-lg sm:rounded-xl font-bold hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md active:scale-[0.98] text-sm sm:text-base flex items-center justify-center gap-2`}
+                    } bg-linear-to-r from-emerald-500 to-teal-600 text-white py-3 sm:py-3.5 rounded-lg sm:rounded-xl font-bold hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md active:scale-[0.98] text-sm sm:text-base flex items-center justify-center gap-2`}
                   >
                     {isSubmitting ? (
                       <>
@@ -643,21 +643,21 @@ export default function ReviewSubmissionPage({
 
           {/* Mobile: Review Guidelines */}
           {isMobile && (
-            <div className="mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+            <div className="mt-4 bg-linear-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
               <h4 className="text-sm font-medium text-blue-900 mb-2">
                 Review Guidelines
               </h4>
               <ul className="text-xs text-blue-800 space-y-1.5">
                 <li className="flex items-start gap-1.5">
-                  <CheckCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                  <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" />
                   Be honest and specific
                 </li>
                 <li className="flex items-start gap-1.5">
-                  <CheckCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                  <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" />
                   Focus on the service quality
                 </li>
                 <li className="flex items-start gap-1.5">
-                  <CheckCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                  <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" />
                   Help others make better choices
                 </li>
               </ul>

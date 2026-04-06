@@ -41,9 +41,9 @@ export default function JobCard({ job, priority = false }: JobCardProps) {
             priority={priority}
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-700 via-emerald-800 to-teal-900" />
+          <div className="absolute inset-0 bg-linear-to-br from-slate-700 via-emerald-800 to-teal-900" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/78 via-slate-900/35 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-r from-slate-950/78 via-slate-900/35 to-transparent" />
         <div className="absolute bottom-2 left-2 right-2 flex flex-wrap gap-1 sm:bottom-2.5 sm:left-2.5">
           <span className="inline-flex max-w-[85%] items-center gap-1 truncate rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-900 shadow-sm backdrop-blur-sm">
             <Building className="h-3 w-3 shrink-0" aria-hidden />

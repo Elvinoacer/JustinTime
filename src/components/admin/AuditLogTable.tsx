@@ -1,16 +1,18 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useState, type FormEvent } from "react";
 import {
-  History,
   User,
   Activity,
-  Calendar,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Copy,
   Info,
+  Search,
+  X,
 } from "lucide-react";
 
 interface AdminLog {
@@ -32,7 +34,23 @@ interface AuditLogTableProps {
   total: number;
   currentPage: number;
   totalPages: number;
-  accessType: "ALL" | "PAID" | "WAIVED";
+  accessType:
+    | "ALL"
+    | "PAID"
+    | "WAIVED"
+    | "VERIFICATION"
+    | "FINANCE"
+    | "SUPPORT"
+    | "USERS"
+    | "SETTINGS";
+  filters: {
+    search?: string;
+    action?: string;
+    admin?: string;
+    targetId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  };
 }
 
 export default function AuditLogTable({
@@ -41,9 +59,24 @@ export default function AuditLogTable({
   currentPage,
   totalPages,
   accessType,
+  filters,
 }: AuditLogTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [detailsPreview, setDetailsPreview] = useState<{
+    id: string;
+    payload: string;
+  } | null>(null);
+  const [copiedDetails, setCopiedDetails] = useState(false);
+
+  const advancedFilterKeys = [
+    "search",
+    "action",
+    "admin",
+    "targetId",
+    "dateFrom",
+    "dateTo",
+  ] as const;
 
   const buildPageUrl = (page: number) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -56,13 +89,96 @@ export default function AuditLogTable({
     return `?${params.toString()}`;
   };
 
-  const onAccessTypeChange = (nextAccess: "ALL" | "PAID" | "WAIVED") => {
+  const accessFilters: Array<{
+    value: AuditLogTableProps["accessType"];
+    label: string;
+    activeClass: string;
+  }> = [
+    {
+      value: "ALL",
+      label: "All Actions",
+      activeClass: "bg-slate-900 text-white border-slate-900",
+    },
+    {
+      value: "PAID",
+      label: "Paid Access",
+      activeClass: "bg-emerald-600 text-white border-emerald-600",
+    },
+    {
+      value: "WAIVED",
+      label: "Waived Access",
+      activeClass: "bg-amber-600 text-white border-amber-600",
+    },
+    {
+      value: "VERIFICATION",
+      label: "Verification",
+      activeClass: "bg-blue-600 text-white border-blue-600",
+    },
+    {
+      value: "FINANCE",
+      label: "Finance",
+      activeClass: "bg-violet-600 text-white border-violet-600",
+    },
+    {
+      value: "SUPPORT",
+      label: "Support",
+      activeClass: "bg-cyan-600 text-white border-cyan-600",
+    },
+    {
+      value: "USERS",
+      label: "Users",
+      activeClass: "bg-rose-600 text-white border-rose-600",
+    },
+    {
+      value: "SETTINGS",
+      label: "Settings",
+      activeClass: "bg-lime-600 text-white border-lime-600",
+    },
+  ];
+
+  const onAccessTypeChange = (nextAccess: AuditLogTableProps["accessType"]) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", "1");
     if (nextAccess === "ALL") {
       params.delete("access");
     } else {
       params.set("access", nextAccess);
+    }
+    router.push(`?${params.toString()}`);
+  };
+
+  const applyAdvancedFilters = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const params = new URLSearchParams(searchParams.toString());
+
+    advancedFilterKeys.forEach((key) => {
+      const value = String(formData.get(key) || "").trim();
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    });
+
+    params.set("page", "1");
+    if (accessType === "ALL") {
+      params.delete("access");
+    } else {
+      params.set("access", accessType);
+    }
+
+    router.push(`?${params.toString()}`);
+  };
+
+  const clearAdvancedFilters = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    advancedFilterKeys.forEach((key) => params.delete(key));
+    params.set("page", "1");
+    if (accessType === "ALL") {
+      params.delete("access");
+    } else {
+      params.set("access", accessType);
     }
     router.push(`?${params.toString()}`);
   };
@@ -89,41 +205,117 @@ export default function AuditLogTable({
     return "bg-slate-50 text-slate-700 border-slate-100";
   };
 
+  const formatDetailsPayload = (details: unknown) => {
+    if (details === null || details === undefined) {
+      return "{}";
+    }
+
+    try {
+      return JSON.stringify(details, null, 2);
+    } catch {
+      return String(details);
+    }
+  };
+
+  const openDetailsPreview = (log: AdminLog) => {
+    setCopiedDetails(false);
+    setDetailsPreview({
+      id: log.id,
+      payload: formatDetailsPayload(log.details),
+    });
+  };
+
+  const copyDetails = async () => {
+    if (!detailsPreview) return;
+
+    try {
+      await navigator.clipboard.writeText(detailsPreview.payload);
+      setCopiedDetails(true);
+      window.setTimeout(() => setCopiedDetails(false), 2000);
+    } catch {
+      setCopiedDetails(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg sm:rounded-xl shadow-xs sm:shadow-sm border border-slate-100 overflow-hidden">
       <div className="px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/50">
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => onAccessTypeChange("ALL")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-              accessType === "ALL"
-                ? "bg-slate-900 text-white border-slate-900"
-                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-            }`}
-          >
-            All Actions
-          </button>
-          <button
-            onClick={() => onAccessTypeChange("PAID")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-              accessType === "PAID"
-                ? "bg-emerald-600 text-white border-emerald-600"
-                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-            }`}
-          >
-            Paid Access
-          </button>
-          <button
-            onClick={() => onAccessTypeChange("WAIVED")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-              accessType === "WAIVED"
-                ? "bg-amber-600 text-white border-amber-600"
-                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-            }`}
-          >
-            Waived Access
-          </button>
+          {accessFilters.map((filter) => (
+            <button
+              key={filter.value}
+              onClick={() => onAccessTypeChange(filter.value)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                accessType === filter.value
+                  ? filter.activeClass
+                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
         </div>
+
+        <form
+          onSubmit={applyAdvancedFilters}
+          className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2"
+        >
+          <label className="relative md:col-span-2 xl:col-span-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              name="search"
+              defaultValue={filters.search || ""}
+              placeholder="Search action/admin/target"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white"
+            />
+          </label>
+          <input
+            name="action"
+            defaultValue={filters.action || ""}
+            placeholder="Action contains"
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white"
+          />
+          <input
+            name="admin"
+            defaultValue={filters.admin || ""}
+            placeholder="Admin name/email/id"
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white"
+          />
+          <input
+            name="targetId"
+            defaultValue={filters.targetId || ""}
+            placeholder="Target id"
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white"
+          />
+          <input
+            type="date"
+            name="dateFrom"
+            defaultValue={filters.dateFrom || ""}
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white"
+          />
+          <input
+            type="date"
+            name="dateTo"
+            defaultValue={filters.dateTo || ""}
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="submit"
+              className="px-3 py-2 text-sm font-semibold rounded-lg bg-slate-900 text-white"
+            >
+              Apply
+            </button>
+            <button
+              type="button"
+              onClick={clearAdvancedFilters}
+              className="inline-flex items-center gap-1 px-3 py-2 text-sm font-semibold rounded-lg border border-slate-200 bg-white text-slate-700"
+            >
+              <X className="w-4 h-4" />
+              Clear
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Mobile Card View */}
@@ -169,11 +361,14 @@ export default function AuditLogTable({
               </p>
             )}
             {log.details && (
-              <div className="bg-slate-900 rounded p-2 overflow-x-auto">
-                <pre className="text-[10px] text-emerald-400 font-mono">
-                  {JSON.stringify(log.details, null, 2)}
-                </pre>
-              </div>
+              <button
+                type="button"
+                onClick={() => openDetailsPreview(log)}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 rounded px-2 py-1"
+              >
+                <Info className="w-3 h-3" />
+                View Details
+              </button>
             )}
           </div>
         ))}
@@ -205,7 +400,7 @@ export default function AuditLogTable({
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center flex-none">
                       {log.admin.image ? (
                         <img
                           src={log.admin.image}
@@ -237,14 +432,12 @@ export default function AuditLogTable({
                 <td className="px-6 py-4">
                   {log.details ? (
                     <button
-                      onClick={() => console.log(log.details)}
-                      className="group relative"
-                      title={JSON.stringify(log.details, null, 2)}
+                      type="button"
+                      onClick={() => openDetailsPreview(log)}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 rounded px-2 py-1"
                     >
-                      <Info className="w-4 h-4 text-slate-400 hover:text-blue-500 transition-colors" />
-                      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-slate-900 text-white p-3 rounded-lg shadow-xl text-xs font-mono whitespace-pre z-50">
-                        {JSON.stringify(log.details, null, 2)}
-                      </div>
+                      <Info className="w-3 h-3" />
+                      View Details
                     </button>
                   ) : (
                     "—"
@@ -337,6 +530,46 @@ export default function AuditLogTable({
           <p className="text-slate-500 text-sm">
             There are no administrative actions logged yet.
           </p>
+        </div>
+      )}
+
+      {detailsPreview && (
+        <div className="fixed inset-0 z-50 bg-black/40 p-4 flex items-center justify-center">
+          <div className="w-full max-w-3xl max-h-[90vh] bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">
+                  Log Details
+                </p>
+                <p className="text-xs text-slate-500 font-mono">
+                  {detailsPreview.id}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={copyDetails}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded border border-slate-200 text-slate-700 bg-white"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  {copiedDetails ? "Copied" : "Copy"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailsPreview(null)}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded border border-slate-200 text-slate-700 bg-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Close
+                </button>
+              </div>
+            </div>
+            <div className="p-4 overflow-auto max-h-[calc(90vh-72px)] bg-slate-950">
+              <pre className="text-xs text-emerald-300 whitespace-pre-wrap wrap-break-word font-mono">
+                {detailsPreview.payload}
+              </pre>
+            </div>
+          </div>
         </div>
       )}
     </div>

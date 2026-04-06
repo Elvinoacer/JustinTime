@@ -126,7 +126,7 @@ const ImageCropper = ({
 
   const modalContent = (
     <div
-      className={`fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center ${
+      className={`fixed inset-0 bg-black/95 z-9999 flex items-center justify-center ${
         finalIsMobile ? "p-0" : "p-2 sm:p-3 md:p-4"
       }`}
     >
@@ -142,7 +142,7 @@ const ImageCropper = ({
       >
         {/* Header */}
         <div
-          className={`border-b border-gray-200 flex-shrink-0 ${
+          className={`border-b border-gray-200 shrink-0 ${
             finalIsMobile ? "p-4" : "p-3 sm:p-4 md:p-6"
           }`}
         >
@@ -165,7 +165,7 @@ const ImageCropper = ({
             </div>
             <button
               onClick={onCancel}
-              className={`text-gray-600 hover:text-gray-800 transition-colors flex-shrink-0 ${
+              className={`text-gray-600 hover:text-gray-800 transition-colors shrink-0 ${
                 finalIsMobile ? "p-2" : "p-1.5 sm:p-2"
               }`}
               aria-label="Close cropper"
@@ -177,7 +177,7 @@ const ImageCropper = ({
 
         {/* Cropper Area */}
         <div
-          className="relative flex-shrink-0 w-full bg-black overflow-hidden"
+          className="relative shrink-0 w-full bg-black overflow-hidden"
           style={{
             height: finalIsMobile
               ? "45dvh"
@@ -229,7 +229,7 @@ const ImageCropper = ({
 
         {/* Controls */}
         <div
-          className={`border-t border-gray-200 flex-shrink-0 ${
+          className={`border-t border-gray-200 shrink-0 ${
             finalIsMobile ? "p-4" : "p-3 sm:p-4 md:p-6"
           }`}
         >

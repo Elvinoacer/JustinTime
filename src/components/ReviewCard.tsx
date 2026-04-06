@@ -20,7 +20,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ review, themeColor }) => {
           alt={review.author}
           width={48}
           height={48}
-          className="rounded-full flex-shrink-0"
+          className="rounded-full shrink-0"
         />
         <div className="flex-1">
           <div className="flex justify-between items-center">

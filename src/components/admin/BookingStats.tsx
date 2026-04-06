@@ -90,11 +90,11 @@ export default function BookingStats({ stats }: BookingStatsProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
-            className={`relative overflow-hidden rounded-lg xs:rounded-xl sm:rounded-2xl bg-gradient-to-br ${stat.bgGradient} p-3 xs:p-4 sm:p-5 lg:p-6 shadow-xs xs:shadow-sm sm:shadow-md hover:shadow-lg transition-all duration-300 group cursor-pointer border border-white/50`}
+            className={`relative overflow-hidden rounded-lg xs:rounded-xl sm:rounded-2xl bg-linear-to-br ${stat.bgGradient} p-3 xs:p-4 sm:p-5 lg:p-6 shadow-xs xs:shadow-sm sm:shadow-md hover:shadow-lg transition-all duration-300 group cursor-pointer border border-white/50`}
           >
             {/* Background decoration - Smaller on mobile */}
             <div
-              className={`absolute top-0 right-0 w-12 h-12 xs:w-16 xs:h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gradient-to-br ${stat.gradient} opacity-5 rounded-full -mr-4 xs:-mr-6 sm:-mr-8 lg:-mr-12 -mt-4 xs:-mt-6 sm:-mt-8 lg:-mt-12 group-hover:scale-110 xs:group-hover:scale-125 sm:group-hover:scale-150 transition-transform duration-500`}
+              className={`absolute top-0 right-0 w-12 h-12 xs:w-16 xs:h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-linear-to-br ${stat.gradient} opacity-5 rounded-full -mr-4 xs:-mr-6 sm:-mr-8 lg:-mr-12 -mt-4 xs:-mt-6 sm:-mt-8 lg:-mt-12 group-hover:scale-110 xs:group-hover:scale-125 sm:group-hover:scale-150 transition-transform duration-500`}
             />
 
             <div className="relative">
@@ -119,7 +119,7 @@ export default function BookingStats({ stats }: BookingStatsProps) {
             </div>
 
             {/* Shine effect on hover - Only on larger screens */}
-            <div className="hidden xs:block absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20 -translate-x-full group-hover:translate-x-full transition-all duration-1000" />
+            <div className="hidden xs:block absolute inset-0 bg-linear-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20 -translate-x-full group-hover:translate-x-full transition-all duration-1000" />
           </motion.div>
         );
       })}

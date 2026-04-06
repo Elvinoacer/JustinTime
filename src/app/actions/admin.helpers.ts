@@ -1,6 +1,23 @@
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, UserRole } from "@/generated/prisma/client";
 
-export type AdminLogAccessType = "ALL" | "PAID" | "WAIVED";
+export type AdminLogAccessType =
+  | "ALL"
+  | "PAID"
+  | "WAIVED"
+  | "VERIFICATION"
+  | "FINANCE"
+  | "SUPPORT"
+  | "USERS"
+  | "SETTINGS";
+
+export interface AdminLogFilters {
+  search?: string;
+  action?: string;
+  admin?: string;
+  targetId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
 
 export interface BookingFilters {
   status?: string;
@@ -30,6 +47,7 @@ export interface SupportTicketFilters {
 
 export interface TransactionFilters {
   type?: string;
+  status?: string;
   search?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -52,10 +70,17 @@ export function buildUsersWhere(
   }
 
   if (role && role !== "ALL") {
-    where.role = role as Prisma.UserWhereInput["role"];
+    const normalizedRole = role as UserRole;
+    where.OR = [
+      ...(where.OR || []),
+      { role: normalizedRole },
+      { roles: { has: normalizedRole } },
+    ];
   }
 
-  if (verificationStatus) {
+  if (verificationStatus === "BANNED") {
+    where.isBanned = true;
+  } else if (verificationStatus) {
     where.profile = {
       verificationStatus:
         verificationStatus as Prisma.ProfileWhereInput["verificationStatus"],
@@ -423,9 +448,20 @@ export function buildTransactionsWhere(
     where.type = filters.type as Prisma.TransactionWhereInput["type"];
   }
 
+  if (filters.status && filters.status !== "ALL") {
+    where.status = filters.status as Prisma.TransactionWhereInput["status"];
+  }
+
   if (filters.search) {
     where.OR = [
       { id: { contains: filters.search, mode: "insensitive" } },
+      { description: { contains: filters.search, mode: "insensitive" } },
+      { providerRef: { contains: filters.search, mode: "insensitive" } },
+      {
+        gatewayReference: { contains: filters.search, mode: "insensitive" },
+      },
+      { sourceId: { contains: filters.search, mode: "insensitive" } },
+      { sourceType: { contains: filters.search, mode: "insensitive" } },
       {
         wallet: {
           user: {
@@ -487,6 +523,7 @@ export function buildWalletsWhere(search: string): Prisma.WalletWhereInput {
 
 export function buildAdminLogsWhere(
   accessType: AdminLogAccessType,
+  filters: AdminLogFilters = {},
 ): Prisma.AdminLogWhereInput {
   const where: Prisma.AdminLogWhereInput = {};
 
@@ -494,6 +531,133 @@ export function buildAdminLogsWhere(
     where.action = "ONBOARDING_FEE_PAID_ACCESS_GRANTED";
   } else if (accessType === "WAIVED") {
     where.action = "WAIVED_ONBOARDING_FEE";
+  } else if (accessType === "VERIFICATION") {
+    where.OR = [
+      { action: { contains: "VERIFICATION", mode: "insensitive" } },
+      { action: { contains: "IDENTITY", mode: "insensitive" } },
+      { action: { contains: "BADGE", mode: "insensitive" } },
+      { action: { contains: "TRUST", mode: "insensitive" } },
+      { action: { contains: "ONBOARDING_FEE", mode: "insensitive" } },
+    ];
+  } else if (accessType === "FINANCE") {
+    where.OR = [
+      { action: { contains: "REFUND", mode: "insensitive" } },
+      { action: { contains: "PAYMENT", mode: "insensitive" } },
+      { action: { contains: "SETTLEMENT", mode: "insensitive" } },
+      { action: { contains: "WALLET", mode: "insensitive" } },
+      { action: { contains: "RECONCILIATION", mode: "insensitive" } },
+      { action: { contains: "DISPUTE", mode: "insensitive" } },
+    ];
+  } else if (accessType === "SUPPORT") {
+    where.OR = [
+      { action: { contains: "SUPPORT", mode: "insensitive" } },
+      { action: { contains: "TICKET", mode: "insensitive" } },
+    ];
+  } else if (accessType === "USERS") {
+    where.OR = [
+      { action: { contains: "USER", mode: "insensitive" } },
+      { action: { contains: "ROLE", mode: "insensitive" } },
+      { action: { contains: "BAN", mode: "insensitive" } },
+      { action: { contains: "DELETION", mode: "insensitive" } },
+      { action: { contains: "PASSWORD", mode: "insensitive" } },
+      { action: { contains: "PLAN", mode: "insensitive" } },
+    ];
+  } else if (accessType === "SETTINGS") {
+    where.OR = [
+      { action: { contains: "SETTING", mode: "insensitive" } },
+      { action: { contains: "CATEGORY", mode: "insensitive" } },
+    ];
+  }
+
+  if (filters.action?.trim()) {
+    where.action = {
+      contains: filters.action.trim(),
+      mode: "insensitive",
+    };
+  }
+
+  if (filters.targetId?.trim()) {
+    where.targetId = {
+      contains: filters.targetId.trim(),
+      mode: "insensitive",
+    };
+  }
+
+  if (filters.admin?.trim()) {
+    const adminQuery = filters.admin.trim();
+    where.admin = {
+      OR: [
+        {
+          name: {
+            contains: adminQuery,
+            mode: "insensitive",
+          },
+        },
+        {
+          email: {
+            contains: adminQuery,
+            mode: "insensitive",
+          },
+        },
+        {
+          id: {
+            contains: adminQuery,
+            mode: "insensitive",
+          },
+        },
+      ],
+    };
+  }
+
+  if (filters.dateFrom || filters.dateTo) {
+    const createdAt: Prisma.DateTimeFilter = {};
+
+    if (filters.dateFrom) {
+      createdAt.gte = new Date(filters.dateFrom);
+    }
+
+    if (filters.dateTo) {
+      createdAt.lte = new Date(filters.dateTo);
+    }
+
+    where.createdAt = createdAt;
+  }
+
+  if (filters.search?.trim()) {
+    const search = filters.search.trim();
+    where.OR = [
+      ...(where.OR || []),
+      {
+        action: {
+          contains: search,
+          mode: "insensitive",
+        },
+      },
+      {
+        targetId: {
+          contains: search,
+          mode: "insensitive",
+        },
+      },
+      {
+        admin: {
+          OR: [
+            {
+              name: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+            {
+              email: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+          ],
+        },
+      },
+    ];
   }
 
   return where;

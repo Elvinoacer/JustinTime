@@ -207,7 +207,7 @@ export default function BackgroundCheckForm({
 
         <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6">
           <div className="flex">
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <svg
                 className="h-5 w-5 text-amber-400"
                 viewBox="0 0 20 20"

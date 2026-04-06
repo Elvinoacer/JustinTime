@@ -90,8 +90,8 @@ export default function DisputesClient({ initialData }: DisputesClientProps) {
   }, [isFiltersOpen]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-red-50/30 to-orange-50/20">
-      <div className="max-w-[1600px] mx-auto p-3 xs:p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-red-50/30 to-orange-50/20">
+      <div className="max-w-400 mx-auto p-3 xs:p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 sm:gap-4">
           <div className="flex-1 min-w-0">
@@ -171,7 +171,7 @@ export default function DisputesClient({ initialData }: DisputesClientProps) {
         {isLoading && (
           <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-2xl flex items-center gap-3 max-w-xs sm:max-w-sm w-full">
-              <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 animate-spin flex-shrink-0" />
+              <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 animate-spin shrink-0" />
               <p className="font-medium text-slate-900 text-sm sm:text-base">
                 Loading disputes...
               </p>

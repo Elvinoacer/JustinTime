@@ -80,7 +80,7 @@ export default function SOSOverlay() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9999] bg-red-600/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white overflow-hidden"
+        className="fixed inset-0 z-9999 bg-red-600/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white overflow-hidden"
       >
         {/* Pulsing Background Effects */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">

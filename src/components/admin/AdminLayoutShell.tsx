@@ -13,7 +13,7 @@ export default function AdminLayoutShell({
   return (
     <div className="fixed inset-0 flex bg-slate-50 overflow-hidden flex-col lg:flex-row">
       {/* Mobile Header */}
-      <div className="lg:hidden flex-shrink-0 flex items-center justify-between p-4 bg-white border-b border-gray-200 z-30">
+      <div className="lg:hidden shrink-0 flex items-center justify-between p-4 bg-white border-b border-gray-200 z-30">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsSidebarOpen(true)}

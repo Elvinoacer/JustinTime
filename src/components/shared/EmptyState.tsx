@@ -16,7 +16,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   onAction,
 }) => {
   return (
-    <div className="bg-white border border-gray-200 rounded-3xl p-12 text-center shadow-sm flex-1 flex flex-col items-center justify-center min-h-[400px]">
+    <div className="bg-white border border-gray-200 rounded-3xl p-12 text-center shadow-sm flex-1 flex flex-col items-center justify-center min-h-100">
       <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-5 shadow-inner">
         <span className="material-symbols-outlined text-4xl">{icon}</span>
       </div>

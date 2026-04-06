@@ -135,7 +135,7 @@ export default function AllCategoriesModal({
             }}
           >
             {/* Header */}
-            <div className="bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-700 p-4 sm:p-6 text-white">
+            <div className="bg-linear-to-br from-emerald-700 via-emerald-600 to-teal-700 p-4 sm:p-6 text-white">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-white/10 flex items-center justify-center">
@@ -271,7 +271,7 @@ export default function AllCategoriesModal({
                               onClick={() => handleSelect(category.name)}
                               className={`flex items-center justify-between p-3 sm:p-4 rounded-lg sm:rounded-xl transition-all text-left active:scale-[0.98] ${
                                 selectedCategory === category.name
-                                  ? "bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-sm sm:shadow-md"
+                                  ? "bg-linear-to-r from-emerald-500 to-green-600 text-white shadow-sm sm:shadow-md"
                                   : "bg-gray-50 hover:bg-gray-100 text-gray-700"
                               }`}
                               whileHover={{ scale: 1.02 }}
@@ -306,7 +306,7 @@ export default function AllCategoriesModal({
                                 </div>
                               </div>
                               {selectedCategory === category.name && (
-                                <span className="material-symbols-outlined text-white text-sm sm:text-base flex-shrink-0">
+                                <span className="material-symbols-outlined text-white text-sm sm:text-base shrink-0">
                                   check_circle
                                 </span>
                               )}
@@ -333,7 +333,7 @@ export default function AllCategoriesModal({
                     onSelectCategory("All Services");
                     onClose();
                   }}
-                  className="px-4 py-2.5 sm:py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg sm:rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-colors active:scale-[0.98] text-sm sm:text-base flex-1"
+                  className="px-4 py-2.5 sm:py-3 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg sm:rounded-xl font-medium hover:from-blue-600 hover:to-blue-700 transition-colors active:scale-[0.98] text-sm sm:text-base flex-1"
                 >
                   View All Services
                 </button>

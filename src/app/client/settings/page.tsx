@@ -160,7 +160,7 @@ function PushNotificationToggle() {
             }
           />
           <div
-            className={`w-10 h-5 sm:w-12 sm:h-6 bg-gray-300 rounded-full peer peer-focus:ring-2 sm:peer-focus:ring-4 peer-focus:ring-emerald-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] sm:after:top-[4px] sm:after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
+            className={`w-10 h-5 sm:w-12 sm:h-6 bg-gray-300 rounded-full peer peer-focus:ring-2 sm:peer-focus:ring-4 peer-focus:ring-emerald-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-0.5 sm:after:top-[4px] sm:after:left-1 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-emerald-600 ${
               isEnabled || notificationPermission === "denied"
                 ? "cursor-default"
                 : ""
@@ -209,7 +209,7 @@ function TwoFactorToggle({ initialEnabled }: { initialEnabled: boolean }) {
         disabled={isLoading}
       />
       <div
-        className={`w-10 h-5 sm:w-12 sm:h-6 bg-gray-300 rounded-full peer peer-focus:ring-2 sm:peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] sm:after:top-[4px] sm:after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-blue-600 peer-checked:to-indigo-600 ${
+        className={`w-10 h-5 sm:w-12 sm:h-6 bg-gray-300 rounded-full peer peer-focus:ring-2 sm:peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-0.5 sm:after:top-[4px] sm:after:left-1 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-linear-to-r peer-checked:from-blue-600 peer-checked:to-indigo-600 ${
           isLoading ? "opacity-50 cursor-not-allowed" : ""
         }`}
       ></div>
@@ -501,7 +501,7 @@ function ClientSettingsPageContent() {
   ];
 
   return (
-    <div className="bg-gradient-to-br from-slate-50 via-white to-blue-50/20">
+    <div className="bg-linear-to-br from-slate-50 via-white to-blue-50/20">
       <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Modals */}
         <ConfirmModal
@@ -576,7 +576,7 @@ function ClientSettingsPageContent() {
                     }}
                     className={`w-full flex items-center justify-between px-4 py-3 rounded-lg mb-1 transition-all ${
                       isActive
-                        ? "bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700"
+                        ? "bg-linear-to-r from-emerald-50 to-teal-50 text-emerald-700"
                         : "text-gray-700 hover:bg-gray-50"
                     }`}
                   >
@@ -604,7 +604,7 @@ function ClientSettingsPageContent() {
             className="mb-6 lg:mb-8"
           >
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-md shadow-emerald-500/30">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-emerald-500 to-teal-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-md shadow-emerald-500/30">
                 <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <div>
@@ -638,7 +638,7 @@ function ClientSettingsPageContent() {
                         onClick={() => setActiveTab(tab.id)}
                         className={`w-full flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl transition-all duration-200 font-medium group ${
                           isActive
-                            ? `bg-gradient-to-r ${tab.color} text-white shadow-md`
+                            ? `bg-linear-to-r ${tab.color} text-white shadow-md`
                             : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                         }`}
                       >
@@ -691,7 +691,7 @@ function ClientSettingsPageContent() {
                         return (
                           <React.Fragment key={tab.id}>
                             <div
-                              className={`w-8 h-8 rounded-lg bg-gradient-to-r ${tab.color} flex items-center justify-center`}
+                              className={`w-8 h-8 rounded-lg bg-linear-to-r ${tab.color} flex items-center justify-center`}
                             >
                               <Icon className="w-4 h-4 text-white" />
                             </div>
@@ -719,7 +719,7 @@ function ClientSettingsPageContent() {
                     </div>
 
                     {/* Profile Card */}
-                    <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 text-white shadow-md">
+                    <div className="relative overflow-hidden bg-linear-to-br from-emerald-500 to-teal-600 rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6 text-white shadow-md">
                       <div className="absolute top-0 right-0 w-32 h-32 sm:w-64 sm:h-64 bg-white/10 rounded-full blur-xl sm:blur-3xl -mr-16 sm:-mr-32 -mt-16 sm:-mt-32" />
                       <div className="relative flex items-center gap-3 sm:gap-4">
                         <div
@@ -751,7 +751,7 @@ function ClientSettingsPageContent() {
 
                     {/* Account Details */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-                      <div className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg sm:rounded-xl lg:rounded-2xl border border-blue-100">
+                      <div className="p-4 sm:p-6 bg-linear-to-br from-blue-50 to-indigo-50 rounded-lg sm:rounded-xl lg:rounded-2xl border border-blue-100">
                         <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
                           <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-lg sm:rounded-xl flex items-center justify-center">
                             <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
@@ -770,7 +770,7 @@ function ClientSettingsPageContent() {
                         </p>
                       </div>
 
-                      <div className="p-4 sm:p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg sm:rounded-xl lg:rounded-2xl border border-purple-100">
+                      <div className="p-4 sm:p-6 bg-linear-to-br from-purple-50 to-pink-50 rounded-lg sm:rounded-xl lg:rounded-2xl border border-purple-100">
                         <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
                           <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 rounded-lg sm:rounded-xl flex items-center justify-center">
                             <User className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
@@ -790,7 +790,7 @@ function ClientSettingsPageContent() {
                       {deletionScheduledAt ? (
                         <div className="bg-red-50 border-2 border-red-200 rounded-lg sm:rounded-xl lg:rounded-2xl p-4 sm:p-6">
                           <div className="flex items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0">
                               <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
                             </div>
                             <div className="flex-1">
@@ -835,7 +835,7 @@ function ClientSettingsPageContent() {
                           <button
                             onClick={handleCancelDeletion}
                             disabled={isRestoring}
-                            className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg sm:rounded-xl font-bold hover:shadow-md hover:shadow-emerald-500/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm sm:text-base"
+                            className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-linear-to-r from-emerald-600 to-teal-600 text-white rounded-lg sm:rounded-xl font-bold hover:shadow-md hover:shadow-emerald-500/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm sm:text-base"
                           >
                             {isRestoring ? (
                               <>
@@ -896,7 +896,7 @@ function ClientSettingsPageContent() {
                     </div>
 
                     {/* Change Password */}
-                    <div className="p-4 sm:p-6 bg-gradient-to-br from-gray-50 to-slate-50 rounded-lg sm:rounded-xl lg:rounded-2xl border border-gray-200">
+                    <div className="p-4 sm:p-6 bg-linear-to-br from-gray-50 to-slate-50 rounded-lg sm:rounded-xl lg:rounded-2xl border border-gray-200">
                       <h3 className="font-bold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2 text-base sm:text-lg">
                         <Key className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
                         Change Password
@@ -955,7 +955,7 @@ function ClientSettingsPageContent() {
                         <button
                           onClick={handlePasswordChange}
                           disabled={isChangingPassword}
-                          className="w-full px-4 sm:px-6 py-3 sm:py-3.5 bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-lg sm:rounded-xl font-semibold hover:shadow-md hover:shadow-gray-900/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm sm:text-base"
+                          className="w-full px-4 sm:px-6 py-3 sm:py-3.5 bg-linear-to-r from-gray-900 to-gray-800 text-white rounded-lg sm:rounded-xl font-semibold hover:shadow-md hover:shadow-gray-900/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm sm:text-base"
                         >
                           {isChangingPassword ? (
                             <>
@@ -973,7 +973,7 @@ function ClientSettingsPageContent() {
                     </div>
 
                     {/* Two-Factor Authentication */}
-                    <div className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg sm:rounded-xl lg:rounded-2xl border border-blue-200">
+                    <div className="p-4 sm:p-6 bg-linear-to-br from-blue-50 to-indigo-50 rounded-lg sm:rounded-xl lg:rounded-2xl border border-blue-200">
                       <div className="flex items-start justify-between mb-3 sm:mb-4">
                         <div className="flex-1">
                           <h3 className="font-bold text-gray-900 mb-1.5 sm:mb-2 flex items-center gap-2 text-base sm:text-lg">
@@ -1064,7 +1064,7 @@ function ClientSettingsPageContent() {
                             key={item.key}
                             className={`flex items-center justify-between p-3 sm:p-4 rounded-lg sm:rounded-xl transition-all border ${
                               isEnabled
-                                ? "bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200"
+                                ? "bg-linear-to-r from-emerald-50 to-teal-50 border-emerald-200"
                                 : "bg-gray-50/50 border-gray-100 hover:border-gray-200"
                             }`}
                           >
@@ -1100,7 +1100,7 @@ function ClientSettingsPageContent() {
                                 }
                                 className="sr-only peer"
                               />
-                              <div className="w-10 h-5 sm:w-12 sm:h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 sm:peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] sm:after:top-[4px] sm:after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-emerald-600 peer-checked:to-teal-600"></div>
+                              <div className="w-10 h-5 sm:w-12 sm:h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 sm:peer-focus:ring-4 peer-focus:ring-emerald-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-0.5 sm:after:top-[4px] sm:after:left-1 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-linear-to-r peer-checked:from-emerald-600 peer-checked:to-teal-600"></div>
                             </label>
                           </div>
                         );
@@ -1157,7 +1157,7 @@ function ClientSettingsPageContent() {
                             key={item.key}
                             className={`flex items-center justify-between p-3 sm:p-4 rounded-lg sm:rounded-xl transition-all border ${
                               isEnabled
-                                ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200"
+                                ? "bg-linear-to-r from-blue-50 to-indigo-50 border-blue-200"
                                 : "bg-gray-50/50 border-gray-100 hover:border-gray-200"
                             }`}
                           >
@@ -1191,7 +1191,7 @@ function ClientSettingsPageContent() {
                                 onChange={() => handlePrivacyChange(item.key)}
                                 className="sr-only peer"
                               />
-                              <div className="w-10 h-5 sm:w-12 sm:h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 sm:peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] sm:after:top-[4px] sm:after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-blue-600 peer-checked:to-indigo-600"></div>
+                              <div className="w-10 h-5 sm:w-12 sm:h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 sm:peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-0.5 sm:after:top-[4px] sm:after:left-1 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 sm:after:h-5 sm:after:w-5 after:transition-all peer-checked:bg-linear-to-r peer-checked:from-blue-600 peer-checked:to-indigo-600"></div>
                             </label>
                           </div>
                         );

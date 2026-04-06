@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Eye,
@@ -52,11 +52,18 @@ export default function EnhancedBookingsTable({
   totalPages,
 }: EnhancedBookingsTableProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [sortField, setSortField] = useState<string>("date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [showRefundModal, setShowRefundModal] = useState(false);
+
+  const buildPageUrl = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(page));
+    return `?${params.toString()}`;
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -208,7 +215,7 @@ export default function EnhancedBookingsTable({
             </div>
           </div>
           <span
-            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${statusConfig.bg} ${statusConfig.text} border ${statusConfig.border} flex-shrink-0`}
+            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${statusConfig.bg} ${statusConfig.text} border ${statusConfig.border} flex-none`}
           >
             <StatusIcon className="w-3 h-3" />
             {booking.status.replace("_", " ")}
@@ -278,7 +285,7 @@ export default function EnhancedBookingsTable({
     <>
       <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm sm:shadow-lg border border-slate-100 sm:border-slate-100 overflow-hidden">
         {/* Table Header with Export */}
-        <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50/30">
+        <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-[linear-gradient(to_right,var(--tw-gradient-stops))] from-slate-50 to-blue-50/30">
           <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 xs:gap-0">
             <div className="flex items-center gap-2">
               <h2 className="text-base xs:text-lg font-bold text-slate-900">
@@ -291,7 +298,7 @@ export default function EnhancedBookingsTable({
             <div className="flex items-center gap-2">
               <button
                 onClick={handleExport}
-                className="flex items-center gap-1.5 px-3 py-1.5 xs:px-4 xs:py-2 bg-white border border-slate-200 rounded-lg text-xs xs:text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all flex-shrink-0"
+                className="flex items-center gap-1.5 px-3 py-1.5 xs:px-4 xs:py-2 bg-white border border-slate-200 rounded-lg text-xs xs:text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all flex-none"
               >
                 <Download className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
                 <span className="hidden xs:inline">Export</span>
@@ -394,7 +401,7 @@ export default function EnhancedBookingsTable({
                     {/* Booking Details */}
                     <td className="px-4 xl:px-6 py-3">
                       <div className="flex items-start gap-3">
-                        <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors flex-shrink-0">
+                        <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors flex-none">
                           <Briefcase className="w-4 h-4 text-blue-700" />
                         </div>
                         <div className="min-w-0">
@@ -411,7 +418,7 @@ export default function EnhancedBookingsTable({
                     {/* Client */}
                     <td className="px-4 xl:px-6 py-3">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                        <div className="w-8 h-8 bg-[linear-gradient(to_bottom_right,var(--tw-gradient-stops))] from-violet-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-none">
                           {(booking.client.name || "U")[0].toUpperCase()}
                         </div>
                         <div className="min-w-0">
@@ -419,7 +426,7 @@ export default function EnhancedBookingsTable({
                             {booking.client.name || "Unknown"}
                           </p>
                           <p className="text-xs text-slate-500 truncate flex items-center gap-1">
-                            <Mail className="w-3 h-3 flex-shrink-0" />
+                            <Mail className="w-3 h-3 flex-none" />
                             {booking.client.email}
                           </p>
                         </div>
@@ -429,7 +436,7 @@ export default function EnhancedBookingsTable({
                     {/* Provider */}
                     <td className="px-4 xl:px-6 py-3">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                        <div className="w-8 h-8 bg-[linear-gradient(to_bottom_right,var(--tw-gradient-stops))] from-cyan-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-none">
                           {(booking.provider.name || "U")[0].toUpperCase()}
                         </div>
                         <div className="min-w-0">
@@ -437,7 +444,7 @@ export default function EnhancedBookingsTable({
                             {booking.provider.name || "Unknown"}
                           </p>
                           <p className="text-xs text-slate-500 truncate flex items-center gap-1">
-                            <Mail className="w-3 h-3 flex-shrink-0" />
+                            <Mail className="w-3 h-3 flex-none" />
                             {booking.provider.email}
                           </p>
                         </div>
@@ -524,7 +531,7 @@ export default function EnhancedBookingsTable({
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-gradient-to-r from-slate-50 to-blue-50/30">
+          <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-[linear-gradient(to_right,var(--tw-gradient-stops))] from-slate-50 to-blue-50/30">
             <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-0">
               <p className="text-xs xs:text-sm text-slate-600 text-center xs:text-left">
                 Showing{" "}
@@ -541,7 +548,7 @@ export default function EnhancedBookingsTable({
               <div className="flex items-center justify-center gap-1 xs:gap-2">
                 <button
                   disabled={currentPage <= 1}
-                  onClick={() => router.push(`?page=${currentPage - 1}`)}
+                  onClick={() => router.push(buildPageUrl(currentPage - 1))}
                   className="flex items-center gap-1 px-3 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 hover:border-slate-300 transition-all"
                 >
                   <ChevronLeft className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
@@ -564,7 +571,7 @@ export default function EnhancedBookingsTable({
                     return (
                       <button
                         key={i}
-                        onClick={() => router.push(`?page=${pageNum}`)}
+                        onClick={() => router.push(buildPageUrl(pageNum))}
                         className={`w-8 h-8 xs:w-10 xs:h-10 rounded-lg text-xs xs:text-sm font-medium transition-all ${
                           currentPage === pageNum
                             ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
@@ -579,7 +586,7 @@ export default function EnhancedBookingsTable({
 
                 <button
                   disabled={currentPage >= totalPages}
-                  onClick={() => router.push(`?page=${currentPage + 1}`)}
+                  onClick={() => router.push(buildPageUrl(currentPage + 1))}
                   className="flex items-center gap-1 px-3 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 hover:border-slate-300 transition-all"
                 >
                   <span className="hidden xs:inline">Next</span>
@@ -609,7 +616,7 @@ export default function EnhancedBookingsTable({
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-4 sm:p-6 rounded-t-xl sm:rounded-t-2xl">
+              <div className="sticky top-0 bg-[linear-gradient(to_right,var(--tw-gradient-stops))] from-blue-600 to-cyan-600 text-white p-4 sm:p-6 rounded-t-xl sm:rounded-t-2xl">
                 <div className="flex items-start justify-between">
                   <div className="min-w-0">
                     <h3 className="text-lg sm:text-xl font-bold truncate">
@@ -621,7 +628,7 @@ export default function EnhancedBookingsTable({
                   </div>
                   <button
                     onClick={() => setSelectedBooking(null)}
-                    className="p-1 sm:p-2 hover:bg-white/20 rounded-lg transition-colors flex-shrink-0 ml-2"
+                    className="p-1 sm:p-2 hover:bg-white/20 rounded-lg transition-colors flex-none ml-2"
                   >
                     <XCircle className="w-5 h-5" />
                   </button>
@@ -707,7 +714,7 @@ export default function EnhancedBookingsTable({
                       Location
                     </p>
                     <p className="flex items-start gap-2 text-slate-900 text-sm sm:text-base">
-                      <MapPin className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                      <MapPin className="w-4 h-4 text-red-600 mt-0.5 flex-none" />
                       <span>{selectedBooking.location || "Not specified"}</span>
                     </p>
                   </div>
@@ -726,7 +733,7 @@ export default function EnhancedBookingsTable({
                 )}
 
                 {/* Amount & Status */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg sm:rounded-xl border border-emerald-200">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 bg-[linear-gradient(to_right,var(--tw-gradient-stops))] from-emerald-50 to-teal-50 rounded-lg sm:rounded-xl border border-emerald-200">
                   <div>
                     <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1">
                       Total Amount

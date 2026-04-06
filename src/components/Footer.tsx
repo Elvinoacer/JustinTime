@@ -158,7 +158,7 @@ const Footer = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="shimmer-btn flex items-center justify-center gap-2 bg-emerald-500/90 hover:bg-emerald-500 text-white px-4 py-3 rounded-lg text-sm font-medium transition-colors whitespace-nowrap disabled:opacity-50 min-w-[120px]"
+                  className="shimmer-btn flex items-center justify-center gap-2 bg-emerald-500/90 hover:bg-emerald-500 text-white px-4 py-3 rounded-lg text-sm font-medium transition-colors whitespace-nowrap disabled:opacity-50 min-w-30"
                 >
                   {isSubmitting ? (
                     <>

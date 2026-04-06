@@ -8,9 +8,17 @@ export default async function ChurnAnalysisPage() {
   ]);
 
   if (!atRiskResult.success || !statsResult.success) {
+    const unauthorized =
+      atRiskResult.error?.toLowerCase().includes("unauthorized") ||
+      statsResult.error?.toLowerCase().includes("unauthorized");
+
     return (
       <div className="container mx-auto py-8 px-4">
-        <p className="text-red-600">Failed to load churn analysis data</p>
+        <p className="text-red-600">
+          {unauthorized
+            ? "Admin access is required to view churn analysis data."
+            : "Failed to load churn analysis data"}
+        </p>
       </div>
     );
   }

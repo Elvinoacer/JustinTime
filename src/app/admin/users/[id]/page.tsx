@@ -104,7 +104,7 @@ export default async function UserDetailsPage({
                   <div className="flex items-start gap-4">
                     {/* Avatar */}
                     <div className="relative">
-                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
+                      <div className="relative w-16 h-16 sm:w-20 sm:h-20 bg-linear-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
                         {user.image ? (
                           <img
                             src={user.image}
@@ -308,7 +308,7 @@ export default async function UserDetailsPage({
               user.services &&
               user.services.length > 0 && (
                 <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm sm:shadow-lg overflow-hidden">
-                  <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-4 sm:p-6">
+                  <div className="bg-linear-to-r from-purple-500 to-purple-600 p-4 sm:p-6">
                     <h3 className="font-bold text-lg sm:text-xl text-white flex items-center gap-2">
                       <Briefcase className="w-5 h-5" />
                       Services ({user.services.length})
@@ -357,7 +357,7 @@ export default async function UserDetailsPage({
             {/* Jobs Section */}
             {user.role === "CLIENT" && user.jobs && user.jobs.length > 0 && (
               <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm sm:shadow-lg overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 sm:p-6">
+                <div className="bg-linear-to-r from-blue-500 to-blue-600 p-4 sm:p-6">
                   <h3 className="font-bold text-lg sm:text-xl text-white flex items-center gap-2">
                     <Workflow className="w-5 h-5" />
                     Jobs Posted ({user.jobs.length})
@@ -409,7 +409,7 @@ export default async function UserDetailsPage({
 
             {/* Recent Bookings */}
             <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm sm:shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-slate-700 to-slate-800 p-4 sm:p-6">
+              <div className="bg-linear-to-r from-slate-700 to-slate-800 p-4 sm:p-6">
                 <h3 className="font-bold text-lg sm:text-xl text-white flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
                   Recent Bookings
@@ -488,7 +488,7 @@ export default async function UserDetailsPage({
             {/* Support Tickets */}
             {user.supportTickets && user.supportTickets.length > 0 && (
               <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm sm:shadow-lg overflow-hidden">
-                <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-4 sm:p-6">
+                <div className="bg-linear-to-r from-orange-500 to-orange-600 p-4 sm:p-6">
                   <h3 className="font-bold text-lg sm:text-xl text-white flex items-center gap-2">
                     <HelpCircle className="w-5 h-5" />
                     Support Tickets ({user.supportTickets.length})
@@ -551,7 +551,7 @@ export default async function UserDetailsPage({
             {((user.disputes && user.disputes.length > 0) ||
               (user.disputesAgainst && user.disputesAgainst.length > 0)) && (
               <div className="bg-white rounded-xl sm:rounded-2xl border border-red-200 shadow-sm sm:shadow-lg overflow-hidden">
-                <div className="bg-gradient-to-r from-red-500 to-red-600 p-4 sm:p-6">
+                <div className="bg-linear-to-r from-red-500 to-red-600 p-4 sm:p-6">
                   <h3 className="font-bold text-lg sm:text-xl text-white flex items-center gap-2">
                     <Gavel className="w-5 h-5" />
                     Disputes
@@ -631,7 +631,7 @@ export default async function UserDetailsPage({
           <div className="space-y-4 sm:space-y-6">
             {/* Wallet Card */}
             <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm sm:shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-4 sm:p-6">
+              <div className="bg-linear-to-br from-emerald-500 to-emerald-600 p-4 sm:p-6">
                 <h3 className="font-bold text-lg text-white flex items-center gap-2">
                   <Wallet className="w-5 h-5" />
                   Wallet
@@ -639,7 +639,7 @@ export default async function UserDetailsPage({
               </div>
 
               <div className="p-4 sm:p-6">
-                <div className="relative bg-gradient-to-br from-slate-900 to-slate-800 text-white p-4 sm:p-6 rounded-xl sm:rounded-2xl mb-4 sm:mb-6 overflow-hidden">
+                <div className="relative bg-linear-to-br from-slate-900 to-slate-800 text-white p-4 sm:p-6 rounded-xl sm:rounded-2xl mb-4 sm:mb-6 overflow-hidden">
                   <div className="relative">
                     <p className="text-slate-400 text-xs uppercase font-semibold tracking-wider mb-2">
                       Current Balance
@@ -693,7 +693,7 @@ export default async function UserDetailsPage({
 
             {/* Statistics Card */}
             <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm sm:shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 sm:p-6">
+              <div className="bg-linear-to-r from-blue-500 to-blue-600 p-4 sm:p-6">
                 <h3 className="font-bold text-lg text-white flex items-center gap-2">
                   <BarChart3 className="w-5 h-5" />
                   Statistics
@@ -779,7 +779,7 @@ export default async function UserDetailsPage({
 
             {/* Account Settings */}
             <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm sm:shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-slate-700 to-slate-800 p-4 sm:p-6">
+              <div className="bg-linear-to-r from-slate-700 to-slate-800 p-4 sm:p-6">
                 <h3 className="font-bold text-lg text-white flex items-center gap-2">
                   <Settings className="w-5 h-5" />
                   Account
@@ -843,7 +843,7 @@ export default async function UserDetailsPage({
             {/* Notifications Summary */}
             {user.notifications && user.notifications.length > 0 && (
               <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm sm:shadow-lg overflow-hidden">
-                <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 p-4 sm:p-6">
+                <div className="bg-linear-to-r from-indigo-500 to-indigo-600 p-4 sm:p-6">
                   <h3 className="font-bold text-lg text-white flex items-center gap-2">
                     <Bell className="w-5 h-5" />
                     Notifications

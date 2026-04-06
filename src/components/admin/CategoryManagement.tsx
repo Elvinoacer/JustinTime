@@ -185,7 +185,7 @@ export default function CategoryManagement({ categories }: CategoryManagementPro
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full p-2 border border-slate-200 rounded-lg text-sm min-h-[60px]"
+                  className="w-full p-2 border border-slate-200 rounded-lg text-sm min-h-15"
                   placeholder="Optional description"
                 />
               </div>

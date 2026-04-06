@@ -153,7 +153,7 @@ export default function SupportFiltersBar({
         <div className="flex gap-2 sm:gap-3">
           <button
             onClick={applyFilters}
-            className="flex-1 lg:flex-none px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-lg sm:rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-indigo-500/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="flex-1 lg:flex-none px-4 sm:px-6 py-2.5 sm:py-3 bg-[linear-gradient(to_right,var(--tw-gradient-stops))] from-indigo-600 to-violet-600 text-white rounded-lg sm:rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-indigo-500/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             Apply
           </button>
@@ -182,7 +182,7 @@ export default function SupportFiltersBar({
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <div className="p-4 sm:p-6 bg-gradient-to-br from-slate-50 to-indigo-50/30 rounded-xl sm:rounded-2xl border border-slate-200/50 shadow-sm">
+            <div className="p-4 sm:p-6 bg-[linear-gradient(to_bottom_right,var(--tw-gradient-stops))] from-slate-50 to-indigo-50/30 rounded-xl sm:rounded-2xl border border-slate-200/50 shadow-sm">
               <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 {/* Status Filter - Mobile only */}
                 <div className="block sm:hidden">
@@ -275,7 +275,7 @@ export default function SupportFiltersBar({
               <div className="flex gap-3 mt-4 sm:hidden">
                 <button
                   onClick={applyFilters}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-lg font-medium text-sm hover:shadow-lg hover:shadow-indigo-500/30 transition-all"
+                  className="flex-1 px-4 py-2.5 bg-[linear-gradient(to_right,var(--tw-gradient-stops))] from-indigo-600 to-violet-600 text-white rounded-lg font-medium text-sm hover:shadow-lg hover:shadow-indigo-500/30 transition-all"
                 >
                   Apply Filters
                 </button>

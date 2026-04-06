@@ -375,7 +375,7 @@ function ServicesPageContent() {
                   </p>
                   <p className="mt-1 text-xs text-slate-500">Updated live</p>
                 </div>
-                <div className="col-span-2 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-600 to-teal-700 p-4 text-white shadow-md sm:col-span-1 sm:p-5">
+                <div className="col-span-2 rounded-2xl border border-emerald-100 bg-linear-to-br from-emerald-600 to-teal-700 p-4 text-white shadow-md sm:col-span-1 sm:p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100/90">
                     Refinements
                   </p>

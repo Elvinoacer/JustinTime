@@ -80,7 +80,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-3 sm:p-4 lg:p-8">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-emerald-50 via-white to-blue-50 p-3 sm:p-4 lg:p-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -93,7 +93,7 @@ export default function ForgotPasswordPage() {
           <div className="flex justify-center mb-4 sm:mb-6">
             <div className="relative">
               <div className="absolute inset-0 bg-emerald-500 rounded-2xl blur-lg opacity-30" />
-              <div className="relative w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+              <div className="relative w-14 h-14 sm:w-16 sm:h-16 bg-linear-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
                 <LockKeyhole className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
               </div>
             </div>
@@ -126,9 +126,9 @@ export default function ForgotPasswordPage() {
               >
                 <div className="flex items-start gap-3">
                   {message.type === "success" ? (
-                    <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 mt-0.5 flex-shrink-0" />
+                    <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 mt-0.5 shrink-0" />
                   ) : (
-                    <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 mt-0.5 flex-shrink-0" />
+                    <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 mt-0.5 shrink-0" />
                   )}
                   <p className="text-sm font-medium">{message.text}</p>
                 </div>
@@ -168,7 +168,7 @@ export default function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg sm:rounded-xl text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 font-semibold shadow-lg shadow-emerald-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+              className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg sm:rounded-xl text-white bg-linear-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 font-semibold shadow-lg shadow-emerald-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
             >
               {isLoading ? (
                 <>
@@ -213,7 +213,7 @@ export default function ForgotPasswordPage() {
           {/* Security Note */}
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-start gap-2">
-              <Shield className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <Shield className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
               <p className="text-xs text-blue-700">
                 <span className="font-semibold">Security Note:</span> Password
                 reset links expire in 1 hour and can only be used once.

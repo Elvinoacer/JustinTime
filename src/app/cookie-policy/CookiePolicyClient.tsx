@@ -100,7 +100,7 @@ export default function CookiePolicyPage() {
         <div className="max-w-6xl mx-auto">
           {/* Hero Section */}
           <div className="text-center mb-8 sm:mb-12">
-            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl sm:rounded-2xl mb-3 sm:mb-4 shadow-lg">
+            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-linear-to-br from-emerald-500 to-teal-600 rounded-xl sm:rounded-2xl mb-3 sm:mb-4 shadow-lg">
               <Cookie className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2">
@@ -141,7 +141,7 @@ export default function CookiePolicyPage() {
                       className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-5 sm:p-6 md:p-8"
                     >
                       <div className="flex items-start gap-3 sm:gap-4 mb-3 sm:mb-4">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center flex-shrink-0">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-linear-to-br from-emerald-50 to-teal-50 flex items-center justify-center shrink-0">
                           <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
                         </div>
                         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 pt-1">
@@ -295,7 +295,7 @@ export default function CookiePolicyPage() {
               </div>
 
               {/* Cookie Control */}
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl sm:rounded-2xl border border-blue-100 p-5 sm:p-6">
+              <div className="bg-linear-to-br from-blue-50 to-indigo-50 rounded-xl sm:rounded-2xl border border-blue-100 p-5 sm:p-6">
                 <div className="flex items-center gap-3 mb-3 sm:mb-4">
                   <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
                     <Settings className="w-5 h-5 text-blue-600" />
@@ -312,7 +312,7 @@ export default function CookiePolicyPage() {
                   <button className="w-full bg-white border border-blue-200 text-blue-700 font-semibold py-2.5 px-4 rounded-lg hover:bg-blue-50 transition-colors text-sm sm:text-base">
                     Essential Cookies Only
                   </button>
-                  <button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold py-2.5 px-4 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-colors text-sm sm:text-base">
+                  <button className="w-full bg-linear-to-r from-blue-600 to-indigo-600 text-white font-semibold py-2.5 px-4 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-colors text-sm sm:text-base">
                     Accept All Cookies
                   </button>
                   <button className="w-full text-gray-600 font-medium py-2.5 px-4 rounded-lg hover:text-gray-900 transition-colors text-sm sm:text-base">
@@ -347,7 +347,7 @@ export default function CookiePolicyPage() {
 
           {/* Mobile Bottom Navigation */}
           <div className="lg:hidden mt-8">
-            <div className="bg-gradient-to-r from-gray-50 to-white rounded-xl p-4 border border-gray-200">
+            <div className="bg-linear-to-r from-gray-50 to-white rounded-xl p-4 border border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600">
                   Need to manage cookies?
@@ -361,7 +361,7 @@ export default function CookiePolicyPage() {
 
           {/* Desktop Summary */}
           <div className="hidden lg:block mt-8">
-            <div className="bg-gradient-to-r from-gray-50 to-white rounded-2xl p-6 border border-gray-200">
+            <div className="bg-linear-to-r from-gray-50 to-white rounded-2xl p-6 border border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-bold text-gray-900 text-lg mb-2">

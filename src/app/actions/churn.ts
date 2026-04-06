@@ -7,6 +7,7 @@ import {
   ChurnInterventionOutcome,
   ChurnInterventionStatus,
   ChurnRiskLevel,
+  Prisma,
   UserRole,
 } from "@/generated/prisma/client";
 import {
@@ -100,177 +101,231 @@ export async function getAtRiskUsers(filters: AtRiskUsersFilters = {}) {
     const page = Math.max(1, filters.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, filters.pageSize ?? 50));
 
-    const [totalScores, usersWithScores] = await Promise.all([
-      prisma.churnScore.count(),
-      prisma.user.findMany({
-        where: {
-          churnScores: {
-            some: {},
-          },
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          role: true,
-          roles: true,
-          profile: {
-            select: {
-              hourlyRate: true,
-            },
-          },
-          churnScores: {
-            orderBy: { calculatedAt: "desc" },
-            take: 5,
-            select: {
-              id: true,
-              riskLevel: true,
-              score: true,
-              calculatedAt: true,
-              lastActivityDays: true,
-              bookingDecline: true,
-              engagementScore: true,
-              factors: true,
-            },
-          },
-          churnInterventions: {
-            orderBy: { createdAt: "desc" },
-            take: 5,
-            select: {
-              id: true,
-              type: true,
-              channel: true,
-              status: true,
-              outcome: true,
-              createdAt: true,
-              executed: true,
-              successful: true,
-            },
-          },
-          _count: {
-            select: {
-              churnInterventions: true,
-            },
-          },
-        },
-      }),
-    ]);
+    const searchQuery = filters.search?.trim();
+    const scoreAgeThreshold =
+      filters.scoreAgeDays && filters.scoreAgeDays > 0
+        ? new Date(Date.now() - filters.scoreAgeDays * 24 * 60 * 60 * 1000)
+        : null;
+    const contactedThreshold =
+      filters.contactedWithinDays && filters.contactedWithinDays > 0
+        ? new Date(
+            Date.now() - filters.contactedWithinDays * 24 * 60 * 60 * 1000,
+          )
+        : null;
 
-    const rows = usersWithScores
-      .map((user) => {
-        const latestScore = user.churnScores[0];
-        if (!latestScore) {
-          return null;
-        }
+    const whereClauses: Prisma.ChurnScoreWhereInput[] = [];
 
-        return {
-          userId: user.id,
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            image: user.image,
-            role: user.role,
-            roles: user.roles,
-            hourlyRate: user.profile?.hourlyRate
-              ? Number(user.profile.hourlyRate)
-              : null,
+    whereClauses.push({
+      riskLevel: filters.riskLevel
+        ? filters.riskLevel
+        : {
+            not: "LOW",
           },
-          latestScore: {
-            ...latestScore,
-            score: Number(latestScore.score),
-            bookingDecline:
-              latestScore.bookingDecline != null
-                ? Number(latestScore.bookingDecline)
-                : null,
-            engagementScore:
-              latestScore.engagementScore != null
-                ? Number(latestScore.engagementScore)
-                : null,
-            factors: latestScore.factors,
-          },
-          scoreHistory: user.churnScores.map((score) => ({
-            id: score.id,
-            riskLevel: score.riskLevel,
-            score: Number(score.score),
-            calculatedAt: score.calculatedAt,
-          })),
-          lastIntervention: user.churnInterventions[0] || null,
-          interventionHistory: user.churnInterventions,
-          interventionCount: user._count.churnInterventions,
-        };
-      })
-      .filter((row): row is NonNullable<typeof row> => row !== null);
-
-    const hasAnyLatestAtRisk = rows.some(
-      (row) => row.latestScore.riskLevel !== "LOW",
-    );
-
-    let filteredRows = rows.filter((row) => {
-      if (filters.riskLevel) {
-        return row.latestScore.riskLevel === filters.riskLevel;
-      }
-      return row.latestScore.riskLevel !== "LOW";
     });
 
-    if (filters.search?.trim()) {
-      const q = filters.search.trim().toLowerCase();
-      filteredRows = filteredRows.filter((row) => {
-        return (
-          row.user.name?.toLowerCase().includes(q) ||
-          row.user.email?.toLowerCase().includes(q) ||
-          row.userId.toLowerCase().includes(q)
-        );
+    if (searchQuery) {
+      whereClauses.push({
+        user: {
+          is: {
+            OR: [
+              {
+                id: {
+                  contains: searchQuery,
+                },
+              },
+              {
+                name: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+              {
+                email: {
+                  contains: searchQuery,
+                  mode: "insensitive",
+                },
+              },
+            ],
+          },
+        },
       });
     }
 
-    if (filters.interventionStatus) {
-      filteredRows = filteredRows.filter((row) => {
-        if (filters.interventionStatus === "NONE") {
-          return !row.lastIntervention;
-        }
-        return row.lastIntervention?.status === filters.interventionStatus;
+    if (scoreAgeThreshold) {
+      whereClauses.push({
+        calculatedAt: {
+          gte: scoreAgeThreshold,
+        },
       });
     }
 
-    if (filters.onlyNotContacted) {
-      filteredRows = filteredRows.filter((row) => !row.lastIntervention);
-    }
-
-    if (filters.contactedWithinDays && filters.contactedWithinDays > 0) {
-      const threshold =
-        Date.now() - filters.contactedWithinDays * 24 * 60 * 60 * 1000;
-      filteredRows = filteredRows.filter((row) => {
-        if (!row.lastIntervention) {
-          return false;
-        }
-        return row.lastIntervention.createdAt.getTime() >= threshold;
+    if (filters.interventionStatus === "NONE" || filters.onlyNotContacted) {
+      whereClauses.push({
+        user: {
+          is: {
+            churnInterventions: {
+              none: {},
+            },
+          },
+        },
+      });
+    } else if (filters.interventionStatus) {
+      whereClauses.push({
+        user: {
+          is: {
+            churnInterventions: {
+              some: {
+                status: filters.interventionStatus,
+              },
+            },
+          },
+        },
       });
     }
 
-    if (filters.scoreAgeDays && filters.scoreAgeDays > 0) {
-      const threshold = Date.now() - filters.scoreAgeDays * 24 * 60 * 60 * 1000;
-      filteredRows = filteredRows.filter(
-        (row) => row.latestScore.calculatedAt.getTime() >= threshold,
-      );
+    if (contactedThreshold) {
+      whereClauses.push({
+        user: {
+          is: {
+            churnInterventions: {
+              some: {
+                createdAt: {
+                  gte: contactedThreshold,
+                },
+              },
+            },
+          },
+        },
+      });
     }
 
-    filteredRows.sort((a, b) => {
-      if (b.latestScore.score !== a.latestScore.score) {
-        return b.latestScore.score - a.latestScore.score;
-      }
-      return (
-        b.latestScore.calculatedAt.getTime() -
-        a.latestScore.calculatedAt.getTime()
-      );
-    });
+    const where: Prisma.ChurnScoreWhereInput = {
+      isCurrent: true,
+      AND: whereClauses,
+    };
 
-    const totalFiltered = filteredRows.length;
+    const [hasAnyScoresCount, hasAnyLatestAtRiskCount, totalFiltered] =
+      await Promise.all([
+        prisma.churnScore.count({
+          where: {
+            isCurrent: true,
+          },
+        }),
+        prisma.churnScore.count({
+          where: {
+            isCurrent: true,
+            riskLevel: {
+              not: "LOW",
+            },
+          },
+        }),
+        prisma.churnScore.count({ where }),
+      ]);
+
     const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
     const normalizedPage = Math.min(page, totalPages);
-    const start = (normalizedPage - 1) * pageSize;
-    const users = filteredRows.slice(start, start + pageSize);
+
+    const scores = await prisma.churnScore.findMany({
+      where,
+      skip: (normalizedPage - 1) * pageSize,
+      take: pageSize,
+      orderBy: [{ score: "desc" }, { calculatedAt: "desc" }],
+      select: {
+        id: true,
+        userId: true,
+        riskLevel: true,
+        score: true,
+        calculatedAt: true,
+        lastActivityDays: true,
+        bookingDecline: true,
+        engagementScore: true,
+        factors: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            role: true,
+            roles: true,
+            profile: {
+              select: {
+                hourlyRate: true,
+              },
+            },
+            churnScores: {
+              orderBy: { calculatedAt: "desc" },
+              take: 5,
+              select: {
+                id: true,
+                riskLevel: true,
+                score: true,
+                calculatedAt: true,
+              },
+            },
+            churnInterventions: {
+              orderBy: { createdAt: "desc" },
+              take: 5,
+              select: {
+                id: true,
+                type: true,
+                channel: true,
+                status: true,
+                outcome: true,
+                createdAt: true,
+                executed: true,
+                successful: true,
+              },
+            },
+            _count: {
+              select: {
+                churnInterventions: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const users = scores.map((scoreRow) => ({
+      userId: scoreRow.user.id,
+      user: {
+        id: scoreRow.user.id,
+        name: scoreRow.user.name,
+        email: scoreRow.user.email,
+        image: scoreRow.user.image,
+        role: scoreRow.user.role,
+        roles: scoreRow.user.roles,
+        hourlyRate: scoreRow.user.profile?.hourlyRate
+          ? Number(scoreRow.user.profile.hourlyRate)
+          : null,
+      },
+      latestScore: {
+        id: scoreRow.id,
+        riskLevel: scoreRow.riskLevel,
+        score: Number(scoreRow.score),
+        calculatedAt: scoreRow.calculatedAt,
+        lastActivityDays: scoreRow.lastActivityDays,
+        bookingDecline:
+          scoreRow.bookingDecline != null
+            ? Number(scoreRow.bookingDecline)
+            : null,
+        engagementScore:
+          scoreRow.engagementScore != null
+            ? Number(scoreRow.engagementScore)
+            : null,
+        factors: scoreRow.factors,
+      },
+      scoreHistory: scoreRow.user.churnScores.map((history) => ({
+        id: history.id,
+        riskLevel: history.riskLevel,
+        score: Number(history.score),
+        calculatedAt: history.calculatedAt,
+      })),
+      lastIntervention: scoreRow.user.churnInterventions[0] || null,
+      interventionHistory: scoreRow.user.churnInterventions,
+      interventionCount: scoreRow.user._count.churnInterventions,
+    }));
 
     return {
       success: true,
@@ -280,8 +335,8 @@ export async function getAtRiskUsers(filters: AtRiskUsersFilters = {}) {
         pageSize,
         totalFiltered,
         totalPages,
-        hasAnyScores: totalScores > 0,
-        hasAnyLatestAtRisk,
+        hasAnyScores: hasAnyScoresCount > 0,
+        hasAnyLatestAtRisk: hasAnyLatestAtRiskCount > 0,
       },
     };
   } catch (error) {

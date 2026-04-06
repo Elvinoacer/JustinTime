@@ -226,7 +226,7 @@ export function ConfirmModal({
         >
           {isLoading && (
             <div
-              className={`border-2 border-white/20 border-t-white rounded-full animate-spin flex-shrink-0 ${
+              className={`border-2 border-white/20 border-t-white rounded-full animate-spin shrink-0 ${
                 compact ? "w-3 h-3" : "w-3 h-3 sm:w-4 sm:h-4"
               }`}
             />
@@ -374,7 +374,7 @@ export function PromptModal({
           >
             {isLoading && (
               <div
-                className={`border-2 border-white/20 border-t-white rounded-full animate-spin flex-shrink-0 ${
+                className={`border-2 border-white/20 border-t-white rounded-full animate-spin shrink-0 ${
                   compact ? "w-3 h-3" : "w-3 h-3 sm:w-4 sm:h-4"
                 }`}
               />

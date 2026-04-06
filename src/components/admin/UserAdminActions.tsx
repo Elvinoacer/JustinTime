@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   toggleBanUser,
   updateUserRole,
@@ -46,12 +46,29 @@ export default function UserAdminActions({ user }: UserAdminActionsProps) {
   );
   const [deleteReason, setDeleteReason] = useState("");
   const [isWaiving, setIsWaiving] = useState(false);
+  const isProviderUser =
+    user.role === "PROVIDER" ||
+    (Array.isArray(user.roles) && user.roles.includes("PROVIDER"));
+  const isAnyModalOpen = showRoleModal || showPlanModal || showDeleteModal;
+
+  useEffect(() => {
+    if (!isAnyModalOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isAnyModalOpen]);
 
   const handleFeeWaiver = async () => {
     const currentlyWaived = user.profile?.onboardingFeeWaived;
     const action = currentlyWaived
       ? "revoke the fee waiver for"
-      : "waive the onboarding fee and grant verification access for";
+      : "waive the onboarding fee for";
 
     if (!confirm(`Are you sure you want to ${action} this user?`)) return;
 
@@ -139,7 +156,7 @@ export default function UserAdminActions({ user }: UserAdminActionsProps) {
 
   const handleScheduleDeletion = () => {
     if (!deleteReason.trim()) {
-      alert("Please provide a reason for deletion");
+      toast.error("Please provide a reason for deletion");
       return;
     }
 
@@ -309,7 +326,7 @@ export default function UserAdminActions({ user }: UserAdminActionsProps) {
               </button>
 
               {/* Fee Waiver - Only for Providers */}
-              {user.role === "PROVIDER" && (
+              {isProviderUser && (
                 <button
                   onClick={handleFeeWaiver}
                   disabled={isWaiving}
@@ -345,7 +362,7 @@ export default function UserAdminActions({ user }: UserAdminActionsProps) {
                       ? "Processing..."
                       : user.profile?.onboardingFeeWaived
                         ? "Revoke Fee Waiver"
-                        : "Waive Fee + Grant Access"}
+                        : "Waive Onboarding Fee"}
                   </span>
                   {user.profile?.onboardingFeeWaived && (
                     <span className="ml-auto text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-semibold">

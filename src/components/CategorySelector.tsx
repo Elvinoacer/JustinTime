@@ -192,7 +192,7 @@ export default function CategorySelector({
           </div>
         ) : (
           <div
-            className={`absolute inset-0 bg-gradient-to-br transition-all duration-200 ${
+            className={`absolute inset-0 bg-linear-to-br transition-all duration-200 ${
               isSelected
                 ? "from-emerald-500 to-teal-600"
                 : "from-gray-100 to-gray-200 group-hover:from-emerald-50 group-hover:to-teal-50"
@@ -399,7 +399,7 @@ export default function CategorySelector({
                   </div>
                   <button
                     onClick={() => setIsModalOpen(false)}
-                    className="p-1.5 sm:p-2 rounded-md sm:rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors flex-shrink-0"
+                    className="p-1.5 sm:p-2 rounded-md sm:rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors shrink-0"
                     aria-label="Close modal"
                   >
                     <span className="material-symbols-outlined text-sm sm:text-base">

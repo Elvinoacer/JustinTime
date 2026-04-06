@@ -123,7 +123,7 @@ const Benefits = () => {
                 variants={benefitItem}
               >
                 <div
-                  className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${benefit.gradient} opacity-60`}
+                  className={`pointer-events-none absolute inset-0 bg-linear-to-br ${benefit.gradient} opacity-60`}
                   aria-hidden="true"
                 />
                 <div

@@ -12,7 +12,7 @@ import {
   Eye,
   Mail,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface WalletData {
   id: string;
@@ -38,6 +38,14 @@ export default function EnhancedWalletsTable({
   totalPages,
 }: EnhancedWalletsTableProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const buildPageUrl = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", "wallets");
+    params.set("page", String(page));
+    return `?${params.toString()}`;
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-KE", {
@@ -79,7 +87,7 @@ export default function EnhancedWalletsTable({
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="p-2 bg-violet-100 rounded-lg flex-shrink-0">
+            <div className="p-2 bg-violet-100 rounded-lg flex-none">
               <Wallet className="w-4 h-4 text-violet-700" />
             </div>
             <div className="min-w-0 flex-1">
@@ -91,14 +99,14 @@ export default function EnhancedWalletsTable({
               </p>
             </div>
           </div>
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 flex-shrink-0">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 flex-none">
             ACTIVE
           </span>
         </div>
 
         {/* User Details */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+          <div className="w-8 h-8 bg-[linear-gradient(to_bottom_right,var(--tw-gradient-stops))] from-violet-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-none">
             {(wallet.user.name || "U")[0].toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
@@ -149,7 +157,7 @@ export default function EnhancedWalletsTable({
   return (
     <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm sm:shadow-lg border border-slate-100 sm:border-slate-100 overflow-hidden">
       {/* Table Header */}
-      <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-violet-50/30">
+      <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-[linear-gradient(to_right,var(--tw-gradient-stops))] from-slate-50 to-violet-50/30">
         <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 xs:gap-0">
           <div className="flex items-center gap-2">
             <h2 className="text-base xs:text-lg font-bold text-slate-900">
@@ -161,7 +169,7 @@ export default function EnhancedWalletsTable({
           </div>
           <button
             onClick={handleExport}
-            className="flex items-center gap-1.5 px-3 py-1.5 xs:px-4 xs:py-2 bg-white border border-slate-200 rounded-lg text-xs xs:text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all flex-shrink-0 self-start xs:self-auto"
+            className="flex items-center gap-1.5 px-3 py-1.5 xs:px-4 xs:py-2 bg-white border border-slate-200 rounded-lg text-xs xs:text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all flex-none self-start xs:self-auto"
           >
             <Download className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
             <span className="hidden xs:inline">Export</span>
@@ -224,7 +232,7 @@ export default function EnhancedWalletsTable({
                 {/* Wallet Info */}
                 <td className="px-4 xl:px-6 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-violet-100 rounded-lg group-hover:bg-violet-200 transition-colors flex-shrink-0">
+                    <div className="p-2 bg-violet-100 rounded-lg group-hover:bg-violet-200 transition-colors flex-none">
                       <Wallet className="w-4 h-4 text-violet-700" />
                     </div>
                     <div>
@@ -241,7 +249,7 @@ export default function EnhancedWalletsTable({
                 {/* User Details */}
                 <td className="px-4 xl:px-6 py-3">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                    <div className="w-8 h-8 bg-[linear-gradient(to_bottom_right,var(--tw-gradient-stops))] from-violet-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-none">
                       {(wallet.user.name || "U")[0].toUpperCase()}
                     </div>
                     <div className="min-w-0">
@@ -307,7 +315,7 @@ export default function EnhancedWalletsTable({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-gradient-to-r from-slate-50 to-violet-50/30">
+        <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-[linear-gradient(to_right,var(--tw-gradient-stops))] from-slate-50 to-violet-50/30">
           <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-0">
             <p className="text-xs xs:text-sm text-slate-600 text-center xs:text-left">
               Showing{" "}
@@ -324,9 +332,7 @@ export default function EnhancedWalletsTable({
             <div className="flex items-center justify-center gap-1 xs:gap-2">
               <button
                 disabled={currentPage <= 1}
-                onClick={() =>
-                  router.push(`?tab=wallets&page=${currentPage - 1}`)
-                }
+                onClick={() => router.push(buildPageUrl(currentPage - 1))}
                 className="flex items-center gap-1 px-3 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 hover:border-slate-300 transition-all"
               >
                 <ChevronLeft className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
@@ -349,9 +355,7 @@ export default function EnhancedWalletsTable({
                   return (
                     <button
                       key={i}
-                      onClick={() =>
-                        router.push(`?tab=wallets&page=${pageNum}`)
-                      }
+                      onClick={() => router.push(buildPageUrl(pageNum))}
                       className={`w-8 h-8 xs:w-10 xs:h-10 rounded-lg text-xs xs:text-sm font-medium transition-all ${
                         currentPage === pageNum
                           ? "bg-violet-600 text-white shadow-lg shadow-violet-500/30"
@@ -366,9 +370,7 @@ export default function EnhancedWalletsTable({
 
               <button
                 disabled={currentPage >= totalPages}
-                onClick={() =>
-                  router.push(`?tab=wallets&page=${currentPage + 1}`)
-                }
+                onClick={() => router.push(buildPageUrl(currentPage + 1))}
                 className="flex items-center gap-1 px-3 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 hover:border-slate-300 transition-all"
               >
                 <span className="hidden xs:inline">Next</span>

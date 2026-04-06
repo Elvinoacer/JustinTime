@@ -37,7 +37,7 @@ const ReviewsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[300px] md:min-h-[400px]">
+      <div className="flex items-center justify-center min-h-[300px] md:min-h-100">
         <div
           role="status"
           aria-label="Loading reviews"
@@ -248,7 +248,7 @@ const ReviewsPage = () => {
                 >
                   <div className="flex items-start justify-between mb-2 md:mb-3">
                     <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-                      <div className="w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-primary-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs md:text-sm lg:text-base flex-shrink-0 overflow-hidden">
+                      <div className="w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 bg-linear-to-br from-primary-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xs md:text-sm lg:text-base shrink-0 overflow-hidden">
                         {review.clientImage ? (
                           <img
                             src={review.clientImage}

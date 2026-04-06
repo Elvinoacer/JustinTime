@@ -104,9 +104,9 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional }) => 
               onError={() => setCoverAvailable(false)}
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
+            <div className="absolute inset-0 bg-linear-to-br from-emerald-700 via-teal-700 to-slate-900" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/75 via-slate-950/3 to-transparent" />
+          <div className="absolute inset-0 bg-linear-to-r from-slate-950/75 via-slate-950/3 to-transparent" />
           <div className="absolute left-2 right-2 top-2 flex items-start justify-between gap-1.5 sm:left-2.5 sm:right-2.5 sm:top-2.5">
             <div className="flex min-w-0 flex-wrap gap-1">
               {isPro ? (
@@ -154,7 +154,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional }) => 
                   onError={() => setAvatarAvailable(false)}
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-100 to-teal-100 text-lg font-bold text-emerald-700">
+                <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-emerald-100 to-teal-100 text-lg font-bold text-emerald-700">
                   {displayName.charAt(0)}
                 </div>
               )}

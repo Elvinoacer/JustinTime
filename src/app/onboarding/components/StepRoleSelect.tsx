@@ -53,7 +53,7 @@ export default function StepRoleSelect({
           }`}
           aria-label="I want to hire professionals"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="absolute inset-0 bg-linear-to-br from-emerald-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           {/* Selected checkmark */}
           {activeRole === "CLIENT" && (
             <motion.div
@@ -102,7 +102,7 @@ export default function StepRoleSelect({
           }`}
           aria-label="I want to work as a professional"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="absolute inset-0 bg-linear-to-br from-blue-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           {/* Selected checkmark */}
           {activeRole === "PROVIDER" && (
             <motion.div

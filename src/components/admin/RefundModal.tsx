@@ -82,7 +82,7 @@ export default function RefundModal({ booking, onClose }: RefundModalProps) {
         <div className="p-6 space-y-4">
           {/* Info Card */}
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3">
-            <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
             <div className="text-xs text-blue-700 leading-relaxed">
               Processing a manual refund will credit the client's wallet and update the booking status to <strong>CANCELLED</strong>. This action is recorded in the audit logs.
             </div>
@@ -134,7 +134,7 @@ export default function RefundModal({ booking, onClose }: RefundModalProps) {
 
           {/* Warning */}
           <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 flex gap-3">
-             <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
              <p className="text-[11px] text-amber-700 font-medium">
                Funds will be immediately available in the user's wallet. Ensure the reason is clearly documented for audit purposes.
              </p>

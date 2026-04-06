@@ -18,8 +18,20 @@ import {
   Zap,
   User,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
+
+interface SupportTicketMessage {
+  id: string;
+  message: string;
+  authorRole: string;
+  createdAt: Date | string;
+  author?: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  };
+}
 
 interface SupportTicket {
   id: string;
@@ -33,6 +45,7 @@ interface SupportTicket {
   createdAt: Date;
   updatedAt: Date;
   user: { name: string | null; email: string | null; role: string };
+  messages?: SupportTicketMessage[];
 }
 
 interface EnhancedSupportTicketsTableProps {
@@ -55,13 +68,21 @@ export default function EnhancedSupportTicketsTable({
   totalPages,
 }: EnhancedSupportTicketsTableProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(
     null,
   );
   const [adminNotes, setAdminNotes] = useState("");
   const [resolution, setResolution] = useState("");
+  const [replyMessage, setReplyMessage] = useState("");
   const [status, setStatus] = useState<SupportTicketStatus>("OPEN");
+
+  const buildPageUrl = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(page));
+    return `?${params.toString()}`;
+  };
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -129,7 +150,7 @@ export default function EnhancedSupportTicketsTable({
     }
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (date: Date | string) => {
     return new Date(date).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -137,7 +158,7 @@ export default function EnhancedSupportTicketsTable({
     });
   };
 
-  const formatTime = (date: Date) => {
+  const formatTime = (date: Date | string) => {
     return new Date(date).toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
@@ -148,6 +169,7 @@ export default function EnhancedSupportTicketsTable({
     setSelectedTicket(ticket);
     setAdminNotes(ticket.adminNotes || "");
     setResolution(ticket.resolution || "");
+    setReplyMessage("");
     setStatus(isSupportTicketStatus(ticket.status) ? ticket.status : "OPEN");
   };
 
@@ -159,13 +181,15 @@ export default function EnhancedSupportTicketsTable({
         status,
         adminNotes,
         resolution,
+        replyMessage: replyMessage.trim() || undefined,
       });
 
       if (result.success) {
         setSelectedTicket(null);
+        setReplyMessage("");
         router.refresh();
       } else {
-        alert("Failed to update ticket");
+        alert(result.error || "Failed to update ticket");
       }
     });
   };
@@ -224,7 +248,7 @@ export default function EnhancedSupportTicketsTable({
     <>
       <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm sm:shadow-lg border border-slate-100 overflow-hidden">
         {/* Table Header */}
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50/30">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-[linear-gradient(to_right,var(--tw-gradient-stops))] from-slate-50 to-indigo-50/30">
           <div className="flex items-center justify-between">
             <h2 className="text-base sm:text-lg font-bold text-slate-900">
               All Tickets
@@ -404,7 +428,7 @@ export default function EnhancedSupportTicketsTable({
                     {/* User */}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                        <div className="w-8 h-8 bg-[linear-gradient(to_bottom_right,var(--tw-gradient-stops))] from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
                           {(ticket.user.name || "U")[0].toUpperCase()}
                         </div>
                         <div>
@@ -496,7 +520,7 @@ export default function EnhancedSupportTicketsTable({
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50/30">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-[linear-gradient(to_right,var(--tw-gradient-stops))] from-slate-50 to-indigo-50/30">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
               <p className="text-xs sm:text-sm text-slate-600">
                 Showing{" "}
@@ -513,7 +537,7 @@ export default function EnhancedSupportTicketsTable({
               <div className="flex items-center gap-1 sm:gap-2">
                 <button
                   disabled={currentPage <= 1}
-                  onClick={() => router.push(`?page=${currentPage - 1}`)}
+                  onClick={() => router.push(buildPageUrl(currentPage - 1))}
                   className="flex items-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 hover:border-slate-300 transition-all"
                 >
                   <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -536,7 +560,7 @@ export default function EnhancedSupportTicketsTable({
                     return (
                       <button
                         key={i}
-                        onClick={() => router.push(`?page=${pageNum}`)}
+                        onClick={() => router.push(buildPageUrl(pageNum))}
                         className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg text-xs sm:text-sm font-medium transition-all ${
                           currentPage === pageNum
                             ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
@@ -551,7 +575,7 @@ export default function EnhancedSupportTicketsTable({
 
                 <button
                   disabled={currentPage >= totalPages}
-                  onClick={() => router.push(`?page=${currentPage + 1}`)}
+                  onClick={() => router.push(buildPageUrl(currentPage + 1))}
                   className="flex items-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 hover:border-slate-300 transition-all"
                 >
                   <span className="hidden sm:inline">Next</span>
@@ -581,7 +605,7 @@ export default function EnhancedSupportTicketsTable({
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-violet-600 text-white p-4 sm:p-6 rounded-t-xl sm:rounded-t-2xl">
+              <div className="sticky top-0 bg-[linear-gradient(to_right,var(--tw-gradient-stops))] from-indigo-600 to-violet-600 text-white p-4 sm:p-6 rounded-t-xl sm:rounded-t-2xl">
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -608,7 +632,7 @@ export default function EnhancedSupportTicketsTable({
                 {/* User Info */}
                 <div className="bg-slate-50 rounded-lg sm:rounded-xl p-3 sm:p-4 border border-slate-200 flex items-center justify-between">
                   <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-base">
+                    <div className="w-8 h-8 sm:w-12 sm:h-12 bg-[linear-gradient(to_bottom_right,var(--tw-gradient-stops))] from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-sm sm:text-base">
                       {(selectedTicket.user.name || "U")[0].toUpperCase()}
                     </div>
                     <div>
@@ -672,6 +696,46 @@ export default function EnhancedSupportTicketsTable({
                   </div>
                 </div>
 
+                {/* Conversation */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase">
+                    Conversation
+                  </p>
+                  <div className="max-h-52 overflow-y-auto border border-slate-200 rounded-lg sm:rounded-xl bg-slate-50/70 p-2 sm:p-3 space-y-2">
+                    {(selectedTicket.messages || []).length === 0 ? (
+                      <p className="text-xs text-slate-500 px-1 py-2">
+                        No thread messages yet.
+                      </p>
+                    ) : (
+                      selectedTicket.messages?.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`rounded-lg px-3 py-2 border text-sm ${
+                            message.authorRole === "ADMIN"
+                              ? "bg-indigo-50 border-indigo-100"
+                              : "bg-white border-slate-200"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="text-xs font-semibold text-slate-700">
+                              {message.authorRole === "ADMIN"
+                                ? "Support Team"
+                                : message.author?.name || "User"}
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                              {formatDate(message.createdAt)}{" "}
+                              {formatTime(message.createdAt)}
+                            </span>
+                          </div>
+                          <p className="text-xs sm:text-sm text-slate-700 whitespace-pre-wrap">
+                            {message.message}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
                 {/* Timeline */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 text-xs sm:text-sm text-slate-500 border-t border-b border-slate-100 py-3 sm:py-4">
                   <div className="flex items-center gap-2">
@@ -722,7 +786,7 @@ export default function EnhancedSupportTicketsTable({
                     <textarea
                       value={adminNotes}
                       onChange={(e) => setAdminNotes(e.target.value)}
-                      className="w-full p-3 sm:p-4 border border-slate-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none min-h-[60px] sm:min-h-[80px] text-sm"
+                      className="w-full p-3 sm:p-4 border border-slate-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none min-h-15 sm:min-h-20 text-sm"
                       placeholder="Add internal notes visible only to admins..."
                     />
                   </div>
@@ -734,8 +798,20 @@ export default function EnhancedSupportTicketsTable({
                     <textarea
                       value={resolution}
                       onChange={(e) => setResolution(e.target.value)}
-                      className="w-full p-3 sm:p-4 border border-slate-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none min-h-[80px] sm:min-h-[100px] text-sm"
+                      className="w-full p-3 sm:p-4 border border-slate-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none min-h-20 sm:min-h-25 text-sm"
                       placeholder="Enter resolution details visible to the user..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs sm:text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                      Admin Reply To User
+                    </label>
+                    <textarea
+                      value={replyMessage}
+                      onChange={(e) => setReplyMessage(e.target.value)}
+                      className="w-full p-3 sm:p-4 border border-slate-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none min-h-20 sm:min-h-25 text-sm"
+                      placeholder="Write a support reply. This adds a thread message and notifies the user."
                     />
                   </div>
                 </div>
@@ -751,7 +827,7 @@ export default function EnhancedSupportTicketsTable({
                   <button
                     onClick={handleUpdate}
                     disabled={isPending}
-                    className="px-4 sm:px-6 py-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:shadow-lg hover:shadow-indigo-500/30 rounded-lg text-sm font-bold transition-all disabled:opacity-50 order-1 xs:order-2"
+                    className="px-4 sm:px-6 py-2 bg-[linear-gradient(to_right,var(--tw-gradient-stops))] from-indigo-600 to-violet-600 text-white hover:shadow-lg hover:shadow-indigo-500/30 rounded-lg text-sm font-bold transition-all disabled:opacity-50 order-1 xs:order-2"
                   >
                     {isPending ? "Saving..." : "Save Changes"}
                   </button>

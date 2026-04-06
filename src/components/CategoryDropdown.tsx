@@ -221,7 +221,7 @@ export default function CategoryDropdown({
                         onClick={() => handleSelect(category.name)}
                         className={`w-full flex items-center gap-2 px-2 sm:px-3 py-2 sm:py-2.5 rounded-lg transition-all text-left active:scale-[0.98] ${
                           selectedCategory === category.name
-                            ? "bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-sm"
+                            ? "bg-linear-to-r from-emerald-500 to-green-600 text-white shadow-sm"
                             : "hover:bg-gray-50 text-gray-700"
                         }`}
                       >

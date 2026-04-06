@@ -307,7 +307,7 @@ const BookingsPage = () => {
           >
             <div className="flex items-center justify-between mb-2 sm:mb-3">
               <div
-                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md sm:rounded-lg bg-gradient-to-br ${stat.gradient} flex items-center justify-center shadow-xs sm:shadow-sm`}
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-md sm:rounded-lg bg-linear-to-br ${stat.gradient} flex items-center justify-center shadow-xs sm:shadow-sm`}
               >
                 <span className="material-symbols-outlined text-white text-sm sm:text-lg">
                   {stat.icon}
@@ -452,7 +452,7 @@ const BookingsPage = () => {
                 className="bg-white rounded-lg sm:rounded-xl shadow-xs hover:shadow-sm border border-gray-200 overflow-hidden transition-all group"
               >
                 {/* Card Header with Status */}
-                <div className="relative p-4 sm:p-6 pb-3 sm:pb-4 bg-gradient-to-br from-gray-50 to-white">
+                <div className="relative p-4 sm:p-6 pb-3 sm:pb-4 bg-linear-to-br from-gray-50 to-white">
                   <div className="flex items-start justify-between mb-3 sm:mb-4">
                     <div
                       className={`px-2.5 py-1 rounded-full text-[10px] xs:text-xs font-bold border flex items-center gap-1 ${getStatusColor(
@@ -500,7 +500,7 @@ const BookingsPage = () => {
 
                   {/* Client Info with Avatar */}
                   <div className="flex items-center gap-2.5 sm:gap-3 mb-2.5 sm:mb-3">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-sm">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-linear-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-sm">
                       {booking.clientImage ? (
                         <img
                           src={booking.clientImage}
@@ -635,7 +635,7 @@ const BookingsPage = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto -mx-1">
             <table className="w-full min-w-[640px]">
-              <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
+              <thead className="bg-linear-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
                 <tr>
                   <th
                     scope="col"
@@ -688,7 +688,7 @@ const BookingsPage = () => {
                     >
                       <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2 sm:gap-3">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm shadow-xs">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-linear-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm shadow-xs">
                             {booking.clientImage ? (
                               <img
                                 src={booking.clientImage}
@@ -840,8 +840,8 @@ const BookingsPage = () => {
         {selectedBooking && (
           <div className="space-y-4 sm:space-y-6">
             {/* Client Info */}
-            <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-xl sm:text-2xl shadow-md">
+            <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-linear-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-linear-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-xl sm:text-2xl shadow-md">
                 {selectedBooking.clientImage ? (
                   <img
                     src={selectedBooking.clientImage}
@@ -880,7 +880,7 @@ const BookingsPage = () => {
                   {selectedBooking.clientPhone && (
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-2.5 sm:p-3 rounded-lg border border-blue-200 gap-2 sm:gap-0">
                       <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shrink-0">
                           <span className="material-symbols-outlined text-white text-sm sm:text-lg">
                             phone
                           </span>
@@ -897,7 +897,7 @@ const BookingsPage = () => {
                       <div className="flex gap-1 sm:gap-2">
                         <a
                           href={`tel:${selectedBooking.clientPhone}`}
-                          className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all flex items-center gap-1.5 sm:gap-2 shadow-md"
+                          className="px-3 sm:px-4 py-1.5 sm:py-2 bg-linear-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all flex items-center gap-1.5 sm:gap-2 shadow-md"
                           onClick={() => toast.success("Opening phone app...")}
                         >
                           <span className="material-symbols-outlined text-xs sm:text-sm">
@@ -926,7 +926,7 @@ const BookingsPage = () => {
                   {selectedBooking.clientAddress && (
                     <div className="bg-white p-2.5 sm:p-3 rounded-lg border border-blue-200">
                       <div className="flex items-start gap-2 sm:gap-3 mb-1.5 sm:mb-2">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center shrink-0">
                           <span className="material-symbols-outlined text-white text-sm sm:text-lg">
                             location_on
                           </span>
@@ -949,7 +949,7 @@ const BookingsPage = () => {
                             window.open(mapsUrl, "_blank");
                             toast.success("Opening in Google Maps...");
                           }}
-                          className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-md"
+                          className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 bg-linear-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-md"
                         >
                           <span className="material-symbols-outlined text-xs sm:text-sm">
                             map
@@ -1168,7 +1168,7 @@ const BookingsPage = () => {
                 );
               }}
               disabled={updateBooking.isPending}
-              className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 sm:gap-2 shadow-md"
+              className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-linear-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 sm:gap-2 shadow-md"
             >
               {updateBooking.isPending ? (
                 <>

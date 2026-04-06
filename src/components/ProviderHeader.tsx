@@ -13,7 +13,7 @@ interface ProviderHeaderProps {
 const ProviderHeader: React.FC<ProviderHeaderProps> = ({ provider, themeColor }) => {
   return (
     <div className="flex flex-col md:flex-row gap-8 items-start">
-      <div className="flex-shrink-0">
+      <div className="shrink-0">
         <Image
           src={provider.imageUrl}
           alt={provider.name}

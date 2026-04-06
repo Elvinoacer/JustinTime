@@ -75,7 +75,7 @@ export default function BookingServiceSelection({
                         unoptimized
                       />
                     ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
+                      <div className="absolute inset-0 bg-linear-to-br from-emerald-700 via-teal-700 to-slate-900" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 to-transparent" />
                     <div className="absolute bottom-2.5 left-2.5 rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-900 sm:bottom-3 sm:left-3 sm:px-3 sm:text-xs">

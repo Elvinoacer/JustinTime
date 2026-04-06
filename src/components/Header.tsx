@@ -405,7 +405,7 @@ const Header = () => {
                     </Link>
                     <Link
                       href="/auth/signup"
-                      className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-bold text-white transition-all hover:shadow-lg hover:shadow-emerald-500/25 hover:scale-[1.02]"
+                      className="rounded-xl bg-linear-to-r from-emerald-500 to-teal-500 px-4 py-2 text-sm font-bold text-white transition-all hover:shadow-lg hover:shadow-emerald-500/25 hover:scale-[1.02]"
                     >
                       Get Started →
                     </Link>

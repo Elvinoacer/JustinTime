@@ -1,4 +1,7 @@
-import { getUsers, getBackgroundChecks } from "@/app/actions/admin";
+import {
+  getBackgroundChecks,
+  getIdentityVerificationRequestsForAdmin,
+} from "@/app/actions/admin";
 import { getExpiringChecks } from "@/app/actions/verification";
 import { prisma } from "@/lib/prisma";
 import VerificationsGrid from "@/components/admin/VerificationsGrid";
@@ -16,12 +19,35 @@ import {
 export const dynamic = "force-dynamic";
 
 async function getVerificationStats() {
-  const [pending, verified, rejected, totalProviders] = await Promise.all([
-    prisma.profile.count({ where: { verificationStatus: "PENDING" } }),
-    prisma.profile.count({ where: { verificationStatus: "VERIFIED" } }),
-    prisma.profile.count({ where: { verificationStatus: "REJECTED" } }),
-    prisma.user.count({ where: { role: "PROVIDER" } }),
+  const [statusCounts, totalProviders] = await Promise.all([
+    prisma.identityVerificationRequest.groupBy({
+      by: ["status"],
+      _count: true,
+    }),
+    prisma.user.count({
+      where: {
+        OR: [{ role: "PROVIDER" }, { roles: { has: "PROVIDER" } }],
+      },
+    }),
   ]);
+
+  let pending = 0;
+  let verified = 0;
+  let rejected = 0;
+
+  statusCounts.forEach((entry) => {
+    if (entry.status === "SUBMITTED" || entry.status === "UNDER_REVIEW") {
+      pending += entry._count;
+    }
+
+    if (entry.status === "VERIFIED") {
+      verified += entry._count;
+    }
+
+    if (entry.status === "REJECTED") {
+      rejected += entry._count;
+    }
+  });
 
   return { pending, verified, rejected, totalProviders };
 }
@@ -37,10 +63,25 @@ export default async function AdminVerificationsPage({
   }>;
 }) {
   const params = await searchParams;
-  const page = Number(params.page) || 1;
+  const page = Number(params.page) > 0 ? Number(params.page) : 1;
   const search = params.search || "";
-  const status = params.status || "PENDING";
-  const view = params.view || "IDENTITY"; // IDENTITY or BACKGROUND
+  const requestedStatus = [
+    "PENDING",
+    "VERIFIED",
+    "REJECTED",
+    "EXPIRING",
+  ].includes(params.status || "")
+    ? (params.status as "PENDING" | "VERIFIED" | "REJECTED" | "EXPIRING")
+    : "PENDING";
+  const view = params.view === "BACKGROUND" ? "BACKGROUND" : "IDENTITY";
+  const status =
+    view === "IDENTITY" && requestedStatus === "EXPIRING"
+      ? "PENDING"
+      : requestedStatus;
+  const identityStatus =
+    status === "PENDING" || status === "VERIFIED" || status === "REJECTED"
+      ? status
+      : "PENDING";
 
   const mappedBackgroundStatus =
     status === "PENDING"
@@ -51,29 +92,73 @@ export default async function AdminVerificationsPage({
           ? "REJECTED"
           : undefined;
 
-  const [
-    { users, total, totalPages, currentPage },
-    stats,
-    backgroundChecks,
-    expiringCount,
-  ] = await Promise.all([
-    getUsers(page, 12, search, "PROVIDER", status === "EXPIRING" ? "" : status),
-    getVerificationStats(),
-    view === "BACKGROUND"
-      ? status === "EXPIRING"
-        ? getExpiringChecks()
-        : getBackgroundChecks(mappedBackgroundStatus)
-      : Promise.resolve([]),
-    prisma.backgroundCheck.count({
-      where: {
-        status: "APPROVED",
-        expiresAt: {
-          lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          not: null,
+  const [identityRequests, stats, backgroundChecks, expiringCount] =
+    await Promise.all([
+      view === "IDENTITY"
+        ? getIdentityVerificationRequestsForAdmin(
+            page,
+            12,
+            search,
+            identityStatus,
+          )
+        : Promise.resolve({
+            requests: [],
+            total: 0,
+            totalPages: 1,
+            currentPage: 1,
+          }),
+      getVerificationStats(),
+      view === "BACKGROUND"
+        ? status === "EXPIRING"
+          ? getExpiringChecks()
+          : getBackgroundChecks(mappedBackgroundStatus)
+        : Promise.resolve([]),
+      prisma.backgroundCheck.count({
+        where: {
+          status: "APPROVED",
+          expiresAt: {
+            lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            not: null,
+          },
         },
-      },
-    }),
-  ]);
+      }),
+    ]);
+
+  const buildFilterHref = (
+    nextStatus: "PENDING" | "VERIFIED" | "REJECTED" | "EXPIRING",
+  ) => {
+    const query = new URLSearchParams();
+    const nextView = nextStatus === "EXPIRING" ? "BACKGROUND" : view;
+    query.set("view", nextView);
+    query.set("status", nextStatus);
+    if (search) {
+      query.set("search", search);
+    }
+    return `/admin/verifications?${query.toString()}`;
+  };
+
+  const identityViewHref = (() => {
+    const query = new URLSearchParams();
+    query.set("view", "IDENTITY");
+    query.set("status", status === "EXPIRING" ? "PENDING" : status);
+    if (search) {
+      query.set("search", search);
+    }
+    return `/admin/verifications?${query.toString()}`;
+  })();
+
+  const backgroundViewHref = (() => {
+    const query = new URLSearchParams();
+    query.set("view", "BACKGROUND");
+    query.set("status", status);
+    if (search) {
+      query.set("search", search);
+    }
+    return `/admin/verifications?${query.toString()}`;
+  })();
+
+  const activeTotal =
+    view === "IDENTITY" ? identityRequests.total : backgroundChecks.length;
 
   const statCards = [
     {
@@ -188,7 +273,7 @@ export default async function AdminVerificationsPage({
           return (
             <div
               key={stat.label}
-              className={`bg-gradient-to-br ${stat.gradient} p-4 sm:p-5 rounded-xl sm:rounded-2xl border ${stat.border} shadow-xs sm:shadow-sm transition-all hover:shadow-md`}
+              className={`bg-[linear-gradient(to_bottom_right,var(--tw-gradient-stops))] ${stat.gradient} p-4 sm:p-5 rounded-xl sm:rounded-2xl border ${stat.border} shadow-xs sm:shadow-sm transition-all hover:shadow-md`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
@@ -204,7 +289,7 @@ export default async function AdminVerificationsPage({
                   </p>
                 </div>
                 <Icon
-                  className={`w-8 h-8 sm:w-10 sm:h-10 ${stat.iconColor} flex-shrink-0`}
+                  className={`w-8 h-8 sm:w-10 sm:h-10 ${stat.iconColor} flex-none`}
                 />
               </div>
             </div>
@@ -220,7 +305,7 @@ export default async function AdminVerificationsPage({
             return (
               <div
                 key={stat.label}
-                className="flex-shrink-0 w-36 bg-white p-3 rounded-lg border border-slate-200 shadow-xs"
+                className="flex-none w-36 bg-white p-3 rounded-lg border border-slate-200 shadow-xs"
               >
                 <div className="flex items-center gap-2 mb-2">
                   <Icon className={`w-4 h-4 ${stat.iconColor}`} />
@@ -254,9 +339,19 @@ export default async function AdminVerificationsPage({
               {filterButtons.map((filter) => (
                 <a
                   key={filter.status}
-                  href={`/admin/verifications?status=${filter.status}`}
+                  href={buildFilterHref(
+                    filter.status as
+                      | "PENDING"
+                      | "VERIFIED"
+                      | "REJECTED"
+                      | "EXPIRING",
+                  )}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
-                    status === filter.status
+                    (
+                      filter.status === "EXPIRING"
+                        ? status === "EXPIRING" && view === "BACKGROUND"
+                        : status === filter.status
+                    )
                       ? `${filter.activeBg} ${filter.activeText} shadow-md ring-2 ring-opacity-20 ring-offset-1`
                       : `${filter.inactiveBg} ${filter.inactiveText} ${filter.hoverBg}`
                   }`}
@@ -269,21 +364,22 @@ export default async function AdminVerificationsPage({
 
           {/* Results Count */}
           <p className="text-xs sm:text-sm text-slate-600 whitespace-nowrap">
-            Showing {total} provider{total !== 1 ? "s" : ""}
+            Showing {activeTotal} {view === "IDENTITY" ? "request" : "check"}
+            {activeTotal !== 1 ? "s" : ""}
           </p>
         </div>
 
         {/* Toggle View */}
         <div className="flex bg-slate-100 p-1 rounded-lg">
           <a
-            href={`?view=IDENTITY&status=${status}`}
+            href={identityViewHref}
             className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${view === "IDENTITY" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
           >
             <UserCheck className="w-4 h-4" />
             Identity
           </a>
           <a
-            href={`?view=BACKGROUND&status=${status}`}
+            href={backgroundViewHref}
             className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${view === "BACKGROUND" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
           >
             <ShieldCheck className="w-4 h-4" />
@@ -296,15 +392,15 @@ export default async function AdminVerificationsPage({
         <>
           <div className="flex flex-col sm:flex-row items-center justify-between">
             <p className="text-sm text-slate-500">
-              Showing {total} identity verification requests
+              Showing {identityRequests.total} identity verification requests
             </p>
           </div>
           <VerificationsGrid
-            users={users}
-            total={total}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            currentStatus={status}
+            requests={identityRequests.requests}
+            total={identityRequests.total}
+            currentPage={identityRequests.currentPage}
+            totalPages={identityRequests.totalPages}
+            currentStatus={identityStatus}
           />
         </>
       ) : (
@@ -322,7 +418,7 @@ export default async function AdminVerificationsPage({
       <div className="block sm:hidden bg-slate-50 rounded-lg p-3 border border-slate-200">
         <div className="flex items-center justify-between text-xs">
           <span className="text-slate-600 font-medium">
-            {total.toLocaleString()} providers total
+            {stats.totalProviders.toLocaleString()} providers total
           </span>
           <span className="text-slate-500">{stats.pending} pending review</span>
         </div>

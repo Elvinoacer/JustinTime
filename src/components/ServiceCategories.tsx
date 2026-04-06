@@ -939,7 +939,7 @@ const ServiceCategories = () => {
                   >
                     {/* Ambient glow blob */}
                     <div
-                      className={`pointer-events-none absolute -top-8 left-1/2 h-20 w-20 -translate-x-1/2 rounded-full bg-gradient-to-br ${category.color} blur-2xl opacity-50 transition-opacity duration-300 group-hover:opacity-90`}
+                      className={`pointer-events-none absolute -top-8 left-1/2 h-20 w-20 -translate-x-1/2 rounded-full bg-linear-to-br ${category.color} blur-2xl opacity-50 transition-opacity duration-300 group-hover:opacity-90`}
                       aria-hidden="true"
                     />
 
@@ -951,7 +951,7 @@ const ServiceCategories = () => {
                       }}
                     >
                       <span
-                        className={`absolute inset-0 rounded-xl bg-gradient-to-br ${category.color} opacity-30`}
+                        className={`absolute inset-0 rounded-xl bg-linear-to-br ${category.color} opacity-30`}
                         aria-hidden="true"
                       />
                       <div className="relative z-10 w-full h-full">

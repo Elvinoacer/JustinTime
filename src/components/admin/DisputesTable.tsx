@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Eye,
@@ -60,6 +60,7 @@ export default function EnhancedDisputesTable({
   totalPages,
 }: EnhancedDisputesTableProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
   const [resolutionText, setResolutionText] = useState("");
@@ -69,6 +70,12 @@ export default function EnhancedDisputesTable({
   const [clientSharePercent, setClientSharePercent] = useState(
     DEFAULT_CLIENT_SPLIT_PERCENT,
   );
+
+  const buildPageUrl = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(page));
+    return `?${params.toString()}`;
+  };
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -608,7 +615,7 @@ export default function EnhancedDisputesTable({
               <div className="flex items-center justify-center gap-1 xs:gap-2">
                 <button
                   disabled={currentPage <= 1}
-                  onClick={() => router.push(`?page=${currentPage - 1}`)}
+                  onClick={() => router.push(buildPageUrl(currentPage - 1))}
                   className="flex items-center gap-1 px-3 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 hover:border-slate-300 transition-all"
                 >
                   <ChevronLeft className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
@@ -631,7 +638,7 @@ export default function EnhancedDisputesTable({
                     return (
                       <button
                         key={i}
-                        onClick={() => router.push(`?page=${pageNum}`)}
+                        onClick={() => router.push(buildPageUrl(pageNum))}
                         className={`w-8 h-8 xs:w-10 xs:h-10 rounded-lg text-xs xs:text-sm font-medium transition-all ${
                           currentPage === pageNum
                             ? "bg-red-600 text-white shadow-lg shadow-red-500/30"
@@ -646,7 +653,7 @@ export default function EnhancedDisputesTable({
 
                 <button
                   disabled={currentPage >= totalPages}
-                  onClick={() => router.push(`?page=${currentPage + 1}`)}
+                  onClick={() => router.push(buildPageUrl(currentPage + 1))}
                   className="flex items-center gap-1 px-3 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 hover:border-slate-300 transition-all"
                 >
                   <span className="hidden xs:inline">Next</span>

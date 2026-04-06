@@ -84,13 +84,13 @@ export default function TermsOfServicePage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-gray-50 via-white to-purple-50/30">
+    <div className="flex min-h-screen flex-col bg-linear-to-br from-gray-50 via-white to-purple-50/30">
       <Header />
 
       {/* Mobile TOC Button */}
       <button
         onClick={() => setIsTocOpen(true)}
-        className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 bg-gradient-to-br from-purple-600 to-purple-700 text-white rounded-full shadow-lg shadow-purple-500/50 flex items-center justify-center"
+        className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 bg-linear-to-br from-purple-600 to-purple-700 text-white rounded-full shadow-lg shadow-purple-500/50 flex items-center justify-center"
         aria-label="Open table of contents"
       >
         <Menu className="w-6 h-6" />
@@ -129,7 +129,7 @@ export default function TermsOfServicePage() {
                     }`}
                   >
                     <Icon
-                      className={`w-4 h-4 flex-shrink-0 ${
+                      className={`w-4 h-4 shrink-0 ${
                         activeSection === section.id
                           ? "text-purple-600"
                           : "text-gray-400"
@@ -137,7 +137,7 @@ export default function TermsOfServicePage() {
                     />
                     <span className="text-sm flex-1">{section.title}</span>
                     {activeSection === section.id && (
-                      <ChevronRight className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                      <ChevronRight className="w-4 h-4 text-purple-600 shrink-0" />
                     )}
                   </button>
                 );
@@ -151,7 +151,7 @@ export default function TermsOfServicePage() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="text-center mb-8 sm:mb-12 px-2">
-            <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl mb-4 sm:mb-6 shadow-lg shadow-purple-500/30">
+            <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 bg-linear-to-br from-purple-500 to-purple-600 rounded-2xl mb-4 sm:mb-6 shadow-lg shadow-purple-500/30">
               <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4 leading-tight">
@@ -192,7 +192,7 @@ export default function TermsOfServicePage() {
                         }`}
                       >
                         <Icon
-                          className={`w-3.5 h-3.5 flex-shrink-0 ${
+                          className={`w-3.5 h-3.5 shrink-0 ${
                             activeSection === section.id
                               ? "text-purple-600"
                               : "text-gray-400 group-hover:text-gray-600"
@@ -202,7 +202,7 @@ export default function TermsOfServicePage() {
                           {section.title}
                         </span>
                         {activeSection === section.id && (
-                          <ChevronRight className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" />
+                          <ChevronRight className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                         )}
                       </button>
                     );
@@ -221,7 +221,7 @@ export default function TermsOfServicePage() {
                     className="scroll-mt-20 sm:scroll-mt-24 mb-8 sm:mb-12"
                   >
                     <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg flex items-center justify-center">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-purple-100 to-purple-200 rounded-lg flex items-center justify-center">
                         <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -259,7 +259,7 @@ export default function TermsOfServicePage() {
                     className="scroll-mt-20 sm:scroll-mt-24 mb-8 sm:mb-12"
                   >
                     <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
                         <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -328,7 +328,7 @@ export default function TermsOfServicePage() {
                     className="scroll-mt-20 sm:scroll-mt-24 mb-8 sm:mb-12"
                   >
                     <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center">
                         <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -375,7 +375,7 @@ export default function TermsOfServicePage() {
                     className="scroll-mt-20 sm:scroll-mt-24 mb-8 sm:mb-12"
                   >
                     <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
                         <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -445,7 +445,7 @@ export default function TermsOfServicePage() {
                     className="scroll-mt-20 sm:scroll-mt-24 mb-8 sm:mb-12"
                   >
                     <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-red-100 to-red-200 rounded-lg flex items-center justify-center">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-red-100 to-red-200 rounded-lg flex items-center justify-center">
                         <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -494,7 +494,7 @@ export default function TermsOfServicePage() {
                     className="scroll-mt-20 sm:scroll-mt-24 mb-8 sm:mb-12"
                   >
                     <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg flex items-center justify-center">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-orange-100 to-orange-200 rounded-lg flex items-center justify-center">
                         <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -529,7 +529,7 @@ export default function TermsOfServicePage() {
                     className="scroll-mt-20 sm:scroll-mt-24 mb-8 sm:mb-12"
                   >
                     <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-lg flex items-center justify-center">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-indigo-100 to-indigo-200 rounded-lg flex items-center justify-center">
                         <Gavel className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -570,7 +570,7 @@ export default function TermsOfServicePage() {
                     className="scroll-mt-20 sm:scroll-mt-24 mb-8 sm:mb-12"
                   >
                     <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-teal-100 to-teal-200 rounded-lg flex items-center justify-center">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-teal-100 to-teal-200 rounded-lg flex items-center justify-center">
                         <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -602,7 +602,7 @@ export default function TermsOfServicePage() {
                     className="scroll-mt-20 sm:scroll-mt-24"
                   >
                     <div className="flex items-center gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-pink-100 to-pink-200 rounded-lg flex items-center justify-center">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-pink-100 to-pink-200 rounded-lg flex items-center justify-center">
                         <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-pink-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">

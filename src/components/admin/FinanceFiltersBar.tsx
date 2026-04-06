@@ -65,13 +65,17 @@ export default function FinanceFiltersBar({
   };
 
   const hasActiveFilters =
-    filters.search ||
-    filters.type !== "ALL" ||
-    filters.status !== "ALL" ||
-    filters.dateFrom ||
-    filters.dateTo ||
-    filters.minAmount ||
-    filters.maxAmount;
+    activeTab === "wallets"
+      ? Boolean(filters.search)
+      : Boolean(
+          filters.search ||
+          filters.type !== "ALL" ||
+          filters.status !== "ALL" ||
+          filters.dateFrom ||
+          filters.dateTo ||
+          filters.minAmount ||
+          filters.maxAmount,
+        );
 
   if (activeTab === "overview") return null;
 
@@ -100,43 +104,66 @@ export default function FinanceFiltersBar({
         <div className="flex gap-2">
           {/* Type Filter (Transactions Only) */}
           {activeTab === "transactions" && (
-            <select
-              value={filters.type}
-              onChange={(e) => {
-                handleChange("type", e.target.value);
-                onApply();
-              }}
-              className="flex-1 px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm font-medium text-slate-700 cursor-pointer"
-            >
-              <option value="ALL">All Types</option>
-              <option value="DEPOSIT">Deposits</option>
-              <option value="WITHDRAWAL">Withdrawals</option>
-              <option value="PAYMENT">Payments</option>
-              <option value="REFUND">Refunds</option>
-            </select>
+            <>
+              <select
+                value={filters.type}
+                onChange={(e) => {
+                  handleChange("type", e.target.value);
+                  onApply();
+                }}
+                className="flex-1 px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm font-medium text-slate-700 cursor-pointer"
+              >
+                <option value="ALL">All Types</option>
+                <option value="DEPOSIT">Deposits</option>
+                <option value="WITHDRAWAL">Withdrawals</option>
+                <option value="PAYMENT">Payments</option>
+                <option value="REFUND">Refunds</option>
+                <option value="EARNING">Earnings</option>
+                <option value="ADJUSTMENT">Adjustments</option>
+              </select>
+
+              <select
+                value={filters.status}
+                onChange={(e) => {
+                  handleChange("status", e.target.value);
+                  onApply();
+                }}
+                className="flex-1 px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm font-medium text-slate-700 cursor-pointer"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="PROCESSING">Processing</option>
+                <option value="SETTLED">Settled</option>
+                <option value="FAILED">Failed</option>
+                <option value="REVERSED">Reversed</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </>
           )}
 
           {/* Advanced Filters Toggle */}
-          <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className={`flex items-center gap-1 px-3 py-2.5 rounded-lg font-medium text-sm transition-all border ${
-              showAdvanced
-                ? "bg-emerald-600 text-white border-emerald-600"
-                : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
-            }`}
-          >
-            <Filter className="w-3.5 h-3.5" />
-            {showAdvanced ? (
-              <ChevronUp className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronDown className="w-3.5 h-3.5" />
-            )}
-          </button>
+          {activeTab === "transactions" && (
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className={`flex items-center gap-1 px-3 py-2.5 rounded-lg font-medium text-sm transition-all border ${
+                showAdvanced
+                  ? "bg-emerald-600 text-white border-emerald-600"
+                  : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              <Filter className="w-3.5 h-3.5" />
+              {showAdvanced ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
+            </button>
+          )}
         </div>
 
         {/* Advanced Filters - Mobile */}
         <AnimatePresence>
-          {showAdvanced && (
+          {showAdvanced && activeTab === "transactions" && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
@@ -280,44 +307,67 @@ export default function FinanceFiltersBar({
 
         {/* Type Filter (Transactions Only) */}
         {activeTab === "transactions" && (
-          <select
-            value={filters.type}
-            onChange={(e) => {
-              handleChange("type", e.target.value);
-              onApply();
-            }}
-            className="px-3 xs:px-4 py-2.5 xs:py-3 bg-white border border-slate-200 rounded-lg xs:rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm font-medium text-slate-700 cursor-pointer hover:border-slate-300 min-w-[120px] xs:min-w-[140px]"
-          >
-            <option value="ALL">All Types</option>
-            <option value="DEPOSIT">Deposits</option>
-            <option value="WITHDRAWAL">Withdrawals</option>
-            <option value="PAYMENT">Payments</option>
-            <option value="REFUND">Refunds</option>
-          </select>
+          <>
+            <select
+              value={filters.type}
+              onChange={(e) => {
+                handleChange("type", e.target.value);
+                onApply();
+              }}
+              className="px-3 xs:px-4 py-2.5 xs:py-3 bg-white border border-slate-200 rounded-lg xs:rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm font-medium text-slate-700 cursor-pointer hover:border-slate-300 min-w-30 xs:min-w-[140px]"
+            >
+              <option value="ALL">All Types</option>
+              <option value="DEPOSIT">Deposits</option>
+              <option value="WITHDRAWAL">Withdrawals</option>
+              <option value="PAYMENT">Payments</option>
+              <option value="REFUND">Refunds</option>
+              <option value="EARNING">Earnings</option>
+              <option value="ADJUSTMENT">Adjustments</option>
+            </select>
+
+            <select
+              value={filters.status}
+              onChange={(e) => {
+                handleChange("status", e.target.value);
+                onApply();
+              }}
+              className="px-3 xs:px-4 py-2.5 xs:py-3 bg-white border border-slate-200 rounded-lg xs:rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm font-medium text-slate-700 cursor-pointer hover:border-slate-300 min-w-30 xs:min-w-[140px]"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="PENDING">Pending</option>
+              <option value="PROCESSING">Processing</option>
+              <option value="SETTLED">Settled</option>
+              <option value="FAILED">Failed</option>
+              <option value="REVERSED">Reversed</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </>
         )}
 
         {/* Advanced Filters Toggle */}
-        <button
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className={`flex items-center gap-2 px-3 xs:px-4 py-2.5 xs:py-3 rounded-lg xs:rounded-xl font-medium text-sm transition-all border ${
-            showAdvanced
-              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 border-emerald-600"
-              : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
-          }`}
-        >
-          <Filter className="w-4 h-4" />
-          Filters
-          {showAdvanced ? (
-            <ChevronUp className="w-4 h-4" />
-          ) : (
-            <ChevronDown className="w-4 h-4" />
-          )}
-        </button>
+        {activeTab === "transactions" && (
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className={`flex items-center gap-2 px-3 xs:px-4 py-2.5 xs:py-3 rounded-lg xs:rounded-xl font-medium text-sm transition-all border ${
+              showAdvanced
+                ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 border-emerald-600"
+                : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+            Filters
+            {showAdvanced ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </button>
+        )}
 
         {/* Apply Search */}
         <button
           onClick={onApply}
-          className="px-4 xs:px-6 py-2.5 xs:py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg xs:rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-emerald-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
+          className="px-4 xs:px-6 py-2.5 xs:py-3 bg-linear-to-r from-emerald-600 to-teal-600 text-white rounded-lg xs:rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-emerald-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
         >
           Apply
         </button>
@@ -338,7 +388,7 @@ export default function FinanceFiltersBar({
 
       {/* Advanced Filters */}
       <AnimatePresence>
-        {showAdvanced && (
+        {showAdvanced && activeTab === "transactions" && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -346,7 +396,7 @@ export default function FinanceFiltersBar({
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <div className="p-4 xs:p-6 bg-gradient-to-br from-slate-50 to-emerald-50/30 rounded-lg xs:rounded-2xl border border-slate-200/50 shadow-sm">
+            <div className="p-4 xs:p-6 bg-linear-to-br from-slate-50 to-emerald-50/30 rounded-lg xs:rounded-2xl border border-slate-200/50 shadow-sm">
               <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 xs:gap-4">
                 {/* Date From */}
                 <div className="space-y-2">

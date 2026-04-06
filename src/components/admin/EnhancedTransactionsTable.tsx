@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ArrowUpRight,
@@ -48,6 +48,14 @@ export default function EnhancedTransactionsTable({
   totalPages,
 }: EnhancedTransactionsTableProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const buildPageUrl = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", "transactions");
+    params.set("page", String(page));
+    return `?${params.toString()}`;
+  };
 
   const getTypeConfig = (type: string) => {
     switch (type) {
@@ -171,7 +179,7 @@ export default function EnhancedTransactionsTable({
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className={`p-2 rounded-lg ${typeConfig.bg} flex-shrink-0`}>
+            <div className={`p-2 rounded-lg ${typeConfig.bg} flex-none`}>
               <TypeIcon className={`w-4 h-4 ${typeConfig.text}`} />
             </div>
             <div className="min-w-0 flex-1">
@@ -184,7 +192,7 @@ export default function EnhancedTransactionsTable({
             </div>
           </div>
           <div
-            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig.bg} ${statusConfig.text} flex-shrink-0`}
+            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig.bg} ${statusConfig.text} flex-none`}
           >
             <StatusIcon className="w-3 h-3" />
             <span className="hidden xs:inline">{transaction.status}</span>
@@ -236,7 +244,7 @@ export default function EnhancedTransactionsTable({
   return (
     <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm sm:shadow-lg border border-slate-100 sm:border-slate-100 overflow-hidden">
       {/* Table Header */}
-      <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-emerald-50/30">
+      <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-[linear-gradient(to_right,var(--tw-gradient-stops))] from-slate-50 to-emerald-50/30">
         <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 xs:gap-0">
           <div className="flex items-center gap-2">
             <h2 className="text-base xs:text-lg font-bold text-slate-900">
@@ -248,7 +256,7 @@ export default function EnhancedTransactionsTable({
           </div>
           <button
             onClick={handleExport}
-            className="flex items-center gap-1.5 px-3 py-1.5 xs:px-4 xs:py-2 bg-white border border-slate-200 rounded-lg text-xs xs:text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all flex-shrink-0 self-start xs:self-auto"
+            className="flex items-center gap-1.5 px-3 py-1.5 xs:px-4 xs:py-2 bg-white border border-slate-200 rounded-lg text-xs xs:text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all flex-none self-start xs:self-auto"
           >
             <Download className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
             <span className="hidden xs:inline">Export</span>
@@ -325,7 +333,7 @@ export default function EnhancedTransactionsTable({
                   <td className="px-4 xl:px-6 py-3">
                     <div className="flex items-center gap-3">
                       <div
-                        className={`p-2 rounded-lg ${typeConfig.bg} flex-shrink-0`}
+                        className={`p-2 rounded-lg ${typeConfig.bg} flex-none`}
                       >
                         <TypeIcon className={`w-4 h-4 ${typeConfig.text}`} />
                       </div>
@@ -338,7 +346,7 @@ export default function EnhancedTransactionsTable({
                   {/* User */}
                   <td className="px-4 xl:px-6 py-3">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                      <div className="w-8 h-8 bg-[linear-gradient(to_bottom_right,var(--tw-gradient-stops))] from-emerald-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-xs flex-none">
                         {(transaction.wallet.user.name || "U")[0].toUpperCase()}
                       </div>
                       <div className="min-w-0">
@@ -413,7 +421,7 @@ export default function EnhancedTransactionsTable({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-gradient-to-r from-slate-50 to-emerald-50/30">
+        <div className="px-3 xs:px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-100 bg-[linear-gradient(to_right,var(--tw-gradient-stops))] from-slate-50 to-emerald-50/30">
           <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-0">
             <p className="text-xs xs:text-sm text-slate-600 text-center xs:text-left">
               Showing{" "}
@@ -430,9 +438,7 @@ export default function EnhancedTransactionsTable({
             <div className="flex items-center justify-center gap-1 xs:gap-2">
               <button
                 disabled={currentPage <= 1}
-                onClick={() =>
-                  router.push(`?tab=transactions&page=${currentPage - 1}`)
-                }
+                onClick={() => router.push(buildPageUrl(currentPage - 1))}
                 className="flex items-center gap-1 px-3 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 hover:border-slate-300 transition-all"
               >
                 <ChevronLeft className="w-3.5 h-3.5 xs:w-4 xs:h-4" />
@@ -455,9 +461,7 @@ export default function EnhancedTransactionsTable({
                   return (
                     <button
                       key={i}
-                      onClick={() =>
-                        router.push(`?tab=transactions&page=${pageNum}`)
-                      }
+                      onClick={() => router.push(buildPageUrl(pageNum))}
                       className={`w-8 h-8 xs:w-10 xs:h-10 rounded-lg text-xs xs:text-sm font-medium transition-all ${
                         currentPage === pageNum
                           ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/30"
@@ -472,9 +476,7 @@ export default function EnhancedTransactionsTable({
 
               <button
                 disabled={currentPage >= totalPages}
-                onClick={() =>
-                  router.push(`?tab=transactions&page=${currentPage + 1}`)
-                }
+                onClick={() => router.push(buildPageUrl(currentPage + 1))}
                 className="flex items-center gap-1 px-3 py-1.5 xs:px-4 xs:py-2 text-xs xs:text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 hover:border-slate-300 transition-all"
               >
                 <span className="hidden xs:inline">Next</span>

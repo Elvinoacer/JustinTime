@@ -82,7 +82,7 @@ const FAQ = () => {
                 viewport={{ once: true, margin: "-30px" }}
               >
                 <button
-                  className="w-full flex items-center justify-between p-4 text-left sm:p-5 min-h-[60px]"
+                  className="w-full flex items-center justify-between p-4 text-left sm:p-5 min-h-15"
                   onClick={() => setOpenIndex(isOpen ? null : index)}
                   aria-expanded={isOpen}
                   aria-controls={`faq-panel-${index}`}

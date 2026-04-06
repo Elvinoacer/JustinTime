@@ -19,7 +19,8 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { toast } from "sonner";
 
 interface Category {
   id: string;
@@ -46,6 +47,8 @@ export default function EnhancedCategoryManagement({
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [categoryPage, setCategoryPage] = useState(1);
   const [formData, setFormData] = useState({
     name: "",
     slug: "",
@@ -53,14 +56,48 @@ export default function EnhancedCategoryManagement({
     image: "",
   });
 
+  const slugify = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
   const filteredCategories = categories.filter(
     (category) =>
       category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      category.slug.toLowerCase().includes(searchQuery.toLowerCase())
+      category.slug.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+  const categoriesPerPage = 24;
+  const totalCategoryPages = Math.max(
+    1,
+    Math.ceil(filteredCategories.length / categoriesPerPage),
+  );
+  const safeCategoryPage = Math.min(categoryPage, totalCategoryPages);
+  const paginatedCategories = filteredCategories.slice(
+    (safeCategoryPage - 1) * categoriesPerPage,
+    safeCategoryPage * categoriesPerPage,
+  );
+
+  useEffect(() => {
+    setCategoryPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!isModalOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isModalOpen]);
 
   const handleOpenCreate = () => {
     setEditingCategory(null);
+    setSlugManuallyEdited(false);
     setFormData({ name: "", slug: "", description: "", image: "" });
     setIsModalOpen(true);
     setActiveMenu(null);
@@ -68,6 +105,7 @@ export default function EnhancedCategoryManagement({
 
   const handleOpenEdit = (category: Category) => {
     setEditingCategory(category);
+    setSlugManuallyEdited(true);
     setFormData({
       name: category.name,
       slug: category.slug,
@@ -88,7 +126,7 @@ export default function EnhancedCategoryManagement({
         setIsModalOpen(false);
         router.refresh();
       } else {
-        alert(result.error || "Failed to save category");
+        toast.error(result.error || "Failed to save category");
       }
     });
   };
@@ -96,7 +134,7 @@ export default function EnhancedCategoryManagement({
   const handleDelete = async (categoryId: string) => {
     if (
       !confirm(
-        "Are you sure you want to delete this category? This action cannot be undone."
+        "Are you sure you want to delete this category? This action cannot be undone.",
       )
     )
       return;
@@ -106,17 +144,18 @@ export default function EnhancedCategoryManagement({
       if (result.success) {
         router.refresh();
       } else {
-        alert(result.error || "Failed to delete category");
+        toast.error(result.error || "Failed to delete category");
       }
     });
   };
 
-  const handleSlugify = () => {
-    const slug = formData.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-    setFormData({ ...formData, slug });
+  const handleNameChange = (name: string) => {
+    setFormData((previous) => ({
+      ...previous,
+      name,
+      slug:
+        !editingCategory && !slugManuallyEdited ? slugify(name) : previous.slug,
+    }));
   };
 
   // Mobile Card View Component
@@ -144,7 +183,7 @@ export default function EnhancedCategoryManagement({
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-emerald-50/50">
+            <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-slate-50 to-emerald-50/50">
               <ImageIcon className="w-8 h-8 text-slate-300" />
             </div>
           )}
@@ -168,7 +207,7 @@ export default function EnhancedCategoryManagement({
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-10 min-w-[120px]"
+                  className="absolute top-full right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-10 min-w-30"
                 >
                   <button
                     onClick={() => handleOpenEdit(category)}
@@ -240,7 +279,7 @@ export default function EnhancedCategoryManagement({
         </div>
         <button
           onClick={handleOpenCreate}
-          className="flex items-center justify-center gap-2 px-4 xs:px-6 py-2.5 xs:py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg xs:rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-emerald-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
+          className="flex items-center justify-center gap-2 px-4 xs:px-6 py-2.5 xs:py-3 bg-linear-to-r from-emerald-600 to-teal-600 text-white rounded-lg xs:rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-emerald-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
         >
           <Plus className="w-4 h-4 xs:w-5 xs:h-5" />
           <span className="hidden xs:inline">Add Category</span>
@@ -251,7 +290,7 @@ export default function EnhancedCategoryManagement({
       {/* Categories Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 xs:gap-4 sm:gap-6">
         <AnimatePresence>
-          {filteredCategories.map((category, index) => (
+          {paginatedCategories.map((category, index) => (
             <MobileCategoryCard
               key={category.id}
               category={category}
@@ -260,6 +299,37 @@ export default function EnhancedCategoryManagement({
           ))}
         </AnimatePresence>
       </div>
+
+      {totalCategoryPages > 1 && (
+        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-slate-600">
+            Page <span className="font-semibold">{safeCategoryPage}</span> of{" "}
+            <span className="font-semibold">{totalCategoryPages}</span>
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCategoryPage((prev) => Math.max(prev - 1, 1))}
+              disabled={safeCategoryPage <= 1}
+              className="px-3 py-1.5 text-xs sm:text-sm rounded-lg border border-slate-200 disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setCategoryPage((prev) =>
+                  Math.min(prev + 1, totalCategoryPages),
+                )
+              }
+              disabled={safeCategoryPage >= totalCategoryPages}
+              className="px-3 py-1.5 text-xs sm:text-sm rounded-lg border border-slate-200 disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {filteredCategories.length === 0 && (
         <div className="text-center py-12 bg-white rounded-xl sm:rounded-2xl border border-slate-200 border-dashed">
@@ -312,10 +382,7 @@ export default function EnhancedCategoryManagement({
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    onBlur={handleSlugify}
+                    onChange={(e) => handleNameChange(e.target.value)}
                     className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm"
                     placeholder="e.g., Home Cleaning"
                   />
@@ -328,9 +395,10 @@ export default function EnhancedCategoryManagement({
                   <input
                     type="text"
                     value={formData.slug}
-                    onChange={(e) =>
-                      setFormData({ ...formData, slug: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setSlugManuallyEdited(true);
+                      setFormData({ ...formData, slug: e.target.value });
+                    }}
                     className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm font-mono text-slate-600"
                     placeholder="e.g., home-cleaning"
                   />
@@ -345,7 +413,7 @@ export default function EnhancedCategoryManagement({
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm min-h-[80px] sm:min-h-[100px] resize-none"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-sm min-h-20 sm:min-h-25 resize-none"
                     placeholder="Describe this category..."
                   />
                 </div>
@@ -365,7 +433,7 @@ export default function EnhancedCategoryManagement({
                       placeholder="https://..."
                     />
                     {formData.image && (
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
                         <img
                           src={formData.image}
                           alt="Preview"

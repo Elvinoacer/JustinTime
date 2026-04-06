@@ -127,7 +127,7 @@ export default function BookingSummarySidebar({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
       >
-        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-950 to-slate-800 px-3.5 py-3.5 text-white sm:px-5 sm:py-4">
+        <div className="border-b border-slate-100 bg-linear-to-r from-slate-950 to-slate-800 px-3.5 py-3.5 text-white sm:px-5 sm:py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">
             Booking with
           </p>
@@ -149,7 +149,7 @@ export default function BookingSummarySidebar({
                   unoptimized
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-400 to-teal-500 text-xl font-bold text-white">
+                <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-emerald-400 to-teal-500 text-xl font-bold text-white">
                   {professional.name.charAt(0)}
                 </div>
               )}
@@ -186,7 +186,7 @@ export default function BookingSummarySidebar({
 
       {selectedServiceData ? (
         <motion.div
-          className="w-full min-w-0 rounded-[1.75rem] border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 p-3.5 shadow-sm sm:p-5"
+          className="w-full min-w-0 rounded-[1.75rem] border border-emerald-200 bg-linear-to-br from-emerald-50 to-teal-50 p-3.5 shadow-sm sm:p-5"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}

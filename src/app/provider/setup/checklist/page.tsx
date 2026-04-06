@@ -200,7 +200,7 @@ export default function ProviderSetupChecklistPage() {
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 mb-8 text-white"
+          className="bg-linear-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 mb-8 text-white"
         >
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
@@ -322,7 +322,7 @@ export default function ProviderSetupChecklistPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="mt-8 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-6 text-center"
+            className="mt-8 bg-linear-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-6 text-center"
           >
             <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
             <h3 className="text-lg font-bold text-gray-900 mb-2">

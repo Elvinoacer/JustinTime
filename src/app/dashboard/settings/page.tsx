@@ -58,7 +58,7 @@ function PushNotificationToggle() {
         </p>
       </div>
       <label
-        className={`relative inline-flex items-center cursor-pointer flex-shrink-0 ${
+        className={`relative inline-flex items-center cursor-pointer shrink-0 ${
           isLoading ? "opacity-50" : ""
         }`}
       >
@@ -453,7 +453,7 @@ const SettingsPage = () => {
 
   if (isLoading || !settingsData) {
     return (
-      <div className="flex items-center justify-center min-h-[300px] sm:min-h-[400px]">
+      <div className="flex items-center justify-center min-h-[300px] sm:min-h-100">
         <div
           role="status"
           aria-label="Loading settings"
@@ -478,7 +478,7 @@ const SettingsPage = () => {
             role="alert"
             aria-live="polite"
           >
-            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-emerald-100 rounded-full flex items-center justify-center shrink-0">
               <span className="material-symbols-outlined text-emerald-600 text-xs sm:text-sm">
                 check_circle
               </span>
@@ -699,7 +699,7 @@ const SettingsPage = () => {
                         </p>
                       </div>
                       {settings.subscription && (
-                        <div className="p-3 sm:p-4 bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg border border-amber-200 col-span-1 sm:col-span-2">
+                        <div className="p-3 sm:p-4 bg-linear-to-br from-amber-50 to-orange-50 rounded-lg border border-amber-200 col-span-1 sm:col-span-2">
                           <p className="text-xs sm:text-sm text-gray-600 mb-1">
                             Subscription
                           </p>
@@ -847,7 +847,7 @@ const SettingsPage = () => {
                         <button
                           onClick={handleCancelDeletion}
                           disabled={isRestoring}
-                          className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-emerald-600 to-teal-500 text-white rounded-lg font-bold text-sm sm:text-base hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3"
+                          className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-linear-to-r from-emerald-600 to-teal-500 text-white rounded-lg font-bold text-sm sm:text-base hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3"
                         >
                           {isRestoring ? (
                             <>
@@ -1038,7 +1038,7 @@ const SettingsPage = () => {
                   </div>
 
                   {/* Two-Factor Authentication */}
-                  <div className="p-4 sm:p-5 md:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg sm:rounded-xl border border-blue-200">
+                  <div className="p-4 sm:p-5 md:p-6 bg-linear-to-br from-blue-50 to-indigo-50 rounded-lg sm:rounded-xl border border-blue-200">
                     <div className="flex items-start justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
                       <div className="flex-1 min-w-0">
                         <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1.5 sm:mb-2 flex items-center gap-1.5 sm:gap-2">
@@ -1136,7 +1136,7 @@ const SettingsPage = () => {
                                 [item.key]: e.target.checked,
                               })
                             }
-                            className="mt-0.5 sm:mt-1 w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 flex-shrink-0"
+                            className="mt-0.5 sm:mt-1 w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 shrink-0"
                           />
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-gray-900 text-sm sm:text-base">
@@ -1190,7 +1190,7 @@ const SettingsPage = () => {
                                 [item.key]: e.target.checked,
                               })
                             }
-                            className="mt-0.5 sm:mt-1 w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 flex-shrink-0"
+                            className="mt-0.5 sm:mt-1 w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 shrink-0"
                           />
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-gray-900 text-sm sm:text-base">
@@ -1278,7 +1278,7 @@ const SettingsPage = () => {
                                 [item.key]: e.target.checked,
                               })
                             }
-                            className="mt-0.5 sm:mt-1 w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 flex-shrink-0"
+                            className="mt-0.5 sm:mt-1 w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 shrink-0"
                           />
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-gray-900 text-sm sm:text-base">

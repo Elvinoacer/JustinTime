@@ -109,7 +109,7 @@ export default function NotificationPermissionOverlay() {
               </div>
               <button
                 onClick={handleDismiss}
-                className="text-gray-400 hover:text-gray-600 transition-colors ml-2 flex-shrink-0"
+                className="text-gray-400 hover:text-gray-600 transition-colors ml-2 shrink-0"
                 aria-label="Close notification prompt"
               >
                 <X className={`${isMobile ? "w-3.5 h-3.5" : "w-4 h-4"}`} />

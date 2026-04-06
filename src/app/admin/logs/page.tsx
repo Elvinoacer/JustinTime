@@ -7,7 +7,34 @@ export const dynamic = "force-dynamic";
 interface SearchParams {
   page?: string;
   access?: string;
+  search?: string;
+  action?: string;
+  admin?: string;
+  targetId?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
+
+type AdminAccessType =
+  | "ALL"
+  | "PAID"
+  | "WAIVED"
+  | "VERIFICATION"
+  | "FINANCE"
+  | "SUPPORT"
+  | "USERS"
+  | "SETTINGS";
+
+const ADMIN_ACCESS_TYPES: AdminAccessType[] = [
+  "ALL",
+  "PAID",
+  "WAIVED",
+  "VERIFICATION",
+  "FINANCE",
+  "SUPPORT",
+  "USERS",
+  "SETTINGS",
+];
 
 export default async function AdminLogsPage({
   searchParams,
@@ -15,12 +42,21 @@ export default async function AdminLogsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  const page = Number(params.page) || 1;
-  const accessType: "ALL" | "PAID" | "WAIVED" =
-    params.access === "PAID" || params.access === "WAIVED"
-      ? params.access
-      : "ALL";
-  const data = await getAdminLogs(page, 20, accessType);
+  const page = Number(params.page) > 0 ? Number(params.page) : 1;
+  const accessType: AdminAccessType = ADMIN_ACCESS_TYPES.includes(
+    (params.access || "").toUpperCase() as AdminAccessType,
+  )
+    ? ((params.access || "ALL").toUpperCase() as AdminAccessType)
+    : "ALL";
+  const filters = {
+    search: params.search || "",
+    action: params.action || "",
+    admin: params.admin || "",
+    targetId: params.targetId || "",
+    dateFrom: params.dateFrom || "",
+    dateTo: params.dateTo || "",
+  };
+  const data = await getAdminLogs(page, 20, accessType, filters);
 
   return (
     <div className="space-y-6">
@@ -44,6 +80,7 @@ export default async function AdminLogsPage({
         currentPage={data.currentPage}
         totalPages={data.totalPages}
         accessType={data.accessType}
+        filters={filters}
       />
     </div>
   );

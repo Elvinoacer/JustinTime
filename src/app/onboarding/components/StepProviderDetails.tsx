@@ -413,7 +413,7 @@ export default function StepProviderDetails({
           </div>
         </div>
 
-        <section className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 sm:p-6">
+        <section className="rounded-2xl border border-emerald-100 bg-linear-to-br from-emerald-50 via-white to-teal-50 p-4 sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm">
               <span className="material-symbols-outlined">category</span>
@@ -806,7 +806,7 @@ export default function StepProviderDetails({
           )}
         </div>
 
-        <div className="relative rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-sky-50 p-4 sm:p-6 shadow-sm">
+        <div className="relative rounded-2xl border border-blue-100 bg-linear-to-br from-blue-50 via-white to-sky-50 p-4 sm:p-6 shadow-sm">
           <div className="absolute top-0 right-0 w-20 h-20 sm:w-32 sm:h-32 bg-emerald-100/50 rounded-full blur-2xl -mr-8 -mt-8 sm:-mr-16 sm:-mt-16 pointer-events-none" />
           <div className="relative z-10 flex items-start gap-3 sm:gap-4 mb-3 sm:mb-4">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-blue-600 shrink-0">
@@ -945,7 +945,7 @@ export default function StepProviderDetails({
             providerData.bio.length > VALIDATION.MAX_BIO_LENGTH ||
             !providerData.location
           }
-          className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-4 sm:px-6 md:px-8 py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center gap-2 text-sm sm:text-base min-h-[44px]"
+          className="bg-linear-to-r from-emerald-600 to-teal-600 text-white px-4 sm:px-6 md:px-8 py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center gap-2 text-sm sm:text-base min-h-[44px]"
         >
           <span className="hidden sm:inline">Continue to verification</span>
           <span className="inline sm:hidden">Next</span>

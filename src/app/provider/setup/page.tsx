@@ -334,7 +334,7 @@ export default function ProviderSetupPage() {
                 className="flex-1 h-1.5 rounded-full overflow-hidden bg-gray-100"
               >
                 <motion.div
-                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"
+                  className="h-full bg-linear-to-r from-emerald-500 to-teal-500 rounded-full"
                   initial={{ width: "0%" }}
                   animate={{ width: step > i ? "100%" : "0%" }}
                   transition={{ duration: 0.4, ease: "easeOut" }}

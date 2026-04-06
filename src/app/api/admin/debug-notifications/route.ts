@@ -8,7 +8,6 @@ import { getFromEmail } from "@/lib/email";
 export const dynamic = "force-dynamic";
 
 const DEBUG_SEND_RATE_LIMIT_MS = 60_000;
-const adminDebugRequestMap = new Map<string, number>();
 
 type DebugRequestBody = {
   confirm?: boolean;
@@ -16,6 +15,39 @@ type DebugRequestBody = {
   sendPush?: boolean;
   dryRun?: boolean;
 };
+
+async function getDebugRateLimit(adminId: string) {
+  const threshold = new Date(Date.now() - DEBUG_SEND_RATE_LIMIT_MS);
+  const latest = await prisma.adminLog.findFirst({
+    where: {
+      adminId,
+      action: "DEBUG_NOTIFICATIONS_TRIGGERED",
+      createdAt: {
+        gte: threshold,
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: {
+      createdAt: true,
+    },
+  });
+
+  if (!latest) {
+    return null;
+  }
+
+  const elapsedMs = Date.now() - latest.createdAt.getTime();
+  const retryAfterSeconds = Math.max(
+    1,
+    Math.ceil((DEBUG_SEND_RATE_LIMIT_MS - elapsedMs) / 1000),
+  );
+
+  return {
+    retryAfterSeconds,
+  };
+}
 
 async function getDiagnostics(adminId: string) {
   const [tokenCount, adminUser] = await Promise.all([
@@ -97,33 +129,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const now = Date.now();
-    const lastAttemptAt = adminDebugRequestMap.get(admin.id) || 0;
-    if (now - lastAttemptAt < DEBUG_SEND_RATE_LIMIT_MS) {
-      return NextResponse.json(
-        {
-          error:
-            "Rate limit reached. Please wait before sending another debug notification.",
-        },
-        { status: 429 },
-      );
+    if (!body.dryRun) {
+      const rateLimit = await getDebugRateLimit(admin.id);
+      if (rateLimit) {
+        return NextResponse.json(
+          {
+            error:
+              "Rate limit reached. Please wait before sending another debug notification.",
+            retryAfterSeconds: rateLimit.retryAfterSeconds,
+          },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": String(rateLimit.retryAfterSeconds),
+            },
+          },
+        );
+      }
     }
-    adminDebugRequestMap.set(admin.id, now);
 
     const sendEmail = body.sendEmail !== false;
     const sendPush = body.sendPush !== false;
     const diagnostics = await getDiagnostics(admin.id);
 
     if (body.dryRun) {
-      return NextResponse.json({
-        success: true,
-        dryRun: true,
-        requested: {
-          sendEmail,
-          sendPush,
+      return NextResponse.json(
+        {
+          success: true,
+          dryRun: true,
+          requested: {
+            sendEmail,
+            sendPush,
+          },
+          diagnostics,
         },
-        diagnostics,
-      });
+        { status: 200 },
+      );
     }
 
     const tests: Record<string, unknown> = {};

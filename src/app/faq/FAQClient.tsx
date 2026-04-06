@@ -155,13 +155,13 @@ export default function FAQPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-gray-50 via-white to-emerald-50/30">
+    <div className="flex min-h-screen flex-col bg-linear-to-br from-gray-50 via-white to-emerald-50/30">
       <Header />
       <main className="flex-1 px-3 sm:px-4 py-6 sm:py-8 md:py-12 pt-20 sm:pt-24">
         <div className="max-w-5xl mx-auto">
           {/* Header Section */}
           <div className="text-center mb-8 sm:mb-12">
-            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl sm:rounded-2xl mb-3 sm:mb-4 shadow-lg shadow-emerald-500/30">
+            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-linear-to-br from-emerald-500 to-emerald-600 rounded-xl sm:rounded-2xl mb-3 sm:mb-4 shadow-lg shadow-emerald-500/30">
               <HelpCircle className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-2 sm:mb-4">
@@ -216,7 +216,7 @@ export default function FAQPage() {
                         }}
                         className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full font-medium text-sm transition-all ${
                           selectedCategory === category
-                            ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
+                            ? "bg-linear-to-r from-emerald-500 to-emerald-600 text-white shadow-md"
                             : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                         }`}
                       >
@@ -240,7 +240,7 @@ export default function FAQPage() {
                   onClick={() => setSelectedCategory(category)}
                   className={`inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full font-medium text-sm sm:text-base transition-all transform hover:scale-105 active:scale-95 ${
                     selectedCategory === category
-                      ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30"
+                      ? "bg-linear-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/30"
                       : "bg-white text-gray-700 border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50"
                   }`}
                 >
@@ -305,7 +305,7 @@ export default function FAQPage() {
                       onClick={() => toggleFaq(index)}
                       className="w-full px-4 py-3 sm:px-6 sm:py-4 flex items-start gap-3 sm:gap-4 text-left transition-colors group-hover:bg-gray-50"
                     >
-                      <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg sm:rounded-xl flex items-center justify-center group-hover:from-emerald-100 group-hover:to-emerald-200 transition-colors">
+                      <div className="shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-emerald-50 to-emerald-100 rounded-lg sm:rounded-xl flex items-center justify-center group-hover:from-emerald-100 group-hover:to-emerald-200 transition-colors">
                         <Icon className="w-4 h-4 sm:w-5 h-5 text-emerald-600" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -319,7 +319,7 @@ export default function FAQPage() {
                             </h3>
                           </div>
                           <ChevronDown
-                            className={`w-4 h-4 sm:w-5 h-5 text-gray-400 flex-shrink-0 transition-transform duration-300 ${
+                            className={`w-4 h-4 sm:w-5 h-5 text-gray-400 shrink-0 transition-transform duration-300 ${
                               isOpen ? "rotate-180 text-emerald-600" : ""
                             }`}
                           />
@@ -344,7 +344,7 @@ export default function FAQPage() {
           </div>
 
           {/* Contact Support CTA */}
-          <div className="mt-8 sm:mt-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl sm:rounded-2xl p-6 sm:p-8 md:p-10 text-center shadow-xl shadow-emerald-500/20">
+          <div className="mt-8 sm:mt-12 bg-linear-to-br from-emerald-500 to-emerald-600 rounded-xl sm:rounded-2xl p-6 sm:p-8 md:p-10 text-center shadow-xl shadow-emerald-500/20">
             <Phone className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-white/90 mx-auto mb-3 sm:mb-4" />
             <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-2 sm:mb-3">
               Still have questions?
@@ -390,7 +390,7 @@ export default function FAQPage() {
 
           {/* Quick Tips - Mobile Only */}
           <div className="sm:hidden mt-6">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+            <div className="bg-linear-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
               <h4 className="font-bold text-blue-900 text-sm mb-2 flex items-center gap-2">
                 <HelpCircle className="w-4 h-4" />
                 Quick Tips

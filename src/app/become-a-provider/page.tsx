@@ -89,9 +89,9 @@ export default function BecomeAProviderPage() {
       <Header />
       <main className="min-h-screen bg-gray-50">
         {/* Hero Section */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-emerald-900 pt-28 pb-20 lg:pt-36 lg:pb-28">
+        <section className="relative overflow-hidden bg-linear-to-br from-gray-900 via-gray-800 to-emerald-900 pt-28 pb-20 lg:pt-36 lg:pb-28">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-500/20 via-transparent to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-emerald-500/50 to-transparent" />
 
           <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <motion.div
@@ -106,7 +106,7 @@ export default function BecomeAProviderPage() {
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight mb-6">
                 Turn Your Skills Into{" "}
-                <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+                <span className="bg-linear-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
                   Income
                 </span>
               </h1>
@@ -120,7 +120,7 @@ export default function BecomeAProviderPage() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <motion.button
                   onClick={handleCTA}
-                  className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-lg rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.02] transition-all"
+                  className="inline-flex items-center gap-2 px-8 py-4 bg-linear-to-r from-emerald-500 to-teal-500 text-white font-bold text-lg rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.02] transition-all"
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -230,7 +230,7 @@ export default function BecomeAProviderPage() {
                   transition={{ delay: i * 0.15 }}
                   className="flex gap-5 items-start"
                 >
-                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-md shadow-emerald-500/20">
+                  <div className="w-10 h-10 bg-linear-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-md shadow-emerald-500/20">
                     {step.step}
                   </div>
                   <div className="flex-1 pb-6 border-b border-gray-100 last:border-0">
@@ -251,7 +251,7 @@ export default function BecomeAProviderPage() {
         </section>
 
         {/* CTA Footer */}
-        <section className="py-16 bg-gradient-to-br from-gray-900 to-emerald-900">
+        <section className="py-16 bg-linear-to-br from-gray-900 to-emerald-900">
           <div className="max-w-3xl mx-auto px-4 text-center">
             <h2 className="text-3xl font-bold text-white mb-4">
               Ready to start earning?
@@ -262,7 +262,7 @@ export default function BecomeAProviderPage() {
             </p>
             <motion.button
               onClick={handleCTA}
-              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-lg rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-linear-to-r from-emerald-500 to-teal-500 text-white font-bold text-lg rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all"
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
             >

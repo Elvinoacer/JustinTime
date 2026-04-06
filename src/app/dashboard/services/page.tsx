@@ -280,7 +280,7 @@ const ServicesPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[300px] md:min-h-[400px] px-4">
+      <div className="flex items-center justify-center min-h-[300px] md:min-h-100 px-4">
         <div
           role="status"
           aria-label="Loading services"
@@ -343,7 +343,7 @@ const ServicesPage = () => {
             </div>
           </div>
 
-          <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[280px]">
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-70">
             <button
               onClick={openAddModal}
               className={`${
@@ -462,7 +462,7 @@ const ServicesPage = () => {
                 </div>
               </div>
               <div
-                className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl ${
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
                   stat.color === "blue"
                     ? "bg-blue-50 text-blue-600"
                     : stat.color === "emerald"
@@ -521,7 +521,7 @@ const ServicesPage = () => {
                         />
                       ) : (
                         <div
-                          className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${accent.glow}`}
+                          className={`flex h-full w-full items-center justify-center bg-linear-to-br ${accent.glow}`}
                         >
                           <span
                             className={`material-symbols-outlined text-gray-300 ${
@@ -535,7 +535,7 @@ const ServicesPage = () => {
 
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/20 to-transparent" />
                       <div
-                        className={`absolute inset-0 bg-gradient-to-br ${accent.wash}`}
+                        className={`absolute inset-0 bg-linear-to-br ${accent.wash}`}
                       />
 
                       <div className="absolute left-4 top-4 flex flex-wrap gap-2">
@@ -755,7 +755,7 @@ const ServicesPage = () => {
                               setPromotingService(service);
                               setShowPromoteModal(true);
                             }}
-                            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-fuchsia-600 via-violet-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
+                            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-fuchsia-600 via-violet-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
                           >
                             <span className="material-symbols-outlined text-sm">
                               rocket_launch
@@ -885,7 +885,7 @@ const ServicesPage = () => {
               } shadow-lg sm:shadow-2xl max-w-sm w-full text-center relative overflow-hidden`}
             >
               {/* Decorative background element */}
-              <div className="absolute top-0 left-0 w-full h-1.5 sm:h-2 bg-gradient-to-r from-red-400 to-red-600" />
+              <div className="absolute top-0 left-0 w-full h-1.5 sm:h-2 bg-linear-to-r from-red-400 to-red-600" />
 
               <div
                 className={`${

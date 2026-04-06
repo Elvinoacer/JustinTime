@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface Wallet {
   id: string;
@@ -16,8 +16,20 @@ interface WalletsTableProps {
   totalPages: number;
 }
 
-export default function WalletsTable({ wallets, total, currentPage, totalPages }: WalletsTableProps) {
+export default function WalletsTable({
+  wallets,
+  total,
+  currentPage,
+  totalPages,
+}: WalletsTableProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const buildPageUrl = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(page));
+    return `?${params.toString()}`;
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
@@ -33,33 +45,48 @@ export default function WalletsTable({ wallets, total, currentPage, totalPages }
           </thead>
           <tbody className="divide-y divide-slate-100">
             {wallets.map((wallet) => (
-              <tr key={wallet.id} className="hover:bg-slate-50 transition-colors">
+              <tr
+                key={wallet.id}
+                className="hover:bg-slate-50 transition-colors"
+              >
                 <td className="px-6 py-4">
                   <div className="flex flex-col">
-                    <span className="text-slate-900 font-medium">{wallet.user.name || 'Unknown'}</span>
-                    <span className="text-slate-500 text-xs">{wallet.user.email}</span>
+                    <span className="text-slate-900 font-medium">
+                      {wallet.user.name || "Unknown"}
+                    </span>
+                    <span className="text-slate-500 text-xs">
+                      {wallet.user.email}
+                    </span>
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    wallet.user.role === 'PROVIDER' ? 'bg-indigo-50 text-indigo-700' :
-                    wallet.user.role === 'CLIENT' ? 'bg-blue-50 text-blue-700' :
-                    'bg-slate-50 text-slate-700'
-                  }`}>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      wallet.user.role === "PROVIDER"
+                        ? "bg-indigo-50 text-indigo-700"
+                        : wallet.user.role === "CLIENT"
+                          ? "bg-blue-50 text-blue-700"
+                          : "bg-slate-50 text-slate-700"
+                    }`}
+                  >
                     {wallet.user.role}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-slate-500">
-                  {new Date(wallet.updatedAt).toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'short', 
-                    day: 'numeric'
+                  {new Date(wallet.updatedAt).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
                   })}
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <span className={`font-bold text-lg ${
-                    Number(wallet.balance) > 0 ? 'text-emerald-600' : 'text-slate-400'
-                  }`}>
+                  <span
+                    className={`font-bold text-lg ${
+                      Number(wallet.balance) > 0
+                        ? "text-emerald-600"
+                        : "text-slate-400"
+                    }`}
+                  >
                     KES {Number(wallet.balance).toLocaleString()}
                   </span>
                 </td>
@@ -72,19 +99,20 @@ export default function WalletsTable({ wallets, total, currentPage, totalPages }
       {/* Pagination */}
       <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
         <p className="text-sm text-slate-500">
-          Showing <span className="font-medium">{wallets.length}</span> of <span className="font-medium">{total}</span> wallets
+          Showing <span className="font-medium">{wallets.length}</span> of{" "}
+          <span className="font-medium">{total}</span> wallets
         </p>
         <div className="flex gap-2">
           <button
             disabled={currentPage <= 1}
-            onClick={() => router.push(`?page=${currentPage - 1}`)}
+            onClick={() => router.push(buildPageUrl(currentPage - 1))}
             className="px-3 py-1 text-sm border border-slate-200 rounded-lg disabled:opacity-50 hover:bg-slate-50"
           >
             Previous
           </button>
           <button
             disabled={currentPage >= totalPages}
-            onClick={() => router.push(`?page=${currentPage + 1}`)}
+            onClick={() => router.push(buildPageUrl(currentPage + 1))}
             className="px-3 py-1 text-sm border border-slate-200 rounded-lg disabled:opacity-50 hover:bg-slate-50"
           >
             Next

@@ -158,7 +158,7 @@ export function BadgeRow({ badges }: { badges: Array<{ type: BadgeType; status: 
 // Government Verified premium badge
 export function GovernmentVerifiedBadge({ className = '' }: { className?: string }) {
   return (
-    <div className={`inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-3 py-1.5 rounded-full font-semibold text-sm shadow-md ${className}`}>
+    <div className={`inline-flex items-center gap-1.5 bg-linear-to-r from-emerald-500 to-teal-600 text-white px-3 py-1.5 rounded-full font-semibold text-sm shadow-md ${className}`}>
       <Shield className="h-4 w-4" />
       <span>Government-Verified ✓</span>
     </div>

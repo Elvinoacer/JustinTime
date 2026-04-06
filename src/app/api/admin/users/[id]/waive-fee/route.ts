@@ -17,6 +17,7 @@ export async function POST(
 
     const { id: userId } = await params;
     const { waive } = await req.json();
+    const shouldWaive = waive === true;
 
     // Find the user's profile
     const profile = await prisma.profile.findUnique({
@@ -32,20 +33,33 @@ export async function POST(
     }
 
     const updatedProfile = await prisma.$transaction(async (tx) => {
-      const profileUpdate = await tx.profile.update({
-        where: { userId },
-        data: {
-          onboardingFeeWaived: waive,
-          onboardingFeeWaivedBy: waive ? session.user.id : null,
-          onboardingFeeWaivedAt: waive ? new Date() : null,
-          hasPaidOnboardingFee: waive ? true : profile.hasPaidOnboardingFee,
-          verificationStatus: waive ? "VERIFIED" : profile.verificationStatus,
-          premiumPricingEnabled: waive ? true : profile.premiumPricingEnabled,
-          premiumMultiplier: waive ? 1.1 : profile.premiumMultiplier,
+      const paidOnboardingFee = await tx.transaction.findFirst({
+        where: {
+          wallet: {
+            userId,
+          },
+          type: "ONBOARDING_FEE",
+          status: "SETTLED",
+          amount: {
+            gt: 0,
+          },
+        },
+        select: {
+          id: true,
         },
       });
 
-      if (waive && !profile.onboardingFeeWaived) {
+      const profileUpdate = await tx.profile.update({
+        where: { userId },
+        data: {
+          onboardingFeeWaived: shouldWaive,
+          onboardingFeeWaivedBy: shouldWaive ? session.user.id : null,
+          onboardingFeeWaivedAt: shouldWaive ? new Date() : null,
+          hasPaidOnboardingFee: shouldWaive ? true : Boolean(paidOnboardingFee),
+        },
+      });
+
+      if (shouldWaive && !profile.onboardingFeeWaived) {
         let wallet = await tx.wallet.findUnique({
           where: { userId },
         });
@@ -72,13 +86,14 @@ export async function POST(
       await tx.adminLog.create({
         data: {
           adminId: session.user.id,
-          action: waive ? "WAIVED_ONBOARDING_FEE" : "REVOKED_FEE_WAIVER",
+          action: shouldWaive ? "WAIVED_ONBOARDING_FEE" : "REVOKED_FEE_WAIVER",
           targetId: userId,
           details: {
             userName: profile.user.name,
             userEmail: profile.user.email,
-            autoVerified: waive,
-            waivedAt: waive ? new Date().toISOString() : null,
+            waived: shouldWaive,
+            hasPaidOnboardingFeeAfter: profileUpdate.hasPaidOnboardingFee,
+            waivedAt: shouldWaive ? new Date().toISOString() : null,
           },
         },
       });
@@ -89,11 +104,10 @@ export async function POST(
     return NextResponse.json({
       success: true,
       waived: updatedProfile.onboardingFeeWaived,
-      isVerified: updatedProfile.verificationStatus === "VERIFIED",
-      verificationStatus: updatedProfile.verificationStatus,
-      message: waive
-        ? "Onboarding fee waived. Verification access and privileges granted."
-        : "Fee waiver has been revoked",
+      hasPaidOnboardingFee: updatedProfile.hasPaidOnboardingFee,
+      message: shouldWaive
+        ? "Onboarding fee waived. Marketplace access is now unlocked."
+        : "Fee waiver has been revoked.",
     });
   } catch (error: any) {
     console.error("[WAIVE_FEE_ERROR]", error);

@@ -91,7 +91,7 @@ export default function SocialLinksSection({
               className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100 hover:border-emerald-200 transition-colors"
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center shrink-0">
                   <span className="material-symbols-outlined text-emerald-600 text-lg">
                     {getSocialIcon(link.platform)}
                   </span>
@@ -117,7 +117,7 @@ export default function SocialLinksSection({
               {isEditing && (
                 <button
                   onClick={() => onRemove(index)}
-                  className="text-red-600 hover:bg-red-50 p-2 rounded transition-colors flex-shrink-0"
+                  className="text-red-600 hover:bg-red-50 p-2 rounded transition-colors shrink-0"
                   aria-label="Remove link"
                 >
                   <span className="material-symbols-outlined text-sm">delete</span>

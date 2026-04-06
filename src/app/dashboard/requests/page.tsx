@@ -115,7 +115,7 @@ export default function JobRequestsPage() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap min-w-[80px] ${
+              className={`px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap min-w-20 ${
                 activeTab === tab
                   ? "bg-gray-900 text-white shadow-sm md:shadow-md"
                   : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
@@ -166,7 +166,7 @@ export default function JobRequestsPage() {
                 <div className="flex flex-col gap-4">
                   {/* Service Info - Compact Layout */}
                   <div className="flex gap-3">
-                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-lg md:rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 flex-shrink-0 overflow-hidden">
+                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-lg md:rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 shrink-0 overflow-hidden">
                       {request.service?.images &&
                       request.service.images.length > 0 ? (
                         <img

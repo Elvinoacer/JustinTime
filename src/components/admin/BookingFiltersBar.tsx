@@ -269,7 +269,7 @@ export default function BookingFiltersBar({
             handleChange("status", e.target.value);
             onApply();
           }}
-          className="px-3 xs:px-4 py-2.5 xs:py-3 bg-white border border-slate-200 rounded-lg xs:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm font-medium text-slate-700 cursor-pointer hover:border-slate-300 min-w-[120px] xs:min-w-[140px]"
+          className="px-3 xs:px-4 py-2.5 xs:py-3 bg-white border border-slate-200 rounded-lg xs:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm font-medium text-slate-700 cursor-pointer hover:border-slate-300 min-w-30 xs:min-w-[140px]"
         >
           <option value="ALL">All Status</option>
           <option value="PENDING">Pending</option>
@@ -301,7 +301,7 @@ export default function BookingFiltersBar({
         {/* Apply Search */}
         <button
           onClick={onApply}
-          className="px-4 xs:px-6 py-2.5 xs:py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg xs:rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-blue-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
+          className="px-4 xs:px-6 py-2.5 xs:py-3 bg-linear-to-r from-blue-600 to-cyan-600 text-white rounded-lg xs:rounded-xl font-medium text-sm hover:shadow-lg hover:shadow-blue-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
         >
           Apply
         </button>
@@ -330,7 +330,7 @@ export default function BookingFiltersBar({
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <div className="p-4 xs:p-6 bg-gradient-to-br from-slate-50 to-blue-50/30 rounded-lg xs:rounded-2xl border border-slate-200/50 shadow-sm">
+            <div className="p-4 xs:p-6 bg-linear-to-br from-slate-50 to-blue-50/30 rounded-lg xs:rounded-2xl border border-slate-200/50 shadow-sm">
               <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 xs:gap-4">
                 {/* Date From */}
                 <div className="space-y-2">

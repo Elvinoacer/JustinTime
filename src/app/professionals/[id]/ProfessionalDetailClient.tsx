@@ -294,9 +294,9 @@ export default function ProfessionalDetailPage({
                       unoptimized
                     />
                   ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
+                    <div className="absolute inset-0 bg-linear-to-br from-emerald-700 via-teal-700 to-slate-900" />
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/92 via-slate-950/62 to-slate-950/18" />
+                  <div className="absolute inset-0 bg-linear-to-r from-slate-950/92 via-slate-950/62 to-slate-950/18" />
                   <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-950/35 to-transparent" />
 
                   <div className="relative flex h-full min-h-[220px] flex-col justify-between p-4 text-white sm:min-h-[320px] sm:p-7">
@@ -334,7 +334,7 @@ export default function ProfessionalDetailPage({
                               unoptimized
                             />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-100 to-teal-100 text-3xl font-bold text-emerald-700">
+                            <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-emerald-100 to-teal-100 text-3xl font-bold text-emerald-700">
                               {prof.name.charAt(0)}
                             </div>
                           )}
@@ -391,7 +391,7 @@ export default function ProfessionalDetailPage({
                         {statCards.slice(0, 2).map((card) => (
                           <div
                             key={card.label}
-                            className={`rounded-2xl border border-white/10 bg-gradient-to-br ${card.tone} px-4 py-3 shadow-sm backdrop-blur-sm`}
+                            className={`rounded-2xl border border-white/10 bg-linear-to-br ${card.tone} px-4 py-3 shadow-sm backdrop-blur-sm`}
                           >
                             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
                               {card.label}
@@ -816,7 +816,7 @@ export default function ProfessionalDetailPage({
                                   unoptimized
                                 />
                               ) : (
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-700 to-slate-900" />
+                                <div className="absolute inset-0 bg-linear-to-br from-emerald-700 via-teal-700 to-slate-900" />
                               )}
                               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent" />
                               <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-2">
@@ -1206,7 +1206,7 @@ export default function ProfessionalDetailPage({
             </button>
             <button
               onClick={() => handleBookNow()}
-              className="flex-1 rounded-2xl bg-gradient-to-r from-slate-950 to-emerald-700 px-4 py-2.5 text-left text-white"
+              className="flex-1 rounded-2xl bg-linear-to-r from-slate-950 to-emerald-700 px-4 py-2.5 text-left text-white"
             >
               <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">
                 Quick booking

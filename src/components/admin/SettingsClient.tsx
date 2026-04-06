@@ -1,5 +1,6 @@
 "use client";
 
+import { updateSystemSetting } from "@/app/actions/admin";
 import EnhancedCategoryManagement from "@/components/admin/EnhancedCategoryManagement";
 import EnhancedSystemSettings from "@/components/admin/EnhancedSystemSettings";
 import { AnimatePresence, motion } from "framer-motion";
@@ -12,7 +13,8 @@ import {
   Settings,
   UserPlus,
 } from "lucide-react";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 
 import { useFcmToken } from "@/lib/hooks/useFcmToken";
 
@@ -25,8 +27,73 @@ export default function SettingsClient({
   categories,
   systemSettings,
 }: SettingsClientProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("categories");
-  const { token, notificationPermission } = useFcmToken();
+  const [isSavingNotifications, startSavingNotifications] = useTransition();
+  const [notificationStatusMessage, setNotificationStatusMessage] = useState<
+    string | null
+  >(null);
+
+  const readBooleanSetting = (key: string, fallback: boolean) => {
+    const setting = systemSettings.find((item) => item.key === key);
+    if (!setting) {
+      return fallback;
+    }
+
+    if (typeof setting.value === "boolean") {
+      return setting.value;
+    }
+
+    if (typeof setting.value === "string") {
+      const normalized = setting.value.trim().toLowerCase();
+      if (normalized === "true") return true;
+      if (normalized === "false") return false;
+    }
+
+    if (typeof setting.value === "number") {
+      return setting.value !== 0;
+    }
+
+    return fallback;
+  };
+
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(
+    readBooleanSetting("email_notifications_enabled", true),
+  );
+  const [smsAlertsEnabled, setSmsAlertsEnabled] = useState(
+    readBooleanSetting("sms_alerts_enabled", false),
+  );
+
+  const persistNotificationToggle = (
+    key: "email_notifications_enabled" | "sms_alerts_enabled",
+    nextValue: boolean,
+    previousValue: boolean,
+    setLocalValue: (value: boolean) => void,
+  ) => {
+    setNotificationStatusMessage(null);
+    setLocalValue(nextValue);
+
+    startSavingNotifications(async () => {
+      const result = await updateSystemSetting(
+        key,
+        nextValue,
+        key === "email_notifications_enabled"
+          ? "Enable or disable email-based admin notifications"
+          : "Enable or disable SMS-based admin alerts",
+      );
+
+      if (!result.success) {
+        setLocalValue(previousValue);
+        setNotificationStatusMessage(
+          result.error || "Failed to save notification setting",
+        );
+        return;
+      }
+
+      setNotificationStatusMessage("Notification settings saved.");
+      router.refresh();
+    });
+  };
 
   const tabs = [
     {
@@ -35,6 +102,7 @@ export default function SettingsClient({
       shortLabel: "Categories",
       icon: Layers,
       description: "Manage service categories",
+      group: "Live configuration",
     },
     {
       id: "system",
@@ -42,6 +110,7 @@ export default function SettingsClient({
       shortLabel: "System",
       icon: Settings,
       description: "Platform-wide settings",
+      group: "Live configuration",
     },
     {
       id: "invites",
@@ -49,6 +118,7 @@ export default function SettingsClient({
       shortLabel: "Invites",
       icon: UserPlus,
       description: "Invite trusted admins",
+      group: "Operational tools",
     },
     {
       id: "notifications",
@@ -56,12 +126,13 @@ export default function SettingsClient({
       shortLabel: "Notifications",
       icon: Bell,
       description: "Push notification settings",
+      group: "Diagnostics",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50/30 to-teal-50/20">
-      <div className="max-w-[1600px] mx-auto p-3 xs:p-4 sm:p-6 space-y-4 sm:space-y-6 lg:space-y-8">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-emerald-50/30 to-teal-50/20">
+      <div className="max-w-400 mx-auto p-3 xs:p-4 sm:p-6 space-y-4 sm:space-y-6 lg:space-y-8">
         {/* Header */}
         <div className="px-1">
           <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold text-slate-900 mb-1 sm:mb-2 leading-tight">
@@ -82,7 +153,7 @@ export default function SettingsClient({
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`relative p-3 xs:p-4 rounded-xl sm:rounded-2xl border text-left transition-all duration-300 flex-shrink-0 w-[280px] xs:w-[300px] sm:w-auto ${
+                  className={`relative p-3 xs:p-4 rounded-xl sm:rounded-2xl border text-left transition-all duration-300 shrink-0 w-70 xs:w-[300px] sm:w-auto ${
                     isActive
                       ? "bg-white border-emerald-500 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-500"
                       : "bg-white border-slate-200 hover:border-emerald-200 hover:shadow-md"
@@ -90,7 +161,7 @@ export default function SettingsClient({
                 >
                   <div className="flex items-center gap-3 xs:gap-0 xs:flex-col xs:items-start">
                     <div
-                      className={`w-8 h-8 xs:w-10 xs:h-10 rounded-lg xs:rounded-xl flex items-center justify-center transition-colors flex-shrink-0 ${
+                      className={`w-8 h-8 xs:w-10 xs:h-10 rounded-lg xs:rounded-xl flex items-center justify-center transition-colors shrink-0 ${
                         isActive
                           ? "bg-emerald-600 text-white"
                           : "bg-slate-100 text-slate-500 group-hover:bg-emerald-50 group-hover:text-emerald-600"
@@ -107,6 +178,9 @@ export default function SettingsClient({
                         <span className="hidden xs:inline">{tab.label}</span>
                         <span className="xs:hidden">{tab.shortLabel}</span>
                       </h3>
+                      <span className="hidden xs:inline-flex mb-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                        {tab.group}
+                      </span>
                       <p className="text-xs text-slate-500 line-clamp-2 hidden xs:block">
                         {tab.description}
                       </p>
@@ -119,7 +193,7 @@ export default function SettingsClient({
         </div>
 
         {/* Content Area */}
-        <div className="bg-white rounded-xl sm:rounded-2xl lg:rounded-3xl border border-slate-200 shadow-sm p-4 xs:p-5 sm:p-6 md:p-8 min-h-[400px] sm:min-h-[500px] lg:min-h-[600px]">
+        <div className="bg-white rounded-xl sm:rounded-2xl lg:rounded-3xl border border-slate-200 shadow-sm p-4 xs:p-5 sm:p-6 md:p-8 min-h-100 sm:min-h-125 lg:min-h-150">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -204,9 +278,18 @@ export default function SettingsClient({
                           <input
                             type="checkbox"
                             className="sr-only peer"
-                            defaultChecked
+                            checked={emailNotificationsEnabled}
+                            onChange={(event) =>
+                              persistNotificationToggle(
+                                "email_notifications_enabled",
+                                event.target.checked,
+                                emailNotificationsEnabled,
+                                setEmailNotificationsEnabled,
+                              )
+                            }
+                            disabled={isSavingNotifications}
                           />
-                          <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-emerald-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                          <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-emerald-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                         </div>
                       </label>
                     </div>
@@ -221,12 +304,37 @@ export default function SettingsClient({
                       <label className="flex items-center justify-between">
                         <span className="text-sm text-slate-700">Enabled</span>
                         <div className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" className="sr-only peer" />
-                          <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-emerald-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={smsAlertsEnabled}
+                            onChange={(event) =>
+                              persistNotificationToggle(
+                                "sms_alerts_enabled",
+                                event.target.checked,
+                                smsAlertsEnabled,
+                                setSmsAlertsEnabled,
+                              )
+                            }
+                            disabled={isSavingNotifications}
+                          />
+                          <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-emerald-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                         </div>
                       </label>
                     </div>
                   </div>
+
+                  {notificationStatusMessage ? (
+                    <p
+                      className={`text-sm ${
+                        notificationStatusMessage.includes("saved")
+                          ? "text-emerald-700"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {notificationStatusMessage}
+                    </p>
+                  ) : null}
                 </div>
               )}
 
@@ -450,7 +558,7 @@ function PushNotificationToggle() {
         </p>
       </div>
       <label
-        className={`relative inline-flex items-center cursor-pointer flex-shrink-0 ${
+        className={`relative inline-flex items-center cursor-pointer shrink-0 ${
           isLoading ? "opacity-50" : ""
         }`}
       >
@@ -464,7 +572,7 @@ function PushNotificationToggle() {
           }
         />
         <div
-          className={`w-14 h-7 bg-slate-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-emerald-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-600 ${
+          className={`w-14 h-7 bg-slate-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-emerald-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-1 after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-600 ${
             isEnabled || notificationPermission === "denied"
               ? "cursor-default"
               : ""

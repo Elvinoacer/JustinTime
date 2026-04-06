@@ -46,7 +46,7 @@ export default async function SolarLandingPage() {
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 to-orange-500/10" />
+        <div className="absolute inset-0 bg-linear-to-r from-amber-500/10 to-orange-500/10" />
         <div className="container mx-auto px-4 py-20 relative">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-700 px-4 py-2 rounded-full mb-6 font-medium">
@@ -103,7 +103,7 @@ export default async function SolarLandingPage() {
       {/* Quick Estimate Calculator */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto bg-gradient-to-br from-amber-500 to-orange-600 rounded-3xl p-8 md:p-12 shadow-2xl">
+          <div className="max-w-4xl mx-auto bg-linear-to-br from-amber-500 to-orange-600 rounded-3xl p-8 md:p-12 shadow-2xl">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-white mb-2">
                 How Much Could You Save?

@@ -112,7 +112,7 @@ export default function PrivacyPolicyPage() {
           <span className="text-sm font-medium">Contents</span>
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center">
+          <div className="w-6 h-6 bg-linear-to-br from-blue-500 to-blue-600 rounded-md flex items-center justify-center">
             <Shield className="w-3 h-3 text-white" />
           </div>
           <span className="text-sm font-bold text-gray-900">Privacy</span>
@@ -142,7 +142,7 @@ export default function PrivacyPolicyPage() {
                     }`}
                   >
                     <Icon
-                      className={`w-4 h-4 flex-shrink-0 ${
+                      className={`w-4 h-4 shrink-0 ${
                         activeSection === section.id
                           ? "text-blue-600"
                           : "text-gray-400"
@@ -150,7 +150,7 @@ export default function PrivacyPolicyPage() {
                     />
                     <span className="text-sm flex-1">{section.title}</span>
                     {activeSection === section.id && (
-                      <ChevronRight className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                      <ChevronRight className="w-4 h-4 text-blue-600 shrink-0" />
                     )}
                   </button>
                 );
@@ -163,7 +163,7 @@ export default function PrivacyPolicyPage() {
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-gray-50 via-white to-blue-50/30">
+    <div className="flex min-h-screen flex-col bg-linear-to-br from-gray-50 via-white to-blue-50/30">
       <Header />
 
       {/* Mobile Table of Contents */}
@@ -173,7 +173,7 @@ export default function PrivacyPolicyPage() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="text-center mb-8 sm:mb-10 md:mb-12">
-            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl sm:rounded-2xl mb-4 sm:mb-6 shadow-lg shadow-blue-500/20">
+            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-linear-to-br from-blue-500 to-blue-600 rounded-xl sm:rounded-2xl mb-4 sm:mb-6 shadow-lg shadow-blue-500/20">
               <Shield className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" />
             </div>
             <h1 className="text-2xl xs:text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-2 sm:mb-3 md:mb-4 px-2">
@@ -214,7 +214,7 @@ export default function PrivacyPolicyPage() {
                         }`}
                       >
                         <Icon
-                          className={`w-3.5 h-3.5 xl:w-4 xl:h-4 flex-shrink-0 ${
+                          className={`w-3.5 h-3.5 xl:w-4 xl:h-4 shrink-0 ${
                             activeSection === section.id
                               ? "text-blue-600"
                               : "text-gray-400 group-hover:text-gray-600"
@@ -224,7 +224,7 @@ export default function PrivacyPolicyPage() {
                           {section.title}
                         </span>
                         {activeSection === section.id && (
-                          <ChevronRight className="w-3 h-3 xl:w-4 xl:h-4 text-blue-600 flex-shrink-0" />
+                          <ChevronRight className="w-3 h-3 xl:w-4 xl:h-4 text-blue-600 shrink-0" />
                         )}
                       </button>
                     );
@@ -243,7 +243,7 @@ export default function PrivacyPolicyPage() {
                     className="scroll-mt-16 sm:scroll-mt-20 lg:scroll-mt-24 mb-8 sm:mb-10 md:mb-12"
                   >
                     <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center shrink-0">
                         <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -276,7 +276,7 @@ export default function PrivacyPolicyPage() {
                     className="scroll-mt-16 sm:scroll-mt-20 lg:scroll-mt-24 mb-8 sm:mb-10 md:mb-12"
                   >
                     <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-purple-100 to-purple-200 rounded-lg flex items-center justify-center shrink-0">
                         <Database className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -376,7 +376,7 @@ export default function PrivacyPolicyPage() {
                     className="scroll-mt-16 sm:scroll-mt-20 lg:scroll-mt-24 mb-8 sm:mb-10 md:mb-12"
                   >
                     <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-emerald-100 to-emerald-200 rounded-lg flex items-center justify-center shrink-0">
                         <Eye className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -486,7 +486,7 @@ export default function PrivacyPolicyPage() {
                     className="scroll-mt-16 sm:scroll-mt-20 lg:scroll-mt-24 mb-8 sm:mb-10 md:mb-12"
                   >
                     <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-orange-100 to-orange-200 rounded-lg flex items-center justify-center shrink-0">
                         <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -550,7 +550,7 @@ export default function PrivacyPolicyPage() {
                     className="scroll-mt-16 sm:scroll-mt-20 lg:scroll-mt-24 mb-8 sm:mb-10 md:mb-12"
                   >
                     <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-red-100 to-red-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-red-100 to-red-200 rounded-lg flex items-center justify-center shrink-0">
                         <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -615,7 +615,7 @@ export default function PrivacyPolicyPage() {
                     className="scroll-mt-16 sm:scroll-mt-20 lg:scroll-mt-24 mb-8 sm:mb-10 md:mb-12"
                   >
                     <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-pink-100 to-pink-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-pink-100 to-pink-200 rounded-lg flex items-center justify-center shrink-0">
                         <Cookie className="w-4 h-4 sm:w-5 sm:h-5 text-pink-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -686,7 +686,7 @@ export default function PrivacyPolicyPage() {
                     className="scroll-mt-16 sm:scroll-mt-20 lg:scroll-mt-24 mb-8 sm:mb-10 md:mb-12"
                   >
                     <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-indigo-100 to-indigo-200 rounded-lg flex items-center justify-center shrink-0">
                         <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">
@@ -767,7 +767,7 @@ export default function PrivacyPolicyPage() {
                     className="scroll-mt-16 sm:scroll-mt-20 lg:scroll-mt-24"
                   >
                     <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-teal-100 to-teal-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-teal-100 to-teal-200 rounded-lg flex items-center justify-center shrink-0">
                         <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-teal-600" />
                       </div>
                       <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 m-0">

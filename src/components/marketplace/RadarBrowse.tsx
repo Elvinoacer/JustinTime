@@ -669,7 +669,7 @@ function RadarBrowse({
 
   if (!hasUserLocation) {
     return (
-      <section className="overflow-hidden rounded-3xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 p-6 shadow-sm">
+      <section className="overflow-hidden rounded-3xl border border-emerald-200/70 bg-linear-to-br from-emerald-50 via-white to-cyan-50 p-6 shadow-sm">
         <h3 className="text-xl font-bold tracking-tight text-slate-900">
           Radar mode
         </h3>
@@ -696,7 +696,7 @@ function RadarBrowse({
 
   return (
     <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_48px_-28px_rgba(15,23,42,0.35)]">
-      <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-950 px-5 py-4 text-white sm:px-6">
+      <div className="border-b border-slate-200 bg-linear-to-r from-slate-950 via-slate-900 to-emerald-950 px-5 py-4 text-white sm:px-6">
         <h3 className="text-lg font-semibold sm:text-xl">{title}</h3>
         <p className="mt-1 text-xs text-emerald-100/90 sm:text-sm">
           {description}

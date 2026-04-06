@@ -25,21 +25,21 @@ const TIER_CONFIG: Record<string, {
   ELITE: {
     label: '🏆 Elite',
     color: 'text-yellow-600',
-    bgColor: 'bg-gradient-to-r from-yellow-100 to-amber-100',
+    bgColor: 'bg-linear-to-r from-yellow-100 to-amber-100',
     borderColor: 'border-yellow-300',
     description: 'Top-tier verified professional'
   },
   PREMIUM: {
     label: '⭐ Premium',
     color: 'text-purple-600',
-    bgColor: 'bg-gradient-to-r from-purple-100 to-pink-100',
+    bgColor: 'bg-linear-to-r from-purple-100 to-pink-100',
     borderColor: 'border-purple-300',
     description: 'Highly trusted professional'
   },
   VERIFIED: {
     label: '✓ Verified',
     color: 'text-emerald-600',
-    bgColor: 'bg-gradient-to-r from-emerald-100 to-teal-100',
+    bgColor: 'bg-linear-to-r from-emerald-100 to-teal-100',
     borderColor: 'border-emerald-300',
     description: 'Verified professional'
   },

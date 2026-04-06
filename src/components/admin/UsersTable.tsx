@@ -1,7 +1,7 @@
 "use client";
 
 import { toggleBanUser, verifyProvider } from "@/app/actions/admin";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import {
   Eye,
@@ -46,7 +46,14 @@ export default function UsersTable({
   totalPages,
 }: UsersTableProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+
+  const buildPageUrl = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(page));
+    return `?${params.toString()}`;
+  };
 
   const handleVerify = (userId: string, status: "VERIFIED" | "REJECTED") => {
     if (
@@ -402,7 +409,7 @@ export default function UsersTable({
               {/* First Page */}
               <button
                 disabled={currentPage <= 1}
-                onClick={() => router.push(`?page=1`)}
+                onClick={() => router.push(buildPageUrl(1))}
                 className="p-1.5 sm:p-2 text-slate-400 border border-slate-200 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
                 title="First page"
               >
@@ -412,7 +419,7 @@ export default function UsersTable({
               {/* Previous Page */}
               <button
                 disabled={currentPage <= 1}
-                onClick={() => router.push(`?page=${currentPage - 1}`)}
+                onClick={() => router.push(buildPageUrl(currentPage - 1))}
                 className="flex items-center gap-1 px-2 sm:px-3 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
               >
                 <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -436,7 +443,7 @@ export default function UsersTable({
                   return (
                     <button
                       key={pageNum}
-                      onClick={() => router.push(`?page=${pageNum}`)}
+                      onClick={() => router.push(buildPageUrl(pageNum))}
                       className={`w-8 h-8 sm:w-10 sm:h-10 text-xs sm:text-sm rounded-lg transition-all ${
                         currentPage === pageNum
                           ? "bg-emerald-600 text-white font-semibold shadow-md"
@@ -452,7 +459,7 @@ export default function UsersTable({
               {/* Next Page */}
               <button
                 disabled={currentPage >= totalPages}
-                onClick={() => router.push(`?page=${currentPage + 1}`)}
+                onClick={() => router.push(buildPageUrl(currentPage + 1))}
                 className="flex items-center gap-1 px-2 sm:px-3 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
               >
                 <span className="hidden sm:inline">Next</span>
@@ -462,7 +469,7 @@ export default function UsersTable({
               {/* Last Page */}
               <button
                 disabled={currentPage >= totalPages}
-                onClick={() => router.push(`?page=${totalPages}`)}
+                onClick={() => router.push(buildPageUrl(totalPages))}
                 className="p-1.5 sm:p-2 text-slate-400 border border-slate-200 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
                 title="Last page"
               >

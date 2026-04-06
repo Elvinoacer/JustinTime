@@ -91,14 +91,14 @@ export default function SupportStats({ stats }: SupportStatsProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
-            className={`relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br ${
+            className={`relative overflow-hidden rounded-xl sm:rounded-2xl bg-linear-to-br ${
               stat.bgGradient
             } p-3 sm:p-4 md:p-6 shadow-xs sm:shadow-sm hover:shadow-md transition-all duration-300 group cursor-pointer border border-white/50 ${
               stat.pulse ? "animate-pulse" : ""
             }`}
           >
             {/* Background decoration - smaller on mobile */}
-            <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-br ${stat.gradient} opacity-5 rounded-full -mr-8 -mt-8 sm:-mr-10 sm:-mt-10 md:-mr-12 md:-mt-12 group-hover:scale-150 transition-transform duration-500" />
+            <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-linear-to-br ${stat.gradient} opacity-5 rounded-full -mr-8 -mt-8 sm:-mr-10 sm:-mt-10 md:-mr-12 md:-mt-12 group-hover:scale-150 transition-transform duration-500" />
 
             <div className="relative">
               <div className="flex items-start justify-between mb-2 sm:mb-3">
@@ -120,7 +120,7 @@ export default function SupportStats({ stats }: SupportStatsProps) {
             </div>
 
             {/* Shine effect on hover */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20 -translate-x-full group-hover:translate-x-full transition-all duration-1000" />
+            <div className="absolute inset-0 bg-linear-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20 -translate-x-full group-hover:translate-x-full transition-all duration-1000" />
           </motion.div>
         );
       })}

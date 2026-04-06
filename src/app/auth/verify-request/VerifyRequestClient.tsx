@@ -65,7 +65,7 @@ function VerifyRequestContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 flex items-center justify-center p-3 sm:p-4">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-indigo-50/30 flex items-center justify-center p-3 sm:p-4">
       <div className="max-w-md w-full">
         {/* Mobile Header */}
         <motion.div
@@ -128,7 +128,7 @@ function VerifyRequestContent() {
             {/* Email Preview Card */}
             <div className="bg-slate-50 rounded-xl p-4 mb-6 border border-slate-200">
               <div className="flex items-start gap-3">
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center border border-slate-200">
                     <Mail className="w-4 h-4 text-indigo-600" />
                   </div>
@@ -161,15 +161,15 @@ function VerifyRequestContent() {
               </h4>
               <ul className="text-xs text-blue-700 space-y-1.5">
                 <li className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1 flex-shrink-0" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1 shrink-0" />
                   <span>Check your spam or junk folder</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1 flex-shrink-0" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1 shrink-0" />
                   <span>Search for &quot;JustInTime Verification&quot;</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1 flex-shrink-0" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1 shrink-0" />
                   <span>Ensure your email address is correct</span>
                 </li>
               </ul>
@@ -326,7 +326,7 @@ export default function VerifyRequestPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-linear-to-br from-slate-50 to-indigo-50/30 flex items-center justify-center p-4">
           <div className="text-center">
             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg mb-4 mx-auto">
               <Mail className="w-8 h-8 text-indigo-600 animate-pulse" />
