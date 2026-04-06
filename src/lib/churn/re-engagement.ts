@@ -1,9 +1,32 @@
 import prisma from "@/lib/prisma";
-import {
-  ChurnInterventionChannel,
-  ChurnRiskLevel,
-} from "@/generated/prisma/client";
+import { ChurnInterventionChannel, ChurnRiskLevel } from "@/generated/prisma/client";
 import { buildAppUrl } from "@/lib/app-url";
+
+function isMissingIsCurrentColumnError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const maybeError = error as {
+    code?: string;
+    message?: string;
+    meta?: { column?: unknown };
+  };
+
+  if (
+    maybeError.code === "P2022" &&
+    typeof maybeError.meta?.column === "string" &&
+    maybeError.meta.column.includes("ChurnScore.isCurrent")
+  ) {
+    return true;
+  }
+
+  return (
+    typeof maybeError.message === "string" &&
+    maybeError.message.includes("ChurnScore.isCurrent") &&
+    maybeError.message.includes("does not exist")
+  );
+}
 
 interface ReEngagementStrategy {
   type: string;
@@ -70,8 +93,7 @@ export async function triggerReEngagement(
   options: TriggerReEngagementOptions = {},
 ): Promise<TriggerReEngagementResult> {
   const strategy = RE_ENGAGEMENT_STRATEGIES[riskLevel];
-  const cooldownDays =
-    options.cooldownDays ?? DEFAULT_RE_ENGAGEMENT_COOLDOWN_DAYS;
+  const cooldownDays = options.cooldownDays ?? DEFAULT_RE_ENGAGEMENT_COOLDOWN_DAYS;
 
   if (strategy.type === "NONE") {
     return {
@@ -87,14 +109,7 @@ export async function triggerReEngagement(
       churnScoreId,
       type: strategy.type,
       status: {
-        in: [
-          "DRAFT",
-          "SCHEDULED",
-          "EXECUTING",
-          "SENT",
-          "RESPONDED",
-          "CONVERTED",
-        ],
+        in: ["DRAFT", "SCHEDULED", "EXECUTING", "SENT", "RESPONDED", "CONVERTED"],
       },
     },
     orderBy: { createdAt: "desc" },
@@ -109,9 +124,7 @@ export async function triggerReEngagement(
   }
 
   if (!options.force) {
-    const cooldownThreshold = new Date(
-      Date.now() - cooldownDays * 24 * 60 * 60 * 1000,
-    );
+    const cooldownThreshold = new Date(Date.now() - cooldownDays * 24 * 60 * 60 * 1000);
 
     const recentIntervention = await prisma.churnIntervention.findFirst({
       where: {
@@ -149,11 +162,7 @@ export async function triggerReEngagement(
 
   let discountCode: string | null = null;
   if (strategy.discountPercent > 0) {
-    discountCode = await createDiscountCode(
-      userId,
-      strategy.discountPercent,
-      riskLevel,
-    );
+    discountCode = await createDiscountCode(userId, strategy.discountPercent, riskLevel);
   }
 
   const message = buildReEngagementMessage(
@@ -180,13 +189,7 @@ export async function triggerReEngagement(
   try {
     if (!strategy.requiresManualExecution) {
       if (strategy.type.includes("EMAIL")) {
-        await sendReEngagementEmail(
-          user.email,
-          user.name || "Professional",
-          riskLevel,
-          message,
-          discountCode,
-        );
+        await sendReEngagementEmail(user.email, user.name || "Professional", riskLevel, message, discountCode);
       }
 
       if (strategy.type.includes("NOTIFICATION")) {
@@ -224,19 +227,12 @@ export async function triggerReEngagement(
     return {
       success: false,
       interventionId: intervention.id,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to execute re-engagement",
+      error: error instanceof Error ? error.message : "Failed to execute re-engagement",
     };
   }
 }
 
-async function createDiscountCode(
-  userId: string,
-  discountPercent: number,
-  riskLevel: ChurnRiskLevel,
-): Promise<string> {
+async function createDiscountCode(userId: string, discountPercent: number, riskLevel: ChurnRiskLevel): Promise<string> {
   const code = `COMEBACK${riskLevel}${Date.now().toString().slice(-6)}`;
 
   await prisma.promoCode.create({
@@ -297,10 +293,7 @@ async function sendReEngagementEmail(
       <div style="padding: 30px; background: #f9fafb;">
         ${message
           .split("\n")
-          .map(
-            (line) =>
-              `<p style="color: #374151; line-height: 1.6;">${line}</p>`,
-          )
+          .map((line) => `<p style="color: #374151; line-height: 1.6;">${line}</p>`)
           .join("")}
 
         ${
@@ -335,11 +328,7 @@ async function sendReEngagementEmail(
   });
 }
 
-async function sendReEngagementNotification(
-  userId: string,
-  riskLevel: ChurnRiskLevel,
-  message: string,
-): Promise<void> {
+async function sendReEngagementNotification(userId: string, riskLevel: ChurnRiskLevel, message: string): Promise<void> {
   await prisma.notification.create({
     data: {
       userId,
@@ -353,35 +342,75 @@ async function sendReEngagementNotification(
 /**
  * Auto-trigger re-engagement for recent high-risk users.
  */
-export async function autoTriggerReEngagement(options?: {
-  cooldownDays?: number;
-  maxUsers?: number;
-}): Promise<{
+export async function autoTriggerReEngagement(options?: { cooldownDays?: number; maxUsers?: number }): Promise<{
   triggered: number;
   successful: number;
   failed: number;
   skipped: number;
 }> {
-  const cooldownDays =
-    options?.cooldownDays ?? DEFAULT_RE_ENGAGEMENT_COOLDOWN_DAYS;
+  const cooldownDays = options?.cooldownDays ?? DEFAULT_RE_ENGAGEMENT_COOLDOWN_DAYS;
   const maxUsers = options?.maxUsers ?? 200;
 
-  const highRiskScores = await prisma.churnScore.findMany({
-    where: {
-      isCurrent: true,
-      riskLevel: { in: ["HIGH", "CRITICAL"] },
-      calculatedAt: {
-        gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+  let highRiskScores: Array<{
+    id: string;
+    userId: string;
+    riskLevel: ChurnRiskLevel;
+  }>;
+
+  try {
+    highRiskScores = await prisma.churnScore.findMany({
+      where: {
+        isCurrent: true,
+        riskLevel: { in: ["HIGH", "CRITICAL"] },
+        calculatedAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        },
       },
-    },
-    orderBy: { score: "desc" },
-    take: maxUsers,
-    select: {
-      id: true,
-      userId: true,
-      riskLevel: true,
-    },
-  });
+      orderBy: { score: "desc" },
+      take: maxUsers,
+      select: {
+        id: true,
+        userId: true,
+        riskLevel: true,
+      },
+    });
+  } catch (error) {
+    if (!isMissingIsCurrentColumnError(error)) {
+      throw error;
+    }
+
+    // Compatibility fallback for environments where the isCurrent column is not yet migrated.
+    const fallbackScores = await prisma.churnScore.findMany({
+      where: {
+        riskLevel: { in: ["HIGH", "CRITICAL"] },
+        calculatedAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        },
+      },
+      orderBy: [{ calculatedAt: "desc" }, { score: "desc" }],
+      take: Math.max(maxUsers * 5, maxUsers),
+      select: {
+        id: true,
+        userId: true,
+        riskLevel: true,
+      },
+    });
+
+    const seenUsers = new Set<string>();
+    highRiskScores = [];
+
+    for (const score of fallbackScores) {
+      if (seenUsers.has(score.userId)) {
+        continue;
+      }
+      seenUsers.add(score.userId);
+      highRiskScores.push(score);
+
+      if (highRiskScores.length >= maxUsers) {
+        break;
+      }
+    }
+  }
 
   const results = {
     triggered: 0,
@@ -391,14 +420,9 @@ export async function autoTriggerReEngagement(options?: {
   };
 
   for (const score of highRiskScores) {
-    const result = await triggerReEngagement(
-      score.userId,
-      score.id,
-      score.riskLevel,
-      {
-        cooldownDays,
-      },
-    );
+    const result = await triggerReEngagement(score.userId, score.id, score.riskLevel, {
+      cooldownDays,
+    });
 
     if (result.skipped) {
       results.skipped++;

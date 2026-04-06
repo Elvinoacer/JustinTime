@@ -1,6 +1,32 @@
 import prisma from "@/lib/prisma";
 import { ChurnRiskLevel } from "@/generated/prisma/client";
 
+function isMissingIsCurrentColumnError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const maybeError = error as {
+    code?: string;
+    message?: string;
+    meta?: { column?: unknown };
+  };
+
+  if (
+    maybeError.code === "P2022" &&
+    typeof maybeError.meta?.column === "string" &&
+    maybeError.meta.column.includes("ChurnScore.isCurrent")
+  ) {
+    return true;
+  }
+
+  return (
+    typeof maybeError.message === "string" &&
+    maybeError.message.includes("ChurnScore.isCurrent") &&
+    maybeError.message.includes("does not exist")
+  );
+}
+
 export interface ChurnFactors {
   inactivityDays: number;
   inactivityScore: number;
@@ -38,9 +64,7 @@ interface AnalyzeUsersOptions {
 /**
  * Calculate churn risk score for a user
  */
-export async function calculateChurnScore(
-  userId: string,
-): Promise<ChurnPrediction> {
+export async function calculateChurnScore(userId: string): Promise<ChurnPrediction> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
@@ -68,10 +92,7 @@ export async function calculateChurnScore(
   else inactivityScore = 0;
 
   // 2. BOOKING DECLINE SCORE (30% weight)
-  const bookingDeclineData = await calculateBookingDecline(
-    userId,
-    user.createdAt,
-  );
+  const bookingDeclineData = await calculateBookingDecline(userId, user.createdAt);
   let bookingScore = 0;
   if (bookingDeclineData.decline >= 50) bookingScore = 1.0;
   else if (bookingDeclineData.decline >= 25) bookingScore = 0.5;
@@ -87,8 +108,7 @@ export async function calculateChurnScore(
   // 4. NEGATIVE REVIEWS SCORE (15% weight)
   const avgRating =
     user.receivedReviews.length > 0
-      ? user.receivedReviews.reduce((sum, r) => sum + r.rating, 0) /
-        user.receivedReviews.length
+      ? user.receivedReviews.reduce((sum, r) => sum + r.rating, 0) / user.receivedReviews.length
       : 5.0;
 
   let reviewScore = 0;
@@ -145,19 +165,14 @@ export async function calculateChurnScore(
   };
 }
 
-async function getLastActivity(
-  userId: string,
-  userUpdatedAt: Date,
-): Promise<Date | null> {
+async function getLastActivity(userId: string, userUpdatedAt: Date): Promise<Date | null> {
   const lastTrackedActivity = await getTrackedLastActivity(userId);
 
   if (!lastTrackedActivity) {
     return userUpdatedAt;
   }
 
-  return new Date(
-    Math.max(lastTrackedActivity.getTime(), userUpdatedAt.getTime()),
-  );
+  return new Date(Math.max(lastTrackedActivity.getTime(), userUpdatedAt.getTime()));
 }
 
 /**
@@ -260,9 +275,7 @@ async function calculateBookingDecline(
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
-  const accountAgeDays = Math.floor(
-    (now.getTime() - userCreatedAt.getTime()) / (1000 * 60 * 60 * 24),
-  );
+  const accountAgeDays = Math.floor((now.getTime() - userCreatedAt.getTime()) / (1000 * 60 * 60 * 24));
 
   const [recentCount, previousCount] = await Promise.all([
     prisma.booking.count({
@@ -336,20 +349,36 @@ function calculateProfileCompleteness(profile: any): number {
   return Math.round((filledCount / fields.length) * 100);
 }
 
-export async function saveChurnScoreSnapshot(
-  userId: string,
-  prediction: ChurnPrediction,
-) {
-  return prisma.$transaction(async (tx) => {
-    await tx.churnScore.updateMany({
-      where: { userId, isCurrent: true },
-      data: { isCurrent: false },
-    });
+export async function saveChurnScoreSnapshot(userId: string, prediction: ChurnPrediction) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await tx.churnScore.updateMany({
+        where: { userId, isCurrent: true },
+        data: { isCurrent: false },
+      });
 
-    return tx.churnScore.create({
+      return tx.churnScore.create({
+        data: {
+          userId,
+          isCurrent: true,
+          riskLevel: prediction.riskLevel,
+          score: prediction.score,
+          factors: prediction.factors as any,
+          lastActivityDays: prediction.lastActivityDays,
+          bookingDecline: prediction.bookingDecline,
+          engagementScore: prediction.engagementScore,
+        },
+      });
+    });
+  } catch (error) {
+    if (!isMissingIsCurrentColumnError(error)) {
+      throw error;
+    }
+
+    // Compatibility fallback for environments where the isCurrent column is not yet migrated.
+    return prisma.churnScore.create({
       data: {
         userId,
-        isCurrent: true,
         riskLevel: prediction.riskLevel,
         score: prediction.score,
         factors: prediction.factors as any,
@@ -358,7 +387,7 @@ export async function saveChurnScoreSnapshot(
         engagementScore: prediction.engagementScore,
       },
     });
-  });
+  }
 }
 
 /**
@@ -372,9 +401,7 @@ export async function analyzeAllUsers(): Promise<{
   return analyzeUsersForChurn();
 }
 
-export async function analyzeUsersForChurn(
-  options: AnalyzeUsersOptions = {},
-): Promise<{
+export async function analyzeUsersForChurn(options: AnalyzeUsersOptions = {}): Promise<{
   analyzed: number;
   atRisk: number;
   byLevel: Record<ChurnRiskLevel, number>;
