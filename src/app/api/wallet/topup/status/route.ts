@@ -14,14 +14,28 @@ function isTerminalTopUpStatus(status: string): boolean {
 }
 
 function buildSyntheticWebhookRequest(
-  url: string,
+  requestUrl: string,
   payload: DarajaWebhookPayload,
 ): Request {
-  return new Request(url, {
+  const origin = new URL(requestUrl).origin;
+  const webhookUrl = new URL("/api/wallet/webhook", origin);
+  const callbackToken = (process.env.DARAJA_CALLBACK_TOKEN || "").trim();
+
+  if (callbackToken) {
+    webhookUrl.searchParams.set("token", callbackToken);
+  }
+
+  const headers = new Headers({
+    "content-type": "application/json",
+  });
+
+  if (callbackToken) {
+    headers.set("x-daraja-callback-token", callbackToken);
+  }
+
+  return new Request(webhookUrl.toString(), {
     method: "POST",
-    headers: new Headers({
-      "content-type": "application/json",
-    }),
+    headers,
     body: JSON.stringify(payload),
   });
 }

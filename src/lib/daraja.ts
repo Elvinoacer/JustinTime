@@ -567,8 +567,28 @@ export const verifyWebhookChallenge = (receivedChallenge: string): boolean => {
   return receivedChallenge === expectedChallenge;
 };
 
+function normalizeBaseUrl(url: string): string {
+  return url.trim().replace(/\/+$/, "");
+}
+
 export const getBaseUrl = () => {
-  return process.env.NEXTAUTH_URL || "https://justintimeservices.vercel.app";
+  const explicitBaseUrl =
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_URL ||
+    "";
+
+  if (explicitBaseUrl.trim()) {
+    return normalizeBaseUrl(explicitBaseUrl);
+  }
+
+  const vercelUrl = (process.env.VERCEL_URL || "").trim();
+  if (vercelUrl) {
+    const host = vercelUrl.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+    return `https://${host}`;
+  }
+
+  return "http://localhost:3000";
 };
 
 export const getDarajaCallbackTokenFromRequest = (requestUrl: string) => {
