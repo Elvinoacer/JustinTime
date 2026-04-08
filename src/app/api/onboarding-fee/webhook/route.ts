@@ -6,6 +6,10 @@ import {
   verifyWebhookSignature,
   PAYMENT_AMOUNTS,
 } from "@/lib/intasend";
+import {
+  IntaSendWebhookPayload,
+  parseIntaSendWebhook,
+} from "@/lib/intasend-webhook";
 
 async function resolveSystemAdminId(tx: Prisma.TransactionClient) {
   const actor = await tx.user.findFirst({
@@ -20,7 +24,7 @@ export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
     const signature = req.headers.get("x-intasend-signature");
-    const body = JSON.parse(rawBody);
+    const body = JSON.parse(rawBody) as IntaSendWebhookPayload;
 
     console.log("=== IntaSend Onboarding Webhook ===");
     console.log("Payload:", JSON.stringify(body, null, 2));
@@ -45,13 +49,13 @@ export async function POST(req: Request) {
     // Process the rest asynchronously in production
 
     // Extract payment state and reference
-    const state = body.state || body.invoice?.state;
-    const apiRef = body.api_ref || body.invoice?.api_ref || "";
-    const invoiceId = body.invoice_id || body.id;
-    const amount = Number(
-      body.value || body.invoice?.value || body.amount || 0,
-    );
-    const canonicalRef = String(apiRef || "").trim();
+    const webhook = parseIntaSendWebhook(body);
+    const gatewayState = webhook.state;
+    const canonicalRef = String(
+      webhook.apiRef || webhook.primaryReference || "",
+    ).trim();
+    const invoiceId = webhook.invoiceId || webhook.sessionId;
+    const amount = webhook.amount;
 
     if (!canonicalRef) {
       return NextResponse.json({
@@ -63,57 +67,86 @@ export async function POST(req: Request) {
       });
     }
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+    console.log(
+      `Processing webhook: state=${gatewayState}, api_ref=${canonicalRef}, invoice=${invoiceId}`,
+    );
+
+    if (gatewayState !== "SETTLED") {
+      const pendingProviderRef = `INTASEND:ONBOARDING:PENDING:${canonicalRef}`;
+      const partialProviderRef = `INTASEND:ONBOARDING:PARTIAL:${canonicalRef}`;
+      const settledProviderRef = `INTASEND:ONBOARDING:SETTLED:${canonicalRef}`;
+
+      const candidates = await prisma.transaction.findMany({
+        where: {
+          type: "ONBOARDING_FEE",
+          providerRef: {
+            in: [pendingProviderRef, partialProviderRef, settledProviderRef],
+          },
+        },
+        select: {
+          id: true,
+          status: true,
+        },
+      });
+
+      const now = new Date();
+      let updatedCount = 0;
+      let skippedCount = 0;
+
+      for (const entry of candidates) {
+        if (
+          entry.status === "SETTLED" &&
+          !["SETTLED", "REVERSED"].includes(gatewayState)
+        ) {
+          skippedCount += 1;
+          continue;
+        }
+
+        await prisma.transaction.update({
+          where: { id: entry.id },
+          data: {
+            status: gatewayState,
+            failureReason:
+              gatewayState === "FAILED" ||
+              gatewayState === "CANCELLED" ||
+              gatewayState === "REVERSED"
+                ? webhook.failureReason ||
+                  (gatewayState === "REVERSED"
+                    ? "Gateway reversal"
+                    : `Gateway state: ${webhook.rawState || gatewayState}`)
+                : null,
+            failedAt: gatewayState === "FAILED" ? now : null,
+            cancelledAt: gatewayState === "CANCELLED" ? now : null,
+            reversedAt: gatewayState === "REVERSED" ? now : null,
+            createdByType: "WEBHOOK",
+            gatewayReference: invoiceId ? String(invoiceId) : canonicalRef,
+            gatewaySessionId: invoiceId ? String(invoiceId) : null,
+          },
+        });
+
+        updatedCount += 1;
+      }
+
+      console.log(
+        `Payment not settled (state: ${gatewayState}), acknowledging...`,
+      );
+
       return NextResponse.json({
         received: true,
-        skipped: true,
-        reason: "invalid_amount",
+        state: gatewayState,
+        updatedTransactions: updatedCount,
+        skippedTransactions: skippedCount,
       });
     }
 
-    console.log(
-      `Processing webhook: state=${state}, api_ref=${apiRef}, invoice=${invoiceId}`,
-    );
-
-    const normalizedState = String(state || "").toUpperCase();
-
-    if (normalizedState !== "COMPLETE") {
-      const pendingProviderRef = `INTASEND:ONBOARDING:PENDING:${canonicalRef}`;
-      const mappedStatus = ["FAILED", "DECLINED", "ERROR"].includes(
-        normalizedState,
-      )
-        ? "FAILED"
-        : ["CANCELLED", "CANCELED", "VOID", "VOIDED"].includes(normalizedState)
-          ? "CANCELLED"
-          : ["PROCESSING", "IN_PROGRESS"].includes(normalizedState)
-            ? "PROCESSING"
-            : "PENDING";
-
-      await prisma.transaction.updateMany({
-        where: {
-          type: "ONBOARDING_FEE",
-          providerRef: pendingProviderRef,
-        },
-        data: {
-          status: mappedStatus,
-          failureReason:
-            mappedStatus === "FAILED" || mappedStatus === "CANCELLED"
-              ? String(
-                  body.failed_reason ||
-                    body.message ||
-                    `Gateway state: ${normalizedState}`,
-                )
-              : null,
-          failedAt: mappedStatus === "FAILED" ? new Date() : null,
-          cancelledAt: mappedStatus === "CANCELLED" ? new Date() : null,
-          createdByType: "WEBHOOK",
-        },
+    if (!Number.isFinite(amount) || (amount || 0) <= 0) {
+      return NextResponse.json({
+        received: true,
+        skipped: true,
+        requiresManualResolution: true,
+        reason: "invalid_amount_for_settlement",
+        apiRef: canonicalRef,
       });
-
-      console.log(
-        `Payment not complete (state: ${normalizedState}), acknowledging...`,
-      );
-      return NextResponse.json({ received: true, state: normalizedState });
     }
 
     const pendingProviderRef = `INTASEND:ONBOARDING:PENDING:${canonicalRef}`;
@@ -281,7 +314,7 @@ export async function POST(req: Request) {
               details: {
                 source: "intasend_webhook",
                 invoiceId: String(lockRef),
-                apiRef,
+                apiRef: canonicalRef,
                 expectedAmount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
                 paidAmount: amount,
                 actorUserId: user.id,
@@ -377,7 +410,7 @@ export async function POST(req: Request) {
             details: {
               source: "intasend_webhook",
               invoiceId: String(lockRef),
-              apiRef,
+              apiRef: canonicalRef,
               actorUserId: user.id,
             },
           },

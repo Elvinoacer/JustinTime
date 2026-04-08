@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { sendSubscriptionActivationEmail } from "@/lib/email";
 import { verifyWebhookChallenge, verifyWebhookSignature } from "@/lib/intasend";
 import { SubscriptionPlan } from "@/generated/prisma/client";
+import {
+  IntaSendWebhookPayload,
+  parseIntaSendWebhook,
+} from "@/lib/intasend-webhook";
 
 function parseSubscriptionRef(apiRef: string) {
   const normalized = String(apiRef || "").trim();
@@ -54,7 +58,7 @@ function parseSubscriptionRef(apiRef: string) {
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
-    const body = JSON.parse(rawBody);
+    const body = JSON.parse(rawBody) as IntaSendWebhookPayload;
 
     if (body.challenge) {
       if (verifyWebhookChallenge(body.challenge)) {
@@ -78,8 +82,11 @@ export async function POST(req: NextRequest) {
     console.log("=== IntaSend Webhook Received ===");
     console.log("Payload:", JSON.stringify(body, null, 2));
 
-    const { state, invoice_id, api_ref, value, failed_reason, meta } = body;
-    const canonicalRef = String(api_ref || "").trim();
+    const webhook = parseIntaSendWebhook(body);
+    const canonicalRef = String(
+      webhook.apiRef || webhook.primaryReference || "",
+    ).trim();
+    const invoiceId = webhook.invoiceId || webhook.sessionId;
 
     if (!canonicalRef) {
       return NextResponse.json({
@@ -87,58 +94,84 @@ export async function POST(req: NextRequest) {
         requiresManualResolution: true,
         skipped: true,
         reason: "missing_api_ref",
-        invoiceId: invoice_id ? String(invoice_id) : null,
+        invoiceId: invoiceId ? String(invoiceId) : null,
       });
     }
 
-    const normalizedState = String(state || "").toUpperCase();
+    const gatewayState = webhook.state;
 
     // Persist intermediate/failed/cancelled states to avoid stale pending entries.
-    if (normalizedState !== "COMPLETE") {
+    if (gatewayState !== "SETTLED") {
       const pendingProviderRef = `INTASEND:SUBSCRIPTION:PENDING:${canonicalRef}`;
-      const mappedStatus = ["FAILED", "DECLINED", "ERROR"].includes(
-        normalizedState,
-      )
-        ? "FAILED"
-        : ["CANCELLED", "CANCELED", "VOID", "VOIDED"].includes(normalizedState)
-          ? "CANCELLED"
-          : ["PROCESSING", "IN_PROGRESS"].includes(normalizedState)
-            ? "PROCESSING"
-            : "PENDING";
+      const settledProviderRef = `INTASEND:SUBSCRIPTION:SETTLED:${canonicalRef}`;
 
-      await prisma.transaction.updateMany({
+      const candidates = await prisma.transaction.findMany({
         where: {
           type: "PAYMENT",
-          providerRef: pendingProviderRef,
+          providerRef: {
+            in: [pendingProviderRef, settledProviderRef],
+          },
         },
-        data: {
-          status: mappedStatus,
-          failureReason:
-            mappedStatus === "FAILED" || mappedStatus === "CANCELLED"
-              ? String(
-                  failed_reason ||
-                    body.message ||
-                    `Gateway state: ${normalizedState}`,
-                )
-              : null,
-          failedAt: mappedStatus === "FAILED" ? new Date() : null,
-          cancelledAt: mappedStatus === "CANCELLED" ? new Date() : null,
-          createdByType: "WEBHOOK",
+        select: {
+          id: true,
+          status: true,
         },
       });
 
-      console.log(`Payment not complete. State: ${normalizedState}`);
+      const now = new Date();
+      let updatedCount = 0;
+      let skippedCount = 0;
+
+      for (const entry of candidates) {
+        if (
+          entry.status === "SETTLED" &&
+          !["SETTLED", "REVERSED"].includes(gatewayState)
+        ) {
+          skippedCount += 1;
+          continue;
+        }
+
+        await prisma.transaction.update({
+          where: { id: entry.id },
+          data: {
+            status: gatewayState,
+            failureReason:
+              gatewayState === "FAILED" ||
+              gatewayState === "CANCELLED" ||
+              gatewayState === "REVERSED"
+                ? webhook.failureReason ||
+                  (gatewayState === "REVERSED"
+                    ? "Gateway reversal"
+                    : `Gateway state: ${webhook.rawState || gatewayState}`)
+                : null,
+            failedAt: gatewayState === "FAILED" ? now : null,
+            cancelledAt: gatewayState === "CANCELLED" ? now : null,
+            reversedAt: gatewayState === "REVERSED" ? now : null,
+            createdByType: "WEBHOOK",
+            gatewayReference: invoiceId ? String(invoiceId) : canonicalRef,
+            gatewaySessionId: invoiceId ? String(invoiceId) : null,
+          },
+        });
+
+        updatedCount += 1;
+      }
+
+      console.log(`Payment not settled. State: ${gatewayState}`);
       return NextResponse.json({
-        message: "Payment not complete",
-        state: normalizedState,
+        message: "Payment not settled",
+        state: gatewayState,
+        updatedTransactions: updatedCount,
+        skippedTransactions: skippedCount,
       });
     }
 
-    const metadata = (meta || body.invoice?.meta || {}) as {
+    const metadata = ((body.meta as unknown) ||
+      webhook.invoice?.meta ||
+      {}) as {
       userId?: string;
       plan?: string;
     };
-    const parsedApiRef = parseSubscriptionRef(String(api_ref || ""));
+    const parsedApiRef = parseSubscriptionRef(canonicalRef);
     const pendingProviderRef = `INTASEND:SUBSCRIPTION:PENDING:${canonicalRef}`;
     const pendingSubscription = await prisma.transaction.findFirst({
       where: {
@@ -198,7 +231,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const amount = Number(value || body.invoice?.value || body.amount || 0);
+    const amount = webhook.amount;
+
+    if (!Number.isFinite(amount) || (amount || 0) <= 0) {
+      return NextResponse.json({
+        received: true,
+        requiresManualResolution: true,
+        skipped: true,
+        reason: "invalid_amount_for_settlement",
+        apiRef: canonicalRef,
+      });
+    }
 
     const startDate = new Date();
     const endDate = new Date(startDate);
@@ -296,8 +339,8 @@ export async function POST(req: NextRequest) {
             category: "SUBSCRIPTION",
             currency: "KES",
             gateway: "INTASEND",
-            gatewayReference: invoice_id ? String(invoice_id) : refForKeys,
-            gatewaySessionId: invoice_id ? String(invoice_id) : null,
+            gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
+            gatewaySessionId: invoiceId ? String(invoiceId) : null,
             providerRef: settledSubscriptionProviderRef,
             sourceType: "SUBSCRIPTION",
             sourceId: subscriptionRecord.id,
@@ -320,8 +363,8 @@ export async function POST(req: NextRequest) {
             category: "SUBSCRIPTION",
             currency: "KES",
             gateway: "INTASEND",
-            gatewayReference: invoice_id ? String(invoice_id) : refForKeys,
-            gatewaySessionId: invoice_id ? String(invoice_id) : null,
+            gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
+            gatewaySessionId: invoiceId ? String(invoiceId) : null,
             providerRef: settledSubscriptionProviderRef,
             sourceType: "SUBSCRIPTION",
             sourceId: subscriptionRecord.id,
