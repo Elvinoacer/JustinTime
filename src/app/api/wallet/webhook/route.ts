@@ -409,7 +409,7 @@ export async function POST(req: Request) {
     }
 
     const outcome = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
 
       const dedupeKey = buildWalletWebhookDedupeKey({
         apiRef: apiRef || lockKey,

@@ -1409,7 +1409,7 @@ async function creditWalletWithIdempotency(
   }
 
   const idempotencyKey = `${params.sourceType}:${params.sourceId}:${params.userId}:${params.type}`;
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${idempotencyKey}, 0))`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${idempotencyKey}, 0))`;
 
   const wallet = await tx.wallet.upsert({
     where: { userId: params.userId },
@@ -2594,7 +2594,7 @@ export async function resolveReconciliationEventAction(formData: FormData) {
       }
 
       await prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${topUp.apiRef}, 0))`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${topUp.apiRef}, 0))`;
 
         if (["PENDING", "PROCESSING"].includes(topUp.status)) {
           const currentPending = Number(topUp.wallet.pendingBalance || 0);
@@ -3177,7 +3177,7 @@ export async function processWalletManualAdjustmentAction(formData: FormData) {
       });
 
       const adjustmentLockKey = `wallet-adjustment:${wallet.id}`;
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${adjustmentLockKey}, 0))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${adjustmentLockKey}, 0))`;
 
       const lockedWallet = await tx.wallet.findUniqueOrThrow({
         where: { id: wallet.id },

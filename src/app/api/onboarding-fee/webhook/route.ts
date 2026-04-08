@@ -636,7 +636,7 @@ export async function POST(req: Request) {
     // Process the payment
     await prisma.$transaction(async (tx) => {
       const lockRef = canonicalRef;
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockRef}, 0))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockRef}, 0))`;
       const refForKeys = lockRef;
 
       const successfulDescription = `Onboarding Fee Payment Settled [Ref:${refForKeys}]`;
