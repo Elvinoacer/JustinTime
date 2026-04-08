@@ -1,12 +1,14 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import {
   getCollectionService,
   getBaseUrl,
   generateApiRef,
   PAYMENT_AMOUNTS,
 } from "@/lib/intasend";
+import { ensureOnboardingFeePaymentIntent } from "@/lib/payments/payment-intents";
 
 export async function POST() {
   try {
@@ -88,8 +90,10 @@ export async function POST() {
         },
       });
 
+      let pendingTransactionId = existingPending?.id || null;
+
       if (!existingPending) {
-        await tx.transaction.create({
+        const createdPending = await tx.transaction.create({
           data: {
             walletId: wallet.id,
             amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
@@ -108,7 +112,26 @@ export async function POST() {
             description: `Onboarding Fee Payment Pending [Ref:${apiRef}]`,
           },
         });
+
+        pendingTransactionId = createdPending.id;
       }
+
+      await ensureOnboardingFeePaymentIntent(tx, {
+        userId: session.user.id,
+        walletId: wallet.id,
+        apiRef,
+        amountExpected: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+        currency: "KES",
+        sourceId: pendingTransactionId || session.user.id,
+        gatewaySessionId: response.id ? String(response.id) : null,
+        providerRef: pendingProviderRef,
+        initiationPayload: response as Prisma.InputJsonValue,
+        metadata: {
+          apiRef,
+          source: "onboarding_fee_initiate",
+          checkoutUrl: response.url || null,
+        },
+      });
     });
 
     // Store the pending payment reference for webhook matching

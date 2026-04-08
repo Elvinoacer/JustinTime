@@ -2,14 +2,20 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import {
+  evaluateWebhookSignature,
+  verifyIntaSendPayment,
   verifyWebhookChallenge,
-  verifyWebhookSignature,
   PAYMENT_AMOUNTS,
 } from "@/lib/intasend";
 import {
   IntaSendWebhookPayload,
   parseIntaSendWebhook,
 } from "@/lib/intasend-webhook";
+import {
+  buildPaymentWebhookDedupeKey,
+  recordPaymentWebhookReceipt,
+  updateOnboardingFeePaymentIntentFromWebhook,
+} from "@/lib/payments/payment-intents";
 
 async function resolveSystemAdminId(tx: Prisma.TransactionClient) {
   const actor = await tx.user.findFirst({
@@ -40,9 +46,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid challenge" }, { status: 401 });
     }
 
-    if (!verifyWebhookSignature(rawBody, signature)) {
+    const signatureEvaluation = evaluateWebhookSignature(rawBody, signature);
+    if (signatureEvaluation.shouldReject) {
       console.error("❌ Invalid IntaSend webhook signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+
+    if (!signatureEvaluation.valid) {
+      console.warn(
+        "[ONBOARDING_WEBHOOK] Signature missing/invalid; continuing with challenge + provider verification flow",
+      );
     }
 
     // Acknowledge receipt immediately (IntaSend expects quick 200 response)
@@ -55,7 +68,10 @@ export async function POST(req: Request) {
       webhook.apiRef || webhook.primaryReference || "",
     ).trim();
     const invoiceId = webhook.invoiceId || webhook.sessionId;
-    const amount = webhook.amount;
+    let amount = webhook.amount;
+    const pendingProviderRef = `INTASEND:ONBOARDING:PENDING:${canonicalRef}`;
+    const partialProviderRef = `INTASEND:ONBOARDING:PARTIAL:${canonicalRef}`;
+    const settledProviderRef = `INTASEND:ONBOARDING:SETTLED:${canonicalRef}`;
 
     if (!canonicalRef) {
       return NextResponse.json({
@@ -67,46 +83,110 @@ export async function POST(req: Request) {
       });
     }
 
+    const dedupeKey = buildPaymentWebhookDedupeKey({
+      kind: "ONBOARDING_FEE",
+      apiRef: canonicalRef,
+      invoiceId: invoiceId ? String(invoiceId) : null,
+      rawState: webhook.rawState,
+      state: gatewayState,
+    });
+
+    const webhookReceipt = await prisma.$transaction(async (tx) => {
+      return recordPaymentWebhookReceipt(tx, {
+        kind: "ONBOARDING_FEE",
+        apiRef: canonicalRef,
+        invoiceId: invoiceId ? String(invoiceId) : null,
+        rawState: webhook.rawState,
+        dedupeKey,
+        payload: body,
+        rawBody,
+      });
+    });
+
+    if (webhookReceipt.duplicate) {
+      return NextResponse.json({
+        received: true,
+        skipped: true,
+        reason: "duplicate_webhook_receipt",
+        state: gatewayState,
+        dedupeKey,
+      });
+    }
+
     console.log(
       `Processing webhook: state=${gatewayState}, api_ref=${canonicalRef}, invoice=${invoiceId}`,
     );
 
-    if (gatewayState !== "SETTLED") {
-      const pendingProviderRef = `INTASEND:ONBOARDING:PENDING:${canonicalRef}`;
-      const partialProviderRef = `INTASEND:ONBOARDING:PARTIAL:${canonicalRef}`;
-      const settledProviderRef = `INTASEND:ONBOARDING:SETTLED:${canonicalRef}`;
+    const duplicateState = await prisma.transaction.findFirst({
+      where: {
+        type: "ONBOARDING_FEE",
+        providerRef: {
+          in: [pendingProviderRef, partialProviderRef, settledProviderRef],
+        },
+        status: gatewayState,
+        ...(invoiceId ? { gatewayReference: String(invoiceId) } : {}),
+      },
+      select: {
+        id: true,
+      },
+    });
 
-      const candidates = await prisma.transaction.findMany({
-        where: {
-          type: "ONBOARDING_FEE",
-          providerRef: {
-            in: [pendingProviderRef, partialProviderRef, settledProviderRef],
-          },
-        },
-        select: {
-          id: true,
-          status: true,
-        },
+    if (
+      duplicateState &&
+      ["SETTLED", "FAILED", "CANCELLED", "REVERSED"].includes(gatewayState)
+    ) {
+      return NextResponse.json({
+        received: true,
+        skipped: true,
+        reason: "duplicate_webhook_state",
+        state: gatewayState,
+        transactionId: duplicateState.id,
       });
+    }
 
-      const now = new Date();
-      let updatedCount = 0;
-      let skippedCount = 0;
+    if (gatewayState !== "SETTLED") {
+      const { updatedCount, skippedCount } = await prisma.$transaction(
+        async (tx) => {
+          const candidates = await tx.transaction.findMany({
+            where: {
+              type: "ONBOARDING_FEE",
+              providerRef: {
+                in: [
+                  pendingProviderRef,
+                  partialProviderRef,
+                  settledProviderRef,
+                ],
+              },
+            },
+            select: {
+              id: true,
+              status: true,
+              amount: true,
+              currency: true,
+              walletId: true,
+              providerRef: true,
+              wallet: {
+                select: {
+                  userId: true,
+                },
+              },
+            },
+          });
 
-      for (const entry of candidates) {
-        if (
-          entry.status === "SETTLED" &&
-          !["SETTLED", "REVERSED"].includes(gatewayState)
-        ) {
-          skippedCount += 1;
-          continue;
-        }
+          const now = new Date();
+          let updatedCount = 0;
+          let skippedCount = 0;
 
-        await prisma.transaction.update({
-          where: { id: entry.id },
-          data: {
-            status: gatewayState,
-            failureReason:
+          for (const entry of candidates) {
+            if (
+              entry.status === "SETTLED" &&
+              !["SETTLED", "REVERSED"].includes(gatewayState)
+            ) {
+              skippedCount += 1;
+              continue;
+            }
+
+            const failureReason =
               gatewayState === "FAILED" ||
               gatewayState === "CANCELLED" ||
               gatewayState === "REVERSED"
@@ -114,18 +194,58 @@ export async function POST(req: Request) {
                   (gatewayState === "REVERSED"
                     ? "Gateway reversal"
                     : `Gateway state: ${webhook.rawState || gatewayState}`)
-                : null,
-            failedAt: gatewayState === "FAILED" ? now : null,
-            cancelledAt: gatewayState === "CANCELLED" ? now : null,
-            reversedAt: gatewayState === "REVERSED" ? now : null,
-            createdByType: "WEBHOOK",
-            gatewayReference: invoiceId ? String(invoiceId) : canonicalRef,
-            gatewaySessionId: invoiceId ? String(invoiceId) : null,
-          },
-        });
+                : null;
 
-        updatedCount += 1;
-      }
+            await tx.transaction.update({
+              where: { id: entry.id },
+              data: {
+                status: gatewayState,
+                failureReason,
+                failedAt: gatewayState === "FAILED" ? now : null,
+                cancelledAt: gatewayState === "CANCELLED" ? now : null,
+                reversedAt: gatewayState === "REVERSED" ? now : null,
+                createdByType: "WEBHOOK",
+                gatewayReference: invoiceId ? String(invoiceId) : canonicalRef,
+                gatewaySessionId: invoiceId ? String(invoiceId) : null,
+                metadata: {
+                  apiRef: canonicalRef,
+                  gatewayRawState: webhook.rawState,
+                  gatewayState,
+                  eventFamily: webhook.eventFamily,
+                  invoiceId: invoiceId ? String(invoiceId) : null,
+                } as Prisma.InputJsonValue,
+              },
+            });
+
+            await updateOnboardingFeePaymentIntentFromWebhook(tx, {
+              userId: entry.wallet.userId,
+              walletId: entry.walletId,
+              sourceId: entry.id,
+              apiRef: canonicalRef,
+              amountExpected: Number(entry.amount),
+              amountReceived: null,
+              currency: entry.currency || "KES",
+              gatewayState,
+              gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
+              gatewaySessionId: invoiceId ? String(invoiceId) : null,
+              providerRef: entry.providerRef || pendingProviderRef,
+              failureReason,
+              payload: body as Prisma.InputJsonValue,
+              metadata: {
+                apiRef: canonicalRef,
+                gatewayRawState: webhook.rawState,
+                gatewayState,
+                eventFamily: webhook.eventFamily,
+                invoiceId: invoiceId ? String(invoiceId) : null,
+              },
+            });
+
+            updatedCount += 1;
+          }
+
+          return { updatedCount, skippedCount };
+        },
+      );
 
       console.log(
         `Payment not settled (state: ${gatewayState}), acknowledging...`,
@@ -139,7 +259,145 @@ export async function POST(req: Request) {
       });
     }
 
-    if (!Number.isFinite(amount) || (amount || 0) <= 0) {
+    const intentContext = await prisma.transaction.findFirst({
+      where: {
+        type: "ONBOARDING_FEE",
+        providerRef: {
+          in: [pendingProviderRef, partialProviderRef, settledProviderRef],
+        },
+      },
+      select: {
+        id: true,
+        amount: true,
+        currency: true,
+        walletId: true,
+        providerRef: true,
+        wallet: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!invoiceId) {
+      if (intentContext) {
+        await prisma.$transaction(async (tx) => {
+          await updateOnboardingFeePaymentIntentFromWebhook(tx, {
+            userId: intentContext.wallet.userId,
+            walletId: intentContext.walletId,
+            sourceId: intentContext.id,
+            apiRef: canonicalRef,
+            amountExpected: Number(intentContext.amount),
+            amountReceived: null,
+            currency: intentContext.currency || "KES",
+            gatewayState: "PROCESSING",
+            gatewayInvoiceId: null,
+            gatewaySessionId: null,
+            providerRef: intentContext.providerRef || pendingProviderRef,
+            failureReason: "Waiting for verifiable invoice_id",
+            payload: body as Prisma.InputJsonValue,
+            metadata: {
+              reason: "missing_invoice_id_for_verification",
+              gatewayRawState: webhook.rawState,
+              eventFamily: webhook.eventFamily,
+              apiRef: canonicalRef,
+            },
+          });
+        });
+      }
+
+      return NextResponse.json({
+        received: true,
+        skipped: true,
+        requiresManualResolution: true,
+        reason: "missing_invoice_id_for_verification",
+        apiRef: canonicalRef,
+      });
+    }
+
+    const verification = await verifyIntaSendPayment({
+      invoiceId: String(invoiceId),
+      expectedApiRef: canonicalRef,
+      expectedAmount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+      expectedCurrency: "KES",
+    });
+
+    if (!verification.ok) {
+      if (intentContext) {
+        await prisma.$transaction(async (tx) => {
+          await updateOnboardingFeePaymentIntentFromWebhook(tx, {
+            userId: intentContext.wallet.userId,
+            walletId: intentContext.walletId,
+            sourceId: intentContext.id,
+            apiRef: canonicalRef,
+            amountExpected: Number(intentContext.amount),
+            amountReceived: null,
+            currency: intentContext.currency || "KES",
+            gatewayState: "PROCESSING",
+            gatewayInvoiceId: String(invoiceId),
+            gatewaySessionId: String(invoiceId),
+            providerRef: intentContext.providerRef || pendingProviderRef,
+            failureReason: "Provider status verification failed",
+            payload: body as Prisma.InputJsonValue,
+            metadata: {
+              reason: "provider_status_verification_failed",
+              providerState: verification.providerState,
+              apiRefMatches: verification.apiRefMatches,
+              amountMatches: verification.amountMatches,
+              currencyMatches: verification.currencyMatches,
+              apiRef: canonicalRef,
+              invoiceId: String(invoiceId),
+            },
+          });
+        });
+      }
+
+      return NextResponse.json({
+        received: true,
+        skipped: true,
+        requiresManualResolution: true,
+        reason: "provider_status_verification_failed",
+        apiRef: canonicalRef,
+        verification: {
+          providerState: verification.providerState,
+          apiRefMatches: verification.apiRefMatches,
+          amountMatches: verification.amountMatches,
+          currencyMatches: verification.currencyMatches,
+        },
+      });
+    }
+
+    amount = verification.amount;
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      if (intentContext) {
+        await prisma.$transaction(async (tx) => {
+          await updateOnboardingFeePaymentIntentFromWebhook(tx, {
+            userId: intentContext.wallet.userId,
+            walletId: intentContext.walletId,
+            sourceId: intentContext.id,
+            apiRef: canonicalRef,
+            amountExpected: Number(intentContext.amount),
+            amountReceived: null,
+            currency: intentContext.currency || "KES",
+            gatewayState: "PROCESSING",
+            gatewayInvoiceId: String(invoiceId),
+            gatewaySessionId: String(invoiceId),
+            providerRef: intentContext.providerRef || pendingProviderRef,
+            failureReason: "Invalid settlement amount",
+            payload: body as Prisma.InputJsonValue,
+            metadata: {
+              reason: "invalid_amount_for_settlement",
+              apiRef: canonicalRef,
+              invoiceId: String(invoiceId),
+              providerState: verification.providerState,
+            },
+          });
+        });
+      }
+
       return NextResponse.json({
         received: true,
         skipped: true,
@@ -149,7 +407,6 @@ export async function POST(req: Request) {
       });
     }
 
-    const pendingProviderRef = `INTASEND:ONBOARDING:PENDING:${canonicalRef}`;
     const pendingOnboarding = await prisma.transaction.findFirst({
       where: {
         type: "ONBOARDING_FEE",
@@ -168,6 +425,32 @@ export async function POST(req: Request) {
       console.log(
         `No pending onboarding transaction found for providerRef ${pendingProviderRef}; skipping auto-settlement`,
       );
+
+      if (intentContext) {
+        await prisma.$transaction(async (tx) => {
+          await updateOnboardingFeePaymentIntentFromWebhook(tx, {
+            userId: intentContext.wallet.userId,
+            walletId: intentContext.walletId,
+            sourceId: intentContext.id,
+            apiRef: canonicalRef,
+            amountExpected: Number(intentContext.amount),
+            amountReceived: null,
+            currency: intentContext.currency || "KES",
+            gatewayState: "PROCESSING",
+            gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
+            gatewaySessionId: invoiceId ? String(invoiceId) : null,
+            providerRef: intentContext.providerRef || pendingProviderRef,
+            failureReason: "Missing pending provider reference",
+            payload: body as Prisma.InputJsonValue,
+            metadata: {
+              reason: "missing_pending_provider_reference",
+              apiRef: canonicalRef,
+              invoiceId: invoiceId ? String(invoiceId) : null,
+            },
+          });
+        });
+      }
+
       return NextResponse.json({
         received: true,
         requiresManualResolution: true,
@@ -186,6 +469,30 @@ export async function POST(req: Request) {
       console.error(
         `User not found for pending onboarding ref: ${canonicalRef}`,
       );
+
+      await prisma.$transaction(async (tx) => {
+        await updateOnboardingFeePaymentIntentFromWebhook(tx, {
+          userId: pendingOnboarding.wallet.userId,
+          walletId: pendingOnboarding.walletId,
+          sourceId: pendingOnboarding.id,
+          apiRef: canonicalRef,
+          amountExpected: Number(pendingOnboarding.amount),
+          amountReceived: null,
+          currency: pendingOnboarding.currency || "KES",
+          gatewayState: "PROCESSING",
+          gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
+          gatewaySessionId: invoiceId ? String(invoiceId) : null,
+          providerRef: pendingOnboarding.providerRef || pendingProviderRef,
+          failureReason: "User not found for onboarding settlement",
+          payload: body as Prisma.InputJsonValue,
+          metadata: {
+            reason: "missing_user_for_onboarding_settlement",
+            apiRef: canonicalRef,
+            invoiceId: invoiceId ? String(invoiceId) : null,
+          },
+        });
+      });
+
       return NextResponse.json({
         received: true,
         requiresManualResolution: true,
@@ -216,6 +523,36 @@ export async function POST(req: Request) {
       });
 
       if (existingTx) {
+        const existingState =
+          existingTx.status === "SETTLED"
+            ? "SETTLED"
+            : existingTx.status === "FAILED"
+              ? "FAILED"
+              : "PROCESSING";
+
+        await updateOnboardingFeePaymentIntentFromWebhook(tx, {
+          userId: user.id,
+          walletId: existingTx.walletId,
+          sourceId: existingTx.id,
+          apiRef: canonicalRef,
+          amountExpected: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+          amountReceived:
+            existingState === "SETTLED" ? Number(existingTx.amount) : null,
+          currency: existingTx.currency || "KES",
+          gatewayState: existingState,
+          gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
+          gatewaySessionId: invoiceId ? String(invoiceId) : null,
+          providerRef: existingTx.providerRef || settledPaymentProviderRef,
+          failureReason:
+            existingState === "FAILED" ? existingTx.failureReason : null,
+          payload: body as Prisma.InputJsonValue,
+          metadata: {
+            apiRef: canonicalRef,
+            reason: "already_processed",
+            invoiceId: invoiceId ? String(invoiceId) : null,
+          },
+        });
+
         return;
       }
 
@@ -260,8 +597,10 @@ export async function POST(req: Request) {
           });
         }
 
+        let failedOnboardingTxId: string;
+
         if (pendingPayment) {
-          await tx.transaction.update({
+          const updatedPending = await tx.transaction.update({
             where: { id: pendingPayment.id },
             data: {
               amount,
@@ -279,10 +618,25 @@ export async function POST(req: Request) {
               description: partialDescription,
               failedAt: new Date(),
               failureReason: "Partial onboarding payment",
+              metadata: {
+                apiRef: canonicalRef,
+                gatewayRawState: webhook.rawState,
+                gatewayState,
+                eventFamily: webhook.eventFamily,
+                invoiceId: invoiceId ? String(invoiceId) : null,
+                providerVerification: {
+                  providerState: verification.providerState,
+                  apiRefMatches: verification.apiRefMatches,
+                  amountMatches: verification.amountMatches,
+                  currencyMatches: verification.currencyMatches,
+                },
+              } as Prisma.InputJsonValue,
             },
           });
+
+          failedOnboardingTxId = updatedPending.id;
         } else {
-          await tx.transaction.create({
+          const createdFailed = await tx.transaction.create({
             data: {
               walletId: wallet.id,
               amount,
@@ -301,9 +655,47 @@ export async function POST(req: Request) {
               description: partialDescription,
               failedAt: new Date(),
               failureReason: "Partial onboarding payment",
+              metadata: {
+                apiRef: canonicalRef,
+                gatewayRawState: webhook.rawState,
+                gatewayState,
+                eventFamily: webhook.eventFamily,
+                invoiceId: invoiceId ? String(invoiceId) : null,
+                providerVerification: {
+                  providerState: verification.providerState,
+                  apiRefMatches: verification.apiRefMatches,
+                  amountMatches: verification.amountMatches,
+                  currencyMatches: verification.currencyMatches,
+                },
+              } as Prisma.InputJsonValue,
             },
           });
+
+          failedOnboardingTxId = createdFailed.id;
         }
+
+        await updateOnboardingFeePaymentIntentFromWebhook(tx, {
+          userId: user.id,
+          walletId: wallet.id,
+          sourceId: failedOnboardingTxId,
+          apiRef: canonicalRef,
+          amountExpected: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+          amountReceived: amount,
+          currency: "KES",
+          gatewayState: "FAILED",
+          gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
+          gatewaySessionId: invoiceId ? String(invoiceId) : null,
+          providerRef: partialPaymentProviderRef,
+          failureReason: "Partial onboarding payment",
+          payload: body as Prisma.InputJsonValue,
+          metadata: {
+            apiRef: canonicalRef,
+            reason: "partial_payment",
+            expectedAmount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+            paidAmount: amount,
+            invoiceId: invoiceId ? String(invoiceId) : null,
+          },
+        });
 
         if (systemAdminId) {
           await tx.adminLog.create({
@@ -356,7 +748,7 @@ export async function POST(req: Request) {
 
       // 3. Mark pending transaction as settled, or create one if pending is missing.
       if (pendingPayment) {
-        await tx.transaction.update({
+        const updatedPending = await tx.transaction.update({
           where: { id: pendingPayment.id },
           data: {
             amount,
@@ -376,10 +768,46 @@ export async function POST(req: Request) {
             failureReason: null,
             failedAt: null,
             cancelledAt: null,
+            metadata: {
+              apiRef: canonicalRef,
+              gatewayRawState: webhook.rawState,
+              gatewayState,
+              eventFamily: webhook.eventFamily,
+              invoiceId: invoiceId ? String(invoiceId) : null,
+              providerVerification: {
+                providerState: verification.providerState,
+                apiRefMatches: verification.apiRefMatches,
+                amountMatches: verification.amountMatches,
+                currencyMatches: verification.currencyMatches,
+              },
+            } as Prisma.InputJsonValue,
+          },
+        });
+
+        await updateOnboardingFeePaymentIntentFromWebhook(tx, {
+          userId: user.id,
+          walletId: wallet.id,
+          sourceId: updatedPending.id,
+          apiRef: canonicalRef,
+          amountExpected: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+          amountReceived: amount,
+          currency: "KES",
+          gatewayState: "SETTLED",
+          gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
+          gatewaySessionId: invoiceId ? String(invoiceId) : null,
+          providerRef: settledPaymentProviderRef,
+          failureReason: null,
+          payload: body as Prisma.InputJsonValue,
+          metadata: {
+            apiRef: canonicalRef,
+            reason: "settled",
+            expectedAmount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+            paidAmount: amount,
+            invoiceId: invoiceId ? String(invoiceId) : null,
           },
         });
       } else {
-        await tx.transaction.create({
+        const createdSettled = await tx.transaction.create({
           data: {
             walletId: wallet.id,
             amount,
@@ -397,6 +825,42 @@ export async function POST(req: Request) {
             createdByType: "WEBHOOK",
             description: successfulDescription,
             settledAt: new Date(),
+            metadata: {
+              apiRef: canonicalRef,
+              gatewayRawState: webhook.rawState,
+              gatewayState,
+              eventFamily: webhook.eventFamily,
+              invoiceId: invoiceId ? String(invoiceId) : null,
+              providerVerification: {
+                providerState: verification.providerState,
+                apiRefMatches: verification.apiRefMatches,
+                amountMatches: verification.amountMatches,
+                currencyMatches: verification.currencyMatches,
+              },
+            } as Prisma.InputJsonValue,
+          },
+        });
+
+        await updateOnboardingFeePaymentIntentFromWebhook(tx, {
+          userId: user.id,
+          walletId: wallet.id,
+          sourceId: createdSettled.id,
+          apiRef: canonicalRef,
+          amountExpected: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+          amountReceived: amount,
+          currency: "KES",
+          gatewayState: "SETTLED",
+          gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
+          gatewaySessionId: invoiceId ? String(invoiceId) : null,
+          providerRef: settledPaymentProviderRef,
+          failureReason: null,
+          payload: body as Prisma.InputJsonValue,
+          metadata: {
+            apiRef: canonicalRef,
+            reason: "settled",
+            expectedAmount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+            paidAmount: amount,
+            invoiceId: invoiceId ? String(invoiceId) : null,
           },
         });
       }

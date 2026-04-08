@@ -4,6 +4,7 @@ import {
   resolveReconciliationEventAction,
 } from "@/app/actions/admin";
 import { AlertTriangle, CircleAlert, Scale, Wallet } from "lucide-react";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -100,9 +101,17 @@ export default async function AdminReconciliationPage({
             </p>
           </div>
         </div>
-        <p className="text-xs text-slate-500">
-          Last generated: {new Date(data.generatedAt).toLocaleString()}
-        </p>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/reconciliation/payment-intents"
+            className="inline-flex items-center rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+          >
+            Webhook Intent View
+          </Link>
+          <p className="text-xs text-slate-500">
+            Last generated: {new Date(data.generatedAt).toLocaleString()}
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

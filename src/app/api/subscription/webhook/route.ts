@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendSubscriptionActivationEmail } from "@/lib/email";
-import { verifyWebhookChallenge, verifyWebhookSignature } from "@/lib/intasend";
-import { SubscriptionPlan } from "@/generated/prisma/client";
+import {
+  evaluateWebhookSignature,
+  verifyIntaSendPayment,
+  verifyWebhookChallenge,
+} from "@/lib/intasend";
+import { Prisma, SubscriptionPlan } from "@/generated/prisma/client";
 import {
   IntaSendWebhookPayload,
   parseIntaSendWebhook,
 } from "@/lib/intasend-webhook";
+import {
+  buildPaymentWebhookDedupeKey,
+  recordPaymentWebhookReceipt,
+  updateSubscriptionPaymentIntentFromWebhook,
+} from "@/lib/payments/payment-intents";
 
 function parseSubscriptionRef(apiRef: string) {
   const normalized = String(apiRef || "").trim();
@@ -70,11 +79,18 @@ export async function POST(req: NextRequest) {
 
     // Verify webhook signature (IntaSend sends signature in headers)
     const signature = req.headers.get("x-intasend-signature");
-    if (!verifyWebhookSignature(rawBody, signature)) {
+    const signatureEvaluation = evaluateWebhookSignature(rawBody, signature);
+    if (signatureEvaluation.shouldReject) {
       console.error("Invalid IntaSend webhook signature");
       return NextResponse.json(
         { error: "Invalid webhook signature" },
         { status: 401 },
+      );
+    }
+
+    if (!signatureEvaluation.valid) {
+      console.warn(
+        "[SUBSCRIPTION_WEBHOOK] Signature missing/invalid; continuing with challenge + provider verification flow",
       );
     }
 
@@ -86,7 +102,10 @@ export async function POST(req: NextRequest) {
     const canonicalRef = String(
       webhook.apiRef || webhook.primaryReference || "",
     ).trim();
+    const gatewayState = webhook.state;
     const invoiceId = webhook.invoiceId || webhook.sessionId;
+    const pendingProviderRef = `INTASEND:SUBSCRIPTION:PENDING:${canonicalRef}`;
+    const settledProviderRef = `INTASEND:SUBSCRIPTION:SETTLED:${canonicalRef}`;
 
     if (!canonicalRef) {
       return NextResponse.json({
@@ -98,44 +117,103 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const gatewayState = webhook.state;
+    const dedupeKey = buildPaymentWebhookDedupeKey({
+      kind: "SUBSCRIPTION",
+      apiRef: canonicalRef,
+      invoiceId: invoiceId ? String(invoiceId) : null,
+      rawState: webhook.rawState,
+      state: gatewayState,
+    });
+
+    const webhookReceipt = await prisma.$transaction(async (tx) => {
+      return recordPaymentWebhookReceipt(tx, {
+        kind: "SUBSCRIPTION",
+        apiRef: canonicalRef,
+        invoiceId: invoiceId ? String(invoiceId) : null,
+        rawState: webhook.rawState,
+        dedupeKey,
+        payload: body,
+        rawBody,
+      });
+    });
+
+    if (webhookReceipt.duplicate) {
+      return NextResponse.json({
+        received: true,
+        skipped: true,
+        reason: "duplicate_webhook_receipt",
+        state: gatewayState,
+        dedupeKey,
+      });
+    }
+
+    const duplicateState = await prisma.transaction.findFirst({
+      where: {
+        type: "PAYMENT",
+        providerRef: {
+          in: [pendingProviderRef, settledProviderRef],
+        },
+        status: gatewayState,
+        ...(invoiceId ? { gatewayReference: String(invoiceId) } : {}),
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (
+      duplicateState &&
+      ["SETTLED", "FAILED", "CANCELLED", "REVERSED"].includes(gatewayState)
+    ) {
+      return NextResponse.json({
+        received: true,
+        skipped: true,
+        reason: "duplicate_webhook_state",
+        state: gatewayState,
+        transactionId: duplicateState.id,
+      });
+    }
 
     // Persist intermediate/failed/cancelled states to avoid stale pending entries.
     if (gatewayState !== "SETTLED") {
-      const pendingProviderRef = `INTASEND:SUBSCRIPTION:PENDING:${canonicalRef}`;
-      const settledProviderRef = `INTASEND:SUBSCRIPTION:SETTLED:${canonicalRef}`;
+      const { updatedCount, skippedCount } = await prisma.$transaction(
+        async (tx) => {
+          const candidates = await tx.transaction.findMany({
+            where: {
+              type: "PAYMENT",
+              providerRef: {
+                in: [pendingProviderRef, settledProviderRef],
+              },
+            },
+            select: {
+              id: true,
+              status: true,
+              amount: true,
+              currency: true,
+              walletId: true,
+              providerRef: true,
+              wallet: {
+                select: {
+                  userId: true,
+                },
+              },
+            },
+          });
 
-      const candidates = await prisma.transaction.findMany({
-        where: {
-          type: "PAYMENT",
-          providerRef: {
-            in: [pendingProviderRef, settledProviderRef],
-          },
-        },
-        select: {
-          id: true,
-          status: true,
-        },
-      });
+          const now = new Date();
+          let updatedCount = 0;
+          let skippedCount = 0;
 
-      const now = new Date();
-      let updatedCount = 0;
-      let skippedCount = 0;
+          for (const entry of candidates) {
+            if (
+              entry.status === "SETTLED" &&
+              !["SETTLED", "REVERSED"].includes(gatewayState)
+            ) {
+              skippedCount += 1;
+              continue;
+            }
 
-      for (const entry of candidates) {
-        if (
-          entry.status === "SETTLED" &&
-          !["SETTLED", "REVERSED"].includes(gatewayState)
-        ) {
-          skippedCount += 1;
-          continue;
-        }
-
-        await prisma.transaction.update({
-          where: { id: entry.id },
-          data: {
-            status: gatewayState,
-            failureReason:
+            const failureReason =
               gatewayState === "FAILED" ||
               gatewayState === "CANCELLED" ||
               gatewayState === "REVERSED"
@@ -143,18 +221,58 @@ export async function POST(req: NextRequest) {
                   (gatewayState === "REVERSED"
                     ? "Gateway reversal"
                     : `Gateway state: ${webhook.rawState || gatewayState}`)
-                : null,
-            failedAt: gatewayState === "FAILED" ? now : null,
-            cancelledAt: gatewayState === "CANCELLED" ? now : null,
-            reversedAt: gatewayState === "REVERSED" ? now : null,
-            createdByType: "WEBHOOK",
-            gatewayReference: invoiceId ? String(invoiceId) : canonicalRef,
-            gatewaySessionId: invoiceId ? String(invoiceId) : null,
-          },
-        });
+                : null;
 
-        updatedCount += 1;
-      }
+            await tx.transaction.update({
+              where: { id: entry.id },
+              data: {
+                status: gatewayState,
+                failureReason,
+                failedAt: gatewayState === "FAILED" ? now : null,
+                cancelledAt: gatewayState === "CANCELLED" ? now : null,
+                reversedAt: gatewayState === "REVERSED" ? now : null,
+                createdByType: "WEBHOOK",
+                gatewayReference: invoiceId ? String(invoiceId) : canonicalRef,
+                gatewaySessionId: invoiceId ? String(invoiceId) : null,
+                metadata: {
+                  apiRef: canonicalRef,
+                  gatewayRawState: webhook.rawState,
+                  gatewayState,
+                  eventFamily: webhook.eventFamily,
+                  invoiceId: invoiceId ? String(invoiceId) : null,
+                } as Prisma.InputJsonValue,
+              },
+            });
+
+            await updateSubscriptionPaymentIntentFromWebhook(tx, {
+              userId: entry.wallet.userId,
+              walletId: entry.walletId,
+              sourceId: entry.id,
+              apiRef: canonicalRef,
+              amountExpected: Number(entry.amount),
+              amountReceived: null,
+              currency: entry.currency || "KES",
+              gatewayState,
+              gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
+              gatewaySessionId: invoiceId ? String(invoiceId) : null,
+              providerRef: entry.providerRef || pendingProviderRef,
+              failureReason,
+              payload: body as Prisma.InputJsonValue,
+              metadata: {
+                apiRef: canonicalRef,
+                gatewayRawState: webhook.rawState,
+                gatewayState,
+                eventFamily: webhook.eventFamily,
+                invoiceId: invoiceId ? String(invoiceId) : null,
+              },
+            });
+
+            updatedCount += 1;
+          }
+
+          return { updatedCount, skippedCount };
+        },
+      );
 
       console.log(`Payment not settled. State: ${gatewayState}`);
       return NextResponse.json({
@@ -165,6 +283,28 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const intentContext = await prisma.transaction.findFirst({
+      where: {
+        type: "PAYMENT",
+        providerRef: {
+          in: [pendingProviderRef, settledProviderRef],
+        },
+      },
+      select: {
+        id: true,
+        amount: true,
+        currency: true,
+        walletId: true,
+        providerRef: true,
+        wallet: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
     const metadata = ((body.meta as unknown) ||
       webhook.invoice?.meta ||
       {}) as {
@@ -172,7 +312,6 @@ export async function POST(req: NextRequest) {
       plan?: string;
     };
     const parsedApiRef = parseSubscriptionRef(canonicalRef);
-    const pendingProviderRef = `INTASEND:SUBSCRIPTION:PENDING:${canonicalRef}`;
     const pendingSubscription = await prisma.transaction.findFirst({
       where: {
         type: "PAYMENT",
@@ -188,6 +327,31 @@ export async function POST(req: NextRequest) {
     });
 
     if (!pendingSubscription) {
+      if (intentContext) {
+        await prisma.$transaction(async (tx) => {
+          await updateSubscriptionPaymentIntentFromWebhook(tx, {
+            userId: intentContext.wallet.userId,
+            walletId: intentContext.walletId,
+            sourceId: intentContext.id,
+            apiRef: canonicalRef,
+            amountExpected: Number(intentContext.amount),
+            amountReceived: null,
+            currency: intentContext.currency || "KES",
+            gatewayState: "PROCESSING",
+            gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
+            gatewaySessionId: invoiceId ? String(invoiceId) : null,
+            providerRef: intentContext.providerRef || pendingProviderRef,
+            failureReason: "Missing pending provider reference",
+            payload: body as Prisma.InputJsonValue,
+            metadata: {
+              reason: "missing_pending_provider_reference",
+              apiRef: canonicalRef,
+              invoiceId: invoiceId ? String(invoiceId) : null,
+            },
+          });
+        });
+      }
+
       return NextResponse.json({
         received: true,
         requiresManualResolution: true,
@@ -210,6 +374,31 @@ export async function POST(req: NextRequest) {
         : null;
 
     if (!userId || !plan) {
+      if (pendingSubscription) {
+        await prisma.$transaction(async (tx) => {
+          await updateSubscriptionPaymentIntentFromWebhook(tx, {
+            userId: pendingSubscription.wallet.userId,
+            walletId: pendingSubscription.walletId,
+            sourceId: pendingSubscription.id,
+            apiRef: canonicalRef,
+            amountExpected: Number(pendingSubscription.amount),
+            amountReceived: null,
+            currency: pendingSubscription.currency || "KES",
+            gatewayState: "PROCESSING",
+            gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
+            gatewaySessionId: invoiceId ? String(invoiceId) : null,
+            providerRef: pendingSubscription.providerRef || pendingProviderRef,
+            failureReason: "Missing userId or plan in webhook payload",
+            payload: body as Prisma.InputJsonValue,
+            metadata: {
+              reason: "missing_user_or_plan",
+              apiRef: canonicalRef,
+              invoiceId: invoiceId ? String(invoiceId) : null,
+            },
+          });
+        });
+      }
+
       console.error("Missing userId or plan in webhook metadata:", metadata);
       return NextResponse.json({
         received: true,
@@ -227,13 +416,143 @@ export async function POST(req: NextRequest) {
     });
 
     if (!user) {
+      await prisma.$transaction(async (tx) => {
+        await updateSubscriptionPaymentIntentFromWebhook(tx, {
+          userId: pendingSubscription.wallet.userId,
+          walletId: pendingSubscription.walletId,
+          sourceId: pendingSubscription.id,
+          apiRef: canonicalRef,
+          amountExpected: Number(pendingSubscription.amount),
+          amountReceived: null,
+          currency: pendingSubscription.currency || "KES",
+          gatewayState: "PROCESSING",
+          gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
+          gatewaySessionId: invoiceId ? String(invoiceId) : null,
+          providerRef: pendingSubscription.providerRef || pendingProviderRef,
+          failureReason: "User not found for subscription settlement",
+          payload: body as Prisma.InputJsonValue,
+          metadata: {
+            reason: "missing_user_for_subscription_settlement",
+            apiRef: canonicalRef,
+            invoiceId: invoiceId ? String(invoiceId) : null,
+          },
+        });
+      });
+
       console.error(`User not found: ${userId}`);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const amount = webhook.amount;
+    if (!invoiceId) {
+      await prisma.$transaction(async (tx) => {
+        await updateSubscriptionPaymentIntentFromWebhook(tx, {
+          userId: pendingSubscription.wallet.userId,
+          walletId: pendingSubscription.walletId,
+          sourceId: pendingSubscription.id,
+          apiRef: canonicalRef,
+          amountExpected: Number(pendingSubscription.amount),
+          amountReceived: null,
+          currency: pendingSubscription.currency || "KES",
+          gatewayState: "PROCESSING",
+          gatewayInvoiceId: null,
+          gatewaySessionId: null,
+          providerRef: pendingSubscription.providerRef || pendingProviderRef,
+          failureReason: "Waiting for verifiable invoice_id",
+          payload: body as Prisma.InputJsonValue,
+          metadata: {
+            reason: "missing_invoice_id_for_verification",
+            apiRef: canonicalRef,
+          },
+        });
+      });
 
-    if (!Number.isFinite(amount) || (amount || 0) <= 0) {
+      return NextResponse.json({
+        received: true,
+        requiresManualResolution: true,
+        skipped: true,
+        reason: "missing_invoice_id_for_verification",
+        apiRef: canonicalRef,
+      });
+    }
+
+    const expectedAmount = Number(pendingSubscription.amount || 0);
+    const verification = await verifyIntaSendPayment({
+      invoiceId: String(invoiceId),
+      expectedApiRef: canonicalRef,
+      expectedAmount,
+      expectedCurrency: pendingSubscription.currency || "KES",
+    });
+
+    if (!verification.ok) {
+      await prisma.$transaction(async (tx) => {
+        await updateSubscriptionPaymentIntentFromWebhook(tx, {
+          userId: pendingSubscription.wallet.userId,
+          walletId: pendingSubscription.walletId,
+          sourceId: pendingSubscription.id,
+          apiRef: canonicalRef,
+          amountExpected: Number(pendingSubscription.amount),
+          amountReceived: null,
+          currency: pendingSubscription.currency || "KES",
+          gatewayState: "PROCESSING",
+          gatewayInvoiceId: String(invoiceId),
+          gatewaySessionId: String(invoiceId),
+          providerRef: pendingSubscription.providerRef || pendingProviderRef,
+          failureReason: "Provider status verification failed",
+          payload: body as Prisma.InputJsonValue,
+          metadata: {
+            reason: "provider_status_verification_failed",
+            providerState: verification.providerState,
+            apiRefMatches: verification.apiRefMatches,
+            amountMatches: verification.amountMatches,
+            currencyMatches: verification.currencyMatches,
+            apiRef: canonicalRef,
+            invoiceId: String(invoiceId),
+          },
+        });
+      });
+
+      return NextResponse.json({
+        received: true,
+        skipped: true,
+        requiresManualResolution: true,
+        reason: "provider_status_verification_failed",
+        apiRef: canonicalRef,
+        verification: {
+          providerState: verification.providerState,
+          apiRefMatches: verification.apiRefMatches,
+          amountMatches: verification.amountMatches,
+          currencyMatches: verification.currencyMatches,
+        },
+      });
+    }
+
+    const amount = verification.amount;
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      await prisma.$transaction(async (tx) => {
+        await updateSubscriptionPaymentIntentFromWebhook(tx, {
+          userId: pendingSubscription.wallet.userId,
+          walletId: pendingSubscription.walletId,
+          sourceId: pendingSubscription.id,
+          apiRef: canonicalRef,
+          amountExpected: Number(pendingSubscription.amount),
+          amountReceived: null,
+          currency: pendingSubscription.currency || "KES",
+          gatewayState: "PROCESSING",
+          gatewayInvoiceId: String(invoiceId),
+          gatewaySessionId: String(invoiceId),
+          providerRef: pendingSubscription.providerRef || pendingProviderRef,
+          failureReason: "Invalid settlement amount",
+          payload: body as Prisma.InputJsonValue,
+          metadata: {
+            reason: "invalid_amount_for_settlement",
+            providerState: verification.providerState,
+            apiRef: canonicalRef,
+            invoiceId: String(invoiceId),
+          },
+        });
+      });
+
       return NextResponse.json({
         received: true,
         requiresManualResolution: true,
@@ -283,7 +602,7 @@ export async function POST(req: NextRequest) {
       });
 
       if (existingSettled) {
-        return tx.subscription.upsert({
+        const existingSubscriptionRecord = await tx.subscription.upsert({
           where: { userId },
           update: {
             plan,
@@ -299,6 +618,30 @@ export async function POST(req: NextRequest) {
             isActive: true,
           },
         });
+
+        await updateSubscriptionPaymentIntentFromWebhook(tx, {
+          userId,
+          walletId: wallet.id,
+          sourceId: existingSubscriptionRecord.id,
+          apiRef: canonicalRef,
+          amountExpected: Number(pendingSubscription.amount),
+          amountReceived: amount,
+          currency: pendingSubscription.currency || "KES",
+          gatewayState: "SETTLED",
+          gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
+          gatewaySessionId: invoiceId ? String(invoiceId) : null,
+          providerRef: settledSubscriptionProviderRef,
+          failureReason: null,
+          payload: body as Prisma.InputJsonValue,
+          metadata: {
+            apiRef: canonicalRef,
+            reason: "already_settled",
+            plan,
+            invoiceId: invoiceId ? String(invoiceId) : null,
+          },
+        });
+
+        return existingSubscriptionRecord;
       }
 
       const subscriptionRecord = await tx.subscription.upsert({
@@ -326,6 +669,8 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      const settledAt = new Date();
+
       if (pendingRecord) {
         await tx.transaction.update({
           where: { id: pendingRecord.id },
@@ -346,10 +691,23 @@ export async function POST(req: NextRequest) {
             sourceId: subscriptionRecord.id,
             createdByType: "WEBHOOK",
             description: settledDescription,
-            settledAt: new Date(),
+            settledAt,
             failureReason: null,
             failedAt: null,
             cancelledAt: null,
+            metadata: {
+              apiRef: canonicalRef,
+              gatewayRawState: webhook.rawState,
+              gatewayState,
+              eventFamily: webhook.eventFamily,
+              invoiceId: invoiceId ? String(invoiceId) : null,
+              providerVerification: {
+                providerState: verification.providerState,
+                apiRefMatches: verification.apiRefMatches,
+                amountMatches: verification.amountMatches,
+                currencyMatches: verification.currencyMatches,
+              },
+            } as Prisma.InputJsonValue,
           },
         });
       } else {
@@ -370,10 +728,45 @@ export async function POST(req: NextRequest) {
             sourceId: subscriptionRecord.id,
             createdByType: "WEBHOOK",
             description: settledDescription,
-            settledAt: new Date(),
+            settledAt,
+            metadata: {
+              apiRef: canonicalRef,
+              gatewayRawState: webhook.rawState,
+              gatewayState,
+              eventFamily: webhook.eventFamily,
+              invoiceId: invoiceId ? String(invoiceId) : null,
+              providerVerification: {
+                providerState: verification.providerState,
+                apiRefMatches: verification.apiRefMatches,
+                amountMatches: verification.amountMatches,
+                currencyMatches: verification.currencyMatches,
+              },
+            } as Prisma.InputJsonValue,
           },
         });
       }
+
+      await updateSubscriptionPaymentIntentFromWebhook(tx, {
+        userId,
+        walletId: wallet.id,
+        sourceId: subscriptionRecord.id,
+        apiRef: canonicalRef,
+        amountExpected: Number(pendingSubscription.amount),
+        amountReceived: amount,
+        currency: pendingSubscription.currency || "KES",
+        gatewayState: "SETTLED",
+        gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
+        gatewaySessionId: invoiceId ? String(invoiceId) : null,
+        providerRef: settledSubscriptionProviderRef,
+        failureReason: null,
+        payload: body as Prisma.InputJsonValue,
+        metadata: {
+          apiRef: canonicalRef,
+          reason: "settled",
+          plan,
+          invoiceId: invoiceId ? String(invoiceId) : null,
+        },
+      });
 
       await tx.notification.create({
         data: {

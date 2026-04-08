@@ -12,6 +12,7 @@ import {
   getWalletSchemaOutOfSyncMessage,
   isWalletSchemaOutOfSyncError,
 } from "@/lib/wallet/errors";
+import { ensureWalletTopUpPaymentIntent } from "@/lib/payments/payment-intents";
 
 function normalizeReturnPath(path?: string): string | null {
   if (!path || typeof path !== "string") {
@@ -146,6 +147,24 @@ export async function POST(req: Request) {
           checkoutUrl,
           initiatedAt: new Date(),
           rawInitiationPayload: response,
+        },
+      });
+
+      await ensureWalletTopUpPaymentIntent(tx, {
+        userId: session.user.id,
+        walletId: wallet.id,
+        topUpId: createdTopUp.id,
+        apiRef,
+        amountExpected: amount,
+        currency: "KES",
+        gatewaySessionId: response.id ? String(response.id) : null,
+        gatewayInvoiceId: null,
+        providerRef: `INTASEND:WALLET:TOPUP:${apiRef}`,
+        initiationPayload: response,
+        metadata: {
+          apiRef,
+          checkoutUrl,
+          source: "wallet_topup_initiate",
         },
       });
 

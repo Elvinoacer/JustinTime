@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { getCollectionService, getBaseUrl } from "@/lib/intasend";
 import { SUBSCRIPTION_PRICES } from "@/lib/constants/pricing";
+import { ensureSubscriptionPaymentIntent } from "@/lib/payments/payment-intents";
 
 export async function POST(req: NextRequest) {
   try {
@@ -46,41 +47,65 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    let wallet = await prisma.wallet.findUnique({
-      where: { userId: session.user.id },
-    });
+    await prisma.$transaction(async (tx) => {
+      let wallet = await tx.wallet.findUnique({
+        where: { userId: session.user.id },
+      });
 
-    if (!wallet) {
-      wallet = await prisma.wallet.create({
+      if (!wallet) {
+        wallet = await tx.wallet.create({
+          data: {
+            userId: session.user.id,
+            balance: 0,
+            pendingBalance: 0,
+            currency: "KES",
+          },
+        });
+      }
+
+      const pendingProviderRef = `INTASEND:SUBSCRIPTION:PENDING:${apiRef}`;
+
+      const pendingTx = await tx.transaction.create({
         data: {
-          userId: session.user.id,
-          balance: 0,
-          pendingBalance: 0,
+          walletId: wallet.id,
+          amount,
+          type: "PAYMENT",
+          status: "PENDING",
+          direction: "DEBIT",
+          category: "SUBSCRIPTION",
           currency: "KES",
+          gateway: "INTASEND",
+          gatewayReference: apiRef,
+          gatewaySessionId: checkoutSession.id
+            ? String(checkoutSession.id)
+            : null,
+          providerRef: pendingProviderRef,
+          sourceType: "SUBSCRIPTION",
+          sourceId: plan,
+          createdByType: "USER",
+          description: `Subscription payment pending (${plan}) [Ref:${apiRef}]`,
         },
       });
-    }
 
-    await prisma.transaction.create({
-      data: {
+      await ensureSubscriptionPaymentIntent(tx, {
+        userId: session.user.id,
         walletId: wallet.id,
-        amount,
-        type: "PAYMENT",
-        status: "PENDING",
-        direction: "DEBIT",
-        category: "SUBSCRIPTION",
+        apiRef,
+        amountExpected: amount,
         currency: "KES",
-        gateway: "INTASEND",
-        gatewayReference: apiRef,
+        sourceId: pendingTx.id,
         gatewaySessionId: checkoutSession.id
           ? String(checkoutSession.id)
           : null,
-        providerRef: `INTASEND:SUBSCRIPTION:PENDING:${apiRef}`,
-        sourceType: "SUBSCRIPTION",
-        sourceId: plan,
-        createdByType: "USER",
-        description: `Subscription payment pending (${plan}) [Ref:${apiRef}]`,
-      },
+        providerRef: pendingProviderRef,
+        initiationPayload: checkoutSession,
+        metadata: {
+          apiRef,
+          plan,
+          source: "subscription_initiate",
+          checkoutUrl: checkoutSession.url || null,
+        },
+      });
     });
 
     return NextResponse.json({

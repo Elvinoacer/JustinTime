@@ -82,6 +82,7 @@ model User {
   notificationOutboxEvents      NotificationOutbox[]
   wallet                        Wallet?
   walletTopUps                  WalletTopUp[]
+  paymentIntents                PaymentIntent[]
   subscription                  Subscription?
   disputes                      Dispute[]                  @relation("CreatedDisputes")
   disputesAgainst               Dispute[]                  @relation("DisputesAgainst")
@@ -186,6 +187,16 @@ model PromoCode {
   updatedAt         DateTime  @updatedAt
 
   bookings Booking[]
+}
+
+model MarketingEventLog {
+  id        String   @id
+  channel   String
+  event     String
+  payload   Json
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([channel, event, createdAt], map: "MarketingEventLog_channel_event_createdAt_idx")
 }
 
 // NextAuth Models
@@ -795,9 +806,28 @@ model Wallet {
   creditBalance  Int      @default(0) // Revenue Feature: Lead Gen Credits
   updatedAt      DateTime @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  topUps       WalletTopUp[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+  topUps         WalletTopUp[]
+  paymentIntents PaymentIntent[]
+}
+
+enum PaymentIntentKind {
+  WALLET_TOPUP
+  ONBOARDING_FEE
+  SUBSCRIPTION
+  SEAT_RESERVATION
+  BOOKING_ESCROW
+  OTHER
+}
+
+enum PaymentIntentStatus {
+  PENDING
+  PROCESSING
+  VERIFIED_COMPLETE
+  VERIFIED_FAILED
+  VERIFIED_CANCELLED
+  VERIFIED_REVERSED
 }
 
 enum TransactionType {
@@ -916,6 +946,65 @@ model WalletTopUp {
   @@index([userId, createdAt])
   @@index([status, createdAt])
   @@index([apiRef])
+}
+
+model PaymentIntent {
+  id                    String              @id @default(cuid())
+  kind                  PaymentIntentKind
+  status                PaymentIntentStatus @default(PENDING)
+  gateway               WalletGateway       @default(INTASEND)
+  userId                String
+  walletId              String?
+  apiRef                String
+  invoiceId             String?
+  gatewaySessionId      String?
+  providerRef           String?
+  amountExpected        Decimal             @db.Decimal(10, 2)
+  amountReceived        Decimal?            @db.Decimal(10, 2)
+  currency              String              @default("KES")
+  sourceType            String?
+  sourceId              String?
+  verifiedAt            DateTime?
+  failedAt              DateTime?
+  cancelledAt           DateTime?
+  reversedAt            DateTime?
+  failureReason         String?
+  rawInitiationPayload  Json?
+  rawLastWebhookPayload Json?
+  metadata              Json?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet          Wallet?                 @relation(fields: [walletId], references: [id], onDelete: SetNull)
+  webhookReceipts PaymentWebhookReceipt[]
+
+  @@unique([gateway, apiRef])
+  @@index([userId, kind, status, createdAt])
+  @@index([walletId, kind, createdAt])
+  @@index([invoiceId])
+  @@index([sourceType, sourceId])
+}
+
+model PaymentWebhookReceipt {
+  id          String             @id @default(cuid())
+  gateway     WalletGateway      @default(INTASEND)
+  kind        PaymentIntentKind?
+  intentId    String?
+  apiRef      String?
+  invoiceId   String?
+  rawState    String?
+  dedupeKey   String             @unique
+  payloadHash String?
+  payload     Json?
+  processedAt DateTime           @default(now())
+  createdAt   DateTime           @default(now())
+
+  intent PaymentIntent? @relation(fields: [intentId], references: [id], onDelete: SetNull)
+
+  @@index([gateway, apiRef, processedAt])
+  @@index([gateway, invoiceId, processedAt])
+  @@index([intentId])
 }
 
 // Messages
