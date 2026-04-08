@@ -783,6 +783,7 @@ model ETIMSSubmission {
 
 // Wallet
 enum WalletGateway {
+  DARAJA
   INTASEND
   MANUAL
   SYSTEM
@@ -921,7 +922,7 @@ model WalletTopUp {
   amountReceived       Decimal?          @db.Decimal(10, 2)
   currency             String            @default("KES")
   status               WalletTopUpStatus @default(PENDING)
-  gateway              WalletGateway     @default(INTASEND)
+  gateway              WalletGateway     @default(DARAJA)
   apiRef               String            @unique
   gatewaySessionId     String?
   gatewayInvoiceId     String?
@@ -952,7 +953,7 @@ model PaymentIntent {
   id                    String              @id @default(cuid())
   kind                  PaymentIntentKind
   status                PaymentIntentStatus @default(PENDING)
-  gateway               WalletGateway       @default(INTASEND)
+  gateway               WalletGateway       @default(DARAJA)
   userId                String
   walletId              String?
   apiRef                String
@@ -988,7 +989,7 @@ model PaymentIntent {
 
 model PaymentWebhookReceipt {
   id          String             @id @default(cuid())
-  gateway     WalletGateway      @default(INTASEND)
+  gateway     WalletGateway      @default(DARAJA)
   kind        PaymentIntentKind?
   intentId    String?
   apiRef      String?

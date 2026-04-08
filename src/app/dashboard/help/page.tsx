@@ -85,7 +85,7 @@ const faqs: FAQItem[] = [
     id: "6",
     question: "How does payment work?",
     answer:
-      "Customers pay through our secure IntaSend payment gateway. Your earnings and payouts are tracked in your wallet and earnings pages, where transfer status and timing are shown for each transaction.",
+      "Customers pay through secure M-Pesa STK Push via Daraja. Your earnings and payouts are tracked in your wallet and earnings pages, where transfer status and timing are shown for each transaction.",
     category: "Payments",
   },
   {

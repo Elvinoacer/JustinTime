@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Loader2,
-  ShieldCheck,
-  CheckCircle2,
-  CreditCard,
-  Smartphone,
-} from "lucide-react";
+import { Loader2, ShieldCheck, CheckCircle2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import { payOnboardingFee } from "@/app/actions/revenue";
@@ -27,7 +21,7 @@ export function OnboardingFeeModal({
   const handlePayFee = async () => {
     setLoading(true);
     try {
-      // Call API to initiate Intasend payment
+      // Call API to initiate Daraja STK Push
       const response = await fetch("/api/onboarding-fee/initiate", {
         method: "POST",
         headers: {
@@ -42,7 +36,7 @@ export function OnboardingFeeModal({
       }
 
       if (data.checkoutUrl) {
-        // Redirect to Intasend checkout page
+        // Redirect to completion page while STK push runs on phone
         toast.info("Redirecting to payment page...");
         window.location.href = data.checkoutUrl;
       } else {
@@ -137,12 +131,7 @@ export function OnboardingFeeModal({
               <div className="flex items-center justify-center gap-4 mb-4 text-gray-500">
                 <div className="flex items-center gap-1.5 text-xs">
                   <Smartphone className="h-4 w-4" />
-                  <span>M-Pesa</span>
-                </div>
-                <div className="w-px h-4 bg-gray-300" />
-                <div className="flex items-center gap-1.5 text-xs">
-                  <CreditCard className="h-4 w-4" />
-                  <span>Card</span>
+                  <span>M-Pesa STK Push</span>
                 </div>
               </div>
 
@@ -172,12 +161,12 @@ export function OnboardingFeeModal({
                     <span>Processing...</span>
                   </>
                 ) : (
-                  "Pay with IntaSend"
+                  "Pay with M-Pesa (STK Push)"
                 )}
               </button>
 
               <p className="text-xs text-gray-400 mt-3">
-                Secure payment powered by IntaSend
+                Secure payment via Safaricom Daraja
               </p>
             </div>
           </div>

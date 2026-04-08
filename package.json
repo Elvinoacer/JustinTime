@@ -40,8 +40,6 @@
     "firebase": "^12.8.0",
     "firebase-admin": "^13.6.1",
     "framer-motion": "^12.31.3",
-    "intasend-inlinejs-sdk": "^4.0.7",
-    "intasend-node": "^1.1.2",
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.7",

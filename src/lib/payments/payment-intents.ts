@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { Prisma } from "@/generated/prisma/client";
-import { CanonicalIntaSendState } from "@/lib/intasend-webhook";
+import { CanonicalDarajaState } from "@/lib/daraja-webhook";
 
 function createId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
@@ -20,7 +20,7 @@ function isMissingIntentSchemaError(error: unknown): boolean {
   );
 }
 
-function mapToIntentStatus(state: CanonicalIntaSendState): string {
+function mapToIntentStatus(state: CanonicalDarajaState): string {
   switch (state) {
     case "SETTLED":
       return "VERIFIED_COMPLETE";
@@ -91,7 +91,7 @@ async function ensurePaymentIntent(
           ${createId("pi")},
           ${kindSql},
           ${"PENDING"}::"PaymentIntentStatus",
-          ${"INTASEND"}::"WalletGateway",
+          ${"DARAJA"}::"WalletGateway",
           ${input.userId},
           ${input.walletId || null},
           ${input.apiRef},
@@ -145,7 +145,7 @@ interface UpdatePaymentIntentFromWebhookInput {
   amountExpected: number;
   amountReceived?: number | null;
   currency: string;
-  gatewayState: CanonicalIntaSendState;
+  gatewayState: CanonicalDarajaState;
   gatewayInvoiceId?: string | null;
   gatewaySessionId?: string | null;
   providerRef?: string | null;
@@ -201,7 +201,7 @@ async function updatePaymentIntentFromWebhook(
           ${createId("pi")},
           ${kindSql},
           ${status}::"PaymentIntentStatus",
-          ${"INTASEND"}::"WalletGateway",
+          ${"DARAJA"}::"WalletGateway",
           ${input.userId},
           ${input.walletId || null},
           ${input.apiRef},
@@ -292,7 +292,7 @@ export async function ensureWalletTopUpPaymentIntent(
     sourceId: input.topUpId,
     gatewaySessionId: input.gatewaySessionId,
     gatewayInvoiceId: input.gatewayInvoiceId,
-    providerRef: input.providerRef || `INTASEND:WALLET:TOPUP:${input.apiRef}`,
+    providerRef: input.providerRef || `DARAJA:WALLET:TOPUP:${input.apiRef}`,
     initiationPayload: input.initiationPayload,
     metadata: input.metadata,
   });
@@ -411,7 +411,7 @@ export async function recordPaymentWebhookReceipt(
         )
         VALUES (
           ${createId("pwr")},
-          ${"INTASEND"}::"WalletGateway",
+          ${"DARAJA"}::"WalletGateway",
           ${kindSql},
           ${input.intentId || null},
           ${input.apiRef || null},
@@ -454,7 +454,7 @@ export interface UpdateWalletIntentFromWebhookInput {
   amountExpected: number;
   amountReceived?: number | null;
   currency: string;
-  gatewayState: CanonicalIntaSendState;
+  gatewayState: CanonicalDarajaState;
   gatewayInvoiceId?: string | null;
   gatewaySessionId?: string | null;
   providerRef?: string | null;
@@ -480,7 +480,7 @@ export async function updateWalletTopUpPaymentIntentFromWebhook(
     gatewayState: input.gatewayState,
     gatewayInvoiceId: input.gatewayInvoiceId,
     gatewaySessionId: input.gatewaySessionId,
-    providerRef: input.providerRef || `INTASEND:WALLET:TOPUP:${input.apiRef}`,
+    providerRef: input.providerRef || `DARAJA:WALLET:TOPUP:${input.apiRef}`,
     failureReason: input.failureReason,
     payload: input.payload,
     metadata: input.metadata,
@@ -495,7 +495,7 @@ export interface UpdateOnboardingFeeIntentFromWebhookInput {
   amountExpected: number;
   amountReceived?: number | null;
   currency: string;
-  gatewayState: CanonicalIntaSendState;
+  gatewayState: CanonicalDarajaState;
   gatewayInvoiceId?: string | null;
   gatewaySessionId?: string | null;
   providerRef?: string | null;
@@ -536,7 +536,7 @@ export interface UpdateSubscriptionIntentFromWebhookInput {
   amountExpected: number;
   amountReceived?: number | null;
   currency: string;
-  gatewayState: CanonicalIntaSendState;
+  gatewayState: CanonicalDarajaState;
   gatewayInvoiceId?: string | null;
   gatewaySessionId?: string | null;
   providerRef?: string | null;
@@ -574,7 +574,7 @@ export function buildPaymentWebhookDedupeKey(params: {
   apiRef?: string | null;
   invoiceId?: string | null;
   rawState?: string | null;
-  state: CanonicalIntaSendState;
+  state: CanonicalDarajaState;
 }): string {
   const ref =
     String(params.apiRef || "")
@@ -588,14 +588,14 @@ export function buildPaymentWebhookDedupeKey(params: {
     String(params.rawState || "")
       .trim()
       .toUpperCase() || "NA";
-  return `INTASEND:${params.kind}:${ref}:${invoice}:${rawState}:${params.state}`;
+  return `DARAJA:${params.kind}:${ref}:${invoice}:${rawState}:${params.state}`;
 }
 
 export function buildWalletWebhookDedupeKey(params: {
   apiRef?: string | null;
   invoiceId?: string | null;
   rawState?: string | null;
-  state: CanonicalIntaSendState;
+  state: CanonicalDarajaState;
 }): string {
   return buildPaymentWebhookDedupeKey({
     kind: "WALLET_TOPUP",

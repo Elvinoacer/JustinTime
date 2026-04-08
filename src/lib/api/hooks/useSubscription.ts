@@ -38,7 +38,11 @@ export const useSubscriptionStatus = () => {
 export const useInitiateSubscription = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<InitiateSubscriptionResponse, Error, InitiateSubscriptionParams>({
+  return useMutation<
+    InitiateSubscriptionResponse,
+    Error,
+    InitiateSubscriptionParams
+  >({
     mutationFn: async ({ plan }) => {
       const response = await fetch("/api/subscription/initiate", {
         method: "POST",
@@ -56,7 +60,7 @@ export const useInitiateSubscription = () => {
       return response.json();
     },
     onSuccess: (data) => {
-      // Redirect to IntaSend checkout
+      // Redirect to completion page while M-Pesa STK push is processed
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
       }

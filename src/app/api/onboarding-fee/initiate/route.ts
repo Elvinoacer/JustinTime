@@ -3,11 +3,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import {
-  getCollectionService,
   getBaseUrl,
   generateApiRef,
+  initiateDarajaStkPush,
   PAYMENT_AMOUNTS,
-} from "@/lib/intasend";
+} from "@/lib/daraja";
 import { ensureOnboardingFeePaymentIntent } from "@/lib/payments/payment-intents";
 
 export async function POST() {
@@ -39,31 +39,48 @@ export async function POST() {
     // Generate API reference (alphanumeric + hyphens only)
     const apiRef = generateApiRef("ONBOARD", session.user.id);
 
-    // Simple redirect URL without query params (IntaSend is strict about URL format)
+    const payer = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        phone: true,
+        name: true,
+        email: true,
+      },
+    });
+
+    if (!payer?.phone) {
+      return NextResponse.json(
+        {
+          error:
+            "A valid phone number is required to initiate M-Pesa STK Push.",
+        },
+        { status: 400 },
+      );
+    }
+
     const baseUrl = getBaseUrl();
-    const redirectUrl = `${baseUrl}/dashboard/onboarding-complete`;
+    const callbackToken = process.env.DARAJA_CALLBACK_TOKEN;
+    const callbackUrl = callbackToken
+      ? `${baseUrl}/api/onboarding-fee/webhook?token=${encodeURIComponent(callbackToken)}`
+      : `${baseUrl}/api/onboarding-fee/webhook`;
+    const completionUrl = `${baseUrl}/dashboard/onboarding-complete?apiRef=${encodeURIComponent(apiRef)}`;
 
     console.log("Initiating onboarding fee payment:", {
       apiRef,
-      redirectUrl,
+      callbackUrl,
       amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
     });
 
-    // Use IntaSend SDK collection service
-    const collection = getCollectionService();
-
-    // Create checkout session using SDK
-    const response = await collection.charge({
-      first_name: session.user.name?.split(" ")[0] || "User",
-      last_name: session.user.name?.split(" ").slice(1).join(" ") || "",
-      email: session.user.email || "",
+    const response = await initiateDarajaStkPush({
       amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
-      currency: "KES",
-      api_ref: apiRef,
-      redirect_url: redirectUrl,
+      phoneNumber: payer.phone,
+      apiRef,
+      callbackUrl,
+      accountReference: apiRef,
+      description: "Provider onboarding fee",
     });
 
-    console.log("IntaSend checkout response:", response);
+    console.log("Daraja STK push response:", response);
 
     await prisma.$transaction(async (tx) => {
       let wallet = await tx.wallet.findUnique({
@@ -81,7 +98,7 @@ export async function POST() {
         });
       }
 
-      const pendingProviderRef = `INTASEND:ONBOARDING:PENDING:${apiRef}`;
+      const pendingProviderRef = `DARAJA:ONBOARDING:PENDING:${apiRef}`;
       const existingPending = await tx.transaction.findFirst({
         where: {
           walletId: wallet.id,
@@ -102,9 +119,9 @@ export async function POST() {
             direction: "DEBIT",
             category: "ONBOARDING_FEE",
             currency: "KES",
-            gateway: "INTASEND",
+            gateway: "DARAJA",
             gatewayReference: apiRef,
-            gatewaySessionId: response.id ? String(response.id) : null,
+            gatewaySessionId: response.CheckoutRequestID,
             providerRef: pendingProviderRef,
             sourceType: "ONBOARDING_FEE",
             sourceId: session.user.id,
@@ -123,24 +140,25 @@ export async function POST() {
         amountExpected: PAYMENT_AMOUNTS.ONBOARDING_FEE,
         currency: "KES",
         sourceId: pendingTransactionId || session.user.id,
-        gatewaySessionId: response.id ? String(response.id) : null,
+        gatewaySessionId: response.CheckoutRequestID,
+        gatewayInvoiceId: response.MerchantRequestID,
         providerRef: pendingProviderRef,
-        initiationPayload: response as Prisma.InputJsonValue,
+        initiationPayload: response as unknown as Prisma.InputJsonValue,
         metadata: {
           apiRef,
           source: "onboarding_fee_initiate",
-          checkoutUrl: response.url || null,
+          checkoutRequestId: response.CheckoutRequestID,
+          merchantRequestId: response.MerchantRequestID,
         },
       });
     });
 
-    // Store the pending payment reference for webhook matching
-    // The SDK returns the checkout URL in response.url
     return NextResponse.json({
-      checkoutUrl: response.url,
-      sessionId: response.id,
+      checkoutUrl: completionUrl,
+      sessionId: response.CheckoutRequestID,
       apiRef: apiRef,
       amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+      provider: "DARAJA",
     });
   } catch (error: unknown) {
     console.error("[ONBOARDING_FEE_INITIATE]", error);

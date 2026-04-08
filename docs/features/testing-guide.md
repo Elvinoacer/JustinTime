@@ -627,7 +627,7 @@ Expectations:
 
 Anchors:
 
-- IntaSend: src/lib/intasend.ts and webhook routes.
+- Daraja: src/lib/daraja.ts, src/lib/daraja-webhook.ts, and webhook routes.
 - Firebase: src/lib/firebase.ts, src/lib/firebase-admin.ts.
 - WhatsApp: src/lib/whatsapp-service.ts and /api/webhooks/whatsapp.
 - Object storage: src/lib/s3.ts and /api/upload.

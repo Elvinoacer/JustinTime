@@ -1,0 +1,5 @@
+DO $$ BEGIN
+  ALTER TYPE "WalletGateway" ADD VALUE IF NOT EXISTS 'DARAJA';
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;

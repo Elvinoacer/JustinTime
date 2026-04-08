@@ -134,7 +134,7 @@ const DashboardPage = () => {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Handle payment callback from Intasend
+  // Handle payment callback query params
   useEffect(() => {
     const paymentStatus = searchParams.get("payment_status");
     const paymentType = searchParams.get("payment_type");

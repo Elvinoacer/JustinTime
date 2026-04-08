@@ -184,7 +184,7 @@ export function OnboardingAccessNotice({
                   Processing...
                 </>
               ) : (
-                "Pay with IntaSend"
+                "Pay with M-Pesa (STK Push)"
               )}
             </button>
           </div>

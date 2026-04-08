@@ -1,0 +1,8 @@
+ALTER TABLE "WalletTopUp"
+  ALTER COLUMN "gateway" SET DEFAULT 'DARAJA';
+
+ALTER TABLE "PaymentIntent"
+  ALTER COLUMN "gateway" SET DEFAULT 'DARAJA';
+
+ALTER TABLE "PaymentWebhookReceipt"
+  ALTER COLUMN "gateway" SET DEFAULT 'DARAJA';

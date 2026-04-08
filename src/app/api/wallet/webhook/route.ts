@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
-  evaluateWebhookSignature,
-  verifyIntaSendPayment,
+  evaluateDarajaCallbackToken,
+  getDarajaCallbackTokenFromRequest,
+  verifyDarajaPayment,
   verifyWebhookChallenge,
-} from "@/lib/intasend";
+} from "@/lib/daraja";
 import { Prisma } from "@/generated/prisma/client";
 import {
-  CanonicalIntaSendState,
-  IntaSendWebhookPayload,
-  parseIntaSendWebhook,
-} from "@/lib/intasend-webhook";
+  CanonicalDarajaState,
+  DarajaWebhookPayload,
+  parseDarajaWebhook,
+} from "@/lib/daraja-webhook";
 import {
   getWalletSchemaOutOfSyncMessage,
   isWalletSchemaOutOfSyncError,
@@ -23,16 +24,79 @@ import {
 
 const LEGACY_PENDING_PREFIX = "INTASEND:WALLET:PENDING:";
 const LEGACY_SETTLED_PREFIX = "INTASEND:WALLET:SETTLED:";
-const CURRENT_PROVIDER_PREFIX = "INTASEND:WALLET:TOPUP:";
-const TERMINAL_STATES: CanonicalIntaSendState[] = [
+const CURRENT_PROVIDER_PREFIX = "DARAJA:WALLET:TOPUP:";
+const TERMINAL_STATES: CanonicalDarajaState[] = [
   "SETTLED",
   "FAILED",
   "CANCELLED",
   "REVERSED",
 ];
 
+function hasMeaningfulValue(value: unknown): boolean {
+  if (value == null) {
+    return false;
+  }
+
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+
+  return true;
+}
+
+function isChallengeOnlyPayload(payload: DarajaWebhookPayload): boolean {
+  const challenge = payload.challenge;
+  if (typeof challenge !== "string" || challenge.trim().length === 0) {
+    return false;
+  }
+
+  const directPaymentFields = [
+    payload.state,
+    payload.status,
+    payload.api_ref,
+    payload.request_reference_id,
+    payload.reference_id,
+    payload.reference,
+    payload.tracking_id,
+    payload.invoice_id,
+    payload.id,
+    payload.value,
+  ];
+
+  if (directPaymentFields.some(hasMeaningfulValue)) {
+    return false;
+  }
+
+  const invoice =
+    payload.invoice &&
+    typeof payload.invoice === "object" &&
+    !Array.isArray(payload.invoice)
+      ? (payload.invoice as Record<string, unknown>)
+      : null;
+
+  if (
+    invoice &&
+    [
+      invoice.state,
+      invoice.status,
+      invoice.api_ref,
+      invoice.invoice_id,
+      invoice.id,
+      invoice.value,
+    ].some(hasMeaningfulValue)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 function providerStatesForTerminalState(
-  gatewayState: CanonicalIntaSendState,
+  gatewayState: CanonicalDarajaState,
 ): string[] {
   switch (gatewayState) {
     case "FAILED":
@@ -70,6 +134,7 @@ function buildProviderReferenceCandidates(referenceCandidates: string[]) {
       `${CURRENT_PROVIDER_PREFIX}${reference}`,
       `${LEGACY_PENDING_PREFIX}${reference}`,
       `${LEGACY_SETTLED_PREFIX}${reference}`,
+      `INTASEND:WALLET:TOPUP:${reference}`,
       `INTASEND:SEND_MONEY:${reference}`,
       `INTASEND:TRANSFER:${reference}`,
       `INTASEND:WITHDRAWAL:${reference}`,
@@ -84,14 +149,14 @@ async function updateTransactionsByGatewayReferences(
   tx: Prisma.TransactionClient,
   params: {
     referenceCandidates: string[];
-    gatewayState: CanonicalIntaSendState;
+    gatewayState: CanonicalDarajaState;
     gatewayInvoiceId: string;
     gatewaySessionId: string;
     failureReason: string | null;
     eventFamily: string;
     eventHint: string;
     rawState: string;
-    payload: IntaSendWebhookPayload;
+    payload: DarajaWebhookPayload;
     verifiedSettlement?: boolean;
   },
 ) {
@@ -264,7 +329,7 @@ async function ensureLegacyTopUp(tx: Prisma.TransactionClient, apiRef: string) {
         inferredStatus === "SETTLED" ? legacyTransaction.amount : null,
       currency: legacyTransaction.currency || wallet.currency || "KES",
       status: inferredStatus,
-      gateway: "INTASEND",
+      gateway: "DARAJA",
       apiRef,
       initiatedAt: legacyTransaction.createdAt,
       confirmedAt:
@@ -282,7 +347,7 @@ async function ensureLegacyTopUp(tx: Prisma.TransactionClient, apiRef: string) {
       status: inferredStatus,
       direction: "CREDIT",
       category: "TOPUP",
-      gateway: "INTASEND",
+      gateway: "DARAJA",
       gatewayReference: apiRef,
       providerRef: `${CURRENT_PROVIDER_PREFIX}${apiRef}`,
       sourceType: "WALLET_TOPUP",
@@ -301,12 +366,14 @@ async function ensureLegacyTopUp(tx: Prisma.TransactionClient, apiRef: string) {
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
-    const signature = req.headers.get("x-intasend-signature");
-    const body = JSON.parse(rawBody) as IntaSendWebhookPayload;
-    const challenge =
-      typeof body.challenge === "string" ? body.challenge : null;
+    const body = JSON.parse(rawBody) as DarajaWebhookPayload;
+    const callbackToken =
+      getDarajaCallbackTokenFromRequest(req.url) ||
+      req.headers.get("x-daraja-callback-token") ||
+      req.headers.get("x-callback-token");
+    const challenge = typeof body.challenge === "string" ? body.challenge : "";
 
-    if (challenge) {
+    if (isChallengeOnlyPayload(body)) {
       if (verifyWebhookChallenge(challenge)) {
         return NextResponse.json({ challenge });
       }
@@ -314,18 +381,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid challenge" }, { status: 401 });
     }
 
-    const signatureEvaluation = evaluateWebhookSignature(rawBody, signature);
+    const signatureEvaluation = evaluateDarajaCallbackToken(callbackToken);
     if (signatureEvaluation.shouldReject) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     if (!signatureEvaluation.valid) {
       console.warn(
-        "[WALLET_TOPUP_WEBHOOK] Signature missing/invalid; continuing with challenge + provider verification flow",
+        "[WALLET_TOPUP_WEBHOOK] Callback token missing/invalid; continuing with challenge + provider verification flow",
       );
     }
 
-    const webhook = parseIntaSendWebhook(body);
+    const webhook = parseDarajaWebhook(body);
     const gatewayState = webhook.state;
     const amountFromGateway = webhook.amount;
     const gatewayInvoiceId = (webhook.invoiceId || "").trim();
@@ -500,7 +567,7 @@ export async function POST(req: Request) {
           };
         }
 
-        const terminalVerification = await verifyIntaSendPayment({
+        const terminalVerification = await verifyDarajaPayment({
           invoiceId: gatewayInvoiceId,
           expectedApiRef: trustedApiRef,
           expectedCurrency: topUp.currency || "KES",
@@ -603,7 +670,7 @@ export async function POST(req: Request) {
           };
         }
 
-        const verification = await verifyIntaSendPayment({
+        const verification = await verifyDarajaPayment({
           invoiceId: gatewayInvoiceId,
           expectedApiRef: trustedApiRef,
           expectedAmount: Number(topUp.amountExpected),
@@ -797,7 +864,7 @@ export async function POST(req: Request) {
         amountExpected: Number(topUp.amountExpected),
         amountReceived: gatewayState === "SETTLED" ? effectiveAmount : null,
         currency: updatedTopUp.currency,
-        gatewayState: updatedTopUp.status as CanonicalIntaSendState,
+        gatewayState: updatedTopUp.status as CanonicalDarajaState,
         gatewayInvoiceId: gatewayInvoiceId || updatedTopUp.gatewayInvoiceId,
         gatewaySessionId: gatewaySessionId || updatedTopUp.gatewaySessionId,
         providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}`,
@@ -829,7 +896,7 @@ export async function POST(req: Request) {
         direction: "CREDIT" as const,
         category: "TOPUP" as const,
         currency: updatedTopUp.currency,
-        gateway: "INTASEND" as const,
+        gateway: "DARAJA" as const,
         gatewayReference: gatewayInvoiceId || trustedApiRef,
         gatewaySessionId: gatewaySessionId || updatedTopUp.gatewaySessionId,
         providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}`,

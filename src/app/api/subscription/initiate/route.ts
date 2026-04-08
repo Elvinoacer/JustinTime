@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
-import { getCollectionService, getBaseUrl } from "@/lib/intasend";
+import { getBaseUrl, initiateDarajaStkPush } from "@/lib/daraja";
 import { SUBSCRIPTION_PRICES } from "@/lib/constants/pricing";
 import { ensureSubscriptionPaymentIntent } from "@/lib/payments/payment-intents";
 
@@ -27,24 +28,39 @@ export async function POST(req: NextRequest) {
     const amount =
       SUBSCRIPTION_PRICES[plan as keyof typeof SUBSCRIPTION_PRICES];
 
-    const collection = getCollectionService();
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        phone: true,
+        name: true,
+        email: true,
+      },
+    });
+
+    if (!user?.phone) {
+      return NextResponse.json(
+        {
+          error:
+            "A valid phone number is required to initiate M-Pesa STK Push.",
+        },
+        { status: 400 },
+      );
+    }
+
     const normalizedUserId = session.user.id.replace(/[^a-zA-Z0-9]/g, "");
     const apiRef = `SUB-${plan}-${normalizedUserId}-${Date.now().toString(36)}`;
-    const redirectUrl = `${getBaseUrl()}/dashboard/premium/complete`;
+    const callbackToken = process.env.DARAJA_CALLBACK_TOKEN;
+    const callbackUrl = callbackToken
+      ? `${getBaseUrl()}/api/subscription/webhook?token=${encodeURIComponent(callbackToken)}`
+      : `${getBaseUrl()}/api/subscription/webhook`;
 
-    const checkoutSession = await collection.charge({
-      first_name: session.user.name?.split(" ")[0] || "User",
-      last_name: session.user.name?.split(" ").slice(1).join(" ") || "",
-      email: session.user.email || "",
+    const checkoutSession = await initiateDarajaStkPush({
       amount,
-      currency: "KES",
-      api_ref: apiRef,
-      redirect_url: redirectUrl,
-      meta: {
-        userId: session.user.id,
-        plan,
-        type: "subscription",
-      },
+      phoneNumber: user.phone,
+      apiRef,
+      callbackUrl,
+      accountReference: apiRef,
+      description: `Subscription ${plan}`,
     });
 
     await prisma.$transaction(async (tx) => {
@@ -63,7 +79,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      const pendingProviderRef = `INTASEND:SUBSCRIPTION:PENDING:${apiRef}`;
+      const pendingProviderRef = `DARAJA:SUBSCRIPTION:PENDING:${apiRef}`;
 
       const pendingTx = await tx.transaction.create({
         data: {
@@ -74,11 +90,9 @@ export async function POST(req: NextRequest) {
           direction: "DEBIT",
           category: "SUBSCRIPTION",
           currency: "KES",
-          gateway: "INTASEND",
+          gateway: "DARAJA",
           gatewayReference: apiRef,
-          gatewaySessionId: checkoutSession.id
-            ? String(checkoutSession.id)
-            : null,
+          gatewaySessionId: checkoutSession.CheckoutRequestID,
           providerRef: pendingProviderRef,
           sourceType: "SUBSCRIPTION",
           sourceId: plan,
@@ -94,26 +108,29 @@ export async function POST(req: NextRequest) {
         amountExpected: amount,
         currency: "KES",
         sourceId: pendingTx.id,
-        gatewaySessionId: checkoutSession.id
-          ? String(checkoutSession.id)
-          : null,
+        gatewaySessionId: checkoutSession.CheckoutRequestID,
+        gatewayInvoiceId: checkoutSession.MerchantRequestID,
         providerRef: pendingProviderRef,
-        initiationPayload: checkoutSession,
+        initiationPayload: checkoutSession as unknown as Prisma.InputJsonValue,
         metadata: {
           apiRef,
           plan,
           source: "subscription_initiate",
-          checkoutUrl: checkoutSession.url || null,
+          checkoutRequestId: checkoutSession.CheckoutRequestID,
+          merchantRequestId: checkoutSession.MerchantRequestID,
         },
       });
     });
 
+    const completionUrl = `/dashboard/premium/complete?apiRef=${encodeURIComponent(apiRef)}&checkoutId=${encodeURIComponent(checkoutSession.CheckoutRequestID)}`;
+
     return NextResponse.json({
-      checkoutUrl: checkoutSession.url,
-      sessionId: checkoutSession.id,
+      checkoutUrl: completionUrl,
+      sessionId: checkoutSession.CheckoutRequestID,
       amount,
       plan,
       apiRef,
+      provider: "DARAJA",
     });
   } catch (error) {
     console.error("Error initiating subscription:", error);

@@ -2,15 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import {
-  evaluateWebhookSignature,
-  verifyIntaSendPayment,
+  evaluateDarajaCallbackToken,
+  getDarajaCallbackTokenFromRequest,
+  verifyDarajaPayment,
   verifyWebhookChallenge,
   PAYMENT_AMOUNTS,
-} from "@/lib/intasend";
-import {
-  IntaSendWebhookPayload,
-  parseIntaSendWebhook,
-} from "@/lib/intasend-webhook";
+} from "@/lib/daraja";
+import { DarajaWebhookPayload, parseDarajaWebhook } from "@/lib/daraja-webhook";
 import {
   buildPaymentWebhookDedupeKey,
   recordPaymentWebhookReceipt,
@@ -24,6 +22,69 @@ async function resolveSystemAdminId(tx: Prisma.TransactionClient) {
   });
 
   return actor?.id ?? null;
+}
+
+function hasMeaningfulValue(value: unknown): boolean {
+  if (value == null) {
+    return false;
+  }
+
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+
+  return true;
+}
+
+function isChallengeOnlyPayload(payload: DarajaWebhookPayload): boolean {
+  const challenge = payload.challenge;
+  if (typeof challenge !== "string" || challenge.trim().length === 0) {
+    return false;
+  }
+
+  const directPaymentFields = [
+    payload.state,
+    payload.status,
+    payload.api_ref,
+    payload.request_reference_id,
+    payload.reference_id,
+    payload.reference,
+    payload.tracking_id,
+    payload.invoice_id,
+    payload.id,
+    payload.value,
+  ];
+
+  if (directPaymentFields.some(hasMeaningfulValue)) {
+    return false;
+  }
+
+  const invoice =
+    payload.invoice &&
+    typeof payload.invoice === "object" &&
+    !Array.isArray(payload.invoice)
+      ? (payload.invoice as Record<string, unknown>)
+      : null;
+
+  if (
+    invoice &&
+    [
+      invoice.state,
+      invoice.status,
+      invoice.api_ref,
+      invoice.invoice_id,
+      invoice.id,
+      invoice.value,
+    ].some(hasMeaningfulValue)
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function providerStatesForTerminalState(state: string): string[] {
@@ -51,49 +112,52 @@ function providerStatesForTerminalState(state: string): string[] {
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
-    const signature = req.headers.get("x-intasend-signature");
-    const body = JSON.parse(rawBody) as IntaSendWebhookPayload;
+    const body = JSON.parse(rawBody) as DarajaWebhookPayload;
+    const callbackToken =
+      getDarajaCallbackTokenFromRequest(req.url) ||
+      req.headers.get("x-daraja-callback-token") ||
+      req.headers.get("x-callback-token");
 
-    console.log("=== IntaSend Onboarding Webhook ===");
+    console.log("=== Daraja Onboarding Webhook ===");
     console.log("Payload:", JSON.stringify(body, null, 2));
 
-    // Handle challenge verification (IntaSend sends this to verify endpoint)
-    if (body.challenge) {
-      if (verifyWebhookChallenge(body.challenge)) {
+    const challenge =
+      typeof body.challenge === "string" ? body.challenge.trim() : "";
+
+    // Handle challenge verification only for probe payloads, not payment events.
+    if (isChallengeOnlyPayload(body)) {
+      if (verifyWebhookChallenge(challenge)) {
         console.log("✅ Challenge verified successfully");
-        return NextResponse.json({ challenge: body.challenge });
+        return NextResponse.json({ challenge });
       }
 
       console.error("❌ Challenge verification failed");
       return NextResponse.json({ error: "Invalid challenge" }, { status: 401 });
     }
 
-    const signatureEvaluation = evaluateWebhookSignature(rawBody, signature);
+    const signatureEvaluation = evaluateDarajaCallbackToken(callbackToken);
     if (signatureEvaluation.shouldReject) {
-      console.error("❌ Invalid IntaSend webhook signature");
+      console.error("❌ Invalid Daraja callback token");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     if (!signatureEvaluation.valid) {
       console.warn(
-        "[ONBOARDING_WEBHOOK] Signature missing/invalid; continuing with challenge + provider verification flow",
+        "[ONBOARDING_WEBHOOK] Callback token missing/invalid; continuing with challenge + provider verification flow",
       );
     }
 
-    // Acknowledge receipt immediately (IntaSend expects quick 200 response)
-    // Process the rest asynchronously in production
-
     // Extract payment state and reference
-    const webhook = parseIntaSendWebhook(body);
+    const webhook = parseDarajaWebhook(body);
     const gatewayState = webhook.state;
     const canonicalRef = String(
       webhook.apiRef || webhook.primaryReference || "",
     ).trim();
     const invoiceId = webhook.invoiceId || webhook.sessionId;
-    let amount = webhook.amount;
-    const pendingProviderRef = `INTASEND:ONBOARDING:PENDING:${canonicalRef}`;
-    const partialProviderRef = `INTASEND:ONBOARDING:PARTIAL:${canonicalRef}`;
-    const settledProviderRef = `INTASEND:ONBOARDING:SETTLED:${canonicalRef}`;
+    let amount = 0;
+    const pendingProviderRef = `DARAJA:ONBOARDING:PENDING:${canonicalRef}`;
+    const partialProviderRef = `DARAJA:ONBOARDING:PARTIAL:${canonicalRef}`;
+    const settledProviderRef = `DARAJA:ONBOARDING:SETTLED:${canonicalRef}`;
 
     if (!canonicalRef) {
       return NextResponse.json({
@@ -181,7 +245,7 @@ export async function POST(req: Request) {
         });
       }
 
-      const terminalVerification = await verifyIntaSendPayment({
+      const terminalVerification = await verifyDarajaPayment({
         invoiceId: String(invoiceId),
         expectedApiRef: canonicalRef,
         allowedProviderStates: providerStatesForTerminalState(gatewayState),
@@ -380,7 +444,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const verification = await verifyIntaSendPayment({
+    const verification = await verifyDarajaPayment({
       invoiceId: String(invoiceId),
       expectedApiRef: canonicalRef,
       expectedAmount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
@@ -432,9 +496,13 @@ export async function POST(req: Request) {
       });
     }
 
-    amount = verification.amount;
+    const verifiedAmount = verification.amount;
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (
+      typeof verifiedAmount !== "number" ||
+      !Number.isFinite(verifiedAmount) ||
+      verifiedAmount <= 0
+    ) {
       if (intentContext) {
         await prisma.$transaction(async (tx) => {
           await updateOnboardingFeePaymentIntentFromWebhook(tx, {
@@ -469,6 +537,8 @@ export async function POST(req: Request) {
         apiRef: canonicalRef,
       });
     }
+
+    amount = verifiedAmount;
 
     const pendingOnboarding = await prisma.transaction.findFirst({
       where: {
@@ -571,9 +641,9 @@ export async function POST(req: Request) {
 
       const successfulDescription = `Onboarding Fee Payment Settled [Ref:${refForKeys}]`;
       const partialDescription = `Onboarding Fee Partial Payment [Ref:${refForKeys}]`;
-      const pendingPaymentProviderRef = `INTASEND:ONBOARDING:PENDING:${refForKeys}`;
-      const partialPaymentProviderRef = `INTASEND:ONBOARDING:PARTIAL:${refForKeys}`;
-      const settledPaymentProviderRef = `INTASEND:ONBOARDING:SETTLED:${refForKeys}`;
+      const pendingPaymentProviderRef = `DARAJA:ONBOARDING:PENDING:${refForKeys}`;
+      const partialPaymentProviderRef = `DARAJA:ONBOARDING:PARTIAL:${refForKeys}`;
+      const settledPaymentProviderRef = `DARAJA:ONBOARDING:SETTLED:${refForKeys}`;
 
       const existingTx = await tx.transaction.findFirst({
         where: {
@@ -671,7 +741,7 @@ export async function POST(req: Request) {
               direction: "DEBIT",
               category: "ONBOARDING_FEE",
               currency: "KES",
-              gateway: "INTASEND",
+              gateway: "DARAJA",
               gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
               gatewaySessionId: invoiceId ? String(invoiceId) : null,
               providerRef: partialPaymentProviderRef,
@@ -708,7 +778,7 @@ export async function POST(req: Request) {
               direction: "DEBIT",
               category: "ONBOARDING_FEE",
               currency: "KES",
-              gateway: "INTASEND",
+              gateway: "DARAJA",
               gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
               gatewaySessionId: invoiceId ? String(invoiceId) : null,
               providerRef: partialPaymentProviderRef,
@@ -767,7 +837,7 @@ export async function POST(req: Request) {
               action: "ONBOARDING_FEE_PARTIAL_PAYMENT_REQUIRES_RESOLUTION",
               targetId: user.id,
               details: {
-                source: "intasend_webhook",
+                source: "daraja_webhook",
                 invoiceId: String(lockRef),
                 apiRef: canonicalRef,
                 expectedAmount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
@@ -819,7 +889,7 @@ export async function POST(req: Request) {
             direction: "DEBIT",
             category: "ONBOARDING_FEE",
             currency: "KES",
-            gateway: "INTASEND",
+            gateway: "DARAJA",
             gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
             gatewaySessionId: invoiceId ? String(invoiceId) : null,
             providerRef: settledPaymentProviderRef,
@@ -879,7 +949,7 @@ export async function POST(req: Request) {
             direction: "DEBIT",
             category: "ONBOARDING_FEE",
             currency: "KES",
-            gateway: "INTASEND",
+            gateway: "DARAJA",
             gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
             gatewaySessionId: invoiceId ? String(invoiceId) : null,
             providerRef: settledPaymentProviderRef,
@@ -935,7 +1005,7 @@ export async function POST(req: Request) {
             action: "ONBOARDING_FEE_PAID_ACCESS_GRANTED",
             targetId: user.id,
             details: {
-              source: "intasend_webhook",
+              source: "daraja_webhook",
               invoiceId: String(lockRef),
               apiRef: canonicalRef,
               actorUserId: user.id,

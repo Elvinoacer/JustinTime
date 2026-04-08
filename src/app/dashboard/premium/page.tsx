@@ -520,7 +520,7 @@ const PremiumPage = () => {
             {
               question: "What payment methods do you accept?",
               answer:
-                "We accept M-Pesa, credit/debit cards, and bank transfers via IntaSend.",
+                "We currently accept M-Pesa via Safaricom Daraja STK Push.",
             },
             {
               question: "Is there a refund policy?",

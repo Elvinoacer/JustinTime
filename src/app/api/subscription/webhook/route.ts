@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendSubscriptionActivationEmail } from "@/lib/email";
 import {
-  evaluateWebhookSignature,
-  verifyIntaSendPayment,
+  evaluateDarajaCallbackToken,
+  getDarajaCallbackTokenFromRequest,
+  verifyDarajaPayment,
   verifyWebhookChallenge,
-} from "@/lib/intasend";
+} from "@/lib/daraja";
 import { Prisma, SubscriptionPlan } from "@/generated/prisma/client";
-import {
-  IntaSendWebhookPayload,
-  parseIntaSendWebhook,
-} from "@/lib/intasend-webhook";
+import { DarajaWebhookPayload, parseDarajaWebhook } from "@/lib/daraja-webhook";
 import {
   buildPaymentWebhookDedupeKey,
   recordPaymentWebhookReceipt,
@@ -28,6 +26,69 @@ function buildDelegatedWebhookRequest(
     headers: new Headers(req.headers),
     body: rawBody,
   });
+}
+
+function hasMeaningfulValue(value: unknown): boolean {
+  if (value == null) {
+    return false;
+  }
+
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+
+  return true;
+}
+
+function isChallengeOnlyPayload(payload: DarajaWebhookPayload): boolean {
+  const challenge = payload.challenge;
+  if (typeof challenge !== "string" || challenge.trim().length === 0) {
+    return false;
+  }
+
+  const directPaymentFields = [
+    payload.state,
+    payload.status,
+    payload.api_ref,
+    payload.request_reference_id,
+    payload.reference_id,
+    payload.reference,
+    payload.tracking_id,
+    payload.invoice_id,
+    payload.id,
+    payload.value,
+  ];
+
+  if (directPaymentFields.some(hasMeaningfulValue)) {
+    return false;
+  }
+
+  const invoice =
+    payload.invoice &&
+    typeof payload.invoice === "object" &&
+    !Array.isArray(payload.invoice)
+      ? (payload.invoice as Record<string, unknown>)
+      : null;
+
+  if (
+    invoice &&
+    [
+      invoice.state,
+      invoice.status,
+      invoice.api_ref,
+      invoice.invoice_id,
+      invoice.id,
+      invoice.value,
+    ].some(hasMeaningfulValue)
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function parseSubscriptionRef(apiRef: string) {
@@ -102,17 +163,19 @@ function providerStatesForTerminalState(state: string): string[] {
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
-    const body = JSON.parse(rawBody) as IntaSendWebhookPayload;
+    const body = JSON.parse(rawBody) as DarajaWebhookPayload;
+    const challenge =
+      typeof body.challenge === "string" ? body.challenge.trim() : "";
 
-    if (body.challenge) {
-      if (verifyWebhookChallenge(body.challenge)) {
-        return NextResponse.json({ challenge: body.challenge });
+    if (isChallengeOnlyPayload(body)) {
+      if (verifyWebhookChallenge(challenge)) {
+        return NextResponse.json({ challenge });
       }
 
       return NextResponse.json({ error: "Invalid challenge" }, { status: 401 });
     }
 
-    const previewWebhook = parseIntaSendWebhook(body);
+    const previewWebhook = parseDarajaWebhook(body);
     const previewRef = String(
       previewWebhook.apiRef || previewWebhook.primaryReference || "",
     )
@@ -135,11 +198,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify webhook signature (IntaSend sends signature in headers)
-    const signature = req.headers.get("x-intasend-signature");
-    const signatureEvaluation = evaluateWebhookSignature(rawBody, signature);
+    const callbackToken =
+      getDarajaCallbackTokenFromRequest(req.url) ||
+      req.headers.get("x-daraja-callback-token") ||
+      req.headers.get("x-callback-token");
+    const signatureEvaluation = evaluateDarajaCallbackToken(callbackToken);
     if (signatureEvaluation.shouldReject) {
-      console.error("Invalid IntaSend webhook signature");
+      console.error("Invalid Daraja callback token");
       return NextResponse.json(
         { error: "Invalid webhook signature" },
         { status: 401 },
@@ -153,7 +218,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Log webhook for debugging
-    console.log("=== IntaSend Webhook Received ===");
+    console.log("=== Daraja Subscription Webhook Received ===");
     console.log("Payload:", JSON.stringify(body, null, 2));
 
     const webhook = previewWebhook;
@@ -162,8 +227,8 @@ export async function POST(req: NextRequest) {
     ).trim();
     const gatewayState = webhook.state;
     const invoiceId = webhook.invoiceId || webhook.sessionId;
-    const pendingProviderRef = `INTASEND:SUBSCRIPTION:PENDING:${canonicalRef}`;
-    const settledProviderRef = `INTASEND:SUBSCRIPTION:SETTLED:${canonicalRef}`;
+    const pendingProviderRef = `DARAJA:SUBSCRIPTION:PENDING:${canonicalRef}`;
+    const settledProviderRef = `DARAJA:SUBSCRIPTION:SETTLED:${canonicalRef}`;
 
     if (!canonicalRef) {
       return NextResponse.json({
@@ -247,7 +312,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      const terminalVerification = await verifyIntaSendPayment({
+      const terminalVerification = await verifyDarajaPayment({
         invoiceId: String(invoiceId),
         expectedApiRef: canonicalRef,
         allowedProviderStates: providerStatesForTerminalState(gatewayState),
@@ -404,11 +469,14 @@ export async function POST(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    const metadata = ((body.meta as unknown) ||
-      webhook.invoice?.meta ||
-      {}) as {
+    const rawMetadata = ((body.meta as unknown) || webhook.metadata || {}) as {
       userId?: string;
       plan?: string;
+    };
+    const metadata = {
+      userId:
+        typeof rawMetadata.userId === "string" ? rawMetadata.userId : undefined,
+      plan: typeof rawMetadata.plan === "string" ? rawMetadata.plan : undefined,
     };
     const parsedApiRef = parseSubscriptionRef(canonicalRef);
     const pendingSubscription = await prisma.transaction.findFirst({
@@ -575,7 +643,7 @@ export async function POST(req: NextRequest) {
     }
 
     const expectedAmount = Number(pendingSubscription.amount || 0);
-    const verification = await verifyIntaSendPayment({
+    const verification = await verifyDarajaPayment({
       invoiceId: String(invoiceId),
       expectedApiRef: canonicalRef,
       expectedAmount,
@@ -625,9 +693,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const amount = verification.amount;
+    const settledAmount = Number(verification.amount);
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (!Number.isFinite(settledAmount) || settledAmount <= 0) {
       await prisma.$transaction(async (tx) => {
         await updateSubscriptionPaymentIntentFromWebhook(tx, {
           userId: pendingSubscription.wallet.userId,
@@ -673,8 +741,8 @@ export async function POST(req: NextRequest) {
       const lockRef = canonicalRef;
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockRef}, 0))`;
       const refForKeys = lockRef;
-      const pendingSubscriptionProviderRef = `INTASEND:SUBSCRIPTION:PENDING:${refForKeys}`;
-      const settledSubscriptionProviderRef = `INTASEND:SUBSCRIPTION:SETTLED:${refForKeys}`;
+      const pendingSubscriptionProviderRef = `DARAJA:SUBSCRIPTION:PENDING:${refForKeys}`;
+      const settledSubscriptionProviderRef = `DARAJA:SUBSCRIPTION:SETTLED:${refForKeys}`;
 
       let wallet = await tx.wallet.findUnique({
         where: { userId },
@@ -724,7 +792,7 @@ export async function POST(req: NextRequest) {
           sourceId: existingSubscriptionRecord.id,
           apiRef: canonicalRef,
           amountExpected: Number(pendingSubscription.amount),
-          amountReceived: amount,
+          amountReceived: settledAmount,
           currency: pendingSubscription.currency || "KES",
           gatewayState: "SETTLED",
           gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
@@ -774,15 +842,12 @@ export async function POST(req: NextRequest) {
         await tx.transaction.update({
           where: { id: pendingRecord.id },
           data: {
-            amount:
-              Number.isFinite(amount) && amount > 0
-                ? amount
-                : pendingRecord.amount,
+            amount: settledAmount,
             status: "SETTLED",
             direction: "DEBIT",
             category: "SUBSCRIPTION",
             currency: "KES",
-            gateway: "INTASEND",
+            gateway: "DARAJA",
             gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
             gatewaySessionId: invoiceId ? String(invoiceId) : null,
             providerRef: settledSubscriptionProviderRef,
@@ -813,13 +878,13 @@ export async function POST(req: NextRequest) {
         await tx.transaction.create({
           data: {
             walletId: wallet.id,
-            amount: Number.isFinite(amount) && amount > 0 ? amount : 0,
+            amount: settledAmount,
             type: "PAYMENT",
             status: "SETTLED",
             direction: "DEBIT",
             category: "SUBSCRIPTION",
             currency: "KES",
-            gateway: "INTASEND",
+            gateway: "DARAJA",
             gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
             gatewaySessionId: invoiceId ? String(invoiceId) : null,
             providerRef: settledSubscriptionProviderRef,
@@ -851,7 +916,7 @@ export async function POST(req: NextRequest) {
         sourceId: subscriptionRecord.id,
         apiRef: canonicalRef,
         amountExpected: Number(pendingSubscription.amount),
-        amountReceived: amount,
+        amountReceived: settledAmount,
         currency: pendingSubscription.currency || "KES",
         gatewayState: "SETTLED",
         gatewayInvoiceId: invoiceId ? String(invoiceId) : null,

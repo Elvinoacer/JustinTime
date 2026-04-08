@@ -152,7 +152,7 @@ This document is the full capability map of the JustInTime application, covering
 - Balance endpoint for current available funds.
 - Transactions endpoint for financial history.
 - Wallet top-up initiation and verification routes.
-- IntaSend webhook processing for financial settlement updates.
+- Daraja STK Push webhook processing for financial settlement updates.
 
 ### 5.2 Provider Revenue and Monetization
 
@@ -349,7 +349,7 @@ This document is the full capability map of the JustInTime application, covering
 
 ### 12.3 External Integrations
 
-- IntaSend payment flows and webhook handlers.
+- Daraja STK Push payment flows and webhook handlers.
 - Firebase and Firebase Admin integrations.
 - WhatsApp webhook and service integration.
 - S3 integration for media and document workflows.

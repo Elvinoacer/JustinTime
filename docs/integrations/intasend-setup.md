@@ -1,4 +1,6 @@
-# IntaSend Configuration
+# Legacy IntaSend Configuration (Deprecated)
+
+> This project has migrated payment flows to Daraja STK Push. Keep this file only for historical reference. Use `docs/integrations/daraja-setup.md` for active configuration.
 
 # Get your API keys from https://intasend.com/ dashboard
 

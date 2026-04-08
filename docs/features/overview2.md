@@ -1,7 +1,7 @@
 # JustInTime — Complete Feature Documentation
 
 **Platform:** Kenyan Service Marketplace  
-**Stack:** Next.js App Router · TypeScript · Prisma · PostgreSQL · NextAuth · IntaSend · M-Pesa  
+**Stack:** Next.js App Router · TypeScript · Prisma · PostgreSQL · NextAuth · Daraja STK Push · M-Pesa  
 **Last Updated:** April 2026
 
 ---
@@ -347,7 +347,7 @@
 - **10.1.3** Financial transaction history at `/api/wallet/transactions`.
 - **10.1.4** Wallet top-up initiation at `/api/wallet/topup`.
 - **10.1.5** Top-up verification at `/api/wallet/verify`.
-- **10.1.6** IntaSend webhook processing for settlement at `/api/wallet/webhook`.
+- **10.1.6** Daraja STK Push webhook processing for settlement at `/api/wallet/webhook`.
 - **10.1.7** Top-up completion page at `/dashboard/wallet/topup-complete`.
 - **10.1.8** Client wallet page at `/client/wallet`.
 - **10.1.9** Wallet and transaction models: `Wallet`, `Transaction`, `Payment`.
@@ -682,8 +682,8 @@
 
 ### 21.1 Payment & Financial
 
-- **21.1.1** **IntaSend** — M-Pesa wallet top-ups, subscription renewals, onboarding fee payments, with dedicated webhook handlers.
-- **21.1.2** M-Pesa STK Push orchestrated via IntaSend for all payment flows.
+- **21.1.1** **Daraja STK Push** — M-Pesa wallet top-ups, subscription renewals, onboarding fee payments, with dedicated webhook handlers.
+- **21.1.2** M-Pesa STK Push orchestrated via Daraja for all payment flows.
 
 ### 21.2 Communication
 
@@ -735,7 +735,7 @@
 
 - **23.3.1** NextAuth session and CSRF protection.
 - **23.3.2** Two-factor authentication enforcement layer.
-- **23.3.3** Webhook signature verification for IntaSend and WhatsApp.
+- **23.3.3** Webhook signature/token verification for Daraja and WhatsApp.
 - **23.3.4** Role-based route protection across Client, Provider, and Admin surfaces.
 - **23.3.5** Proxy session model for masked user-to-user communication.
 
@@ -876,9 +876,9 @@
 
 | Route                         | Source        | Purpose                   |
 | ----------------------------- | ------------- | ------------------------- |
-| `/api/wallet/webhook`         | IntaSend      | Wallet top-up settlement  |
-| `/api/onboarding-fee/webhook` | IntaSend      | Fee payment sync          |
-| `/api/subscription/webhook`   | IntaSend      | Subscription renewal sync |
+| `/api/wallet/webhook`         | Daraja        | Wallet top-up settlement  |
+| `/api/onboarding-fee/webhook` | Daraja        | Fee payment sync          |
+| `/api/subscription/webhook`   | Daraja        | Subscription renewal sync |
 | `/api/webhooks/whatsapp`      | Meta/WhatsApp | Inbound WhatsApp events   |
 
 ---

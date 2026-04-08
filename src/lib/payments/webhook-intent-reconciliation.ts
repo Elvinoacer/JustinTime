@@ -201,7 +201,7 @@ export async function getWebhookIntentReconciliation(
         r."dedupeKey",
         r."processedAt"
       FROM "PaymentWebhookReceipt" r
-      WHERE r."gateway" = 'INTASEND'::"WalletGateway"
+      WHERE r."gateway"::text IN ('DARAJA', 'INTASEND')
         AND r."processedAt" >= ${lookbackStartedAt}
         AND (
           r."kind" IS NULL
@@ -245,7 +245,7 @@ export async function getWebhookIntentReconciliation(
           i."apiRef",
           i."invoiceId"
         FROM "PaymentIntent" i
-        WHERE i."gateway" = 'INTASEND'::"WalletGateway"
+        WHERE i."gateway"::text IN ('DARAJA', 'INTASEND')
           AND i."kind"::text IN ('WALLET_TOPUP', 'ONBOARDING_FEE', 'SUBSCRIPTION')
           AND (${apiRefCondition} OR ${invoiceCondition})
         ORDER BY i."updatedAt" DESC;
@@ -322,7 +322,7 @@ export async function getWebhookIntentReconciliation(
         i."updatedAt",
         i."createdAt"
       FROM "PaymentIntent" i
-      WHERE i."gateway" = 'INTASEND'::"WalletGateway"
+      WHERE i."gateway"::text IN ('DARAJA', 'INTASEND')
         AND i."kind"::text IN ('WALLET_TOPUP', 'ONBOARDING_FEE', 'SUBSCRIPTION')
         AND i."updatedAt" >= ${lookbackStartedAt}
         AND i."status"::text IN ('VERIFIED_FAILED', 'PROCESSING')

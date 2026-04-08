@@ -1,11 +1,8 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyIntaSendPayment } from "@/lib/intasend";
-import {
-  IntaSendWebhookPayload,
-  normalizeIntaSendState,
-} from "@/lib/intasend-webhook";
+import { verifyDarajaPayment } from "@/lib/daraja";
+import { DarajaWebhookPayload } from "@/lib/daraja-webhook";
 import { POST as handleWalletWebhook } from "@/app/api/wallet/webhook/route";
 import {
   getWalletSchemaOutOfSyncMessage,
@@ -18,7 +15,7 @@ function isTerminalTopUpStatus(status: string): boolean {
 
 function buildSyntheticWebhookRequest(
   url: string,
-  payload: IntaSendWebhookPayload,
+  payload: DarajaWebhookPayload,
 ): Request {
   return new Request(url, {
     method: "POST",
@@ -82,18 +79,22 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Top-up not found" }, { status: 404 });
     }
 
-    if (!isTerminalTopUpStatus(topUp.status) && trackingId) {
+    const verificationReference =
+      trackingId ||
+      checkoutId ||
+      topUp.gatewaySessionId ||
+      topUp.gatewayInvoiceId;
+
+    if (!isTerminalTopUpStatus(topUp.status) && verificationReference) {
       try {
-        const providerSnapshot = await verifyIntaSendPayment({
-          invoiceId: trackingId,
+        const providerSnapshot = await verifyDarajaPayment({
+          invoiceId: verificationReference,
           expectedApiRef: topUp.apiRef,
           expectedAmount: Number(topUp.amountExpected),
           expectedCurrency: topUp.currency || "KES",
         });
 
-        const canonicalProviderState = normalizeIntaSendState(
-          providerSnapshot.providerState,
-        );
+        const canonicalProviderState = providerSnapshot.providerState;
         const shouldForwardSettled =
           canonicalProviderState === "SETTLED" && providerSnapshot.ok;
         const shouldForwardTerminal =
@@ -102,11 +103,23 @@ export async function GET(req: Request) {
           ) && providerSnapshot.apiRefMatches;
 
         if (shouldForwardSettled || shouldForwardTerminal) {
-          const syntheticPayload: IntaSendWebhookPayload = {
-            invoice_id: trackingId,
-            state: providerSnapshot.providerState || "PROCESSING",
+          const syntheticPayload: DarajaWebhookPayload = {
+            CheckoutRequestID: verificationReference,
+            MerchantRequestID:
+              topUp.gatewayInvoiceId ||
+              topUp.gatewaySessionId ||
+              verificationReference,
+            ResultCode:
+              canonicalProviderState === "SETTLED"
+                ? 0
+                : canonicalProviderState === "CANCELLED"
+                  ? 1032
+                  : 1,
+            ResultDesc: providerSnapshot.providerState || "PROCESSING",
             api_ref: topUp.apiRef,
-            id: checkoutId || topUp.gatewaySessionId || trackingId,
+            Amount:
+              providerSnapshot.amount ?? Number(topUp.amountExpected || 0),
+            id: checkoutId || topUp.gatewaySessionId || verificationReference,
             provider: "REDIRECT_STATUS_RECOVERY",
           };
 
