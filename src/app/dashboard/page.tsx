@@ -84,6 +84,20 @@ type DashboardJobResponseItem = {
   [key: string]: unknown;
 };
 
+const createDefaultFilters = (): DashboardFilters => ({
+  search: "",
+  category: "",
+  location: "",
+  budgetMin: "",
+  budgetMax: "",
+  status: "",
+});
+
+const countActiveFilters = (value: DashboardFilters) =>
+  Object.entries(value).filter(
+    ([key, currentValue]) => Boolean(currentValue) && key !== "status",
+  ).length;
+
 const DashboardPage = () => {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
@@ -99,15 +113,10 @@ const DashboardPage = () => {
   const [locationLoading, setLocationLoading] = useState(false);
 
   // Filter and sort state
-  const [filters, setFilters] = useState<DashboardFilters>({
-    search: "",
-    category: "",
-    location: "",
-    budgetMin: "",
-    budgetMax: "",
-    status: "", // Default to ALL
-  });
-
+  const [filters, setFilters] =
+    useState<DashboardFilters>(createDefaultFilters);
+  const [mobileDraftFilters, setMobileDraftFilters] =
+    useState<DashboardFilters>(createDefaultFilters);
   const [sortBy, setSortBy] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
@@ -287,18 +296,25 @@ const DashboardPage = () => {
       })
       .filter((job) => job.id.length > 0);
   }, [jobsData?.items]);
+
   const totalJobs = jobsData?.pagination?.total ?? 0;
   const hasMore = jobsData?.pagination?.hasMore ?? false;
   const categories = categoriesData?.data || [];
 
+  const firstName = useMemo(() => {
+    const value = session?.user?.name?.trim();
+    if (!value) return "there";
+    return value.split(" ")[0] || "there";
+  }, [session?.user?.name]);
+
   const activeFilterCount = useMemo(
-    () =>
-      Object.entries(filters).filter(
-        ([key, value]) => value && key !== "status",
-      ).length,
+    () => countActiveFilters(filters),
     [filters],
   );
-
+  const mobileDraftFilterCount = useMemo(
+    () => countActiveFilters(mobileDraftFilters),
+    [mobileDraftFilters],
+  );
   const openJobsCount = useMemo(
     () => rawJobs.filter((job) => job.status === "OPEN").length,
     [rawJobs],
@@ -315,6 +331,14 @@ const DashboardPage = () => {
   const shouldShowServiceSetupPrompt =
     hasRole(session?.user, "PROVIDER") && providerServices.length === 0;
 
+  const mobileQuickActions = [
+    { label: "Jobs", href: "/dashboard/jobs", icon: "work" },
+    { label: "Requests", href: "/dashboard/requests", icon: "inbox" },
+    { label: "Bookings", href: "/dashboard/bookings", icon: "calendar_month" },
+    { label: "Earnings", href: "/dashboard/earnings", icon: "payments" },
+    { label: "Profile", href: "/dashboard/profile", icon: "person" },
+  ];
+
   const handleSortChange = (
     newSortBy: string,
     newSortOrder: "asc" | "desc",
@@ -327,100 +351,136 @@ const DashboardPage = () => {
   const handleFilterChange = (newFilters: DashboardFilters) => {
     setFilters(newFilters);
     setCurrentPage(1);
-    if (isMobile) setShowFilters(false);
   };
 
   const resetFilters = () => {
-    setFilters({
-      search: "",
-      category: "",
-      location: "",
-      budgetMin: "",
-      budgetMax: "",
-      status: "",
-    });
+    const clearedFilters = createDefaultFilters();
+    setFilters(clearedFilters);
+    setMobileDraftFilters(clearedFilters);
     setCurrentPage(1);
-    if (isMobile) setShowFilters(false);
+    setShowFilters(false);
+  };
+
+  const openMobileFilters = () => {
+    setMobileDraftFilters(filters);
+    setShowFilters(true);
+  };
+
+  const closeMobileFilters = () => {
+    setShowFilters(false);
+  };
+
+  const applyMobileFilters = () => {
+    setFilters(mobileDraftFilters);
+    setCurrentPage(1);
+    setShowFilters(false);
+  };
+
+  const resetMobileDraftFilters = () => {
+    setMobileDraftFilters(createDefaultFilters());
   };
 
   return (
     <div
-      className="relative space-y-4 lg:space-y-8 pb-8 lg:pb-12 px-4 sm:px-6 lg:px-0"
+      className="relative space-y-3 lg:space-y-8 pb-28 lg:pb-12 px-3 sm:px-6 lg:px-0"
       style={{ fontFamily: '"Work Sans", "Noto Sans", sans-serif' }}
     >
-      <div className="pointer-events-none absolute -top-10 right-0 h-44 w-44 rounded-full bg-emerald-100/60 blur-3xl" />
-      <div className="pointer-events-none absolute top-56 -left-8 h-40 w-40 rounded-full bg-cyan-100/50 blur-3xl" />
+      <div className="pointer-events-none absolute -top-10 right-0 h-44 w-44 rounded-full bg-emerald-100/60 blur-3xl hidden lg:block" />
+      <div className="pointer-events-none absolute top-56 -left-8 h-40 w-40 rounded-full bg-cyan-100/50 blur-3xl hidden lg:block" />
 
-      {/* Mobile Filter Toggle */}
       {isMobile && (
         <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="fixed bottom-6 right-6 z-50 h-14 rounded-full bg-linear-to-r from-emerald-600 to-teal-600 text-white shadow-2xl flex items-center justify-center hover:from-emerald-700 hover:to-teal-700 transition-colors px-5"
-          aria-label={showFilters ? "Hide filters" : "Show filters"}
+          onClick={() => {
+            if (showFilters) {
+              closeMobileFilters();
+            } else {
+              openMobileFilters();
+            }
+          }}
+          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-40 h-12 min-w-[122px] rounded-full bg-linear-to-r from-emerald-600 to-teal-600 text-white shadow-xl flex items-center justify-center hover:from-emerald-700 hover:to-teal-700 transition-colors px-4"
+          aria-label={showFilters ? "Close filters" : "Open filters"}
         >
-          <span className="material-symbols-outlined text-2xl mr-1">
-            {showFilters ? "close" : "filter_list"}
+          <span className="material-symbols-outlined text-xl mr-1.5">
+            {showFilters ? "close" : "tune"}
           </span>
-          <span className="text-sm font-semibold">Filters</span>
+          <span className="text-sm font-semibold">
+            {showFilters
+              ? "Close"
+              : activeFilterCount > 0
+                ? `Filters (${activeFilterCount})`
+                : "Filters"}
+          </span>
         </button>
       )}
 
-      {/* Header */}
-      <header className="relative overflow-hidden rounded-3xl border border-emerald-100 bg-linear-to-br from-white via-emerald-50/40 to-cyan-50/60 p-5 sm:p-7 lg:p-8 shadow-sm">
-        <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-emerald-200/40" />
-        <div className="absolute right-16 bottom-0 h-16 w-16 rounded-full bg-cyan-200/40" />
+      <header className="relative overflow-hidden rounded-2xl lg:rounded-3xl border border-emerald-100 bg-linear-to-br from-white via-emerald-50/40 to-cyan-50/60 p-4 sm:p-6 lg:p-8 shadow-sm">
+        <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-emerald-200/40 hidden lg:block" />
+        <div className="absolute right-16 bottom-0 h-16 w-16 rounded-full bg-cyan-200/40 hidden lg:block" />
 
         <div className="relative flex flex-col lg:flex-row lg:items-end justify-between gap-4 lg:gap-6">
-          <div className="space-y-2 lg:space-y-3">
-            <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-emerald-700 font-semibold">
-              Provider Command Center
-            </p>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-gray-900 tracking-tight">
-              Find Jobs
+          <div className="space-y-2">
+            {!isMobile && (
+              <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-emerald-700 font-semibold">
+                Provider Command Center
+              </p>
+            )}
+            <h1
+              className={`${
+                isMobile
+                  ? "text-xl"
+                  : "text-2xl sm:text-3xl lg:text-4xl xl:text-5xl"
+              } font-extrabold text-gray-900 tracking-tight`}
+            >
+              {isMobile ? "Jobs" : "Find Jobs"}
             </h1>
-            <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-2xl">
+            <p
+              className={`${
+                isMobile
+                  ? "text-sm leading-5"
+                  : "text-sm sm:text-base lg:text-lg"
+              } text-gray-600 max-w-2xl`}
+            >
               Welcome back,{" "}
               <span className="font-semibold text-emerald-600">
-                {session?.user?.name}
+                {firstName}
               </span>
-              ! Discover your next opportunity.
-              {userLocation?.city && (
-                <span className="ml-2 inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs sm:text-sm font-medium">
-                  <span className="material-symbols-outlined text-xs sm:text-sm">
-                    location_on
-                  </span>
-                  {userLocation.city}
-                </span>
-              )}
+              {!isMobile && "! Discover your next opportunity."}
             </p>
 
-            <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex flex-wrap gap-2">
+              {userLocation?.city && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">
+                  <span className="material-symbols-outlined text-sm">
+                    location_on
+                  </span>
+                  <span className="max-w-44 truncate">{userLocation.city}</span>
+                </span>
+              )}
+              {activeFilterCount > 0 && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-white border border-gray-200 text-gray-700">
+                  {activeFilterCount} filter{activeFilterCount > 1 ? "s" : ""}
+                </span>
+              )}
+              {sortBy === "distance" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-white border border-cyan-200 text-cyan-700">
+                  Nearby
+                </span>
+              )}
               {locationLoading && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-white border border-emerald-200 text-emerald-700">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-white border border-emerald-200 text-emerald-700">
                   <span className="material-symbols-outlined text-sm animate-spin">
                     progress_activity
                   </span>
                   Detecting location
                 </span>
               )}
-              {activeFilterCount > 0 && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-white border border-gray-200 text-gray-700">
-                  {activeFilterCount} active filter
-                  {activeFilterCount > 1 ? "s" : ""}
-                </span>
-              )}
-              {sortBy === "recommended" && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-white border border-indigo-200 text-indigo-700">
-                  Personalized order
-                </span>
-              )}
             </div>
           </div>
-          {/* Only show Post Job button for CLIENT role */}
+
           {hasRole(session?.user, "CLIENT") && (
             <Link
               href="/client/post-job"
-              className="flex items-center justify-center gap-2 bg-gray-900 text-white px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl active:transform active:scale-95 group w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 h-11 bg-gray-900 text-white px-4 sm:px-6 sm:h-auto sm:py-3 sm:rounded-2xl rounded-xl hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl active:transform active:scale-95 group w-full sm:w-auto"
             >
               <span
                 className="material-symbols-outlined text-lg sm:text-xl group-hover:rotate-90 transition-transform"
@@ -437,10 +497,10 @@ const DashboardPage = () => {
       </header>
 
       {shouldShowServiceSetupPrompt && (
-        <section className="bg-linear-to-r from-amber-50 via-orange-50 to-yellow-50 border border-amber-200 rounded-2xl p-5 sm:p-6 lg:p-7">
+        <section className="bg-linear-to-r from-amber-50 via-orange-50 to-yellow-50 border border-amber-200 rounded-2xl p-4 sm:p-6 lg:p-7">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-amber-900">
+              <h2 className="text-base sm:text-xl font-bold text-amber-900">
                 Set up your profile before taking jobs
               </h2>
               <p className="text-sm sm:text-base text-amber-800 mt-1 max-w-2xl">
@@ -471,114 +531,193 @@ const DashboardPage = () => {
         </section>
       )}
 
-      {/* Quick Stats */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white p-4 lg:p-6 rounded-xl lg:rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group"
-        >
-          <div className="absolute top-0 right-0 w-16 h-16 lg:w-32 lg:h-32 bg-emerald-50 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-500" />
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 lg:gap-4 mb-2 lg:mb-3">
-              <div className="p-2 lg:p-3 bg-emerald-100 text-emerald-600 rounded-lg lg:rounded-xl">
-                <span className="material-symbols-outlined text-xl lg:text-2xl">
-                  work
-                </span>
-              </div>
-              <p className="text-xs lg:text-sm text-gray-500 font-medium uppercase tracking-wider">
-                Total Jobs
+      {isMobile ? (
+        <section className="rounded-xl border border-gray-200 bg-white shadow-sm p-3">
+          <div className="grid grid-cols-3 divide-x divide-gray-100">
+            <div className="px-2">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">
+                Jobs
+              </p>
+              <p className="text-lg font-bold text-gray-900">{totalJobs}</p>
+            </div>
+            <div className="px-2">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">
+                Open
+              </p>
+              <p className="text-lg font-bold text-gray-900">
+                {filters.status === "OPEN" ? totalJobs : openJobsCount}
               </p>
             </div>
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-              {totalJobs}
-            </p>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white p-4 lg:p-6 rounded-xl lg:rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group"
-        >
-          <div className="absolute top-0 right-0 w-16 h-16 lg:w-32 lg:h-32 bg-blue-50 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-500" />
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 lg:gap-4 mb-2 lg:mb-3">
-              <div className="p-2 lg:p-3 bg-blue-100 text-blue-600 rounded-lg lg:rounded-xl">
-                <span className="material-symbols-outlined text-xl lg:text-2xl">
-                  search
-                </span>
-              </div>
-              <p className="text-xs lg:text-sm text-gray-500 font-medium uppercase tracking-wider">
-                Open Jobs
+            <div className="px-2">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">
+                Filters
+              </p>
+              <p className="text-lg font-bold text-gray-900">
+                {activeFilterCount}
               </p>
             </div>
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-              {filters.status === "OPEN" ? totalJobs : openJobsCount}
-            </p>
           </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white p-4 lg:p-6 rounded-xl lg:rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group sm:col-span-2 lg:col-span-1"
-        >
-          <div className="absolute top-0 right-0 w-16 h-16 lg:w-32 lg:h-32 bg-purple-50 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-500" />
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 lg:gap-4 mb-2 lg:mb-3">
-              <div className="p-2 lg:p-3 bg-purple-100 text-purple-600 rounded-lg lg:rounded-xl">
-                <span className="material-symbols-outlined text-xl lg:text-2xl">
-                  filter_list
-                </span>
+        </section>
+      ) : (
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white p-4 lg:p-6 rounded-xl lg:rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group"
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 lg:w-32 lg:h-32 bg-emerald-50 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-500" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 lg:gap-4 mb-2 lg:mb-3">
+                <div className="p-2 lg:p-3 bg-emerald-100 text-emerald-600 rounded-lg lg:rounded-xl">
+                  <span className="material-symbols-outlined text-xl lg:text-2xl">
+                    work
+                  </span>
+                </div>
+                <p className="text-xs lg:text-sm text-gray-500 font-medium uppercase tracking-wider">
+                  Total Jobs
+                </p>
               </div>
-              <p className="text-xs lg:text-sm text-gray-500 font-medium uppercase tracking-wider">
-                Filters Active
+              <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
+                {totalJobs}
               </p>
             </div>
-            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-              {activeFilterCount}
-            </p>
-          </div>
-        </motion.div>
-      </section>
+          </motion.div>
 
-      {/* Mobile Filter Overlay */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white p-4 lg:p-6 rounded-xl lg:rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group"
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 lg:w-32 lg:h-32 bg-blue-50 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-500" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 lg:gap-4 mb-2 lg:mb-3">
+                <div className="p-2 lg:p-3 bg-blue-100 text-blue-600 rounded-lg lg:rounded-xl">
+                  <span className="material-symbols-outlined text-xl lg:text-2xl">
+                    search
+                  </span>
+                </div>
+                <p className="text-xs lg:text-sm text-gray-500 font-medium uppercase tracking-wider">
+                  Open Jobs
+                </p>
+              </div>
+              <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
+                {filters.status === "OPEN" ? totalJobs : openJobsCount}
+              </p>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white p-4 lg:p-6 rounded-xl lg:rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group sm:col-span-2 lg:col-span-1"
+          >
+            <div className="absolute top-0 right-0 w-16 h-16 lg:w-32 lg:h-32 bg-purple-50 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-500" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 lg:gap-4 mb-2 lg:mb-3">
+                <div className="p-2 lg:p-3 bg-purple-100 text-purple-600 rounded-lg lg:rounded-xl">
+                  <span className="material-symbols-outlined text-xl lg:text-2xl">
+                    filter_list
+                  </span>
+                </div>
+                <p className="text-xs lg:text-sm text-gray-500 font-medium uppercase tracking-wider">
+                  Filters Active
+                </p>
+              </div>
+              <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
+                {activeFilterCount}
+              </p>
+            </div>
+          </motion.div>
+        </section>
+      )}
+
+      {isMobile && (
+        <section className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-900">
+              Quick Actions
+            </h2>
+            <span className="text-xs text-gray-500">Core tools</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {mobileQuickActions.map((action) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                className="min-w-[90px] h-12 rounded-xl border border-gray-200 bg-white shadow-sm flex flex-col items-center justify-center gap-0.5 text-gray-700 active:scale-[0.98]"
+              >
+                <span className="material-symbols-outlined text-base text-emerald-600">
+                  {action.icon}
+                </span>
+                <span className="text-[11px] font-semibold">
+                  {action.label}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {isMobile && showFilters && (
-        <div
-          className="fixed inset-0 bg-black/60 z-40"
-          onClick={() => setShowFilters(false)}
-        >
+        <>
           <div
-            className="absolute top-0 left-0 w-4/5 max-w-sm h-full bg-white shadow-2xl overflow-y-auto"
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={closeMobileFilters}
+          />
+          <div
+            className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] rounded-t-3xl bg-white shadow-2xl overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">Filters</h2>
+            <div className="flex justify-center pt-3">
+              <div className="h-1.5 w-12 rounded-full bg-gray-300" />
+            </div>
+            <div className="px-4 pb-3 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Filters</h2>
+                <p className="text-xs text-gray-500">
+                  {mobileDraftFilterCount} active
+                </p>
+              </div>
               <button
-                onClick={() => setShowFilters(false)}
+                onClick={closeMobileFilters}
                 className="p-2 hover:bg-gray-100 rounded-lg"
                 aria-label="Close filters"
               >
                 <span className="material-symbols-outlined text-xl">close</span>
               </button>
             </div>
-            <div className="p-4">
+            <div className="px-4 py-3 overflow-y-auto">
               <JobFilters
-                filters={filters}
-                onFilterChange={handleFilterChange}
+                filters={mobileDraftFilters}
+                onFilterChange={setMobileDraftFilters}
                 categories={categories}
                 isMobile={true}
+                mobileMode="sheet"
               />
             </div>
+            <div className="border-t border-gray-100 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={resetMobileDraftFilters}
+                className="h-11 rounded-xl border border-gray-300 text-gray-700 font-semibold"
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={applyMobileFilters}
+                className="h-11 rounded-xl bg-emerald-600 text-white font-semibold shadow-lg shadow-emerald-200"
+              >
+                Apply
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
-        {/* Filters Sidebar - Desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-8">
         {!isMobile && (
           <aside className="lg:col-span-1">
             <div className="sticky top-6">
@@ -591,17 +730,22 @@ const DashboardPage = () => {
           </aside>
         )}
 
-        {/* Jobs Grid */}
         <main
           className={`${
             isMobile ? "col-span-1" : "lg:col-span-3"
-          } space-y-6 lg:space-y-8`}
+          } space-y-4 lg:space-y-8`}
         >
-          {/* Sort and Results Count */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 lg:gap-4 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
-            <div className="text-xs sm:text-sm text-gray-600 flex items-center gap-2 flex-wrap">
+          <div className="sticky top-0 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 lg:gap-4 bg-white/95 backdrop-blur p-2.5 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
+            <div className="text-sm text-gray-600 flex items-center gap-2 flex-wrap">
               {jobsLoading ? (
                 <span>Loading jobs...</span>
+              ) : isMobile ? (
+                <span>
+                  <span className="font-semibold text-gray-900">
+                    {totalJobs}
+                  </span>{" "}
+                  jobs
+                </span>
               ) : (
                 <span>
                   Showing{" "}
@@ -613,32 +757,35 @@ const DashboardPage = () => {
               )}
               {filters.status && (
                 <span className="inline-flex items-center rounded-full border border-gray-200 px-2 py-0.5 text-[11px] font-semibold text-gray-600 bg-gray-50">
-                  Status: {filters.status.replace("_", " ")}
+                  {isMobile
+                    ? filters.status.replace(/_/g, " ")
+                    : `Status: ${filters.status.replace(/_/g, " ")}`}
                 </span>
               )}
             </div>
-            <JobSort
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              onSortChange={handleSortChange}
-              isMobile={isMobile}
-            />
+            <div className={isMobile ? "w-full" : undefined}>
+              <JobSort
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSortChange={handleSortChange}
+                isMobile={isMobile}
+              />
+            </div>
           </div>
 
-          {/* Jobs Grid */}
           {jobsLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3 lg:gap-6">
               {[...Array(isMobile ? 3 : 6)].map((_, i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-xl lg:rounded-2xl h-44 sm:h-52 animate-pulse shadow-sm border border-gray-100 relative overflow-hidden"
+                  className="bg-white rounded-xl lg:rounded-2xl h-40 sm:h-52 animate-pulse shadow-sm border border-gray-100 relative overflow-hidden"
                 />
               ))}
             </div>
           ) : jobs.length === 0 ? (
-            <div className="bg-white rounded-xl lg:rounded-2xl border border-gray-100 p-8 lg:p-16 text-center shadow-sm">
-              <div className="w-16 h-16 lg:w-24 lg:h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 lg:mb-6">
-                <span className="material-symbols-outlined text-gray-300 text-4xl lg:text-6xl">
+            <div className="bg-white rounded-xl lg:rounded-2xl border border-gray-100 p-5 sm:p-8 lg:p-16 text-center shadow-sm">
+              <div className="w-14 h-14 lg:w-24 lg:h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 lg:mb-6">
+                <span className="material-symbols-outlined text-gray-300 text-3xl lg:text-6xl">
                   work_off
                 </span>
               </div>
@@ -647,13 +794,13 @@ const DashboardPage = () => {
               </h3>
               <p className="text-sm lg:text-base text-gray-500 mb-6 lg:mb-8 max-w-md mx-auto">
                 {activeFilterCount > 0
-                  ? "We couldn't find any jobs matching your current filters. Try adjusting them to see more results."
-                  : "There are no jobs available at the moment. Please check back later!"}
+                  ? "We could not find jobs matching these filters. Try adjusting them."
+                  : "There are no jobs available at the moment. Please check back later."}
               </p>
               {activeFilterCount > 0 && (
                 <button
                   onClick={resetFilters}
-                  className="px-6 lg:px-8 py-2.5 lg:py-3 bg-emerald-600 text-white rounded-lg lg:rounded-xl hover:bg-emerald-700 transition-colors font-bold shadow-lg shadow-emerald-200 text-sm lg:text-base"
+                  className="h-11 px-6 lg:px-8 bg-emerald-600 text-white rounded-lg lg:rounded-xl hover:bg-emerald-700 transition-colors font-bold shadow-lg shadow-emerald-200 text-sm lg:text-base"
                 >
                   Clear All Filters
                 </button>
@@ -661,7 +808,7 @@ const DashboardPage = () => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3 lg:gap-6">
                 {jobs.map((job, index) => (
                   <JobCard
                     key={job.id}
@@ -672,12 +819,11 @@ const DashboardPage = () => {
                 ))}
               </div>
 
-              {/* Pagination */}
               {hasMore && (
                 <div className="flex justify-center pt-4 lg:pt-8">
                   <button
                     onClick={() => setCurrentPage((prev) => prev + 1)}
-                    className="px-8 lg:px-10 py-3 lg:py-4 bg-white border border-gray-200 text-gray-900 rounded-lg lg:rounded-xl font-bold hover:bg-gray-50 transition-all shadow-sm hover:shadow-md text-sm lg:text-base"
+                    className="h-11 px-7 lg:px-10 lg:h-auto lg:py-4 bg-white border border-gray-200 text-gray-900 rounded-lg lg:rounded-xl font-bold hover:bg-gray-50 transition-all shadow-sm hover:shadow-md text-sm lg:text-base"
                   >
                     Load More Jobs
                   </button>

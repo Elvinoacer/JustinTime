@@ -125,6 +125,11 @@ const JobCard: React.FC<JobCardProps> = ({
   const isHot =
     proposalCount >= 5 || (job.score !== undefined && job.score > 0.8);
 
+  const budgetLabel = job.budget
+    ? `KES ${job.budget.toLocaleString()}`
+    : "Negotiable";
+  const postedLabel = getRelativeTime(job.createdAt);
+
   const urgencyLabel =
     daysLeft === null
       ? null
@@ -134,14 +139,107 @@ const JobCard: React.FC<JobCardProps> = ({
           ? "Deadline today"
           : `${daysLeft} day${daysLeft > 1 ? "s" : ""} left`;
 
+  if (isMobile) {
+    return (
+      <motion.article
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, delay: 0 }}
+        className={`bg-linear-to-br ${categoryStyle.bg} rounded-xl border ${categoryStyle.border} overflow-hidden shadow-sm`}
+      >
+        <div className="p-3.5">
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-base font-semibold text-gray-900 leading-5 line-clamp-2 flex-1">
+              {job.title}
+            </h3>
+            <div className="shrink-0 text-right">
+              <p className="text-[11px] uppercase tracking-wide text-gray-500 font-semibold">
+                Budget
+              </p>
+              <p className="text-lg font-bold text-emerald-700 leading-tight whitespace-nowrap">
+                {budgetLabel}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {job.category && (
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-1 ${categoryStyle.chip} ${categoryStyle.text} rounded-md text-xs font-semibold border ${categoryStyle.border}`}
+              >
+                {job.category.name}
+              </span>
+            )}
+
+            {job.distance !== null && job.distance !== undefined ? (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-semibold">
+                <span className="material-symbols-outlined text-sm">
+                  near_me
+                </span>
+                {job.distance < 1
+                  ? `${Math.round(job.distance * 1000)}m`
+                  : `${job.distance.toFixed(1)}km`}
+              </span>
+            ) : null}
+
+            {job.location && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-white/80 text-gray-600 rounded-md text-xs font-medium">
+                <span className="material-symbols-outlined text-sm">
+                  location_on
+                </span>
+                <span className="truncate max-w-28">{job.location}</span>
+              </span>
+            )}
+          </div>
+
+          <p className="mt-2 text-sm text-gray-600 line-clamp-2">
+            {job.description}
+          </p>
+
+          <div className="mt-3 flex items-center justify-between text-xs text-gray-500 gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="truncate font-medium text-gray-700">
+                {job.client?.name || "Client"}
+              </span>
+              {job.client?.verified && (
+                <span className="material-symbols-outlined text-sm text-emerald-600">
+                  verified
+                </span>
+              )}
+            </div>
+            <span className="shrink-0">{postedLabel}</span>
+          </div>
+
+          {urgencyLabel && (
+            <p className="mt-2 text-xs font-semibold text-red-600">
+              {urgencyLabel}
+            </p>
+          )}
+
+          <div className="mt-3">
+            <Link
+              href={`/jobs/${job.id}`}
+              onClick={() => onApply?.(job.id)}
+              aria-label={`View details for ${job.title}`}
+              className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 text-white font-semibold shadow-lg shadow-emerald-500/25"
+            >
+              <span>View</span>
+              <span className="material-symbols-outlined text-sm">
+                arrow_forward
+              </span>
+            </Link>
+          </div>
+        </div>
+      </motion.article>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.04 }}
-      className={`group relative bg-linear-to-br ${categoryStyle.bg} ${
-        isMobile ? "rounded-xl" : "rounded-2xl"
-      } overflow-hidden transition-all duration-300 hover:shadow-xl border ${categoryStyle.border}`}
+      className={`group relative bg-linear-to-br ${categoryStyle.bg} rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-xl border ${categoryStyle.border}`}
     >
       {(isUrgent || isHot) && (
         <div className="absolute top-3 right-3 z-10 flex gap-2">
@@ -178,7 +276,7 @@ const JobCard: React.FC<JobCardProps> = ({
         </div>
       )}
 
-      <div className={`${isMobile ? "p-4" : "p-5 sm:p-6"}`}>
+      <div className="p-5 sm:p-6">
         <div className="flex items-center flex-wrap gap-2 mb-3 pr-16">
           {job.category && (
             <span
@@ -207,11 +305,7 @@ const JobCard: React.FC<JobCardProps> = ({
           {job.title}
         </h3>
 
-        <p
-          className={`text-gray-600 ${
-            isMobile ? "text-xs line-clamp-2" : "text-sm line-clamp-2"
-          } mb-4`}
-        >
+        <p className="text-gray-600 text-sm line-clamp-2 mb-4">
           {job.description}
         </p>
 
@@ -329,9 +423,7 @@ const JobCard: React.FC<JobCardProps> = ({
             <motion.button
               type="button"
               onClick={() => onApply?.(job.id)}
-              className={`${
-                isMobile ? "px-3 py-2 text-xs" : "px-4 sm:px-5 py-2.5 text-sm"
-              } bg-linear-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all flex items-center gap-1.5`}
+              className="px-4 sm:px-5 py-2.5 text-sm bg-linear-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all flex items-center gap-1.5"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               aria-label={`View details for ${job.title}`}

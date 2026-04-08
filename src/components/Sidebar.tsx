@@ -10,7 +10,14 @@ import { useNotificationCounts } from "@/lib/hooks/useNotificationCounts";
 import { signOutWithNotificationCleanup } from "@/lib/auth/signOutWithNotificationCleanup";
 import WorkspaceSwitcher from "@/components/WorkspaceSwitcher";
 
-const navItems = [
+type NavItem = {
+  name: string;
+  href: string;
+  icon: string;
+  description: string;
+};
+
+const navItems: NavItem[] = [
   {
     name: "Dashboard",
     href: "/dashboard",
@@ -157,6 +164,53 @@ const navItems = [
   },
 ];
 
+const navGroups: Array<{ title: string; hrefs: string[] }> = [
+  {
+    title: "Work",
+    hrefs: [
+      "/dashboard",
+      "/dashboard/jobs",
+      "/dashboard/requests",
+      "/dashboard/bookings",
+      "/dashboard/messages",
+    ],
+  },
+  {
+    title: "Business",
+    hrefs: [
+      "/dashboard/services",
+      "/dashboard/earnings",
+      "/dashboard/wallet",
+      "/dashboard/invoices",
+      "/dashboard/expenses",
+      "/dashboard/analytics",
+      "/dashboard/solar",
+      "/dashboard/surge-pricing-demo",
+    ],
+  },
+  {
+    title: "Team",
+    hrefs: [
+      "/dashboard/team",
+      "/dashboard/team/jobs",
+      "/dashboard/team/members",
+      "/dashboard/team/payroll",
+    ],
+  },
+  {
+    title: "Account",
+    hrefs: [
+      "/dashboard/profile",
+      "/dashboard/verification",
+      "/dashboard/safety",
+      "/dashboard/reviews",
+      "/dashboard/achievements",
+      "/dashboard/loyalty",
+      "/dashboard/settings/tax",
+    ],
+  },
+];
+
 interface SidebarProps {
   onClose?: () => void;
   isCollapsed?: boolean;
@@ -182,6 +236,75 @@ const Sidebar = ({
     if (onClose) {
       onClose();
     }
+  };
+
+  const groupedNavItems = navGroups.map((group) => ({
+    title: group.title,
+    items: group.hrefs
+      .map((href) => navItems.find((item) => item.href === href))
+      .filter((item): item is NavItem => Boolean(item)),
+  }));
+
+  const renderNavLink = (item: NavItem) => {
+    const isActive =
+      pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+    return (
+      <li key={item.name}>
+        <Link
+          href={item.href}
+          onClick={handleLinkClick}
+          aria-current={isActive ? "page" : undefined}
+          aria-label={`${item.name} - ${item.description}`}
+          className={`group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
+            isActive
+              ? "bg-linear-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30"
+              : "text-gray-300 hover:bg-gray-800/50 hover:text-white"
+          } ${isCollapsed ? "justify-center" : ""}`}
+          title={isCollapsed ? item.name : undefined}
+        >
+          <motion.div
+            className={`flex items-center gap-3 w-full ${isCollapsed ? "justify-center" : ""}`}
+            whileHover={{ x: isActive || isCollapsed ? 0 : 4 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+          >
+            <span
+              className={`material-symbols-outlined text-xl shrink-0 ${
+                isActive
+                  ? "text-white"
+                  : "text-gray-400 group-hover:text-emerald-400"
+              }`}
+              aria-hidden="true"
+            >
+              {item.icon}
+            </span>
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-semibold block truncate">
+                  {item.name}
+                </span>
+                {!isActive && (
+                  <span className="text-xs text-gray-500 group-hover:text-gray-400 block truncate">
+                    {item.description}
+                  </span>
+                )}
+              </div>
+            )}
+            {isActive && !isCollapsed && (
+              <motion.div
+                layoutId="activeIndicator"
+                className="w-1.5 h-1.5 bg-white rounded-full shrink-0"
+                transition={{
+                  type: "spring",
+                  stiffness: 500,
+                  damping: 30,
+                }}
+              />
+            )}
+          </motion.div>
+        </Link>
+      </li>
+    );
   };
 
   return (
@@ -242,69 +365,20 @@ const Sidebar = ({
           scrollbarColor: "#374151 transparent",
         }}
       >
-        <ul className="flex flex-col gap-1" role="list">
-          {navItems.map((item) => {
-            const isActive =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
-
-            return (
-              <li key={item.name}>
-                <Link
-                  href={item.href}
-                  onClick={handleLinkClick}
-                  aria-current={isActive ? "page" : undefined}
-                  aria-label={`${item.name} - ${item.description}`}
-                  className={`group flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
-                    isActive
-                      ? "bg-linear-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30"
-                      : "text-gray-300 hover:bg-gray-800/50 hover:text-white"
-                  } ${isCollapsed ? "justify-center" : ""}`}
-                  title={isCollapsed ? item.name : undefined}
-                >
-                  <motion.div
-                    className={`flex items-center gap-3 w-full ${isCollapsed ? "justify-center" : ""}`}
-                    whileHover={{ x: isActive || isCollapsed ? 0 : 4 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                  >
-                    <span
-                      className={`material-symbols-outlined text-xl shrink-0 ${
-                        isActive
-                          ? "text-white"
-                          : "text-gray-400 group-hover:text-emerald-400"
-                      }`}
-                      aria-hidden="true"
-                    >
-                      {item.icon}
-                    </span>
-                    {!isCollapsed && (
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm font-semibold block truncate">
-                          {item.name}
-                        </span>
-                        {!isActive && (
-                          <span className="text-xs text-gray-500 group-hover:text-gray-400 block truncate">
-                            {item.description}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {isActive && !isCollapsed && (
-                      <motion.div
-                        layoutId="activeIndicator"
-                        className="w-1.5 h-1.5 bg-white rounded-full shrink-0"
-                        transition={{
-                          type: "spring",
-                          stiffness: 500,
-                          damping: 30,
-                        }}
-                      />
-                    )}
-                  </motion.div>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="space-y-4">
+          {groupedNavItems.map((group) => (
+            <div key={group.title} className="space-y-1">
+              {!isCollapsed && (
+                <p className="px-3 text-[11px] uppercase tracking-[0.12em] text-gray-500 font-semibold">
+                  {group.title}
+                </p>
+              )}
+              <ul className="flex flex-col gap-1" role="list">
+                {group.items.map(renderNavLink)}
+              </ul>
+            </div>
+          ))}
+        </div>
 
         {/* Divider */}
         <div className="my-4 border-t border-gray-700/50" />

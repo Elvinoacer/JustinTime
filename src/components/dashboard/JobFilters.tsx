@@ -16,6 +16,7 @@ interface JobFiltersProps {
   onFilterChange: (filters: DashboardFilters) => void;
   categories?: Array<{ id: string; name: string; slug: string }>;
   isMobile?: boolean;
+  mobileMode?: "accordion" | "sheet";
 }
 
 const JobFilters: React.FC<JobFiltersProps> = ({
@@ -23,12 +24,14 @@ const JobFilters: React.FC<JobFiltersProps> = ({
   onFilterChange,
   categories = [],
   isMobile = false,
+  mobileMode = "accordion",
 }) => {
-  const [isExpanded, setIsExpanded] = useState(!isMobile);
+  const isSheetMode = isMobile && mobileMode === "sheet";
+  const [isExpanded, setIsExpanded] = useState(!isMobile || isSheetMode);
 
   useEffect(() => {
-    setIsExpanded(!isMobile);
-  }, [isMobile]);
+    setIsExpanded(!isMobile || isSheetMode);
+  }, [isMobile, isSheetMode]);
 
   const handleChange = (key: string, value: string) => {
     onFilterChange({ ...filters, [key]: value } as DashboardFilters);
@@ -53,7 +56,7 @@ const JobFilters: React.FC<JobFiltersProps> = ({
     [filters],
   );
 
-  const showFiltersPanel = !isMobile || isExpanded;
+  const showFiltersPanel = !isMobile || isExpanded || isSheetMode;
 
   const budgetRangeLabel =
     filters.budgetMin && filters.budgetMax
@@ -74,13 +77,15 @@ const JobFilters: React.FC<JobFiltersProps> = ({
   return (
     <div
       className={`bg-white/95 backdrop-blur ${
-        isMobile
-          ? "rounded-xl shadow-lg border border-emerald-100"
-          : "rounded-2xl shadow-sm border border-gray-200"
+        isSheetMode
+          ? "rounded-none border-0 shadow-none"
+          : isMobile
+            ? "rounded-xl shadow-lg border border-emerald-100"
+            : "rounded-2xl shadow-sm border border-gray-200"
       } overflow-hidden`}
     >
       {/* Mobile Toggle */}
-      {isMobile && (
+      {isMobile && !isSheetMode && (
         <button
           className="w-full p-4 flex items-center justify-between text-left font-semibold text-gray-900 hover:bg-gray-50 transition-colors"
           onClick={() => setIsExpanded((prev) => !prev)}
@@ -122,7 +127,7 @@ const JobFilters: React.FC<JobFiltersProps> = ({
           >
             <div
               className={`${isMobile ? "p-4 space-y-4" : "p-6 space-y-6"} ${
-                isMobile ? "border-t border-gray-100" : ""
+                isMobile && !isSheetMode ? "border-t border-gray-100" : ""
               }`}
             >
               {/* Search */}
@@ -279,34 +284,36 @@ const JobFilters: React.FC<JobFiltersProps> = ({
               </div>
 
               {/* Action Buttons */}
-              <div
-                className={`flex ${isMobile ? "flex-col gap-2" : "gap-2"} pt-2`}
-              >
-                {isMobile && (
-                  <button
-                    type="button"
-                    onClick={() => setIsExpanded(false)}
-                    className="w-full py-2.5 text-xs bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors"
-                  >
-                    Done
-                  </button>
-                )}
+              {!isSheetMode && (
+                <div
+                  className={`flex ${isMobile ? "flex-col gap-2" : "gap-2"} pt-2`}
+                >
+                  {isMobile && (
+                    <button
+                      type="button"
+                      onClick={() => setIsExpanded(false)}
+                      className="w-full py-2.5 text-xs bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition-colors"
+                    >
+                      Done
+                    </button>
+                  )}
 
-                {activeFilterCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className={`${isMobile ? "w-full py-2.5 text-xs" : "w-full py-2.5 text-sm"} bg-gray-100 text-gray-700 ${
-                      isMobile ? "rounded-lg" : "rounded-xl"
-                    } font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-1.5`}
-                  >
-                    <span className="material-symbols-outlined text-base">
-                      close
-                    </span>
-                    Clear Filters
-                  </button>
-                )}
-              </div>
+                  {activeFilterCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className={`${isMobile ? "w-full py-2.5 text-xs" : "w-full py-2.5 text-sm"} bg-gray-100 text-gray-700 ${
+                        isMobile ? "rounded-lg" : "rounded-xl"
+                      } font-medium hover:bg-gray-200 transition-colors flex items-center justify-center gap-1.5`}
+                    >
+                      <span className="material-symbols-outlined text-base">
+                        close
+                      </span>
+                      Clear Filters
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Active Filters Summary */}
               {activeFilterCount > 0 && (
