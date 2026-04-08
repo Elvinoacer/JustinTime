@@ -497,34 +497,38 @@ const DashboardPage = () => {
       </header>
 
       {shouldShowServiceSetupPrompt && (
-        <section className="bg-linear-to-r from-amber-50 via-orange-50 to-yellow-50 border border-amber-200 rounded-2xl p-4 sm:p-6 lg:p-7">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <section className="bg-linear-to-r from-amber-50 via-orange-50 to-yellow-50 border border-amber-200 rounded-xl sm:rounded-2xl p-3 sm:p-6 lg:p-7">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4">
             <div>
-              <h2 className="text-base sm:text-xl font-bold text-amber-900">
+              <h2 className="text-sm sm:text-xl font-bold text-amber-900 leading-5 sm:leading-normal">
                 Set up your profile before taking jobs
               </h2>
-              <p className="text-sm sm:text-base text-amber-800 mt-1 max-w-2xl">
+              <p className="text-xs sm:text-base text-amber-800 mt-1 max-w-2xl leading-5 sm:leading-6">
                 You do not have any services yet. Add your first service and set
                 your availability so clients can book you without scheduling
                 friction.
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3 w-full sm:w-auto">
               <Link
                 href="/dashboard/services?create=true"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-xl font-semibold hover:bg-amber-700 transition-colors"
+                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 h-10 sm:h-auto px-3 sm:px-4 sm:py-2.5 bg-amber-600 text-white rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm hover:bg-amber-700 transition-colors"
               >
-                <span className="material-symbols-outlined text-base">add</span>
-                Create Service
+                <span className="material-symbols-outlined text-sm sm:text-base">
+                  add
+                </span>
+                <span className="sm:hidden">Service</span>
+                <span className="hidden sm:inline">Create Service</span>
               </Link>
               <Link
                 href="/dashboard/availability"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-amber-900 border border-amber-300 rounded-xl font-semibold hover:bg-amber-100 transition-colors"
+                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 h-10 sm:h-auto px-3 sm:px-4 sm:py-2.5 bg-white text-amber-900 border border-amber-300 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm hover:bg-amber-100 transition-colors"
               >
-                <span className="material-symbols-outlined text-base">
+                <span className="material-symbols-outlined text-sm sm:text-base">
                   schedule
                 </span>
-                Set Availability
+                <span className="sm:hidden">Availability</span>
+                <span className="hidden sm:inline">Set Availability</span>
               </Link>
             </div>
           </div>

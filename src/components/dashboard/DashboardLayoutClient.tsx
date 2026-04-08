@@ -71,13 +71,22 @@ export default function DashboardLayoutClient({
       <div className="fixed inset-0 flex bg-gray-50 overflow-hidden flex-col lg:flex-row">
         {/* Mobile Header */}
         <div className="lg:hidden shrink-0 flex items-center justify-between px-3 py-2.5 bg-white border-b border-gray-200 z-30">
-          <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-wide text-emerald-600 font-semibold">
-              Provider
-            </p>
-            <h1 className="text-base font-semibold text-gray-900 truncate">
-              {mobileTitle}
-            </h1>
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="h-11 w-11 shrink-0 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors flex items-center justify-center"
+              aria-label="Open menu"
+            >
+              <span className="material-symbols-outlined">menu</span>
+            </button>
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-wide text-emerald-600 font-semibold">
+                Provider
+              </p>
+              <h1 className="text-base font-semibold text-gray-900 truncate">
+                {mobileTitle}
+              </h1>
+            </div>
           </div>
           <div className="flex items-center gap-1">
             <Link
@@ -99,13 +108,6 @@ export default function DashboardLayoutClient({
                 </span>
               )}
             </Link>
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="h-11 w-11 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors flex items-center justify-center"
-              aria-label="Open menu"
-            >
-              <span className="material-symbols-outlined">menu</span>
-            </button>
           </div>
         </div>
 
