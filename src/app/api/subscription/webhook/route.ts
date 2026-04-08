@@ -16,6 +16,19 @@ import {
   recordPaymentWebhookReceipt,
   updateSubscriptionPaymentIntentFromWebhook,
 } from "@/lib/payments/payment-intents";
+import { POST as handleWalletWebhook } from "@/app/api/wallet/webhook/route";
+import { POST as handleOnboardingWebhook } from "@/app/api/onboarding-fee/webhook/route";
+
+function buildDelegatedWebhookRequest(
+  req: NextRequest,
+  rawBody: string,
+): Request {
+  return new Request(req.url, {
+    method: "POST",
+    headers: new Headers(req.headers),
+    body: rawBody,
+  });
+}
 
 function parseSubscriptionRef(apiRef: string) {
   const normalized = String(apiRef || "").trim();
@@ -99,6 +112,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid challenge" }, { status: 401 });
     }
 
+    const previewWebhook = parseIntaSendWebhook(body);
+    const previewRef = String(
+      previewWebhook.apiRef || previewWebhook.primaryReference || "",
+    )
+      .trim()
+      .toUpperCase();
+
+    if (previewRef.startsWith("TOPUP-")) {
+      console.warn(
+        "[SUBSCRIPTION_WEBHOOK] Delegating TOPUP collection payload to wallet webhook handler",
+      );
+      return handleWalletWebhook(buildDelegatedWebhookRequest(req, rawBody));
+    }
+
+    if (previewRef.startsWith("ONBOARD-")) {
+      console.warn(
+        "[SUBSCRIPTION_WEBHOOK] Delegating ONBOARDING collection payload to onboarding webhook handler",
+      );
+      return handleOnboardingWebhook(
+        buildDelegatedWebhookRequest(req, rawBody),
+      );
+    }
+
     // Verify webhook signature (IntaSend sends signature in headers)
     const signature = req.headers.get("x-intasend-signature");
     const signatureEvaluation = evaluateWebhookSignature(rawBody, signature);
@@ -120,7 +156,7 @@ export async function POST(req: NextRequest) {
     console.log("=== IntaSend Webhook Received ===");
     console.log("Payload:", JSON.stringify(body, null, 2));
 
-    const webhook = parseIntaSendWebhook(body);
+    const webhook = previewWebhook;
     const canonicalRef = String(
       webhook.apiRef || webhook.primaryReference || "",
     ).trim();

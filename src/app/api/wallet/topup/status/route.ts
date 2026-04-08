@@ -1,10 +1,33 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { verifyIntaSendPayment } from "@/lib/intasend";
+import {
+  IntaSendWebhookPayload,
+  normalizeIntaSendState,
+} from "@/lib/intasend-webhook";
+import { POST as handleWalletWebhook } from "@/app/api/wallet/webhook/route";
 import {
   getWalletSchemaOutOfSyncMessage,
   isWalletSchemaOutOfSyncError,
 } from "@/lib/wallet/errors";
+
+function isTerminalTopUpStatus(status: string): boolean {
+  return ["SETTLED", "FAILED", "CANCELLED", "REVERSED"].includes(status);
+}
+
+function buildSyntheticWebhookRequest(
+  url: string,
+  payload: IntaSendWebhookPayload,
+): Request {
+  return new Request(url, {
+    method: "POST",
+    headers: new Headers({
+      "content-type": "application/json",
+    }),
+    body: JSON.stringify(payload),
+  });
+}
 
 export async function GET(req: Request) {
   try {
@@ -18,6 +41,19 @@ export async function GET(req: Request) {
       searchParams.get("apiRef") || searchParams.get("api_ref") || "",
     ).trim();
     const topUpId = String(searchParams.get("topUpId") || "").trim();
+    const trackingId = String(
+      searchParams.get("tracking_id") ||
+        searchParams.get("trackingId") ||
+        searchParams.get("invoice_id") ||
+        searchParams.get("invoiceId") ||
+        "",
+    ).trim();
+    const checkoutId = String(
+      searchParams.get("checkout_id") ||
+        searchParams.get("checkoutId") ||
+        searchParams.get("sessionId") ||
+        "",
+    ).trim();
 
     if (!apiRef && !topUpId) {
       return NextResponse.json(
@@ -26,27 +62,73 @@ export async function GET(req: Request) {
       );
     }
 
-    const topUp = await prisma.walletTopUp.findFirst({
-      where: {
-        userId: session.user.id,
-        ...(topUpId ? { id: topUpId } : { apiRef }),
-      },
-      include: {
-        ledgerEntries: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
+    const loadTopUp = async () =>
+      prisma.walletTopUp.findFirst({
+        where: {
+          userId: session.user.id,
+          ...(topUpId ? { id: topUpId } : { apiRef }),
         },
-      },
-    });
+        include: {
+          ledgerEntries: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
+        },
+      });
+
+    let topUp = await loadTopUp();
 
     if (!topUp) {
       return NextResponse.json({ error: "Top-up not found" }, { status: 404 });
     }
 
+    if (!isTerminalTopUpStatus(topUp.status) && trackingId) {
+      try {
+        const providerSnapshot = await verifyIntaSendPayment({
+          invoiceId: trackingId,
+          expectedApiRef: topUp.apiRef,
+          expectedAmount: Number(topUp.amountExpected),
+          expectedCurrency: topUp.currency || "KES",
+        });
+
+        const canonicalProviderState = normalizeIntaSendState(
+          providerSnapshot.providerState,
+        );
+        const shouldForwardSettled =
+          canonicalProviderState === "SETTLED" && providerSnapshot.ok;
+        const shouldForwardTerminal =
+          ["FAILED", "CANCELLED", "REVERSED"].includes(
+            canonicalProviderState,
+          ) && providerSnapshot.apiRefMatches;
+
+        if (shouldForwardSettled || shouldForwardTerminal) {
+          const syntheticPayload: IntaSendWebhookPayload = {
+            invoice_id: trackingId,
+            state: providerSnapshot.providerState || "PROCESSING",
+            api_ref: topUp.apiRef,
+            id: checkoutId || topUp.gatewaySessionId || trackingId,
+            provider: "REDIRECT_STATUS_RECOVERY",
+          };
+
+          await handleWalletWebhook(
+            buildSyntheticWebhookRequest(req.url, syntheticPayload),
+          );
+
+          const refreshedTopUp = await loadTopUp();
+          if (refreshedTopUp) {
+            topUp = refreshedTopUp;
+          }
+        }
+      } catch (error) {
+        console.warn(
+          "[WALLET_TOPUP_STATUS_GET] Redirect reconciliation attempt failed",
+          error,
+        );
+      }
+    }
+
     const latestLedger = topUp.ledgerEntries[0] || null;
-    const isTerminal = ["SETTLED", "FAILED", "CANCELLED", "REVERSED"].includes(
-      topUp.status,
-    );
+    const isTerminal = isTerminalTopUpStatus(topUp.status);
 
     return NextResponse.json({
       topUpId: topUp.id,

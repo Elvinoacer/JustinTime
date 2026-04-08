@@ -179,7 +179,12 @@ export const useWalletTransactions = (
 };
 
 export const useWalletTopUpStatus = (
-  params: { apiRef?: string; topUpId?: string },
+  params: {
+    apiRef?: string;
+    topUpId?: string;
+    trackingId?: string;
+    checkoutId?: string;
+  },
   options?: Omit<
     UseQueryOptions<WalletTopUpStatusResponse, Error>,
     "queryKey" | "queryFn"

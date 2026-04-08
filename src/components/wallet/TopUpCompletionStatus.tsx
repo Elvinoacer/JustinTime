@@ -117,6 +117,12 @@ export function TopUpCompletionStatus({
     searchParams.get("api_ref") ||
     searchParams.get("reference");
   const searchTopUpId = searchParams.get("topUpId");
+  const searchTrackingId =
+    searchParams.get("tracking_id") ||
+    searchParams.get("invoice_id") ||
+    searchParams.get("invoiceId");
+  const searchCheckoutId =
+    searchParams.get("checkout_id") || searchParams.get("checkoutId");
 
   const fallbackRef = useMemo(() => {
     if (searchApiRef || searchTopUpId) {
@@ -133,6 +139,8 @@ export function TopUpCompletionStatus({
     {
       apiRef: apiRef || undefined,
       topUpId: topUpId || undefined,
+      trackingId: searchTrackingId || undefined,
+      checkoutId: searchCheckoutId || undefined,
     },
     {
       enabled: Boolean(apiRef || topUpId),
