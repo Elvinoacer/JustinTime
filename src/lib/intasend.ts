@@ -194,8 +194,12 @@ export interface VerifyIntaSendPaymentInput {
   expectedApiRef?: string | null;
   expectedAmount?: number | null;
   expectedCurrency?: string | null;
+  allowedProviderStates?: string[];
   allowedSuccessStates?: string[];
   amountTolerance?: number;
+  requireApiRefMatch?: boolean;
+  requireAmountMatch?: boolean;
+  requireCurrencyMatch?: boolean;
 }
 
 export interface VerifyIntaSendPaymentResult {
@@ -262,24 +266,34 @@ export const verifyIntaSendPayment = async (
       ? input.amountTolerance
       : 0.01;
 
-  const allowedSuccessStates = new Set(
-    (input.allowedSuccessStates || DEFAULT_SUCCESS_STATES).map((state) =>
-      normalizeState(state),
-    ),
+  const allowedProviderStates = new Set(
+    (
+      input.allowedProviderStates ||
+      input.allowedSuccessStates ||
+      DEFAULT_SUCCESS_STATES
+    ).map((state) => normalizeState(state)),
   );
+  const requireApiRefMatch = input.requireApiRefMatch ?? true;
+  const requireAmountMatch = input.requireAmountMatch ?? true;
+  const requireCurrencyMatch = input.requireCurrencyMatch ?? true;
 
-  const stateMatches = allowedSuccessStates.has(providerState);
-  const apiRefMatches = expectedApiRef
-    ? resolvedApiRef === expectedApiRef
-    : Boolean(resolvedApiRef);
-  const amountMatches =
-    expectedAmount != null
+  const stateMatches = allowedProviderStates.has(providerState);
+  const apiRefMatches = requireApiRefMatch
+    ? expectedApiRef
+      ? resolvedApiRef === expectedApiRef
+      : Boolean(resolvedApiRef)
+    : true;
+  const amountMatches = requireAmountMatch
+    ? expectedAmount != null
       ? resolvedAmount != null &&
         Math.abs(resolvedAmount - expectedAmount) <= tolerance
-      : resolvedAmount != null;
-  const currencyMatches = expectedCurrency
-    ? resolvedCurrency === expectedCurrency
-    : Boolean(resolvedCurrency);
+      : resolvedAmount != null
+    : true;
+  const currencyMatches = requireCurrencyMatch
+    ? expectedCurrency
+      ? resolvedCurrency === expectedCurrency
+      : Boolean(resolvedCurrency)
+    : true;
 
   return {
     ok: stateMatches && apiRefMatches && amountMatches && currencyMatches,

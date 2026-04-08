@@ -64,6 +64,28 @@ function parseSubscriptionRef(apiRef: string) {
   };
 }
 
+function providerStatesForTerminalState(state: string): string[] {
+  switch (state) {
+    case "FAILED":
+      return [
+        "FAILED",
+        "FAIL",
+        "DECLINED",
+        "REJECTED",
+        "EXPIRED",
+        "TIMED_OUT",
+        "TIMEOUT",
+        "ABANDONED",
+      ];
+    case "CANCELLED":
+      return ["CANCELLED", "CANCELED", "VOID", "VOIDED", "ABANDONED"];
+    case "REVERSED":
+      return ["REVERSED", "REFUNDED", "CHARGEBACK", "CHARGED_BACK"];
+    default:
+      return ["COMPLETE", "COMPLETED", "SUCCESS", "SUCCEEDED", "PAID"];
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
@@ -172,6 +194,47 @@ export async function POST(req: NextRequest) {
         state: gatewayState,
         transactionId: duplicateState.id,
       });
+    }
+
+    if (
+      ["FAILED", "CANCELLED", "REVERSED"].includes(gatewayState) &&
+      !signatureEvaluation.valid
+    ) {
+      if (!invoiceId) {
+        return NextResponse.json({
+          received: true,
+          skipped: true,
+          requiresManualResolution: true,
+          reason: "missing_invoice_id_for_terminal_verification",
+          apiRef: canonicalRef,
+          state: gatewayState,
+        });
+      }
+
+      const terminalVerification = await verifyIntaSendPayment({
+        invoiceId: String(invoiceId),
+        expectedApiRef: canonicalRef,
+        allowedProviderStates: providerStatesForTerminalState(gatewayState),
+        requireAmountMatch: false,
+        requireCurrencyMatch: false,
+      });
+
+      if (!terminalVerification.ok) {
+        return NextResponse.json({
+          received: true,
+          skipped: true,
+          requiresManualResolution: true,
+          reason: "unverified_terminal_webhook_state",
+          apiRef: canonicalRef,
+          state: gatewayState,
+          verification: {
+            providerState: terminalVerification.providerState,
+            apiRefMatches: terminalVerification.apiRefMatches,
+            amountMatches: terminalVerification.amountMatches,
+            currencyMatches: terminalVerification.currencyMatches,
+          },
+        });
+      }
     }
 
     // Persist intermediate/failed/cancelled states to avoid stale pending entries.

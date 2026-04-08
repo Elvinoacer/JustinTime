@@ -24,6 +24,36 @@ import {
 const LEGACY_PENDING_PREFIX = "INTASEND:WALLET:PENDING:";
 const LEGACY_SETTLED_PREFIX = "INTASEND:WALLET:SETTLED:";
 const CURRENT_PROVIDER_PREFIX = "INTASEND:WALLET:TOPUP:";
+const TERMINAL_STATES: CanonicalIntaSendState[] = [
+  "SETTLED",
+  "FAILED",
+  "CANCELLED",
+  "REVERSED",
+];
+
+function providerStatesForTerminalState(
+  gatewayState: CanonicalIntaSendState,
+): string[] {
+  switch (gatewayState) {
+    case "FAILED":
+      return [
+        "FAILED",
+        "FAIL",
+        "DECLINED",
+        "REJECTED",
+        "EXPIRED",
+        "TIMED_OUT",
+        "TIMEOUT",
+        "ABANDONED",
+      ];
+    case "CANCELLED":
+      return ["CANCELLED", "CANCELED", "VOID", "VOIDED", "ABANDONED"];
+    case "REVERSED":
+      return ["REVERSED", "REFUNDED", "CHARGEBACK", "CHARGED_BACK"];
+    default:
+      return ["COMPLETE", "COMPLETED", "SUCCESS", "SUCCEEDED", "PAID"];
+  }
+}
 
 function asRecord(value: Prisma.JsonValue | null | undefined) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -366,6 +396,21 @@ export async function POST(req: Request) {
       const resolvedApiRef = topUp?.apiRef || apiRef;
 
       if (!topUp) {
+        if (
+          TERMINAL_STATES.includes(gatewayState) &&
+          !signatureEvaluation.valid
+        ) {
+          return {
+            received: true,
+            skipped: true,
+            requiresManualResolution: true,
+            reason: "untrusted_terminal_webhook_without_topup",
+            state: gatewayState,
+            apiRef: resolvedApiRef || null,
+            referenceCandidates: webhook.referenceCandidates,
+          };
+        }
+
         const genericUpdate = await updateTransactionsByGatewayReferences(tx, {
           referenceCandidates: webhook.referenceCandidates,
           gatewayState,
@@ -379,7 +424,10 @@ export async function POST(req: Request) {
           verifiedSettlement: false,
         });
 
-        if (genericUpdate.updatedCount > 0 || genericUpdate.matchedCount > 0) {
+        if (
+          genericUpdate.updatedCount > 0 ||
+          (genericUpdate.matchedCount > 0 && gatewayState !== "SETTLED")
+        ) {
           return {
             received: true,
             success: true,
@@ -403,7 +451,117 @@ export async function POST(req: Request) {
       }
 
       const previousStatus = topUp.status;
+      const trustedApiRef = resolvedApiRef || lockKey;
       let verifiedSettlementAmount: number | null = null;
+
+      if (
+        ["FAILED", "CANCELLED", "REVERSED"].includes(gatewayState) &&
+        (!signatureEvaluation.valid || gatewayState === "REVERSED")
+      ) {
+        if (!gatewayInvoiceId) {
+          await updateWalletTopUpPaymentIntentFromWebhook(tx, {
+            userId: topUp.userId,
+            walletId: topUp.walletId,
+            topUpId: topUp.id,
+            apiRef: trustedApiRef,
+            amountExpected: Number(topUp.amountExpected),
+            amountReceived: null,
+            currency: topUp.currency,
+            gatewayState: "PROCESSING",
+            gatewayInvoiceId: null,
+            gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
+            providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}`,
+            failureReason: "Missing invoice_id for terminal state verification",
+            payload: body as Prisma.InputJsonValue,
+            metadata: {
+              reason: "missing_invoice_id_for_terminal_verification",
+              requestedGatewayState: gatewayState,
+              signatureValid: signatureEvaluation.valid,
+              gatewayRawState: webhook.rawState,
+            },
+          });
+
+          await tx.walletTopUp.update({
+            where: { id: topUp.id },
+            data: {
+              gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
+              rawWebhookPayload: body as Prisma.InputJsonValue,
+            },
+          });
+
+          return {
+            received: true,
+            skipped: true,
+            requiresManualResolution: true,
+            reason: "missing_invoice_id_for_terminal_verification",
+            state: gatewayState,
+            apiRef: trustedApiRef,
+            topUpId: topUp.id,
+          };
+        }
+
+        const terminalVerification = await verifyIntaSendPayment({
+          invoiceId: gatewayInvoiceId,
+          expectedApiRef: trustedApiRef,
+          expectedCurrency: topUp.currency || "KES",
+          allowedProviderStates: providerStatesForTerminalState(gatewayState),
+          requireAmountMatch: gatewayState === "REVERSED",
+          requireCurrencyMatch: gatewayState === "REVERSED",
+        });
+
+        if (!terminalVerification.ok) {
+          await updateWalletTopUpPaymentIntentFromWebhook(tx, {
+            userId: topUp.userId,
+            walletId: topUp.walletId,
+            topUpId: topUp.id,
+            apiRef: trustedApiRef,
+            amountExpected: Number(topUp.amountExpected),
+            amountReceived: null,
+            currency: topUp.currency,
+            gatewayState: "PROCESSING",
+            gatewayInvoiceId,
+            gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
+            providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}`,
+            failureReason: "Unverified terminal webhook state",
+            payload: body as Prisma.InputJsonValue,
+            metadata: {
+              reason: "unverified_terminal_webhook_state",
+              requestedGatewayState: gatewayState,
+              signatureValid: signatureEvaluation.valid,
+              providerState: terminalVerification.providerState,
+              apiRefMatches: terminalVerification.apiRefMatches,
+              amountMatches: terminalVerification.amountMatches,
+              currencyMatches: terminalVerification.currencyMatches,
+              gatewayRawState: webhook.rawState,
+            },
+          });
+
+          await tx.walletTopUp.update({
+            where: { id: topUp.id },
+            data: {
+              gatewayInvoiceId: gatewayInvoiceId || topUp.gatewayInvoiceId,
+              gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
+              rawWebhookPayload: body as Prisma.InputJsonValue,
+            },
+          });
+
+          return {
+            received: true,
+            skipped: true,
+            requiresManualResolution: true,
+            reason: "unverified_terminal_webhook_state",
+            state: gatewayState,
+            apiRef: trustedApiRef,
+            topUpId: topUp.id,
+            verification: {
+              providerState: terminalVerification.providerState,
+              apiRefMatches: terminalVerification.apiRefMatches,
+              amountMatches: terminalVerification.amountMatches,
+              currencyMatches: terminalVerification.currencyMatches,
+            },
+          };
+        }
+      }
 
       if (gatewayState === "SETTLED") {
         if (!gatewayInvoiceId) {
@@ -411,14 +569,14 @@ export async function POST(req: Request) {
             userId: topUp.userId,
             walletId: topUp.walletId,
             topUpId: topUp.id,
-            apiRef: resolvedApiRef,
+            apiRef: trustedApiRef,
             amountExpected: Number(topUp.amountExpected),
             amountReceived: null,
             currency: topUp.currency,
             gatewayState: "PENDING",
             gatewayInvoiceId: null,
             gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
-            providerRef: `${CURRENT_PROVIDER_PREFIX}${resolvedApiRef}`,
+            providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}`,
             failureReason: "Waiting for verifiable invoice_id",
             payload: body as Prisma.InputJsonValue,
             metadata: {
@@ -440,14 +598,14 @@ export async function POST(req: Request) {
             skipped: true,
             requiresManualResolution: true,
             reason: "missing_invoice_id_for_verification",
-            apiRef: resolvedApiRef,
+            apiRef: trustedApiRef,
             topUpId: topUp.id,
           };
         }
 
         const verification = await verifyIntaSendPayment({
           invoiceId: gatewayInvoiceId,
-          expectedApiRef: resolvedApiRef,
+          expectedApiRef: trustedApiRef,
           expectedAmount: Number(topUp.amountExpected),
           expectedCurrency: topUp.currency || "KES",
         });
@@ -457,14 +615,14 @@ export async function POST(req: Request) {
             userId: topUp.userId,
             walletId: topUp.walletId,
             topUpId: topUp.id,
-            apiRef: resolvedApiRef,
+            apiRef: trustedApiRef,
             amountExpected: Number(topUp.amountExpected),
             amountReceived: null,
             currency: topUp.currency,
             gatewayState: "PROCESSING",
             gatewayInvoiceId,
             gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
-            providerRef: `${CURRENT_PROVIDER_PREFIX}${resolvedApiRef}`,
+            providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}`,
             failureReason: "Provider status verification failed",
             payload: body as Prisma.InputJsonValue,
             metadata: {
@@ -490,7 +648,7 @@ export async function POST(req: Request) {
             skipped: true,
             requiresManualResolution: true,
             reason: "provider_status_verification_failed",
-            apiRef: resolvedApiRef,
+            apiRef: trustedApiRef,
             topUpId: topUp.id,
             verification: {
               providerState: verification.providerState,
@@ -526,7 +684,7 @@ export async function POST(req: Request) {
           success: true,
           skipped: true,
           reason: "ignored_non_terminal_after_settlement",
-          apiRef: resolvedApiRef,
+          apiRef: trustedApiRef,
           topUpId: topUp.id,
           previousStatus,
           status: previousStatus,
@@ -538,9 +696,9 @@ export async function POST(req: Request) {
         where: {
           OR: [
             { topUpId: topUp.id },
-            { providerRef: `${CURRENT_PROVIDER_PREFIX}${resolvedApiRef}` },
-            { providerRef: `${LEGACY_PENDING_PREFIX}${resolvedApiRef}` },
-            { providerRef: `${LEGACY_SETTLED_PREFIX}${resolvedApiRef}` },
+            { providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}` },
+            { providerRef: `${LEGACY_PENDING_PREFIX}${trustedApiRef}` },
+            { providerRef: `${LEGACY_SETTLED_PREFIX}${trustedApiRef}` },
             { gatewayReference: { in: webhook.referenceCandidates } },
             { gatewaySessionId: { in: webhook.referenceCandidates } },
           ],
@@ -635,14 +793,14 @@ export async function POST(req: Request) {
         userId: topUp.userId,
         walletId: topUp.walletId,
         topUpId: topUp.id,
-        apiRef: resolvedApiRef,
+        apiRef: trustedApiRef,
         amountExpected: Number(topUp.amountExpected),
         amountReceived: gatewayState === "SETTLED" ? effectiveAmount : null,
         currency: updatedTopUp.currency,
         gatewayState: updatedTopUp.status as CanonicalIntaSendState,
         gatewayInvoiceId: gatewayInvoiceId || updatedTopUp.gatewayInvoiceId,
         gatewaySessionId: gatewaySessionId || updatedTopUp.gatewaySessionId,
-        providerRef: `${CURRENT_PROVIDER_PREFIX}${resolvedApiRef}`,
+        providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}`,
         failureReason:
           gatewayState === "FAILED" || gatewayState === "CANCELLED"
             ? webhook.failureReason || "Gateway failure"
@@ -651,7 +809,7 @@ export async function POST(req: Request) {
               : null,
         payload: body as Prisma.InputJsonValue,
         metadata: {
-          apiRef: resolvedApiRef,
+          apiRef: trustedApiRef,
           gatewayState,
           gatewayRawState: webhook.rawState,
           eventFamily: webhook.eventFamily,
@@ -672,24 +830,24 @@ export async function POST(req: Request) {
         category: "TOPUP" as const,
         currency: updatedTopUp.currency,
         gateway: "INTASEND" as const,
-        gatewayReference: gatewayInvoiceId || resolvedApiRef,
+        gatewayReference: gatewayInvoiceId || trustedApiRef,
         gatewaySessionId: gatewaySessionId || updatedTopUp.gatewaySessionId,
-        providerRef: `${CURRENT_PROVIDER_PREFIX}${resolvedApiRef}`,
+        providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}`,
         sourceType: "WALLET_TOPUP",
         sourceId: topUp.id,
         createdByType: "WEBHOOK" as const,
         description:
           gatewayState === "SETTLED"
-            ? `Wallet Top-up settled [Ref:${resolvedApiRef}]`
+            ? `Wallet Top-up settled [Ref:${trustedApiRef}]`
             : gatewayState === "FAILED"
-              ? `Wallet Top-up failed [Ref:${resolvedApiRef}]`
+              ? `Wallet Top-up failed [Ref:${trustedApiRef}]`
               : gatewayState === "CANCELLED"
-                ? `Wallet Top-up cancelled [Ref:${resolvedApiRef}]`
+                ? `Wallet Top-up cancelled [Ref:${trustedApiRef}]`
                 : gatewayState === "REVERSED"
-                  ? `Wallet Top-up reversed [Ref:${resolvedApiRef}]`
-                  : `Wallet Top-up processing [Ref:${resolvedApiRef}]`,
+                  ? `Wallet Top-up reversed [Ref:${trustedApiRef}]`
+                  : `Wallet Top-up processing [Ref:${trustedApiRef}]`,
         metadata: {
-          apiRef: resolvedApiRef,
+          apiRef: trustedApiRef,
           gatewayState,
           gatewayRawState: webhook.rawState,
           eventFamily: webhook.eventFamily,
@@ -721,7 +879,7 @@ export async function POST(req: Request) {
       return {
         received: true,
         success: true,
-        apiRef: resolvedApiRef,
+        apiRef: trustedApiRef,
         topUpId: topUp.id,
         previousStatus,
         status: updatedTopUp.status,

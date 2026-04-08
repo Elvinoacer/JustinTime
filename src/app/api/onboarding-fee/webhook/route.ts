@@ -26,6 +26,28 @@ async function resolveSystemAdminId(tx: Prisma.TransactionClient) {
   return actor?.id ?? null;
 }
 
+function providerStatesForTerminalState(state: string): string[] {
+  switch (state) {
+    case "FAILED":
+      return [
+        "FAILED",
+        "FAIL",
+        "DECLINED",
+        "REJECTED",
+        "EXPIRED",
+        "TIMED_OUT",
+        "TIMEOUT",
+        "ABANDONED",
+      ];
+    case "CANCELLED":
+      return ["CANCELLED", "CANCELED", "VOID", "VOIDED", "ABANDONED"];
+    case "REVERSED":
+      return ["REVERSED", "REFUNDED", "CHARGEBACK", "CHARGED_BACK"];
+    default:
+      return ["COMPLETE", "COMPLETED", "SUCCESS", "SUCCEEDED", "PAID"];
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
@@ -142,6 +164,47 @@ export async function POST(req: Request) {
         state: gatewayState,
         transactionId: duplicateState.id,
       });
+    }
+
+    if (
+      ["FAILED", "CANCELLED", "REVERSED"].includes(gatewayState) &&
+      !signatureEvaluation.valid
+    ) {
+      if (!invoiceId) {
+        return NextResponse.json({
+          received: true,
+          skipped: true,
+          requiresManualResolution: true,
+          reason: "missing_invoice_id_for_terminal_verification",
+          apiRef: canonicalRef,
+          state: gatewayState,
+        });
+      }
+
+      const terminalVerification = await verifyIntaSendPayment({
+        invoiceId: String(invoiceId),
+        expectedApiRef: canonicalRef,
+        allowedProviderStates: providerStatesForTerminalState(gatewayState),
+        requireAmountMatch: false,
+        requireCurrencyMatch: false,
+      });
+
+      if (!terminalVerification.ok) {
+        return NextResponse.json({
+          received: true,
+          skipped: true,
+          requiresManualResolution: true,
+          reason: "unverified_terminal_webhook_state",
+          apiRef: canonicalRef,
+          state: gatewayState,
+          verification: {
+            providerState: terminalVerification.providerState,
+            apiRefMatches: terminalVerification.apiRefMatches,
+            amountMatches: terminalVerification.amountMatches,
+            currencyMatches: terminalVerification.currencyMatches,
+          },
+        });
+      }
     }
 
     if (gatewayState !== "SETTLED") {
