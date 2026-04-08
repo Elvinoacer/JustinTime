@@ -14,11 +14,16 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
+  clearStoredPendingTopUp,
+  getStoredPendingTopUp,
   WalletTransaction,
   useTopUpWallet,
   useWallet,
+  useWalletTopUpStatus,
   useWalletTransactions,
 } from "@/lib/api/hooks/useWallet";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/api/queryKeys";
 
 function formatCurrency(value: number | string | null | undefined): string {
   const parsed = Number(value || 0);
@@ -91,6 +96,7 @@ function transactionReference(tx: WalletTransaction): string | null {
 }
 
 export default function ClientWalletPage() {
+  const queryClient = useQueryClient();
   const [topUpAmount, setTopUpAmount] = useState("1000");
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<
@@ -99,6 +105,11 @@ export default function ClientWalletPage() {
   const [directionFilter, setDirectionFilter] = useState<
     "ALL" | "CREDIT" | "DEBIT"
   >("ALL");
+  const [pendingTopUpRef, setPendingTopUpRef] = useState<{
+    apiRef?: string;
+    topUpId?: string;
+  } | null>(null);
+  const [statusToastKey, setStatusToastKey] = useState<string | null>(null);
 
   const { data: wallet, isLoading: walletLoading } = useWallet();
   const topUpMutation = useTopUpWallet();
@@ -119,10 +130,77 @@ export default function ClientWalletPage() {
   );
 
   const transactionsQuery = useWalletTransactions(txFilters);
+  const pendingTopUpStatus = useWalletTopUpStatus(
+    {
+      apiRef: pendingTopUpRef?.apiRef,
+      topUpId: pendingTopUpRef?.topUpId,
+    },
+    {
+      enabled: Boolean(pendingTopUpRef?.apiRef || pendingTopUpRef?.topUpId),
+      retry: 1,
+      refetchInterval: (query) => {
+        const status = query.state.data?.status;
+        const isTerminal =
+          status === "SETTLED" ||
+          status === "FAILED" ||
+          status === "CANCELLED" ||
+          status === "REVERSED";
+        return isTerminal ? false : 4000;
+      },
+    },
+  );
 
   useEffect(() => {
     setPage(1);
   }, [statusFilter, directionFilter]);
+
+  useEffect(() => {
+    const pending = getStoredPendingTopUp();
+    if (pending?.apiRef || pending?.topUpId) {
+      setPendingTopUpRef(pending);
+    }
+  }, []);
+
+  useEffect(() => {
+    const status = pendingTopUpStatus.data?.status;
+    if (!status || !pendingTopUpStatus.data?.isTerminal) {
+      return;
+    }
+
+    const toastKey = `${pendingTopUpStatus.data.topUpId}:${status}`;
+    if (statusToastKey === toastKey) {
+      return;
+    }
+
+    setStatusToastKey(toastKey);
+    clearStoredPendingTopUp();
+    setPendingTopUpRef(null);
+
+    queryClient.invalidateQueries({ queryKey: queryKeys.wallet.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.wallet.balance() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.wallet.transactions() });
+
+    if (status === "SETTLED") {
+      toast.success(
+        `Top-up confirmed: ${formatCurrency(pendingTopUpStatus.data.amountReceived ?? pendingTopUpStatus.data.amountExpected)}`,
+      );
+      return;
+    }
+
+    if (status === "FAILED") {
+      toast.error("Top-up failed. No wallet credit was added.");
+      return;
+    }
+
+    if (status === "CANCELLED") {
+      toast.message("Top-up was cancelled.");
+      return;
+    }
+
+    if (status === "REVERSED") {
+      toast.error("Top-up was reversed by the payment provider.");
+    }
+  }, [pendingTopUpStatus.data, queryClient, statusToastKey]);
 
   const handleTopUp = () => {
     const amount = parseInt(topUpAmount, 10);
