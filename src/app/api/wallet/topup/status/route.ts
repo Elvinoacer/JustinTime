@@ -122,9 +122,11 @@ export async function GET(req: Request) {
 
         const canonicalProviderState = providerSnapshot.providerState;
         const shouldForwardSettled = canonicalProviderState === "SETTLED";
-        const shouldForwardTerminal = ["FAILED", "CANCELLED", "REVERSED"].includes(
-          canonicalProviderState,
-        );
+        const shouldForwardTerminal = [
+          "FAILED",
+          "CANCELLED",
+          "REVERSED",
+        ].includes(canonicalProviderState);
 
         if (shouldForwardSettled || shouldForwardTerminal) {
           const syntheticPayload: DarajaWebhookPayload = {

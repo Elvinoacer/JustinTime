@@ -134,8 +134,11 @@ async function reconcileWalletTopups(requestUrl: string, staleBefore: Date) {
 
       const providerState = snapshot.providerState;
       const shouldForwardSettled = providerState === "SETTLED";
-      const shouldForwardTerminal =
-        ["FAILED", "CANCELLED", "REVERSED"].includes(providerState);
+      const shouldForwardTerminal = [
+        "FAILED",
+        "CANCELLED",
+        "REVERSED",
+      ].includes(providerState);
 
       if (!shouldForwardSettled && !shouldForwardTerminal) {
         continue;
@@ -235,8 +238,11 @@ async function reconcileOnboardingPayments(
 
       const providerState = snapshot.providerState;
       const shouldForwardSettled = providerState === "SETTLED";
-      const shouldForwardTerminal =
-        ["FAILED", "CANCELLED", "REVERSED"].includes(providerState);
+      const shouldForwardTerminal = [
+        "FAILED",
+        "CANCELLED",
+        "REVERSED",
+      ].includes(providerState);
 
       if (!shouldForwardSettled && !shouldForwardTerminal) {
         continue;
@@ -331,8 +337,11 @@ async function reconcileSubscriptionPayments(
 
       const providerState = snapshot.providerState;
       const shouldForwardSettled = providerState === "SETTLED";
-      const shouldForwardTerminal =
-        ["FAILED", "CANCELLED", "REVERSED"].includes(providerState);
+      const shouldForwardTerminal = [
+        "FAILED",
+        "CANCELLED",
+        "REVERSED",
+      ].includes(providerState);
 
       if (!shouldForwardSettled && !shouldForwardTerminal) {
         continue;
