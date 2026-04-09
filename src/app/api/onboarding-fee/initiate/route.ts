@@ -61,6 +61,16 @@ export async function POST() {
       );
     }
 
+    const onboardingFeeSetting = await prisma.systemSetting.findUnique({
+      where: { key: "onboarding_fee_amount" },
+      select: { value: true },
+    });
+    const configuredOnboardingFee = Number(onboardingFeeSetting?.value);
+    const onboardingFeeAmount =
+      Number.isFinite(configuredOnboardingFee) && configuredOnboardingFee > 0
+        ? configuredOnboardingFee
+        : PAYMENT_AMOUNTS.ONBOARDING_FEE;
+
     const baseUrl = getBaseUrl();
     const callbackUrl = buildDarajaCallbackUrl(
       baseUrl,
@@ -69,11 +79,11 @@ export async function POST() {
     console.log("Initiating onboarding fee payment:", {
       apiRef,
       callbackUrl,
-      amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+      amount: onboardingFeeAmount,
     });
 
     const response = await initiateDarajaStkPush({
-      amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+      amount: onboardingFeeAmount,
       phoneNumber: payer.phone,
       apiRef,
       callbackUrl,
@@ -116,7 +126,7 @@ export async function POST() {
         const createdPending = await tx.transaction.create({
           data: {
             walletId: wallet.id,
-            amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+            amount: onboardingFeeAmount,
             type: "ONBOARDING_FEE",
             status: "PENDING",
             direction: "DEBIT",
@@ -140,7 +150,7 @@ export async function POST() {
         userId: session.user.id,
         walletId: wallet.id,
         apiRef,
-        amountExpected: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+        amountExpected: onboardingFeeAmount,
         currency: "KES",
         sourceId: pendingTransactionId || session.user.id,
         gatewaySessionId: response.CheckoutRequestID,
@@ -161,7 +171,7 @@ export async function POST() {
       checkoutUrl: completionUrl,
       sessionId: response.CheckoutRequestID,
       apiRef: apiRef,
-      amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+      amount: onboardingFeeAmount,
       provider: "DARAJA",
     });
   } catch (error: unknown) {
