@@ -4,6 +4,7 @@ import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import { hasRole } from "@/lib/auth/roles";
 import { buildAppUrl } from "@/lib/app-url";
+import { sendEmail } from "@/lib/email";
 
 const DEFAULT_INVITE_EXPIRY_DAYS = 7;
 const MAX_INVITE_EXPIRY_DAYS = 30;
@@ -69,9 +70,28 @@ export const POST = auth(async (req) => {
       },
     });
 
+    const inviteUrl = buildAppUrl(`/auth/admin-invite?token=${invite.token}`);
+    await sendEmail({
+      to: invite.email,
+      subject: "Your JustInTime admin invite link",
+      html: `
+        <p>Hello,</p>
+        <p>An administrator invited this email to access the JustInTime admin workspace.</p>
+        <p><a href="${inviteUrl}">Redeem your one-time admin invite</a></p>
+        <p>This link expires on <strong>${invite.expiresAt.toLocaleString()}</strong> and can only be used once.</p>
+      `,
+      text: [
+        "Hello,",
+        "",
+        "An administrator invited this email to access the JustInTime admin workspace.",
+        `Redeem your one-time admin invite: ${inviteUrl}`,
+        `This link expires on ${invite.expiresAt.toLocaleString()} and can only be used once.`,
+      ].join("\n"),
+    });
+
     return NextResponse.json({
       ...invite,
-      inviteUrl: buildAppUrl(`/auth/admin-invite?token=${invite.token}`),
+      inviteUrl,
     });
   } catch (error) {
     console.error("[ADMIN_INVITE_CREATE_ERROR]", error);

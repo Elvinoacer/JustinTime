@@ -37,6 +37,20 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+async function resolveOnboardingFeeAmount(
+  tx: Prisma.TransactionClient,
+): Promise<number> {
+  const setting = await tx.systemSetting.findUnique({
+    where: { key: "onboarding_fee_amount" },
+    select: { value: true },
+  });
+  const configuredAmount = Number(setting?.value);
+  if (Number.isFinite(configuredAmount) && configuredAmount > 0) {
+    return configuredAmount;
+  }
+  return PAYMENT_AMOUNTS.ONBOARDING_FEE;
+}
+
 async function lockWalletForUpdate(
   tx: Prisma.TransactionClient,
   userId: string,
@@ -276,21 +290,20 @@ export async function payOnboardingFee(): Promise<{
 
   try {
     await prisma.$transaction(async (tx) => {
+      const onboardingFeeAmount = await resolveOnboardingFeeAmount(tx);
       const wallet = await lockWalletForUpdate(tx, session.user.id);
 
       if (!wallet) {
         throw new Error("Wallet setup required.");
       }
 
-      if (Number(wallet.balance) < PAYMENT_AMOUNTS.ONBOARDING_FEE) {
-        throw new Error(
-          `Insufficient funds. Fee is KES ${PAYMENT_AMOUNTS.ONBOARDING_FEE}`,
-        );
+      if (Number(wallet.balance) < onboardingFeeAmount) {
+        throw new Error(`Insufficient funds. Fee is KES ${onboardingFeeAmount}`);
       }
 
       await tx.wallet.update({
         where: { id: wallet.id },
-        data: { balance: { decrement: PAYMENT_AMOUNTS.ONBOARDING_FEE } },
+        data: { balance: { decrement: onboardingFeeAmount } },
       });
 
       await tx.profile.upsert({
@@ -307,7 +320,7 @@ export async function payOnboardingFee(): Promise<{
       await tx.transaction.create({
         data: {
           walletId: wallet.id,
-          amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+          amount: onboardingFeeAmount,
           type: TransactionType.ONBOARDING_FEE,
           description: "Paid Provider Onboarding Fee",
         },
@@ -322,7 +335,7 @@ export async function payOnboardingFee(): Promise<{
             targetId: session.user.id,
             details: {
               source: "wallet",
-              amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+              amount: onboardingFeeAmount,
               actorUserId: session.user.id,
             },
           },
