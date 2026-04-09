@@ -91,7 +91,7 @@ export async function POST(req: Request) {
 
     const response = await initiateDarajaStkPush({
       amount: onboardingFeeAmount,
-      phoneNumber: stkPhoneNumber,
+      phoneNumber: payer.phone,
       apiRef,
       callbackUrl,
       accountReference,

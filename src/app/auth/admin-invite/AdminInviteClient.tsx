@@ -75,7 +75,7 @@ export default function AdminInviteClient() {
 
   if (!token) {
     return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <main className="flex min-h-screen items-start justify-center bg-slate-50 px-3 py-6 sm:items-center sm:p-4">
         <div className="w-full max-w-lg rounded-2xl border border-amber-200 bg-white p-6 shadow-sm">
           <div className="flex items-start gap-3 text-amber-700">
             <AlertCircle className="mt-0.5 h-5 w-5" />
@@ -90,7 +90,7 @@ export default function AdminInviteClient() {
           <div className="mt-6">
             <Link
               href="/"
-              className="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+              className="inline-flex min-h-[44px] items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
             >
               Back to home
             </Link>
@@ -102,7 +102,7 @@ export default function AdminInviteClient() {
 
   if (status === "loading") {
     return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <main className="flex min-h-screen items-start justify-center bg-slate-50 px-3 py-6 sm:items-center sm:p-4">
         <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700">
           <Loader2 className="h-4 w-4 animate-spin" />
           Checking your session...
@@ -113,7 +113,7 @@ export default function AdminInviteClient() {
 
   if (status !== "authenticated") {
     return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <main className="flex min-h-screen items-start justify-center bg-slate-50 px-3 py-6 sm:items-center sm:p-4">
         <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="rounded-xl bg-emerald-50 p-2 text-emerald-700">
@@ -132,13 +132,13 @@ export default function AdminInviteClient() {
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <Link
               href={loginHref}
-              className="inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
             >
               Log in
             </Link>
             <Link
               href={signupHref}
-              className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
             >
               Create account
             </Link>
@@ -149,7 +149,7 @@ export default function AdminInviteClient() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <main className="flex min-h-screen items-start justify-center bg-slate-50 px-3 py-6 sm:items-center sm:p-4">
       <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-start gap-3">
           <div className="rounded-xl bg-emerald-50 p-2 text-emerald-700">
@@ -161,14 +161,16 @@ export default function AdminInviteClient() {
             </h1>
             <p className="mt-1 text-sm text-slate-600">
               Signed in as{" "}
-              <span className="font-medium">{session.user.email}</span>.
-              Continue to grant admin access.
+              <span className="break-all font-medium">
+                {session.user.email}
+              </span>
+              . Continue to grant admin access.
             </p>
           </div>
         </div>
 
         {error ? (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 break-words">
             {error}
           </div>
         ) : null}
@@ -184,7 +186,7 @@ export default function AdminInviteClient() {
             type="button"
             onClick={handleRedeem}
             disabled={isRedeeming}
-            className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
           >
             {isRedeeming ? (
               <span className="inline-flex items-center gap-2">
@@ -197,7 +199,7 @@ export default function AdminInviteClient() {
           </button>
           <Link
             href="/"
-            className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
           >
             Cancel
           </Link>

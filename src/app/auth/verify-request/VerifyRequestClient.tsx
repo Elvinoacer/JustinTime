@@ -65,7 +65,7 @@ function VerifyRequestContent() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-indigo-50/30 flex items-center justify-center p-3 sm:p-4">
+    <div className="flex min-h-screen items-start justify-center bg-linear-to-br from-slate-50 to-indigo-50/30 px-3 py-6 sm:items-center sm:p-4">
       <div className="max-w-md w-full">
         {/* Mobile Header */}
         <motion.div
@@ -111,7 +111,7 @@ function VerifyRequestContent() {
                   {maskedEmail ? (
                     <>
                       {" "}
-                      <span className="font-semibold text-slate-900 bg-indigo-50 px-2 py-0.5 rounded-md">
+                      <span className="break-all font-semibold text-slate-900 bg-indigo-50 px-2 py-0.5 rounded-md">
                         {maskedEmail}
                       </span>
                     </>
@@ -180,7 +180,7 @@ function VerifyRequestContent() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Link
                   href={loginHref}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all active:scale-[0.98] text-sm"
+                  className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.98]"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Back to Login
@@ -189,7 +189,7 @@ function VerifyRequestContent() {
                 <button
                   onClick={handleResendEmail}
                   disabled={isResending}
-                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold transition-all active:scale-[0.98] text-sm ${
+                  className={`flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all active:scale-[0.98] ${
                     isResending
                       ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                       : "bg-slate-900 text-white hover:bg-slate-800"
@@ -238,7 +238,9 @@ function VerifyRequestContent() {
                     <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center">
                       <span className="text-red-600 text-xs">✕</span>
                     </div>
-                    <p className="text-xs text-red-700">{resendError}</p>
+                    <p className="break-words text-xs text-red-700">
+                      {resendError}
+                    </p>
                   </div>
                 </motion.div>
               )}
@@ -284,7 +286,7 @@ function VerifyRequestContent() {
             >
               ← Return to Homepage
             </Link>
-            <div className="flex items-center gap-4 text-xs text-slate-500">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-slate-500">
               <Link href="/privacy" className="hover:text-slate-700">
                 Privacy
               </Link>
@@ -329,7 +331,10 @@ export default function VerifyRequestPage() {
         <div className="min-h-screen bg-linear-to-br from-slate-50 to-indigo-50/30 flex items-center justify-center p-4">
           <div className="text-center">
             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg mb-4 mx-auto">
-              <Mail className="w-8 h-8 text-indigo-600 animate-pulse" />
+              <Mail
+                className="w-8 h-8 text-indigo-600 animate-pulse"
+                aria-label="Loading verify request"
+              />
             </div>
             <h3 className="text-sm font-semibold text-slate-900">
               Preparing email...
