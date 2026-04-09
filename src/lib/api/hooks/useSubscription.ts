@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface SubscriptionStatus {
   plan: "FREE" | "PRO" | "BUSINESS";
@@ -11,7 +11,6 @@ interface SubscriptionStatus {
 
 interface InitiateSubscriptionParams {
   plan: "PRO" | "BUSINESS";
-  phoneNumber?: string;
 }
 
 interface InitiateSubscriptionResponse {
@@ -37,18 +36,20 @@ export const useSubscriptionStatus = () => {
 
 // Initiate subscription payment
 export const useInitiateSubscription = () => {
+  const queryClient = useQueryClient();
+
   return useMutation<
     InitiateSubscriptionResponse,
     Error,
     InitiateSubscriptionParams
   >({
-    mutationFn: async ({ plan, phoneNumber }) => {
+    mutationFn: async ({ plan }) => {
       const response = await fetch("/api/subscription/initiate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ plan, phoneNumber }),
+        body: JSON.stringify({ plan }),
       });
 
       if (!response.ok) {

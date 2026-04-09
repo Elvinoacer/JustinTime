@@ -112,13 +112,6 @@ export async function GET(req: Request) {
       merchantRequestId: string | null;
       failureReason: string | null;
     } | null = null;
-    let latestAttempt: {
-      status: string;
-      apiRef: string | null;
-      checkoutRequestId: string | null;
-      failureReason: string | null;
-      isTerminal: boolean;
-    } | null = null;
 
     if (!isSettled) {
       const pendingCandidates = await prisma.transaction.findMany({
@@ -227,34 +220,6 @@ export async function GET(req: Request) {
           }
         }
       }
-
-      if (!pendingPayment) {
-        const recentAttempt = await prisma.transaction.findFirst({
-          where: {
-            type: "ONBOARDING_FEE",
-            wallet: { userId: session.user.id },
-            ...(apiRef
-              ? { providerRef: { contains: apiRef, mode: "insensitive" } }
-              : {}),
-            ...(checkoutRequestId
-              ? { gatewaySessionId: checkoutRequestId }
-              : {}),
-          },
-          orderBy: { createdAt: "desc" },
-        });
-
-        if (recentAttempt) {
-          latestAttempt = {
-            status: recentAttempt.status,
-            apiRef:
-              extractApiRefFromProviderRef(recentAttempt.providerRef) || apiRef,
-            checkoutRequestId:
-              normalizeParam(recentAttempt.gatewaySessionId) || checkoutRequestId,
-            failureReason: recentAttempt.failureReason,
-            isTerminal: TERMINAL_STATES.has(recentAttempt.status),
-          };
-        }
-      }
     }
 
     return NextResponse.json({
@@ -263,7 +228,6 @@ export async function GET(req: Request) {
       verificationStatus: profile?.verificationStatus || "PENDING",
       isSettled,
       pendingPayment,
-      latestAttempt,
     });
   } catch (error) {
     console.error("[ONBOARDING_FEE_STATUS]", error);

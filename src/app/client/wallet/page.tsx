@@ -130,7 +130,6 @@ function formatMobileDate(value: Date | string): string {
 export default function ClientWalletPage() {
   const queryClient = useQueryClient();
   const [topUpAmount, setTopUpAmount] = useState("1000");
-  const [stkPhoneNumber, setStkPhoneNumber] = useState("");
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<
     "ALL" | "SETTLED" | "PENDING" | "FAILED"
@@ -271,7 +270,6 @@ export default function ClientWalletPage() {
     topUpMutation.mutate({
       amount,
       returnUrl: "/client/wallet/topup-complete",
-      phoneNumber: stkPhoneNumber.trim() || undefined,
     });
   };
 
@@ -350,13 +348,6 @@ export default function ClientWalletPage() {
                     placeholder="Top-up amount"
                   />
                 </div>
-                <input
-                  type="tel"
-                  value={stkPhoneNumber}
-                  onChange={(e) => setStkPhoneNumber(e.target.value)}
-                  className="w-full rounded-xl border border-emerald-100 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-emerald-300 focus:outline-none sm:w-56 sm:text-base"
-                  placeholder="STK phone (optional)"
-                />
                 <button
                   onClick={handleTopUp}
                   disabled={topUpMutation.isPending}

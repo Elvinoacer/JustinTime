@@ -23,7 +23,6 @@ export function OnboardingAccessNotice({
   amount = 500,
   storageKey,
 }: OnboardingAccessNoticeProps) {
-  const [stkPhoneNumber, setStkPhoneNumber] = useState("");
   const [gatewayLoading, setGatewayLoading] = useState(false);
   const [walletLoading, setWalletLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -53,9 +52,6 @@ export function OnboardingAccessNotice({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          phoneNumber: stkPhoneNumber.trim() || undefined,
-        }),
       });
 
       const data = await response.json();
@@ -160,13 +156,6 @@ export function OnboardingAccessNotice({
           </div>
 
           <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center md:w-auto md:justify-end">
-            <input
-              type="tel"
-              value={stkPhoneNumber}
-              onChange={(event) => setStkPhoneNumber(event.target.value)}
-              placeholder="STK phone e.g. 07..."
-              className="w-full sm:w-56 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:border-emerald-400 focus:outline-none"
-            />
             <span className="inline-flex w-fit rounded-full bg-amber-100 px-3 py-1 text-[11px] sm:text-xs font-semibold text-amber-700">
               One-time fee
             </span>

@@ -47,8 +47,6 @@ export async function POST(req: Request) {
 
     const amount = Number(body?.amount);
     const requestedReturnUrl = normalizeReturnPath(body?.returnUrl);
-    const requestedPhone =
-      typeof body?.phoneNumber === "string" ? body.phoneNumber.trim() : "";
 
     if (!Number.isFinite(amount) || amount < PAYMENT_AMOUNTS.MIN_TOPUP) {
       return NextResponse.json(
@@ -66,12 +64,11 @@ export async function POST(req: Request) {
       },
     });
 
-    const stkPhoneNumber = requestedPhone || payer?.phone || "";
-
-    if (!stkPhoneNumber) {
+    if (!payer?.phone) {
       return NextResponse.json(
         {
-          error: "Provide a phone number to receive the M-Pesa STK Push prompt.",
+          error:
+            "A valid phone number is required to initiate M-Pesa STK Push.",
         },
         { status: 400 },
       );
@@ -96,7 +93,7 @@ export async function POST(req: Request) {
 
     const response = await initiateDarajaStkPush({
       amount,
-      phoneNumber: stkPhoneNumber,
+      phoneNumber: payer.phone,
       apiRef,
       callbackUrl,
       accountReference,
@@ -257,16 +254,6 @@ export async function POST(req: Request) {
     }
 
     const message = error instanceof Error ? error.message : "";
-
-    if (/A valid Kenyan phone number is required/i.test(message)) {
-      return NextResponse.json(
-        {
-          error:
-            "The phone number is invalid. Use format 07XXXXXXXX or 2547XXXXXXXX.",
-        },
-        { status: 400 },
-      );
-    }
 
     if (/Daraja.+not configured/i.test(message)) {
       return NextResponse.json(

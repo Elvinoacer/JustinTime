@@ -10,7 +10,6 @@ function PremiumCompleteContent() {
   const searchParams = useSearchParams();
   const [attempts, setAttempts] = useState(0);
   const [isActivated, setIsActivated] = useState(false);
-  const [failureReason, setFailureReason] = useState<string | null>(null);
 
   const apiRef =
     searchParams.get("apiRef") ||
@@ -20,10 +19,6 @@ function PremiumCompleteContent() {
     searchParams.get("checkoutId") || searchParams.get("checkout_id");
 
   useEffect(() => {
-    if (failureReason) {
-      return;
-    }
-
     let cancelled = false;
 
     const pollStatus = async () => {
@@ -62,20 +57,6 @@ function PremiumCompleteContent() {
           return;
         }
 
-        const latestAttempt = data.latestAttempt || data.pendingPayment;
-        const latestStatus = String(latestAttempt?.status || "").toUpperCase();
-        const isTerminalFailure = ["FAILED", "CANCELLED", "REVERSED"].includes(
-          latestStatus,
-        );
-
-        if (isTerminalFailure) {
-          setFailureReason(
-            latestAttempt?.failureReason ||
-              `Subscription payment ${latestStatus.toLowerCase()}.`,
-          );
-          return;
-        }
-
         setAttempts((current) => current + 1);
       } catch {
         setAttempts((current) => current + 1);
@@ -89,7 +70,7 @@ function PremiumCompleteContent() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [apiRef, checkoutId, router, failureReason]);
+  }, [apiRef, checkoutId, router]);
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
@@ -108,17 +89,10 @@ function PremiumCompleteContent() {
         <span>
           {isActivated
             ? "Activation confirmed. Redirecting..."
-            : failureReason
-              ? "Subscription activation failed."
-              : "Waiting for subscription confirmation..."}
+            : "Waiting for subscription confirmation..."}
         </span>
       </div>
-      {failureReason ? (
-        <p className="mt-3 max-w-md rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {failureReason}
-        </p>
-      ) : null}
-      {!isActivated && (attempts > 10 || Boolean(failureReason)) && (
+      {!isActivated && attempts > 10 && (
         <button
           onClick={() => router.replace("/dashboard/premium")}
           className="mt-6 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
