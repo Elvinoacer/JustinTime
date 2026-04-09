@@ -19,6 +19,11 @@ DARAJA_ENFORCE_CALLBACK_TOKEN=true
 DARAJA_CALLBACK_PATH_SECRET=optional_secret_path_segment
 DARAJA_ENFORCE_CALLBACK_IP=false
 DARAJA_CALLBACK_IP_WHITELIST=
+
+# Optional: auto-fail stale Daraja records when STK query returns
+# exact "The transaction does not Exist" and record age exceeds threshold.
+# Set to 0 to disable (default: 180 minutes).
+DARAJA_RECONCILE_NOT_FOUND_AUTO_FAIL_MINUTES=180
 ```
 
 ## 1) Webhook Receipt Worker
@@ -110,14 +115,45 @@ Success response shape:
   "staleMinutes": 5,
   "staleBefore": "2026-04-09T10:00:00.000Z",
   "results": {
-    "wallet": { "scanned": 4, "forwarded": 2, "errors": 0 },
-    "onboarding": { "scanned": 1, "forwarded": 1, "errors": 0 },
-    "subscription": { "scanned": 2, "forwarded": 0, "errors": 1 }
+    "wallet": {
+      "scanned": 4,
+      "forwarded": 2,
+      "errors": 0,
+      "autoFailed": 1,
+      "failureReasons": {},
+      "failureSamples": []
+    },
+    "onboarding": {
+      "scanned": 1,
+      "forwarded": 1,
+      "errors": 0,
+      "autoFailed": 0,
+      "failureReasons": {},
+      "failureSamples": []
+    },
+    "subscription": {
+      "scanned": 2,
+      "forwarded": 0,
+      "errors": 1,
+      "autoFailed": 0,
+      "failureReasons": { "Daraja request failed": 1 },
+      "failureSamples": [
+        {
+          "recordId": "tx_123",
+          "checkoutRequestId": "ws_CO_...",
+          "reason": "Daraja request failed"
+        }
+      ]
+    }
   },
   "summary": {
     "scanned": 7,
     "forwarded": 3,
-    "errors": 1
+    "errors": 1,
+    "autoFailed": 1,
+    "failureReasons": {
+      "Daraja request failed": 1
+    }
   }
 }
 ```

@@ -9,6 +9,127 @@ import { POST as handleOnboardingWebhook } from "@/app/api/onboarding-fee/webhoo
 import { POST as handleSubscriptionWebhook } from "@/app/api/subscription/webhook/route";
 
 const MAX_BATCH = 100;
+const MAX_FAILURE_SAMPLES = 20;
+const MAX_REASON_LENGTH = 220;
+const DEFAULT_AUTO_FAIL_NOT_FOUND_MINUTES = 180;
+const NOT_FOUND_PROVIDER_REASON = "the transaction does not exist";
+
+interface ReconciliationFailureSample {
+  recordId: string;
+  checkoutRequestId: string;
+  reason: string;
+}
+
+interface ReconciliationResult {
+  scanned: number;
+  forwarded: number;
+  errors: number;
+  autoFailed: number;
+  failureReasons: Record<string, number>;
+  failureSamples: ReconciliationFailureSample[];
+}
+
+function normalizeErrorReason(error: unknown): string {
+  if (error instanceof Error) {
+    const message = error.message.replace(/\s+/g, " ").trim();
+    return (message || "unknown_error").slice(0, MAX_REASON_LENGTH);
+  }
+
+  if (typeof error === "string") {
+    const message = error.replace(/\s+/g, " ").trim();
+    return (message || "unknown_error").slice(0, MAX_REASON_LENGTH);
+  }
+
+  try {
+    const message = JSON.stringify(error) || "unknown_error";
+    return message.slice(0, MAX_REASON_LENGTH);
+  } catch {
+    return "unknown_error";
+  }
+}
+
+function recordFailure(
+  reasonCounts: Record<string, number>,
+  samples: ReconciliationFailureSample[],
+  sample: ReconciliationFailureSample,
+) {
+  reasonCounts[sample.reason] = (reasonCounts[sample.reason] || 0) + 1;
+
+  if (samples.length < MAX_FAILURE_SAMPLES) {
+    samples.push(sample);
+  }
+}
+
+function mergeFailureReasons(
+  target: Record<string, number>,
+  source: Record<string, number>,
+) {
+  for (const [reason, count] of Object.entries(source)) {
+    target[reason] = (target[reason] || 0) + count;
+  }
+}
+
+function getAutoFailNotFoundMinutes(): number {
+  const raw = Number(
+    String(
+      process.env.DARAJA_RECONCILE_NOT_FOUND_AUTO_FAIL_MINUTES ||
+        DEFAULT_AUTO_FAIL_NOT_FOUND_MINUTES,
+    ).trim(),
+  );
+
+  if (!Number.isFinite(raw)) {
+    return DEFAULT_AUTO_FAIL_NOT_FOUND_MINUTES;
+  }
+
+  return Math.max(0, Math.min(Math.trunc(raw), 10_080));
+}
+
+function isExactTransactionNotFoundReason(reason: string): boolean {
+  const normalized = reason
+    .toLowerCase()
+    .trim()
+    .replace(/[.!?\s]+$/g, "");
+
+  return normalized === NOT_FOUND_PROVIDER_REASON;
+}
+
+function isOlderThanMinutes(timestamp: Date, minutes: number): boolean {
+  if (minutes <= 0) {
+    return false;
+  }
+
+  return Date.now() - timestamp.getTime() >= minutes * 60 * 1000;
+}
+
+async function didForwardSuccessfully(response: Response): Promise<boolean> {
+  if (!response.ok) {
+    return false;
+  }
+
+  const text = await response.text().catch(() => "");
+  if (!text) {
+    return true;
+  }
+
+  try {
+    const payload = JSON.parse(text) as {
+      skipped?: boolean;
+      success?: boolean;
+    };
+
+    if (payload?.skipped) {
+      return false;
+    }
+
+    if (typeof payload?.success === "boolean") {
+      return payload.success;
+    }
+
+    return true;
+  } catch {
+    return true;
+  }
+}
 
 function hasSecretAccess(request: Request): boolean {
   const expectedSecret = String(
@@ -97,9 +218,14 @@ function buildSyntheticWebhookRequest(
   });
 }
 
-async function reconcileWalletTopups(requestUrl: string, staleBefore: Date) {
+async function reconcileWalletTopups(
+  requestUrl: string,
+  staleBefore: Date,
+  autoFailNotFoundMinutes: number,
+): Promise<ReconciliationResult> {
   const staleTopUps = await prisma.walletTopUp.findMany({
     where: {
+      gateway: "DARAJA",
       status: {
         in: ["PENDING", "PROCESSING"],
       },
@@ -118,6 +244,9 @@ async function reconcileWalletTopups(requestUrl: string, staleBefore: Date) {
 
   let forwarded = 0;
   let errors = 0;
+  let autoFailed = 0;
+  const failureReasons: Record<string, number> = {};
+  const failureSamples: ReconciliationFailureSample[] = [];
 
   for (const topUp of staleTopUps) {
     const checkoutRequestId = String(topUp.gatewaySessionId || "").trim();
@@ -173,13 +302,73 @@ async function reconcileWalletTopups(requestUrl: string, staleBefore: Date) {
       );
       forwarded += 1;
     } catch (error) {
+      const reason = normalizeErrorReason(error);
+
+      const canAutoFail =
+        isExactTransactionNotFoundReason(reason) &&
+        isOlderThanMinutes(topUp.initiatedAt, autoFailNotFoundMinutes);
+
+      if (canAutoFail) {
+        const autoFailPayload: DarajaWebhookPayload = {
+          CheckoutRequestID: checkoutRequestId,
+          MerchantRequestID:
+            String(
+              topUp.gatewayInvoiceId || topUp.gatewaySessionId || "",
+            ).trim() || checkoutRequestId,
+          ResultCode: 1,
+          ResultDesc: "FAILED",
+          api_ref: topUp.apiRef,
+          Amount: Number(topUp.amountExpected),
+          id:
+            String(
+              topUp.gatewayInvoiceId || topUp.gatewaySessionId || "",
+            ).trim() || checkoutRequestId,
+          provider: "STALE_PENDING_AUTO_FAIL_NOT_FOUND",
+        };
+
+        const autoFailResponse = await handleWalletWebhook(
+          buildSyntheticWebhookRequest(
+            requestUrl,
+            "/api/wallet/webhook",
+            autoFailPayload,
+          ),
+        );
+
+        const autoFailForwarded = await didForwardSuccessfully(
+          autoFailResponse,
+        );
+
+        if (autoFailForwarded) {
+          forwarded += 1;
+          autoFailed += 1;
+          console.warn(
+            "[DARAJA_RECONCILE_CRON] wallet top-up auto-failed after age gate",
+            {
+              topUpId: topUp.id,
+              apiRef: topUp.apiRef,
+              checkoutRequestId,
+              ageMinutes: Math.floor(
+                (Date.now() - topUp.initiatedAt.getTime()) / 60_000,
+              ),
+              autoFailNotFoundMinutes,
+            },
+          );
+          continue;
+        }
+      }
+
       errors += 1;
+      recordFailure(failureReasons, failureSamples, {
+        recordId: topUp.id,
+        checkoutRequestId,
+        reason,
+      });
       console.warn(
         "[DARAJA_RECONCILE_CRON] wallet top-up reconciliation failed",
         {
           topUpId: topUp.id,
           apiRef: topUp.apiRef,
-          error,
+          reason,
         },
       );
     }
@@ -189,16 +378,21 @@ async function reconcileWalletTopups(requestUrl: string, staleBefore: Date) {
     scanned: staleTopUps.length,
     forwarded,
     errors,
+    autoFailed,
+    failureReasons,
+    failureSamples,
   };
 }
 
 async function reconcileOnboardingPayments(
   requestUrl: string,
   staleBefore: Date,
-) {
+  autoFailNotFoundMinutes: number,
+): Promise<ReconciliationResult> {
   const stalePayments = await prisma.transaction.findMany({
     where: {
       type: "ONBOARDING_FEE",
+      gateway: "DARAJA",
       status: {
         in: ["PENDING", "PROCESSING"],
       },
@@ -217,6 +411,9 @@ async function reconcileOnboardingPayments(
 
   let forwarded = 0;
   let errors = 0;
+  let autoFailed = 0;
+  const failureReasons: Record<string, number> = {};
+  const failureSamples: ReconciliationFailureSample[] = [];
 
   for (const entry of stalePayments) {
     const checkoutRequestId = String(entry.gatewaySessionId || "").trim();
@@ -271,13 +468,66 @@ async function reconcileOnboardingPayments(
       );
       forwarded += 1;
     } catch (error) {
+      const reason = normalizeErrorReason(error);
+
+      const canAutoFail =
+        isExactTransactionNotFoundReason(reason) &&
+        isOlderThanMinutes(entry.createdAt, autoFailNotFoundMinutes);
+
+      if (canAutoFail) {
+        const autoFailPayload: DarajaWebhookPayload = {
+          CheckoutRequestID: checkoutRequestId,
+          MerchantRequestID: merchantRequestId || checkoutRequestId,
+          ResultCode: 1,
+          ResultDesc: "FAILED",
+          api_ref: apiRef,
+          Amount: Number(entry.amount),
+          id: merchantRequestId || checkoutRequestId,
+          provider: "STALE_PENDING_AUTO_FAIL_NOT_FOUND",
+        };
+
+        const autoFailResponse = await handleOnboardingWebhook(
+          buildSyntheticWebhookRequest(
+            requestUrl,
+            "/api/onboarding-fee/webhook",
+            autoFailPayload,
+          ),
+        );
+
+        const autoFailForwarded = await didForwardSuccessfully(
+          autoFailResponse,
+        );
+
+        if (autoFailForwarded) {
+          forwarded += 1;
+          autoFailed += 1;
+          console.warn(
+            "[DARAJA_RECONCILE_CRON] onboarding payment auto-failed after age gate",
+            {
+              transactionId: entry.id,
+              checkoutRequestId,
+              ageMinutes: Math.floor(
+                (Date.now() - entry.createdAt.getTime()) / 60_000,
+              ),
+              autoFailNotFoundMinutes,
+            },
+          );
+          continue;
+        }
+      }
+
       errors += 1;
+      recordFailure(failureReasons, failureSamples, {
+        recordId: entry.id,
+        checkoutRequestId,
+        reason,
+      });
       console.warn(
         "[DARAJA_RECONCILE_CRON] onboarding payment reconciliation failed",
         {
           transactionId: entry.id,
           providerRef: entry.providerRef,
-          error,
+          reason,
         },
       );
     }
@@ -287,17 +537,22 @@ async function reconcileOnboardingPayments(
     scanned: stalePayments.length,
     forwarded,
     errors,
+    autoFailed,
+    failureReasons,
+    failureSamples,
   };
 }
 
 async function reconcileSubscriptionPayments(
   requestUrl: string,
   staleBefore: Date,
-) {
+  autoFailNotFoundMinutes: number,
+): Promise<ReconciliationResult> {
   const stalePayments = await prisma.transaction.findMany({
     where: {
       type: "PAYMENT",
       category: "SUBSCRIPTION",
+      gateway: "DARAJA",
       status: {
         in: ["PENDING", "PROCESSING"],
       },
@@ -316,6 +571,9 @@ async function reconcileSubscriptionPayments(
 
   let forwarded = 0;
   let errors = 0;
+  let autoFailed = 0;
+  const failureReasons: Record<string, number> = {};
+  const failureSamples: ReconciliationFailureSample[] = [];
 
   for (const entry of stalePayments) {
     const checkoutRequestId = String(entry.gatewaySessionId || "").trim();
@@ -370,13 +628,66 @@ async function reconcileSubscriptionPayments(
       );
       forwarded += 1;
     } catch (error) {
+      const reason = normalizeErrorReason(error);
+
+      const canAutoFail =
+        isExactTransactionNotFoundReason(reason) &&
+        isOlderThanMinutes(entry.createdAt, autoFailNotFoundMinutes);
+
+      if (canAutoFail) {
+        const autoFailPayload: DarajaWebhookPayload = {
+          CheckoutRequestID: checkoutRequestId,
+          MerchantRequestID: merchantRequestId || checkoutRequestId,
+          ResultCode: 1,
+          ResultDesc: "FAILED",
+          api_ref: apiRef,
+          Amount: Number(entry.amount),
+          id: merchantRequestId || checkoutRequestId,
+          provider: "STALE_PENDING_AUTO_FAIL_NOT_FOUND",
+        };
+
+        const autoFailResponse = await handleSubscriptionWebhook(
+          buildSyntheticWebhookRequest(
+            requestUrl,
+            "/api/subscription/webhook",
+            autoFailPayload,
+          ),
+        );
+
+        const autoFailForwarded = await didForwardSuccessfully(
+          autoFailResponse,
+        );
+
+        if (autoFailForwarded) {
+          forwarded += 1;
+          autoFailed += 1;
+          console.warn(
+            "[DARAJA_RECONCILE_CRON] subscription payment auto-failed after age gate",
+            {
+              transactionId: entry.id,
+              checkoutRequestId,
+              ageMinutes: Math.floor(
+                (Date.now() - entry.createdAt.getTime()) / 60_000,
+              ),
+              autoFailNotFoundMinutes,
+            },
+          );
+          continue;
+        }
+      }
+
       errors += 1;
+      recordFailure(failureReasons, failureSamples, {
+        recordId: entry.id,
+        checkoutRequestId,
+        reason,
+      });
       console.warn(
         "[DARAJA_RECONCILE_CRON] subscription payment reconciliation failed",
         {
           transactionId: entry.id,
           providerRef: entry.providerRef,
-          error,
+          reason,
         },
       );
     }
@@ -386,6 +697,9 @@ async function reconcileSubscriptionPayments(
     scanned: stalePayments.length,
     forwarded,
     errors,
+    autoFailed,
+    failureReasons,
+    failureSamples,
   };
 }
 
@@ -404,13 +718,27 @@ async function runReconciliation(request: Request) {
     Number.isFinite(requestedMinutes) && requestedMinutes >= 1
       ? Math.min(requestedMinutes, 240)
       : 1;
+  const autoFailNotFoundMinutes = getAutoFailNotFoundMinutes();
   const staleBefore = new Date(Date.now() - staleMinutes * 60 * 1000);
 
   const [wallet, onboarding, subscription] = await Promise.all([
-    reconcileWalletTopups(request.url, staleBefore),
-    reconcileOnboardingPayments(request.url, staleBefore),
-    reconcileSubscriptionPayments(request.url, staleBefore),
+    reconcileWalletTopups(request.url, staleBefore, autoFailNotFoundMinutes),
+    reconcileOnboardingPayments(
+      request.url,
+      staleBefore,
+      autoFailNotFoundMinutes,
+    ),
+    reconcileSubscriptionPayments(
+      request.url,
+      staleBefore,
+      autoFailNotFoundMinutes,
+    ),
   ]);
+
+  const failureReasons: Record<string, number> = {};
+  mergeFailureReasons(failureReasons, wallet.failureReasons);
+  mergeFailureReasons(failureReasons, onboarding.failureReasons);
+  mergeFailureReasons(failureReasons, subscription.failureReasons);
 
   return NextResponse.json({
     success: true,
@@ -426,6 +754,8 @@ async function runReconciliation(request: Request) {
       forwarded:
         wallet.forwarded + onboarding.forwarded + subscription.forwarded,
       errors: wallet.errors + onboarding.errors + subscription.errors,
+      autoFailed: wallet.autoFailed + onboarding.autoFailed + subscription.autoFailed,
+      failureReasons,
     },
   });
 }
