@@ -430,7 +430,7 @@ export default function ProfessionalsPage() {
               id="professionals-sidebar-filters"
               className={`${
                 showMobileFilters
-                  ? "fixed inset-0 z-70 flex items-end bg-slate-950/35 p-3"
+                  ? "fixed inset-0 z-[70] flex items-end bg-slate-950/35 p-3"
                   : "hidden"
               } shrink-0 lg:static lg:block lg:w-72 lg:bg-transparent lg:p-0`}
               onClick={

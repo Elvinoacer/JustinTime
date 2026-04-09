@@ -246,6 +246,24 @@ const ServicesList = ({
             </span>
           </div>
 
+          <div className="md:hidden">
+            <label htmlFor="services-sort-mobile" className="sr-only">
+              Sort results
+            </label>
+            <select
+              id="services-sort-mobile"
+              className="w-full min-h-[44px] rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+              onChange={(e) => handleSortChange(e.target.value)}
+              value={currentSort}
+            >
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="hidden items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/90 px-2 py-1.5 pl-3 shadow-sm md:flex">
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
               Sort

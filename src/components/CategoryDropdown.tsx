@@ -118,7 +118,17 @@ export default function CategoryDropdown({
       </button>
 
       {/* Mobile Full-screen Overlay */}
-      {isMobile && isOpen && <div className="fixed inset-0 bg-black/50 z-40" />}
+      {isMobile && isOpen ? (
+        <button
+          type="button"
+          aria-label="Close categories"
+          className="fixed inset-0 z-40 bg-black/50"
+          onClick={() => {
+            setIsOpen(false);
+            setSearchQuery("");
+          }}
+        />
+      ) : null}
 
       {/* Dropdown Menu - Responsive */}
       <AnimatePresence>
@@ -126,7 +136,7 @@ export default function CategoryDropdown({
           <motion.div
             className={`fixed sm:absolute ${
               isMobile
-                ? "inset-x-0 bottom-0 top-auto max-h-[70vh] overflow-hidden rounded-t-xl"
+                ? "inset-x-0 bottom-0 top-auto max-h-[78dvh] overflow-hidden rounded-t-2xl"
                 : "top-full left-0 right-0 mt-2 max-h-[400px]"
             } bg-white border border-gray-200 shadow-xl sm:shadow-2xl z-50 flex flex-col`}
             initial={{
@@ -156,8 +166,9 @@ export default function CategoryDropdown({
                   Select Category
                 </h3>
                 <button
+                  type="button"
                   onClick={() => setIsOpen(false)}
-                  className="p-1 sm:p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   aria-label="Close dropdown"
                 >
                   <span className="material-symbols-outlined text-gray-500 text-sm sm:text-base">
@@ -179,6 +190,7 @@ export default function CategoryDropdown({
                 />
                 {searchQuery && (
                   <button
+                    type="button"
                     onClick={() => setSearchQuery("")}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     aria-label="Clear search"
@@ -283,6 +295,7 @@ export default function CategoryDropdown({
             {isMobile && (
               <div className="p-3 border-t border-gray-200 bg-white">
                 <button
+                  type="button"
                   onClick={() => setIsOpen(false)}
                   className="w-full py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium active:scale-[0.98] text-sm"
                 >

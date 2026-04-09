@@ -848,7 +848,7 @@ export default function JobDetailPage() {
     return (
       <div className="flex min-h-screen flex-col bg-slate-50">
         <Header />
-        <main className="flex flex-1 items-center justify-center pt-(--public-header-h)">
+        <main className="flex flex-1 items-center justify-center pt-[var(--public-header-h)]">
           <div className="flex flex-col items-center gap-4 text-center">
             <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
             <p className="text-sm font-medium text-slate-600">
@@ -865,7 +865,7 @@ export default function JobDetailPage() {
     return (
       <div className="flex min-h-screen flex-col bg-slate-50">
         <Header />
-        <main className="flex flex-1 items-center justify-center px-4 pt-(--public-header-h)">
+        <main className="flex flex-1 items-center justify-center px-4 pt-[var(--public-header-h)]">
           <div className="max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
             <AlertCircle className="mx-auto h-12 w-12 text-slate-300" />
             <h1 className="mt-4 text-2xl font-bold text-slate-950">
@@ -893,7 +893,7 @@ export default function JobDetailPage() {
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Header />
 
-      <section className="relative overflow-hidden border-b border-emerald-100/70 bg-linear-to-b from-white via-emerald-50/50 to-slate-50 pt-(--public-header-h)">
+      <section className="relative overflow-hidden border-b border-emerald-100/70 bg-linear-to-b from-white via-emerald-50/50 to-slate-50 pt-[var(--public-header-h)]">
         <div className="pointer-events-none absolute inset-0 opacity-75">
           <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-emerald-300/30 blur-3xl" />
           <div className="absolute right-0 top-14 h-72 w-72 rounded-full bg-sky-300/25 blur-3xl" />
@@ -1870,7 +1870,7 @@ export default function JobDetailPage() {
         </div>
       ) : null}
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/96 px-4 py-3 backdrop-blur lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/80 bg-white/96 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-7xl items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-semibold uppercase tracking-wide text-slate-400">

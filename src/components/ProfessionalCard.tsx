@@ -89,9 +89,9 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ professional }) => 
   return (
     <Link
       href={`/professionals/${professional.id}`}
-      className="group block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+      className="group block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
     >
-      <article className="flex min-h-[158px] max-h-[220px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_36px_-24px_rgba(15,23,42,0.45)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-emerald-200/70 hover:shadow-[0_16px_44px_-22px_rgba(16,185,129,0.22)] sm:max-h-none sm:min-h-[168px] sm:flex-row">
+      <article className="flex min-h-[158px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_10px_36px_-24px_rgba(15,23,42,0.45)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-emerald-200/70 hover:shadow-[0_16px_44px_-22px_rgba(16,185,129,0.22)] sm:min-h-[168px] sm:flex-row">
         <div className="relative h-28 w-full shrink-0 overflow-hidden sm:h-auto sm:w-[42%] sm:min-w-[140px] sm:max-w-[220px]">
           {cover && coverAvailable ? (
             <Image

@@ -102,6 +102,9 @@ const RADAR_LAYOUT_SIZE = 560;
 const RADAR_LABEL_WIDTH = 176;
 const RADAR_LABEL_HEIGHT = 48;
 const RADAR_LABEL_PADDING = 6;
+const RADAR_LABEL_WIDTH_COMPACT = 136;
+const RADAR_LABEL_HEIGHT_COMPACT = 40;
+const RADAR_LABEL_PADDING_COMPACT = 4;
 const MIN_DISTANCE_KM = 1;
 const HEADING_MIN_STEP_DEG = 0.4;
 const HEADING_LABEL_STEP_DEG = 2;
@@ -126,12 +129,12 @@ function overlapCount(candidate: Rect, occupied: Rect[]) {
   return count;
 }
 
-function isWithinRadar(rect: Rect, size: number) {
+function isWithinRadar(rect: Rect, size: number, labelPadding: number) {
   return (
-    rect.left >= RADAR_LABEL_PADDING &&
-    rect.top >= RADAR_LABEL_PADDING &&
-    rect.left + rect.width <= size - RADAR_LABEL_PADDING &&
-    rect.top + rect.height <= size - RADAR_LABEL_PADDING
+    rect.left >= labelPadding &&
+    rect.top >= labelPadding &&
+    rect.left + rect.width <= size - labelPadding &&
+    rect.top + rect.height <= size - labelPadding
   );
 }
 
@@ -139,43 +142,51 @@ function getLabelPlacement(
   pointX: number,
   pointY: number,
   occupied: Rect[],
+  layout: {
+    labelWidth: number;
+    labelHeight: number;
+    labelPadding: number;
+    size: number;
+  },
 ): LabelPlacement {
+  const { labelWidth, labelHeight, labelPadding, size } = layout;
+
   const candidates = [
     {
-      left: pointX - RADAR_LABEL_WIDTH / 2,
-      top: pointY - RADAR_LABEL_HEIGHT - 14,
-      width: RADAR_LABEL_WIDTH,
-      height: RADAR_LABEL_HEIGHT,
+      left: pointX - labelWidth / 2,
+      top: pointY - labelHeight - 14,
+      width: labelWidth,
+      height: labelHeight,
     },
     {
       left: pointX + 14,
-      top: pointY - RADAR_LABEL_HEIGHT / 2,
-      width: RADAR_LABEL_WIDTH,
-      height: RADAR_LABEL_HEIGHT,
+      top: pointY - labelHeight / 2,
+      width: labelWidth,
+      height: labelHeight,
     },
     {
-      left: pointX - RADAR_LABEL_WIDTH - 14,
-      top: pointY - RADAR_LABEL_HEIGHT / 2,
-      width: RADAR_LABEL_WIDTH,
-      height: RADAR_LABEL_HEIGHT,
+      left: pointX - labelWidth - 14,
+      top: pointY - labelHeight / 2,
+      width: labelWidth,
+      height: labelHeight,
     },
     {
-      left: pointX - RADAR_LABEL_WIDTH / 2,
+      left: pointX - labelWidth / 2,
       top: pointY + 14,
-      width: RADAR_LABEL_WIDTH,
-      height: RADAR_LABEL_HEIGHT,
+      width: labelWidth,
+      height: labelHeight,
     },
     {
       left: pointX + 12,
-      top: pointY - RADAR_LABEL_HEIGHT - 12,
-      width: RADAR_LABEL_WIDTH,
-      height: RADAR_LABEL_HEIGHT,
+      top: pointY - labelHeight - 12,
+      width: labelWidth,
+      height: labelHeight,
     },
     {
-      left: pointX - RADAR_LABEL_WIDTH - 12,
-      top: pointY - RADAR_LABEL_HEIGHT - 12,
-      width: RADAR_LABEL_WIDTH,
-      height: RADAR_LABEL_HEIGHT,
+      left: pointX - labelWidth - 12,
+      top: pointY - labelHeight - 12,
+      width: labelWidth,
+      height: labelHeight,
     },
   ];
 
@@ -183,7 +194,7 @@ function getLabelPlacement(
   let bestScore = Number.POSITIVE_INFINITY;
 
   for (const candidate of candidates) {
-    if (!isWithinRadar(candidate, RADAR_LAYOUT_SIZE)) {
+    if (!isWithinRadar(candidate, size, labelPadding)) {
       continue;
     }
     const score = overlapCount(candidate, occupied);
@@ -197,13 +208,13 @@ function getLabelPlacement(
     }
   }
 
-  const maxLeft = RADAR_LAYOUT_SIZE - RADAR_LABEL_WIDTH - RADAR_LABEL_PADDING;
-  const maxTop = RADAR_LAYOUT_SIZE - RADAR_LABEL_HEIGHT - RADAR_LABEL_PADDING;
+  const maxLeft = size - labelWidth - labelPadding;
+  const maxTop = size - labelHeight - labelPadding;
   const clamped: Rect = {
-    left: Math.min(Math.max(best.left, RADAR_LABEL_PADDING), maxLeft),
-    top: Math.min(Math.max(best.top, RADAR_LABEL_PADDING), maxTop),
-    width: RADAR_LABEL_WIDTH,
-    height: RADAR_LABEL_HEIGHT,
+    left: Math.min(Math.max(best.left, labelPadding), maxLeft),
+    top: Math.min(Math.max(best.top, labelPadding), maxTop),
+    width: labelWidth,
+    height: labelHeight,
   };
   occupied.push(clamped);
   return clamped;
@@ -273,6 +284,7 @@ function RadarBrowse({
   const [compassError, setCompassError] = useState<string | null>(null);
   const [isNativeFullscreen, setIsNativeFullscreen] = useState(false);
   const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
+  const [isCompactLabelLayout, setIsCompactLabelLayout] = useState(false);
 
   useEffect(() => {
     headingLockedRef.current = headingLocked;
@@ -496,6 +508,23 @@ function RadarBrowse({
 
   const isFullscreenActive = isNativeFullscreen || isPseudoFullscreen;
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 639px)");
+    const syncLabelLayout = () => {
+      setIsCompactLabelLayout(mediaQuery.matches && !isFullscreenActive);
+    };
+
+    syncLabelLayout();
+    mediaQuery.addEventListener("change", syncLabelLayout);
+    return () => {
+      mediaQuery.removeEventListener("change", syncLabelLayout);
+    };
+  }, [isFullscreenActive]);
+
   const toggleFullscreen = useCallback(async () => {
     if (typeof document === "undefined") {
       return;
@@ -590,6 +619,15 @@ function RadarBrowse({
   const pointLayouts = useMemo(() => {
     const plottedItems = sorted.slice(0, 60);
     const occupiedLabelRects: Rect[] = [];
+    const labelWidth = isCompactLabelLayout
+      ? RADAR_LABEL_WIDTH_COMPACT
+      : RADAR_LABEL_WIDTH;
+    const labelHeight = isCompactLabelLayout
+      ? RADAR_LABEL_HEIGHT_COMPACT
+      : RADAR_LABEL_HEIGHT;
+    const labelPadding = isCompactLabelLayout
+      ? RADAR_LABEL_PADDING_COMPACT
+      : RADAR_LABEL_PADDING;
 
     return plottedItems.map((item) => {
       const label = itemTypeLabel(item);
@@ -601,7 +639,12 @@ function RadarBrowse({
       );
       const pointX = (pos.x / 100) * RADAR_LAYOUT_SIZE;
       const pointY = (pos.y / 100) * RADAR_LAYOUT_SIZE;
-      const labelRect = getLabelPlacement(pointX, pointY, occupiedLabelRects);
+      const labelRect = getLabelPlacement(pointX, pointY, occupiedLabelRects, {
+        labelWidth,
+        labelHeight,
+        labelPadding,
+        size: RADAR_LAYOUT_SIZE,
+      });
 
       const labelCenterX = labelRect.left + labelRect.width / 2;
       const labelCenterY = labelRect.top + labelRect.height / 2;
@@ -651,7 +694,7 @@ function RadarBrowse({
         },
       };
     });
-  }, [maxDistanceKm, sorted]);
+  }, [isCompactLabelLayout, maxDistanceKm, sorted]);
 
   const legend = useMemo(
     () =>
@@ -770,7 +813,7 @@ function RadarBrowse({
                 <button
                   type="button"
                   onClick={() => setHeadingLocked((prev) => !prev)}
-                  className={`inline-flex h-8 items-center justify-center rounded-lg border px-2.5 text-[11px] font-semibold transition-colors ${
+                  className={`inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs font-semibold transition-colors sm:h-8 sm:px-2.5 sm:text-[11px] ${
                     headingLocked
                       ? "border-amber-300/70 bg-amber-500/20 text-amber-100"
                       : "border-emerald-200/35 bg-slate-900/75 text-emerald-50 hover:bg-slate-900/90"
@@ -781,7 +824,7 @@ function RadarBrowse({
                 <button
                   type="button"
                   onClick={() => void toggleFullscreen()}
-                  className="inline-flex h-8 items-center justify-center rounded-lg border border-emerald-200/35 bg-slate-900/75 px-2.5 text-[11px] font-semibold text-emerald-50 transition-colors hover:bg-slate-900/90"
+                  className="inline-flex h-9 items-center justify-center rounded-lg border border-emerald-200/35 bg-slate-900/75 px-3 text-xs font-semibold text-emerald-50 transition-colors hover:bg-slate-900/90 sm:h-8 sm:px-2.5 sm:text-[11px]"
                 >
                   {isFullscreenActive ? "Exit full screen" : "Full screen"}
                 </button>
@@ -847,7 +890,7 @@ function RadarBrowse({
                             className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-1/2 rounded-md border border-white/30 bg-slate-900/80 px-2 py-1 text-center text-[10px] leading-tight text-emerald-50 shadow-[0_8px_22px_-14px_rgba(0,0,0,0.9)] backdrop-blur-sm transition-all duration-200 group-hover:-translate-y-[53%] group-hover:bg-slate-900/95"
                             style={labelStyle}
                           >
-                            <span className="block max-w-[160px] truncate font-semibold text-white">
+                            <span className="block max-w-full truncate font-semibold text-white">
                               {item.name}
                             </span>
                             <span className="mt-0.5 block text-[9px] uppercase tracking-wide text-emerald-100/95">
@@ -855,7 +898,7 @@ function RadarBrowse({
                               {bearingToCompass(item.bearingDeg)}
                             </span>
                             {item.subtitle ? (
-                              <span className="mt-0.5 block max-w-[160px] truncate text-[9px] text-emerald-200/90">
+                              <span className="mt-0.5 block max-w-full truncate text-[9px] text-emerald-200/90">
                                 {item.subtitle}
                               </span>
                             ) : null}
@@ -895,7 +938,7 @@ function RadarBrowse({
                   <button
                     type="button"
                     onClick={zoomRadarIn}
-                    className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-emerald-200/30 bg-slate-900/70 px-2 text-xs font-bold text-emerald-50 transition-colors hover:bg-slate-900"
+                    className="inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-emerald-200/30 bg-slate-900/70 px-2 text-xs font-bold text-emerald-50 transition-colors hover:bg-slate-900 sm:h-8 sm:min-w-8"
                     aria-label="Zoom in radar"
                   >
                     +
@@ -915,7 +958,7 @@ function RadarBrowse({
                   <button
                     type="button"
                     onClick={zoomRadarOut}
-                    className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-emerald-200/30 bg-slate-900/70 px-2 text-xs font-bold text-emerald-50 transition-colors hover:bg-slate-900"
+                    className="inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-emerald-200/30 bg-slate-900/70 px-2 text-xs font-bold text-emerald-50 transition-colors hover:bg-slate-900 sm:h-8 sm:min-w-8"
                     aria-label="Zoom out radar"
                   >
                     -
@@ -923,7 +966,7 @@ function RadarBrowse({
                   <button
                     type="button"
                     onClick={resetRadarZoom}
-                    className="inline-flex h-8 items-center justify-center rounded-lg border border-emerald-200/30 bg-slate-900/70 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-50 transition-colors hover:bg-slate-900"
+                    className="inline-flex h-9 items-center justify-center rounded-lg border border-emerald-200/30 bg-slate-900/70 px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-50 transition-colors hover:bg-slate-900 sm:h-8"
                   >
                     Auto
                   </button>
@@ -943,7 +986,7 @@ function RadarBrowse({
                   <button
                     type="button"
                     onClick={() => void requestCompassPermission()}
-                    className="mt-2 inline-flex h-9 items-center justify-center rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white transition-colors hover:bg-emerald-400"
+                    className="mt-2 inline-flex h-10 items-center justify-center rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white transition-colors hover:bg-emerald-400 sm:h-9"
                   >
                     Enable compass
                   </button>

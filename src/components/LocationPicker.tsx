@@ -482,6 +482,7 @@ export default function LocationPicker({
         </button>
       ) : (
         <motion.button
+          type="button"
           onClick={() => setIsOpen(!isOpen)}
           className={buttonClass}
           whileHover={{ scale: 1.01 }}
@@ -505,7 +506,14 @@ export default function LocationPicker({
       )}
 
       {/* Mobile Full-screen Overlay */}
-      {isMobile && isOpen && <div className="fixed inset-0 bg-black/50 z-40" />}
+      {isMobile && isOpen ? (
+        <button
+          type="button"
+          aria-label="Close location picker"
+          className="fixed inset-0 z-40 bg-black/50"
+          onClick={() => setIsOpen(false)}
+        />
+      ) : null}
 
       {/* Dropdown Panel - Responsive Positioning */}
       <AnimatePresence>
@@ -532,7 +540,7 @@ export default function LocationPicker({
             }}
             className={`fixed sm:absolute ${
               isMobile
-                ? "inset-x-0 bottom-0 top-auto max-h-[70vh] overflow-y-auto rounded-t-2xl"
+                ? "inset-x-0 bottom-0 top-auto max-h-[78dvh] overflow-y-auto rounded-t-2xl pb-[max(0.75rem,env(safe-area-inset-bottom))]"
                 : "top-full right-0 mt-2"
             } w-full sm:w-80 bg-white shadow-xl sm:shadow-2xl border border-gray-100 z-50`}
           >
@@ -557,6 +565,7 @@ export default function LocationPicker({
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setIsOpen(false)}
                   className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   aria-label="Close location picker"
@@ -629,8 +638,9 @@ export default function LocationPicker({
                     </div>
 
                     {/* Action Buttons - Stack on mobile, side by side on larger */}
-                    <div className="flex flex-col xs:flex-row gap-2 sm:gap-3">
+                    <div className="flex flex-col min-[420px]:flex-row gap-2 sm:gap-3">
                       <button
+                        type="button"
                         onClick={handleDetectLocation}
                         disabled={isDetecting}
                         className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 sm:py-3 bg-linear-to-r from-emerald-600 to-emerald-700 text-white rounded-lg sm:rounded-xl font-medium hover:from-emerald-700 hover:to-emerald-800 transition-all disabled:opacity-50 active:scale-[0.98]"
@@ -650,6 +660,7 @@ export default function LocationPicker({
                         )}
                       </button>
                       <button
+                        type="button"
                         onClick={handleClearLocation}
                         className="px-4 py-2.5 sm:py-3 bg-gray-100 text-gray-700 rounded-lg sm:rounded-xl font-medium hover:bg-gray-200 transition-colors active:scale-[0.98] text-sm"
                       >
@@ -825,6 +836,7 @@ export default function LocationPicker({
               {isMobile && (
                 <div className="mt-6 pt-4 border-t border-gray-200">
                   <button
+                    type="button"
                     onClick={() => setIsOpen(false)}
                     className="w-full py-3 bg-gray-100 text-gray-700 rounded-lg font-medium active:scale-[0.98] text-sm"
                   >

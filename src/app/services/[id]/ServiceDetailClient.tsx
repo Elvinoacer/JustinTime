@@ -128,7 +128,7 @@ export default function ServiceDetailClient({
       {lightboxUrl ? (
         <button
           type="button"
-          className="fixed inset-0 z-100 flex items-center justify-center bg-black/85 p-4"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4"
           onClick={() => setLightboxUrl(null)}
           aria-label="Close image preview"
         >
