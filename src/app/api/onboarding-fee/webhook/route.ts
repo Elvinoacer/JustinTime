@@ -162,7 +162,6 @@ export async function POST(req: Request) {
     const internalProcessing = isTrustedInternalProcessingRequest(req);
     const queueEnabled =
       String(process.env.DARAJA_RECONCILE_CRON_SECRET || "").trim().length > 0;
-    const queueOnly = queueEnabled && !internalProcessing;
     const callbackToken =
       getDarajaCallbackTokenFromRequest(req.url) ||
       req.headers.get("x-daraja-callback-token") ||
@@ -232,6 +231,13 @@ export async function POST(req: Request) {
     // Extract payment state and reference
     const webhook = parseDarajaWebhook(body);
     const gatewayState = webhook.state;
+    const isTerminalState = [
+      "SETTLED",
+      "FAILED",
+      "CANCELLED",
+      "REVERSED",
+    ].includes(gatewayState);
+    const queueOnly = queueEnabled && !internalProcessing && !isTerminalState;
     const checkoutRequestId = String(
       webhook.checkoutRequestId || webhook.invoiceId || "",
     ).trim();
@@ -591,66 +597,74 @@ export async function POST(req: Request) {
       });
     }
 
-    const verification = await verifyDarajaPayment({
-      checkoutRequestId,
-      expectedApiRef: canonicalRef,
-      expectedAmount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
-      expectedCurrency: "KES",
-      requireApiRefMatch: false,
-      requireAmountMatch: false,
-      requireCurrencyMatch: false,
-    });
+    if (!internalProcessing) {
+      const verification = await verifyDarajaPayment({
+        checkoutRequestId,
+        expectedApiRef: canonicalRef,
+        expectedAmount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+        expectedCurrency: "KES",
+        requireApiRefMatch: false,
+        requireAmountMatch: false,
+        requireCurrencyMatch: false,
+      });
 
-    if (!verification.stateMatches) {
-      if (intentContext) {
-        await prisma.$transaction(async (tx) => {
-          await updateOnboardingFeePaymentIntentFromWebhook(tx, {
-            userId: intentContext.wallet.userId,
-            walletId: intentContext.walletId,
-            sourceId: intentContext.id,
-            apiRef: canonicalRef,
-            amountExpected: Number(intentContext.amount),
-            amountReceived: null,
-            currency: intentContext.currency || "KES",
-            gatewayState: "PROCESSING",
-            gatewayInvoiceId: merchantRequestId || null,
-            gatewaySessionId: checkoutRequestId || null,
-            providerRef: intentContext.providerRef || pendingProviderRef,
-            failureReason: "Provider status verification failed",
-            payload: body as Prisma.InputJsonValue,
-            metadata: {
-              reason: "provider_status_verification_failed",
-              providerState: verification.providerState,
-              apiRefMatches: verification.apiRefMatches,
-              amountMatches: verification.amountMatches,
-              currencyMatches: verification.currencyMatches,
+      if (!verification.stateMatches) {
+        if (intentContext) {
+          await prisma.$transaction(async (tx) => {
+            await updateOnboardingFeePaymentIntentFromWebhook(tx, {
+              userId: intentContext.wallet.userId,
+              walletId: intentContext.walletId,
+              sourceId: intentContext.id,
               apiRef: canonicalRef,
-              invoiceId: String(invoiceId),
-            },
+              amountExpected: Number(intentContext.amount),
+              amountReceived: null,
+              currency: intentContext.currency || "KES",
+              gatewayState: "PROCESSING",
+              gatewayInvoiceId: merchantRequestId || null,
+              gatewaySessionId: checkoutRequestId || null,
+              providerRef: intentContext.providerRef || pendingProviderRef,
+              failureReason: "Provider status verification failed",
+              payload: body as Prisma.InputJsonValue,
+              metadata: {
+                reason: "provider_status_verification_failed",
+                providerState: verification.providerState,
+                apiRefMatches: verification.apiRefMatches,
+                amountMatches: verification.amountMatches,
+                currencyMatches: verification.currencyMatches,
+                apiRef: canonicalRef,
+                invoiceId: String(invoiceId),
+              },
+            });
           });
+        }
+
+        return NextResponse.json({
+          received: true,
+          skipped: true,
+          requiresManualResolution: true,
+          reason: "provider_status_verification_failed",
+          apiRef: canonicalRef,
+          verification: {
+            providerState: verification.providerState,
+            apiRefMatches: verification.apiRefMatches,
+            amountMatches: verification.amountMatches,
+            currencyMatches: verification.currencyMatches,
+          },
         });
       }
 
-      return NextResponse.json({
-        received: true,
-        skipped: true,
-        requiresManualResolution: true,
-        reason: "provider_status_verification_failed",
-        apiRef: canonicalRef,
-        verification: {
-          providerState: verification.providerState,
-          apiRefMatches: verification.apiRefMatches,
-          amountMatches: verification.amountMatches,
-          currencyMatches: verification.currencyMatches,
-        },
-      });
+      const verifiedAmount = Number(verification.amount);
+      amount =
+        Number.isFinite(verifiedAmount) && verifiedAmount > 0
+          ? verifiedAmount
+          : PAYMENT_AMOUNTS.ONBOARDING_FEE;
+    } else {
+      const settledAmountCandidate = Number(webhook.amount);
+      amount =
+        Number.isFinite(settledAmountCandidate) && settledAmountCandidate > 0
+          ? settledAmountCandidate
+          : PAYMENT_AMOUNTS.ONBOARDING_FEE;
     }
-
-    const verifiedAmount = Number(verification.amount);
-    amount =
-      Number.isFinite(verifiedAmount) && verifiedAmount > 0
-        ? verifiedAmount
-        : PAYMENT_AMOUNTS.ONBOARDING_FEE;
 
     const pendingOnboarding = await prisma.transaction.findFirst({
       where: {

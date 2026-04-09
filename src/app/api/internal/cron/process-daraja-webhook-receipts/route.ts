@@ -21,6 +21,7 @@ function hasSecretAccess(request: Request): boolean {
   const expectedSecret = String(
     process.env.DARAJA_RECONCILE_CRON_SECRET || "",
   ).trim();
+
   if (!expectedSecret) {
     return false;
   }

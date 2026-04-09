@@ -26,7 +26,8 @@ type TopUpStatus =
   | "REVERSED"
   | "CANCELLED";
 
-const POLL_INTERVAL_MS = 4000;
+const FAST_POLL_INTERVAL_MS = 4000;
+const SLOW_POLL_INTERVAL_MS = 30_000;
 const POLL_TIMEOUT_MS = 90_000;
 
 function formatCurrency(value: number | string | null | undefined): string {
@@ -153,11 +154,15 @@ export function TopUpCompletionStatus({
           status === "CANCELLED" ||
           status === "REVERSED";
 
-        if (timedOut || isTerminal) {
+        if (isTerminal) {
           return false;
         }
 
-        return POLL_INTERVAL_MS;
+        if (timedOut) {
+          return SLOW_POLL_INTERVAL_MS;
+        }
+
+        return FAST_POLL_INTERVAL_MS;
       },
     },
   );
@@ -266,6 +271,13 @@ export function TopUpCompletionStatus({
         </div>
       )}
 
+      {statusQuery.data?.reconciliationError && !isTerminal && (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Could not reach M-Pesa to verify status (
+          {statusQuery.data.reconciliationError}). Retrying automatically...
+        </div>
+      )}
+
       <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
         <div className="grid gap-2 sm:grid-cols-2">
           <p className="text-slate-600">
@@ -310,8 +322,9 @@ export function TopUpCompletionStatus({
 
       {timedOut && !isTerminal && (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          We could not confirm this payment in time. It may still settle later.
-          You can refresh status or check wallet history.
+          We could not confirm this payment within the expected window.
+          <strong> We are still monitoring it in the background.</strong> Your
+          wallet will update automatically once M-Pesa confirms.
         </div>
       )}
 

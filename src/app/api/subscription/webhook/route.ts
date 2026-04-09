@@ -213,7 +213,6 @@ export async function POST(req: NextRequest) {
     const internalProcessing = isTrustedInternalProcessingRequest(req);
     const queueEnabled =
       String(process.env.DARAJA_RECONCILE_CRON_SECRET || "").trim().length > 0;
-    const queueOnly = queueEnabled && !internalProcessing;
     const challenge =
       typeof body.challenge === "string" ? body.challenge.trim() : "";
 
@@ -351,6 +350,13 @@ export async function POST(req: NextRequest) {
     }
 
     const gatewayState = webhook.state;
+    const isTerminalState = [
+      "SETTLED",
+      "FAILED",
+      "CANCELLED",
+      "REVERSED",
+    ].includes(gatewayState);
+    const queueOnly = queueEnabled && !internalProcessing && !isTerminalState;
     const invoiceId = checkoutRequestId || null;
     const pendingProviderRef = `DARAJA:SUBSCRIPTION:PENDING:${canonicalRef}`;
     const settledProviderRef = `DARAJA:SUBSCRIPTION:SETTLED:${canonicalRef}`;
@@ -791,64 +797,96 @@ export async function POST(req: NextRequest) {
     }
 
     const expectedAmount = Number(pendingSubscription.amount || 0);
-    const verification = await verifyDarajaPayment({
-      checkoutRequestId,
-      expectedApiRef: canonicalRef,
-      expectedAmount,
-      expectedCurrency: pendingSubscription.currency || "KES",
-      requireApiRefMatch: false,
-      requireAmountMatch: false,
-      requireCurrencyMatch: false,
-    });
+    let settledAmount = expectedAmount;
+    let providerVerification: {
+      providerState: string | null;
+      apiRefMatches: boolean;
+      amountMatches: boolean;
+      currencyMatches: boolean;
+    } | null = null;
 
-    if (!verification.stateMatches) {
-      await prisma.$transaction(async (tx) => {
-        await updateSubscriptionPaymentIntentFromWebhook(tx, {
-          userId: pendingSubscription.wallet.userId,
-          walletId: pendingSubscription.walletId,
-          sourceId: pendingSubscription.id,
+    if (!internalProcessing) {
+      const verification = await verifyDarajaPayment({
+        checkoutRequestId,
+        expectedApiRef: canonicalRef,
+        expectedAmount,
+        expectedCurrency: pendingSubscription.currency || "KES",
+        requireApiRefMatch: false,
+        requireAmountMatch: false,
+        requireCurrencyMatch: false,
+      });
+
+      if (!verification.stateMatches) {
+        await prisma.$transaction(async (tx) => {
+          await updateSubscriptionPaymentIntentFromWebhook(tx, {
+            userId: pendingSubscription.wallet.userId,
+            walletId: pendingSubscription.walletId,
+            sourceId: pendingSubscription.id,
+            apiRef: canonicalRef,
+            amountExpected: Number(pendingSubscription.amount),
+            amountReceived: null,
+            currency: pendingSubscription.currency || "KES",
+            gatewayState: "PROCESSING",
+            gatewayInvoiceId: merchantRequestId || null,
+            gatewaySessionId: checkoutRequestId || null,
+            providerRef: pendingSubscription.providerRef || pendingProviderRef,
+            failureReason: "Provider status verification failed",
+            payload: body as Prisma.InputJsonValue,
+            metadata: {
+              reason: "provider_status_verification_failed",
+              providerState: verification.providerState,
+              apiRefMatches: verification.apiRefMatches,
+              amountMatches: verification.amountMatches,
+              currencyMatches: verification.currencyMatches,
+              apiRef: canonicalRef,
+              invoiceId: String(invoiceId),
+            },
+          });
+        });
+
+        return NextResponse.json({
+          received: true,
+          skipped: true,
+          requiresManualResolution: true,
+          reason: "provider_status_verification_failed",
           apiRef: canonicalRef,
-          amountExpected: Number(pendingSubscription.amount),
-          amountReceived: null,
-          currency: pendingSubscription.currency || "KES",
-          gatewayState: "PROCESSING",
-          gatewayInvoiceId: merchantRequestId || null,
-          gatewaySessionId: checkoutRequestId || null,
-          providerRef: pendingSubscription.providerRef || pendingProviderRef,
-          failureReason: "Provider status verification failed",
-          payload: body as Prisma.InputJsonValue,
-          metadata: {
-            reason: "provider_status_verification_failed",
+          verification: {
             providerState: verification.providerState,
             apiRefMatches: verification.apiRefMatches,
             amountMatches: verification.amountMatches,
             currencyMatches: verification.currencyMatches,
-            apiRef: canonicalRef,
-            invoiceId: String(invoiceId),
           },
         });
-      });
+      }
 
-      return NextResponse.json({
-        received: true,
-        skipped: true,
-        requiresManualResolution: true,
-        reason: "provider_status_verification_failed",
-        apiRef: canonicalRef,
-        verification: {
-          providerState: verification.providerState,
-          apiRefMatches: verification.apiRefMatches,
-          amountMatches: verification.amountMatches,
-          currencyMatches: verification.currencyMatches,
-        },
-      });
+      const settledAmountCandidate = Number(verification.amount);
+      settledAmount =
+        Number.isFinite(settledAmountCandidate) && settledAmountCandidate > 0
+          ? settledAmountCandidate
+          : expectedAmount;
+      providerVerification = {
+        providerState: verification.providerState,
+        apiRefMatches: verification.apiRefMatches,
+        amountMatches: verification.amountMatches,
+        currencyMatches: verification.currencyMatches,
+      };
+    } else {
+      const settledAmountCandidate = Number(webhook.amount);
+      settledAmount =
+        Number.isFinite(settledAmountCandidate) && settledAmountCandidate > 0
+          ? settledAmountCandidate
+          : expectedAmount;
+      providerVerification = {
+        providerState: "SETTLED",
+        apiRefMatches: true,
+        amountMatches: true,
+        currencyMatches: true,
+      };
     }
 
-    const settledAmountCandidate = Number(verification.amount);
-    const settledAmount =
-      Number.isFinite(settledAmountCandidate) && settledAmountCandidate > 0
-        ? settledAmountCandidate
-        : expectedAmount;
+    if (!Number.isFinite(settledAmount) || settledAmount <= 0) {
+      settledAmount = expectedAmount;
+    }
 
     const startDate = new Date();
     const endDate = new Date(startDate);
@@ -986,12 +1024,7 @@ export async function POST(req: NextRequest) {
               gatewayState,
               eventFamily: webhook.eventFamily,
               invoiceId: invoiceId ? String(invoiceId) : null,
-              providerVerification: {
-                providerState: verification.providerState,
-                apiRefMatches: verification.apiRefMatches,
-                amountMatches: verification.amountMatches,
-                currencyMatches: verification.currencyMatches,
-              },
+              providerVerification,
             } as Prisma.InputJsonValue,
           },
         });
@@ -1020,12 +1053,7 @@ export async function POST(req: NextRequest) {
               gatewayState,
               eventFamily: webhook.eventFamily,
               invoiceId: invoiceId ? String(invoiceId) : null,
-              providerVerification: {
-                providerState: verification.providerState,
-                apiRefMatches: verification.apiRefMatches,
-                amountMatches: verification.amountMatches,
-                currencyMatches: verification.currencyMatches,
-              },
+              providerVerification,
             } as Prisma.InputJsonValue,
           },
         });

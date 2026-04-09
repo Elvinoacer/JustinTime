@@ -162,6 +162,30 @@ export default function ClientWalletPage() {
   }, []);
 
   useEffect(() => {
+    if (!wallet) {
+      return;
+    }
+
+    const pendingCount =
+      (wallet.topUpStats?.pendingCount || 0) +
+      (wallet.topUpStats?.processingCount || 0);
+
+    if (pendingCount <= 0) {
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: queryKeys.wallet.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.wallet.balance() });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.wallet.transactions(),
+    });
+  }, [
+    queryClient,
+    wallet?.topUpStats?.pendingCount,
+    wallet?.topUpStats?.processingCount,
+  ]);
+
+  useEffect(() => {
     const status = pendingTopUpStatus.data?.status;
     if (!status || !pendingTopUpStatus.data?.isTerminal) {
       return;
@@ -178,7 +202,9 @@ export default function ClientWalletPage() {
 
     queryClient.invalidateQueries({ queryKey: queryKeys.wallet.all });
     queryClient.invalidateQueries({ queryKey: queryKeys.wallet.balance() });
-    queryClient.invalidateQueries({ queryKey: queryKeys.wallet.transactions() });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.wallet.transactions(),
+    });
 
     if (status === "SETTLED") {
       toast.success(

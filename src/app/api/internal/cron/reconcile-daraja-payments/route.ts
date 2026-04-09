@@ -11,7 +11,10 @@ import { POST as handleSubscriptionWebhook } from "@/app/api/subscription/webhoo
 const MAX_BATCH = 100;
 
 function hasSecretAccess(request: Request): boolean {
-  const expectedSecret = process.env.DARAJA_RECONCILE_CRON_SECRET;
+  const expectedSecret = String(
+    process.env.DARAJA_RECONCILE_CRON_SECRET || "",
+  ).trim();
+
   if (!expectedSecret) {
     return false;
   }
@@ -396,11 +399,11 @@ async function runReconciliation(request: Request) {
   }
 
   const url = new URL(request.url);
-  const requestedMinutes = Number(url.searchParams.get("staleMinutes") || "5");
+  const requestedMinutes = Number(url.searchParams.get("staleMinutes") || "1");
   const staleMinutes =
-    Number.isFinite(requestedMinutes) && requestedMinutes >= 2
+    Number.isFinite(requestedMinutes) && requestedMinutes >= 1
       ? Math.min(requestedMinutes, 240)
-      : 5;
+      : 1;
   const staleBefore = new Date(Date.now() - staleMinutes * 60 * 1000);
 
   const [wallet, onboarding, subscription] = await Promise.all([

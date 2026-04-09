@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       staleMinutes:
-        description: "Reconciliation lookback in minutes (2-240)"
+        description: "Reconciliation lookback in minutes (1-240)"
         required: false
-        default: "5"
+        default: "1"
 
 permissions: {}
 
@@ -47,13 +47,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          stale_minutes="${INPUT_STALE_MINUTES:-5}"
+          stale_minutes="${INPUT_STALE_MINUTES:-1}"
           if ! [[ "${stale_minutes}" =~ ^[0-9]+$ ]]; then
-            stale_minutes="5"
+            stale_minutes="1"
           fi
 
-          if [ "${stale_minutes}" -lt 2 ]; then
-            stale_minutes=2
+          if [ "${stale_minutes}" -lt 1 ]; then
+            stale_minutes=1
           fi
 
           if [ "${stale_minutes}" -gt 240 ]; then

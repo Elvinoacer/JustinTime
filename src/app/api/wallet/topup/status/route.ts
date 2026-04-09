@@ -108,6 +108,7 @@ export async function GET(req: Request) {
       topUp.gatewayInvoiceId;
     const merchantRequestId =
       trackingId || topUp.gatewayInvoiceId || topUp.gatewaySessionId || null;
+    let reconciliationError: string | null = null;
 
     if (!isTerminalTopUpStatus(topUp.status) && verificationCheckoutRequestId) {
       try {
@@ -157,10 +158,15 @@ export async function GET(req: Request) {
           }
         }
       } catch (error) {
+        reconciliationError =
+          error instanceof Error
+            ? error.message
+            : "Verification request failed";
         console.warn(
           "[WALLET_TOPUP_STATUS_GET] Redirect reconciliation attempt failed",
           error,
         );
+        console.error("[WALLET_TOPUP_STATUS_GET] Reconciliation failed", error);
       }
     }
 
@@ -184,6 +190,7 @@ export async function GET(req: Request) {
       cancelledAt: topUp.cancelledAt,
       reversedAt: topUp.reversedAt,
       failureReason: topUp.failureReason,
+      reconciliationError,
       isTerminal,
       transaction: latestLedger
         ? {

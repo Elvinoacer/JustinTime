@@ -389,7 +389,6 @@ export async function POST(req: Request) {
     const internalProcessing = isTrustedInternalProcessingRequest(req);
     const queueEnabled =
       String(process.env.DARAJA_RECONCILE_CRON_SECRET || "").trim().length > 0;
-    const queueOnly = queueEnabled && !internalProcessing;
     const callbackToken =
       getDarajaCallbackTokenFromRequest(req.url) ||
       req.headers.get("x-daraja-callback-token") ||
@@ -449,6 +448,8 @@ export async function POST(req: Request) {
 
     const webhook = parseDarajaWebhook(body);
     const gatewayState = webhook.state;
+    const isTerminalState = TERMINAL_STATES.includes(gatewayState);
+    const queueOnly = queueEnabled && !internalProcessing && !isTerminalState;
     const amountFromGateway = webhook.amount;
     const gatewaySessionId = (webhook.checkoutRequestId || "").trim();
     const gatewayInvoiceId = (webhook.merchantRequestId || "").trim();
@@ -748,69 +749,80 @@ export async function POST(req: Request) {
           };
         }
 
-        const verification = await verifyDarajaPayment({
-          checkoutRequestId: gatewaySessionId,
-          expectedApiRef: trustedApiRef,
-          expectedAmount: Number(topUp.amountExpected),
-          expectedCurrency: topUp.currency || "KES",
-          requireAmountMatch: false,
-          requireCurrencyMatch: false,
-        });
-
-        if (!verification.stateMatches) {
-          await updateWalletTopUpPaymentIntentFromWebhook(tx, {
-            userId: topUp.userId,
-            walletId: topUp.walletId,
-            topUpId: topUp.id,
-            apiRef: trustedApiRef,
-            amountExpected: Number(topUp.amountExpected),
-            amountReceived: null,
-            currency: topUp.currency,
-            gatewayState: "PROCESSING",
-            gatewayInvoiceId: gatewayInvoiceId || topUp.gatewayInvoiceId,
-            gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
-            providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}`,
-            failureReason: "Provider status verification failed",
-            payload: body as Prisma.InputJsonValue,
-            metadata: {
-              reason: "provider_status_verification_failed",
-              providerState: verification.providerState,
-              apiRefMatches: verification.apiRefMatches,
-              amountMatches: verification.amountMatches,
-              currencyMatches: verification.currencyMatches,
-            },
+        if (!internalProcessing) {
+          const verification = await verifyDarajaPayment({
+            checkoutRequestId: gatewaySessionId,
+            expectedApiRef: trustedApiRef,
+            expectedAmount: Number(topUp.amountExpected),
+            expectedCurrency: topUp.currency || "KES",
+            requireAmountMatch: false,
+            requireCurrencyMatch: false,
           });
 
-          await tx.walletTopUp.update({
-            where: { id: topUp.id },
-            data: {
+          if (!verification.stateMatches) {
+            await updateWalletTopUpPaymentIntentFromWebhook(tx, {
+              userId: topUp.userId,
+              walletId: topUp.walletId,
+              topUpId: topUp.id,
+              apiRef: trustedApiRef,
+              amountExpected: Number(topUp.amountExpected),
+              amountReceived: null,
+              currency: topUp.currency,
+              gatewayState: "PROCESSING",
               gatewayInvoiceId: gatewayInvoiceId || topUp.gatewayInvoiceId,
               gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
-              rawWebhookPayload: body as Prisma.InputJsonValue,
-            },
-          });
+              providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}`,
+              failureReason: "Provider status verification failed",
+              payload: body as Prisma.InputJsonValue,
+              metadata: {
+                reason: "provider_status_verification_failed",
+                providerState: verification.providerState,
+                apiRefMatches: verification.apiRefMatches,
+                amountMatches: verification.amountMatches,
+                currencyMatches: verification.currencyMatches,
+              },
+            });
 
-          return {
-            received: true,
-            skipped: true,
-            requiresManualResolution: true,
-            reason: "provider_status_verification_failed",
-            apiRef: trustedApiRef,
-            topUpId: topUp.id,
-            verification: {
-              providerState: verification.providerState,
-              apiRefMatches: verification.apiRefMatches,
-              amountMatches: verification.amountMatches,
-              currencyMatches: verification.currencyMatches,
-            },
-          };
+            await tx.walletTopUp.update({
+              where: { id: topUp.id },
+              data: {
+                gatewayInvoiceId: gatewayInvoiceId || topUp.gatewayInvoiceId,
+                gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
+                rawWebhookPayload: body as Prisma.InputJsonValue,
+              },
+            });
+
+            return {
+              received: true,
+              skipped: true,
+              requiresManualResolution: true,
+              reason: "provider_status_verification_failed",
+              apiRef: trustedApiRef,
+              topUpId: topUp.id,
+              verification: {
+                providerState: verification.providerState,
+                apiRefMatches: verification.apiRefMatches,
+                amountMatches: verification.amountMatches,
+                currencyMatches: verification.currencyMatches,
+              },
+            };
+          }
+
+          verifiedSettlementAmount =
+            typeof verification.amount === "number" &&
+            Number.isFinite(verification.amount)
+              ? verification.amount
+              : null;
+        } else {
+          const settledAmountCandidate = Number(
+            amountFromGateway ?? topUp.amountExpected,
+          );
+          verifiedSettlementAmount =
+            Number.isFinite(settledAmountCandidate) &&
+            settledAmountCandidate > 0
+              ? settledAmountCandidate
+              : Number(topUp.amountExpected);
         }
-
-        verifiedSettlementAmount =
-          typeof verification.amount === "number" &&
-          Number.isFinite(verification.amount)
-            ? verification.amount
-            : null;
       }
 
       if (

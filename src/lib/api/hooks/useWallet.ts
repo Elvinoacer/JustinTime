@@ -11,6 +11,7 @@ import { queryKeys } from "@/lib/api/queryKeys";
 import { PaginatedResponse } from "@/types/api";
 
 const TOPUP_STORAGE_KEY = "jt.wallet.topup.pending";
+const TOPUP_STORAGE_TTL_MS = 15 * 60 * 1000;
 
 export type WalletTransactionStatus =
   | "PENDING"
@@ -119,6 +120,7 @@ export interface WalletTopUpStatusResponse {
   cancelledAt: string | null;
   reversedAt: string | null;
   failureReason: string | null;
+  reconciliationError: string | null;
   isTerminal: boolean;
   transaction: WalletTransaction | null;
 }
@@ -126,12 +128,21 @@ export interface WalletTopUpStatusResponse {
 export const useWallet = (
   options?: Omit<UseQueryOptions<WalletSummary, Error>, "queryKey" | "queryFn">,
 ) => {
+  const queryClient = useQueryClient();
+  const cachedWallet = queryClient.getQueryData<WalletSummary>(
+    queryKeys.wallet.all,
+  );
+  const hasPendingTopUps =
+    (cachedWallet?.topUpStats?.pendingCount ?? 0) > 0 ||
+    (cachedWallet?.topUpStats?.processingCount ?? 0) > 0;
+
   return useQuery<WalletSummary, Error>({
     queryKey: queryKeys.wallet.all,
     queryFn: async () => {
       const response = await apiClient.get<WalletSummary>("/wallet");
       return response.data;
     },
+    staleTime: hasPendingTopUps ? 10_000 : 60_000,
     ...options,
   });
 };
@@ -252,6 +263,7 @@ export const useTopUpWallet = (
       onSuccess?.(data, variables, onMutateResult, context);
     },
     onError: (error, variables, onMutateResult, context) => {
+      clearStoredPendingTopUp();
       const message = error?.message || "Failed to initiate top-up";
       toast.error(message);
       onError?.(error, variables, onMutateResult, context);
@@ -277,6 +289,19 @@ export function getStoredPendingTopUp(): {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") {
       return null;
+    }
+
+    const initiatedAtRaw =
+      typeof parsed.initiatedAt === "string" ? parsed.initiatedAt : null;
+    if (initiatedAtRaw) {
+      const initiatedAtMs = new Date(initiatedAtRaw).getTime();
+      if (
+        Number.isFinite(initiatedAtMs) &&
+        Date.now() - initiatedAtMs > TOPUP_STORAGE_TTL_MS
+      ) {
+        window.localStorage.removeItem(TOPUP_STORAGE_KEY);
+        return null;
+      }
     }
 
     const apiRef =

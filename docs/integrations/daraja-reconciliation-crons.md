@@ -77,8 +77,7 @@ Error cases:
 
 Recommended schedule:
 
-- Dedicated scheduler: every 30 seconds (high reliability) or every 60 seconds (lower load)
-- GitHub Actions scheduler: every 5 minutes (GitHub scheduled workflows are not suitable for sub-minute cadence)
+- GitHub Actions scheduler: every 5 minutes
 
 ## 2) Stale Pending Reconciler
 
@@ -89,7 +88,7 @@ Endpoint:
 
 Query parameters:
 
-- staleMinutes: integer, min 2, max 240, default 5
+- staleMinutes: integer, min 1, max 240, default 1
 
 Auth:
 
@@ -125,13 +124,12 @@ Success response shape:
 
 Recommended schedule:
 
-- Dedicated scheduler: every 2 to 5 minutes
 - GitHub Actions scheduler: every 5 minutes
 
 ## Suggested Production Cadence
 
-1. process-daraja-webhook-receipts every 30 to 60 seconds on a dedicated scheduler (or every 5 minutes with GitHub Actions)
-2. reconcile-daraja-payments every 3 minutes on a dedicated scheduler (or every 5 minutes with GitHub Actions)
+1. process-daraja-webhook-receipts every 5 minutes via GitHub Actions
+2. reconcile-daraja-payments every 5 minutes via GitHub Actions
 
 This combination gives near-real-time processing plus self-healing for missed callbacks.
 
@@ -168,6 +166,6 @@ curl -sS "https://your-domain/api/internal/cron/process-daraja-webhook-receipts?
 Stale pending reconciler:
 
 ```bash
-curl -sS "https://your-domain/api/internal/cron/reconcile-daraja-payments?staleMinutes=5" \
+curl -sS "https://your-domain/api/internal/cron/reconcile-daraja-payments?staleMinutes=1" \
   -H "x-cron-secret: $DARAJA_RECONCILE_CRON_SECRET"
 ```
