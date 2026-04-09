@@ -77,8 +77,8 @@ Error cases:
 
 Recommended schedule:
 
-- Every 30 seconds (high reliability)
-- Or every 60 seconds (lower load)
+- Dedicated scheduler: every 30 seconds (high reliability) or every 60 seconds (lower load)
+- GitHub Actions scheduler: every 5 minutes (GitHub scheduled workflows are not suitable for sub-minute cadence)
 
 ## 2) Stale Pending Reconciler
 
@@ -125,14 +125,36 @@ Success response shape:
 
 Recommended schedule:
 
-- Every 2 to 5 minutes
+- Dedicated scheduler: every 2 to 5 minutes
+- GitHub Actions scheduler: every 5 minutes
 
 ## Suggested Production Cadence
 
-1. process-daraja-webhook-receipts every 30 seconds
-2. reconcile-daraja-payments every 3 minutes
+1. process-daraja-webhook-receipts every 30 to 60 seconds on a dedicated scheduler (or every 5 minutes with GitHub Actions)
+2. reconcile-daraja-payments every 3 minutes on a dedicated scheduler (or every 5 minutes with GitHub Actions)
 
 This combination gives near-real-time processing plus self-healing for missed callbacks.
+
+## GitHub Actions Automation (Included)
+
+This repository includes two scheduled workflows:
+
+1. .github/workflows/daraja-webhook-receipts-cron.yml
+2. .github/workflows/daraja-stale-reconciliation-cron.yml
+
+Required repository secrets:
+
+- DARAJA_WEBHOOK_RECEIPTS_PROCESS_URL
+  - Example: https://your-domain/api/internal/cron/process-daraja-webhook-receipts
+- DARAJA_RECONCILE_PAYMENTS_URL
+  - Example: https://your-domain/api/internal/cron/reconcile-daraja-payments
+- DARAJA_RECONCILE_CRON_SECRET
+  - Must match the app runtime value used by the cron endpoints
+
+The workflows support manual runs via workflow_dispatch with these optional inputs:
+
+- batchSize for webhook receipt processing
+- staleMinutes for stale pending reconciliation
 
 ## cURL Examples
 

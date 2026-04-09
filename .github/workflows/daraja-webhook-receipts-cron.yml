@@ -1,0 +1,78 @@
+name: Daraja Webhook Receipt Worker
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      batchSize:
+        description: "Batch size (1-200)"
+        required: false
+        default: "100"
+
+permissions: {}
+
+jobs:
+  process-receipts:
+    name: Process queued Daraja receipts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: daraja-webhook-receipts-cron
+      cancel-in-progress: false
+
+    steps:
+      - name: Validate required secrets
+        env:
+          RECEIPTS_ENDPOINT: ${{ secrets.DARAJA_WEBHOOK_RECEIPTS_PROCESS_URL }}
+          DARAJA_CRON_SECRET: ${{ secrets.DARAJA_RECONCILE_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${RECEIPTS_ENDPOINT}" ]; then
+            echo "Missing secret: DARAJA_WEBHOOK_RECEIPTS_PROCESS_URL"
+            exit 1
+          fi
+
+          if [ -z "${DARAJA_CRON_SECRET}" ]; then
+            echo "Missing secret: DARAJA_RECONCILE_CRON_SECRET"
+            exit 1
+          fi
+
+      - name: Trigger receipt worker endpoint
+        env:
+          RECEIPTS_ENDPOINT: ${{ secrets.DARAJA_WEBHOOK_RECEIPTS_PROCESS_URL }}
+          DARAJA_CRON_SECRET: ${{ secrets.DARAJA_RECONCILE_CRON_SECRET }}
+          INPUT_BATCH_SIZE: ${{ github.event.inputs.batchSize }}
+        run: |
+          set -euo pipefail
+
+          batch_size="${INPUT_BATCH_SIZE:-100}"
+          if ! [[ "${batch_size}" =~ ^[0-9]+$ ]]; then
+            batch_size="100"
+          fi
+
+          if [ "${batch_size}" -lt 1 ]; then
+            batch_size=1
+          fi
+
+          if [ "${batch_size}" -gt 200 ]; then
+            batch_size=200
+          fi
+
+          response_file="$(mktemp)"
+          status_code="$(curl --silent --show-error \
+            --output "${response_file}" \
+            --write-out "%{http_code}" \
+            --request POST "${RECEIPTS_ENDPOINT}?batchSize=${batch_size}" \
+            --header "Authorization: Bearer ${DARAJA_CRON_SECRET}" \
+            --header "x-cron-secret: ${DARAJA_CRON_SECRET}")"
+
+          echo "HTTP status: ${status_code}"
+          echo "Response body:"
+          cat "${response_file}"
+
+          if [ "${status_code}" -lt 200 ] || [ "${status_code}" -ge 300 ]; then
+            echo "Daraja receipt worker request failed"
+            exit 1
+          fi
