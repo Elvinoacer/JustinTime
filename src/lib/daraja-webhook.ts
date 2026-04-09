@@ -14,10 +14,15 @@ export interface DarajaWebhookContext {
   eventFamily: DarajaEventFamily;
   eventHint: string;
   rawState: string;
+  resultCode: number | null;
+  resultDesc: string | null;
   state: CanonicalDarajaState;
   apiRef: string | null;
   primaryReference: string | null;
   referenceCandidates: string[];
+  checkoutRequestId: string | null;
+  merchantRequestId: string | null;
+  // Backward compatibility aliases.
   invoiceId: string | null;
   sessionId: string | null;
   amount: number | null;
@@ -303,6 +308,66 @@ function extractFailureReason(payload: DarajaWebhookPayload): string | null {
   );
 }
 
+function extractResultCode(payload: DarajaWebhookPayload): number | null {
+  const callback = extractCallbackNode(payload);
+  const candidates = [
+    callback?.ResultCode,
+    payload.ResultCode,
+    payload.result_code,
+    payload.code,
+  ];
+
+  for (const candidate of candidates) {
+    const numeric = asNumber(candidate);
+    if (numeric != null) {
+      return numeric;
+    }
+  }
+
+  return null;
+}
+
+function extractResultDesc(payload: DarajaWebhookPayload): string | null {
+  const callback = extractCallbackNode(payload);
+
+  return (
+    asString(callback?.ResultDesc) ||
+    asString(payload.ResultDesc) ||
+    asString(payload.result_desc) ||
+    asString(payload.message) ||
+    null
+  );
+}
+
+function mapDarajaFailureReason(
+  resultCode: number | null,
+  resultDesc: string | null,
+): string | null {
+  if (resultCode == null) {
+    return resultDesc;
+  }
+
+  const fallback = resultDesc ? ` (${resultDesc})` : "";
+
+  if (resultCode === 0) {
+    return null;
+  }
+
+  if (resultCode === 1032) {
+    return `User cancelled the STK prompt${fallback}`;
+  }
+
+  if (resultCode === 1037) {
+    return `STK prompt timed out${fallback}`;
+  }
+
+  if (resultCode === 2001) {
+    return `Insufficient M-Pesa balance${fallback}`;
+  }
+
+  return resultDesc || `Daraja request failed with code ${resultCode}`;
+}
+
 export function parseDarajaWebhook(
   payload: DarajaWebhookPayload,
 ): DarajaWebhookContext {
@@ -310,8 +375,13 @@ export function parseDarajaWebhook(
   const metadata = extractMetadata(payload);
   const { family, hint } = detectEventFamily(payload);
 
+  const resultCode = extractResultCode(payload);
+  const resultDesc = extractResultDesc(payload);
   const rawState = pickRawState(payload);
-  const state = normalizeDarajaState(rawState, callback?.ResultDesc);
+  const state = normalizeDarajaState(
+    rawState,
+    resultDesc || callback?.ResultDesc,
+  );
 
   const apiRef =
     asString(metadata.AccountReference) ||
@@ -320,14 +390,14 @@ export function parseDarajaWebhook(
     asString(payload.request_reference_id) ||
     null;
 
-  const invoiceId =
+  const checkoutRequestId =
     asString(callback?.CheckoutRequestID) ||
     asString(payload.CheckoutRequestID) ||
     asString(payload.invoice_id) ||
     asString(payload.tracking_id) ||
     null;
 
-  const sessionId =
+  const merchantRequestId =
     asString(callback?.MerchantRequestID) ||
     asString(payload.MerchantRequestID) ||
     asString(payload.id) ||
@@ -335,20 +405,28 @@ export function parseDarajaWebhook(
 
   const references = collectReferenceCandidates(payload);
   const primaryReference =
-    apiRef || invoiceId || sessionId || references[0] || null;
+    apiRef || checkoutRequestId || merchantRequestId || references[0] || null;
+
+  const failureReason =
+    mapDarajaFailureReason(resultCode, resultDesc) ||
+    extractFailureReason(payload);
 
   return {
     eventFamily: family,
     eventHint: hint,
     rawState,
+    resultCode,
+    resultDesc,
     state,
     apiRef,
     primaryReference,
     referenceCandidates: references,
-    invoiceId,
-    sessionId,
+    checkoutRequestId,
+    merchantRequestId,
+    invoiceId: checkoutRequestId,
+    sessionId: merchantRequestId,
     amount: extractAmount(payload),
-    failureReason: extractFailureReason(payload),
+    failureReason,
     receiptNumber: asString(metadata.MpesaReceiptNumber),
     phoneNumber: asString(metadata.PhoneNumber),
     metadata,

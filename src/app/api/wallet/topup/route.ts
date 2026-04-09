@@ -4,6 +4,8 @@ import { Prisma } from "@/generated/prisma/client";
 import { hasRole } from "@/lib/auth/roles";
 import { prisma } from "@/lib/prisma";
 import {
+  buildDarajaCallbackUrl,
+  generateDarajaAccountReference,
   getBaseUrl,
   generateApiRef,
   initiateDarajaStkPush,
@@ -74,16 +76,14 @@ export async function POST(req: Request) {
 
     // Generate API reference (alphanumeric + hyphens only)
     const apiRef = generateApiRef("TOPUP", session.user.id);
+    const accountReference = generateDarajaAccountReference("WT", apiRef);
 
     const baseUrl = getBaseUrl();
     const defaultReturnPath = hasRole(session.user, "PROVIDER")
       ? "/dashboard/wallet/topup-complete"
       : "/client/wallet/topup-complete";
     const returnPath = requestedReturnUrl || defaultReturnPath;
-    const callbackToken = process.env.DARAJA_CALLBACK_TOKEN;
-    const callbackUrl = callbackToken
-      ? `${baseUrl}/api/wallet/webhook?token=${encodeURIComponent(callbackToken)}`
-      : `${baseUrl}/api/wallet/webhook`;
+    const callbackUrl = buildDarajaCallbackUrl(baseUrl, "/api/wallet/webhook");
 
     console.log("Initiating wallet topup:", {
       apiRef,
@@ -96,7 +96,7 @@ export async function POST(req: Request) {
       phoneNumber: payer.phone,
       apiRef,
       callbackUrl,
-      accountReference: apiRef,
+      accountReference,
       description: "Wallet top-up",
     });
 
@@ -183,6 +183,7 @@ export async function POST(req: Request) {
         initiationPayload: response as unknown as Prisma.InputJsonValue,
         metadata: {
           apiRef,
+          accountReference,
           checkoutUrl: completionUrl,
           checkoutRequestId: response.CheckoutRequestID,
           merchantRequestId: response.MerchantRequestID,
@@ -210,6 +211,7 @@ export async function POST(req: Request) {
           description: `Wallet Top-up initiated [Ref:${apiRef}]`,
           metadata: {
             apiRef,
+            accountReference,
             checkoutUrl: completionUrl,
             checkoutRequestId: response.CheckoutRequestID,
             merchantRequestId: response.MerchantRequestID,

@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/prisma";
-import { getBaseUrl, initiateDarajaStkPush } from "@/lib/daraja";
+import {
+  buildDarajaCallbackUrl,
+  generateDarajaAccountReference,
+  getBaseUrl,
+  initiateDarajaStkPush,
+} from "@/lib/daraja";
 import { SUBSCRIPTION_PRICES } from "@/lib/constants/pricing";
 import { ensureSubscriptionPaymentIntent } from "@/lib/payments/payment-intents";
 
@@ -49,17 +54,18 @@ export async function POST(req: NextRequest) {
 
     const normalizedUserId = session.user.id.replace(/[^a-zA-Z0-9]/g, "");
     const apiRef = `SUB-${plan}-${normalizedUserId}-${Date.now().toString(36)}`;
-    const callbackToken = process.env.DARAJA_CALLBACK_TOKEN;
-    const callbackUrl = callbackToken
-      ? `${getBaseUrl()}/api/subscription/webhook?token=${encodeURIComponent(callbackToken)}`
-      : `${getBaseUrl()}/api/subscription/webhook`;
+    const accountReference = generateDarajaAccountReference("SUB", apiRef);
+    const callbackUrl = buildDarajaCallbackUrl(
+      getBaseUrl(),
+      "/api/subscription/webhook",
+    );
 
     const checkoutSession = await initiateDarajaStkPush({
       amount,
       phoneNumber: user.phone,
       apiRef,
       callbackUrl,
-      accountReference: apiRef,
+      accountReference,
       description: `Subscription ${plan}`,
     });
 
@@ -114,6 +120,7 @@ export async function POST(req: NextRequest) {
         initiationPayload: checkoutSession as unknown as Prisma.InputJsonValue,
         metadata: {
           apiRef,
+          accountReference,
           plan,
           source: "subscription_initiate",
           checkoutRequestId: checkoutSession.CheckoutRequestID,

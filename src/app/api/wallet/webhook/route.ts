@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
+  evaluateDarajaCallbackIp,
   evaluateDarajaCallbackToken,
   getDarajaCallbackTokenFromRequest,
   verifyDarajaPayment,
@@ -117,6 +118,24 @@ function providerStatesForTerminalState(
     default:
       return ["COMPLETE", "COMPLETED", "SUCCESS", "SUCCEEDED", "PAID"];
   }
+}
+
+function isTrustedInternalProcessingRequest(request: Request): boolean {
+  const requestedMode = String(
+    request.headers.get("x-daraja-internal-process") || "",
+  ).trim();
+  if (requestedMode !== "1") {
+    return false;
+  }
+
+  const expectedSecret = String(
+    process.env.DARAJA_RECONCILE_CRON_SECRET || "",
+  ).trim();
+  const receivedSecret = String(
+    request.headers.get("x-daraja-internal-secret") || "",
+  ).trim();
+
+  return expectedSecret.length > 0 && receivedSecret === expectedSecret;
 }
 
 function asRecord(value: Prisma.JsonValue | null | undefined) {
@@ -367,13 +386,17 @@ export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
     const body = JSON.parse(rawBody) as DarajaWebhookPayload;
+    const internalProcessing = isTrustedInternalProcessingRequest(req);
+    const queueEnabled =
+      String(process.env.DARAJA_RECONCILE_CRON_SECRET || "").trim().length > 0;
+    const queueOnly = queueEnabled && !internalProcessing;
     const callbackToken =
       getDarajaCallbackTokenFromRequest(req.url) ||
       req.headers.get("x-daraja-callback-token") ||
       req.headers.get("x-callback-token");
     const challenge = typeof body.challenge === "string" ? body.challenge : "";
 
-    if (isChallengeOnlyPayload(body)) {
+    if (!internalProcessing && isChallengeOnlyPayload(body)) {
       if (verifyWebhookChallenge(challenge)) {
         return NextResponse.json({ challenge });
       }
@@ -381,22 +404,54 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid challenge" }, { status: 401 });
     }
 
-    const signatureEvaluation = evaluateDarajaCallbackToken(callbackToken);
-    if (signatureEvaluation.shouldReject) {
+    const signatureEvaluation = internalProcessing
+      ? {
+          valid: true,
+          enforceSignature: false,
+          shouldReject: false,
+        }
+      : evaluateDarajaCallbackToken(callbackToken);
+    if (!internalProcessing && signatureEvaluation.shouldReject) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    if (!signatureEvaluation.valid) {
+    const ipEvaluation = internalProcessing
+      ? {
+          valid: true,
+          enforceIp: false,
+          shouldReject: false,
+          requestIp: null,
+          allowedIps: [] as string[],
+        }
+      : evaluateDarajaCallbackIp(req);
+    if (!internalProcessing && ipEvaluation.shouldReject) {
+      return NextResponse.json(
+        { error: "Unauthorized callback IP" },
+        { status: 401 },
+      );
+    }
+
+    if (!internalProcessing && !signatureEvaluation.valid) {
       console.warn(
         "[WALLET_TOPUP_WEBHOOK] Callback token missing/invalid; continuing with challenge + provider verification flow",
+      );
+    }
+
+    if (
+      !internalProcessing &&
+      !ipEvaluation.valid &&
+      ipEvaluation.allowedIps.length > 0
+    ) {
+      console.warn(
+        "[WALLET_TOPUP_WEBHOOK] Callback IP is not in allowlist; continuing because enforcement is disabled",
       );
     }
 
     const webhook = parseDarajaWebhook(body);
     const gatewayState = webhook.state;
     const amountFromGateway = webhook.amount;
-    const gatewayInvoiceId = (webhook.invoiceId || "").trim();
-    const gatewaySessionId = (webhook.sessionId || "").trim();
+    const gatewaySessionId = (webhook.checkoutRequestId || "").trim();
+    const gatewayInvoiceId = (webhook.merchantRequestId || "").trim();
     const apiRef = (webhook.apiRef || "").trim();
     const lockKey = webhook.primaryReference || apiRef;
 
@@ -408,27 +463,36 @@ export async function POST(req: Request) {
       });
     }
 
-    const outcome = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+    const receiptIdFromHeader = String(
+      req.headers.get("x-payment-webhook-receipt-id") || "",
+    ).trim();
+    const shouldCreateReceipt = !internalProcessing || !receiptIdFromHeader;
 
+    const outcome = await prisma.$transaction(async (tx) => {
       const dedupeKey = buildWalletWebhookDedupeKey({
         apiRef: apiRef || lockKey,
-        invoiceId: gatewayInvoiceId || null,
+        invoiceId: gatewaySessionId || null,
         rawState: webhook.rawState,
         state: gatewayState,
       });
 
-      const webhookReceipt = await recordPaymentWebhookReceipt(tx, {
-        kind: "WALLET_TOPUP",
-        apiRef: apiRef || lockKey,
-        invoiceId: gatewayInvoiceId || null,
-        rawState: webhook.rawState,
-        dedupeKey,
-        payload: body,
-        rawBody,
-      });
+      const webhookReceipt = shouldCreateReceipt
+        ? await recordPaymentWebhookReceipt(tx, {
+            kind: "WALLET_TOPUP",
+            apiRef: apiRef || lockKey,
+            invoiceId: gatewaySessionId || null,
+            rawState: webhook.rawState,
+            dedupeKey,
+            payload: body,
+            rawBody,
+          })
+        : {
+            id: receiptIdFromHeader,
+            duplicate: false,
+            schemaReady: true,
+          };
 
-      if (webhookReceipt.duplicate) {
+      if (shouldCreateReceipt && webhookReceipt.duplicate) {
         return {
           received: true,
           skipped: true,
@@ -437,6 +501,19 @@ export async function POST(req: Request) {
           state: gatewayState,
         };
       }
+
+      if (queueOnly) {
+        return {
+          received: true,
+          queued: true,
+          reason: "webhook_queued_for_worker",
+          dedupeKey,
+          state: gatewayState,
+          receiptId: webhookReceipt.id,
+        };
+      }
+
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
 
       let topUp = apiRef
         ? await tx.walletTopUp.findUnique({
@@ -525,7 +602,7 @@ export async function POST(req: Request) {
         ["FAILED", "CANCELLED", "REVERSED"].includes(gatewayState) &&
         (!signatureEvaluation.valid || gatewayState === "REVERSED")
       ) {
-        if (!gatewayInvoiceId) {
+        if (!gatewaySessionId) {
           await updateWalletTopUpPaymentIntentFromWebhook(tx, {
             userId: topUp.userId,
             walletId: topUp.walletId,
@@ -535,13 +612,14 @@ export async function POST(req: Request) {
             amountReceived: null,
             currency: topUp.currency,
             gatewayState: "PROCESSING",
-            gatewayInvoiceId: null,
-            gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
+            gatewayInvoiceId: gatewayInvoiceId || topUp.gatewayInvoiceId,
+            gatewaySessionId: topUp.gatewaySessionId,
             providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}`,
-            failureReason: "Missing invoice_id for terminal state verification",
+            failureReason:
+              "Missing checkoutRequestId for terminal state verification",
             payload: body as Prisma.InputJsonValue,
             metadata: {
-              reason: "missing_invoice_id_for_terminal_verification",
+              reason: "missing_checkout_request_id_for_terminal_verification",
               requestedGatewayState: gatewayState,
               signatureValid: signatureEvaluation.valid,
               gatewayRawState: webhook.rawState,
@@ -560,7 +638,7 @@ export async function POST(req: Request) {
             received: true,
             skipped: true,
             requiresManualResolution: true,
-            reason: "missing_invoice_id_for_terminal_verification",
+            reason: "missing_checkout_request_id_for_terminal_verification",
             state: gatewayState,
             apiRef: trustedApiRef,
             topUpId: topUp.id,
@@ -568,7 +646,7 @@ export async function POST(req: Request) {
         }
 
         const terminalVerification = await verifyDarajaPayment({
-          invoiceId: gatewayInvoiceId,
+          checkoutRequestId: gatewaySessionId,
           expectedApiRef: trustedApiRef,
           expectedCurrency: topUp.currency || "KES",
           allowedProviderStates: providerStatesForTerminalState(gatewayState),
@@ -586,7 +664,7 @@ export async function POST(req: Request) {
             amountReceived: null,
             currency: topUp.currency,
             gatewayState: "PROCESSING",
-            gatewayInvoiceId,
+            gatewayInvoiceId: gatewayInvoiceId || topUp.gatewayInvoiceId,
             gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
             providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}`,
             failureReason: "Unverified terminal webhook state",
@@ -631,7 +709,7 @@ export async function POST(req: Request) {
       }
 
       if (gatewayState === "SETTLED") {
-        if (!gatewayInvoiceId) {
+        if (!gatewaySessionId) {
           await updateWalletTopUpPaymentIntentFromWebhook(tx, {
             userId: topUp.userId,
             walletId: topUp.walletId,
@@ -641,13 +719,13 @@ export async function POST(req: Request) {
             amountReceived: null,
             currency: topUp.currency,
             gatewayState: "PENDING",
-            gatewayInvoiceId: null,
-            gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
+            gatewayInvoiceId: gatewayInvoiceId || topUp.gatewayInvoiceId,
+            gatewaySessionId: topUp.gatewaySessionId,
             providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}`,
-            failureReason: "Waiting for verifiable invoice_id",
+            failureReason: "Waiting for verifiable checkoutRequestId",
             payload: body as Prisma.InputJsonValue,
             metadata: {
-              reason: "missing_invoice_id_for_verification",
+              reason: "missing_checkout_request_id_for_verification",
               gatewayRawState: webhook.rawState,
             },
           });
@@ -664,14 +742,14 @@ export async function POST(req: Request) {
             received: true,
             skipped: true,
             requiresManualResolution: true,
-            reason: "missing_invoice_id_for_verification",
+            reason: "missing_checkout_request_id_for_verification",
             apiRef: trustedApiRef,
             topUpId: topUp.id,
           };
         }
 
         const verification = await verifyDarajaPayment({
-          invoiceId: gatewayInvoiceId,
+          checkoutRequestId: gatewaySessionId,
           expectedApiRef: trustedApiRef,
           expectedAmount: Number(topUp.amountExpected),
           expectedCurrency: topUp.currency || "KES",
@@ -687,7 +765,7 @@ export async function POST(req: Request) {
             amountReceived: null,
             currency: topUp.currency,
             gatewayState: "PROCESSING",
-            gatewayInvoiceId,
+            gatewayInvoiceId: gatewayInvoiceId || topUp.gatewayInvoiceId,
             gatewaySessionId: gatewaySessionId || topUp.gatewaySessionId,
             providerRef: `${CURRENT_PROVIDER_PREFIX}${trustedApiRef}`,
             failureReason: "Provider status verification failed",
@@ -880,7 +958,9 @@ export async function POST(req: Request) {
           gatewayState,
           gatewayRawState: webhook.rawState,
           eventFamily: webhook.eventFamily,
-          invoiceId: gatewayInvoiceId || null,
+          invoiceId: gatewaySessionId || null,
+          checkoutRequestId: gatewaySessionId || null,
+          merchantRequestId: gatewayInvoiceId || null,
         },
       });
 
@@ -918,7 +998,9 @@ export async function POST(req: Request) {
           gatewayState,
           gatewayRawState: webhook.rawState,
           eventFamily: webhook.eventFamily,
-          invoiceId: gatewayInvoiceId || null,
+          invoiceId: gatewaySessionId || null,
+          checkoutRequestId: gatewaySessionId || null,
+          merchantRequestId: gatewayInvoiceId || null,
         },
         settledAt: gatewayState === "SETTLED" ? now : null,
         failedAt: gatewayState === "FAILED" ? now : null,

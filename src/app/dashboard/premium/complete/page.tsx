@@ -1,21 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
-export default function PremiumCompletePage() {
+function PremiumCompleteContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [attempts, setAttempts] = useState(0);
   const [isActivated, setIsActivated] = useState(false);
+
+  const apiRef =
+    searchParams.get("apiRef") ||
+    searchParams.get("api_ref") ||
+    searchParams.get("reference");
+  const checkoutId =
+    searchParams.get("checkoutId") || searchParams.get("checkout_id");
 
   useEffect(() => {
     let cancelled = false;
 
     const pollStatus = async () => {
       try {
-        const response = await fetch("/api/subscription/status", {
+        const statusUrl = new URL(
+          "/api/subscription/status",
+          window.location.origin,
+        );
+
+        if (apiRef) {
+          statusUrl.searchParams.set("apiRef", apiRef);
+        }
+
+        if (checkoutId) {
+          statusUrl.searchParams.set("checkoutId", checkoutId);
+        }
+
+        const response = await fetch(statusUrl.toString(), {
           cache: "no-store",
         });
 
@@ -49,7 +70,7 @@ export default function PremiumCompletePage() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [router]);
+  }, [apiRef, checkoutId, router]);
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
@@ -80,5 +101,19 @@ export default function PremiumCompletePage() {
         </button>
       )}
     </div>
+  );
+}
+
+export default function PremiumCompletePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[60vh] items-center justify-center text-gray-500">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
+      }
+    >
+      <PremiumCompleteContent />
+    </Suspense>
   );
 }

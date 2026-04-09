@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import {
+  buildDarajaCallbackUrl,
+  generateDarajaAccountReference,
   getBaseUrl,
   generateApiRef,
   initiateDarajaStkPush,
@@ -38,6 +40,7 @@ export async function POST() {
 
     // Generate API reference (alphanumeric + hyphens only)
     const apiRef = generateApiRef("ONBOARD", session.user.id);
+    const accountReference = generateDarajaAccountReference("ONB", apiRef);
 
     const payer = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -59,12 +62,10 @@ export async function POST() {
     }
 
     const baseUrl = getBaseUrl();
-    const callbackToken = process.env.DARAJA_CALLBACK_TOKEN;
-    const callbackUrl = callbackToken
-      ? `${baseUrl}/api/onboarding-fee/webhook?token=${encodeURIComponent(callbackToken)}`
-      : `${baseUrl}/api/onboarding-fee/webhook`;
-    const completionUrl = `${baseUrl}/dashboard/onboarding-complete?apiRef=${encodeURIComponent(apiRef)}`;
-
+    const callbackUrl = buildDarajaCallbackUrl(
+      baseUrl,
+      "/api/onboarding-fee/webhook",
+    );
     console.log("Initiating onboarding fee payment:", {
       apiRef,
       callbackUrl,
@@ -76,9 +77,11 @@ export async function POST() {
       phoneNumber: payer.phone,
       apiRef,
       callbackUrl,
-      accountReference: apiRef,
+      accountReference,
       description: "Provider onboarding fee",
     });
+
+    const completionUrl = `${baseUrl}/dashboard/onboarding-complete?apiRef=${encodeURIComponent(apiRef)}&checkoutId=${encodeURIComponent(response.CheckoutRequestID)}`;
 
     console.log("Daraja STK push response:", response);
 
@@ -146,6 +149,7 @@ export async function POST() {
         initiationPayload: response as unknown as Prisma.InputJsonValue,
         metadata: {
           apiRef,
+          accountReference,
           source: "onboarding_fee_initiate",
           checkoutRequestId: response.CheckoutRequestID,
           merchantRequestId: response.MerchantRequestID,

@@ -42,6 +42,11 @@ export type SupportedPaymentIntentKind =
   | "ONBOARDING_FEE"
   | "SUBSCRIPTION";
 
+// Queue marker: receipts with this timestamp are waiting for worker processing.
+export const PENDING_WEBHOOK_PROCESSED_AT = new Date(
+  "1970-01-01T00:00:00.000Z",
+);
+
 interface EnsurePaymentIntentInput {
   kind: SupportedPaymentIntentKind;
   userId: string;
@@ -420,7 +425,7 @@ export async function recordPaymentWebhookReceipt(
           ${input.dedupeKey},
           ${payloadHash},
           ${JSON.stringify(input.payload || {})}::jsonb,
-          CURRENT_TIMESTAMP,
+          ${PENDING_WEBHOOK_PROCESSED_AT},
           CURRENT_TIMESTAMP
         )
         ON CONFLICT ("dedupeKey") DO NOTHING

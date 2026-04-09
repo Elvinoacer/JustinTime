@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import {
+  evaluateDarajaCallbackIp,
   evaluateDarajaCallbackToken,
   getDarajaCallbackTokenFromRequest,
   verifyDarajaPayment,
@@ -109,10 +110,59 @@ function providerStatesForTerminalState(state: string): string[] {
   }
 }
 
+function extractApiRefFromProviderRef(
+  value: string | null | undefined,
+): string {
+  const providerRef = String(value || "").trim();
+  if (!providerRef) {
+    return "";
+  }
+
+  const index = providerRef.lastIndexOf(":");
+  if (index === -1 || index === providerRef.length - 1) {
+    return "";
+  }
+
+  return providerRef.slice(index + 1).trim();
+}
+
+function extractApiRefFromMetadata(
+  metadata: Prisma.JsonValue | null | undefined,
+): string {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return "";
+  }
+
+  const candidate = (metadata as Record<string, unknown>).apiRef;
+  return typeof candidate === "string" ? candidate.trim() : "";
+}
+
+function isTrustedInternalProcessingRequest(request: Request): boolean {
+  const requestedMode = String(
+    request.headers.get("x-daraja-internal-process") || "",
+  ).trim();
+  if (requestedMode !== "1") {
+    return false;
+  }
+
+  const expectedSecret = String(
+    process.env.DARAJA_RECONCILE_CRON_SECRET || "",
+  ).trim();
+  const receivedSecret = String(
+    request.headers.get("x-daraja-internal-secret") || "",
+  ).trim();
+
+  return expectedSecret.length > 0 && receivedSecret === expectedSecret;
+}
+
 export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
     const body = JSON.parse(rawBody) as DarajaWebhookPayload;
+    const internalProcessing = isTrustedInternalProcessingRequest(req);
+    const queueEnabled =
+      String(process.env.DARAJA_RECONCILE_CRON_SECRET || "").trim().length > 0;
+    const queueOnly = queueEnabled && !internalProcessing;
     const callbackToken =
       getDarajaCallbackTokenFromRequest(req.url) ||
       req.headers.get("x-daraja-callback-token") ||
@@ -125,7 +175,7 @@ export async function POST(req: Request) {
       typeof body.challenge === "string" ? body.challenge.trim() : "";
 
     // Handle challenge verification only for probe payloads, not payment events.
-    if (isChallengeOnlyPayload(body)) {
+    if (!internalProcessing && isChallengeOnlyPayload(body)) {
       if (verifyWebhookChallenge(challenge)) {
         console.log("✅ Challenge verified successfully");
         return NextResponse.json({ challenge });
@@ -135,25 +185,99 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid challenge" }, { status: 401 });
     }
 
-    const signatureEvaluation = evaluateDarajaCallbackToken(callbackToken);
-    if (signatureEvaluation.shouldReject) {
+    const signatureEvaluation = internalProcessing
+      ? {
+          valid: true,
+          enforceSignature: false,
+          shouldReject: false,
+        }
+      : evaluateDarajaCallbackToken(callbackToken);
+    if (!internalProcessing && signatureEvaluation.shouldReject) {
       console.error("❌ Invalid Daraja callback token");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    if (!signatureEvaluation.valid) {
+    const ipEvaluation = internalProcessing
+      ? {
+          valid: true,
+          enforceIp: false,
+          shouldReject: false,
+          requestIp: null,
+          allowedIps: [] as string[],
+        }
+      : evaluateDarajaCallbackIp(req);
+    if (!internalProcessing && ipEvaluation.shouldReject) {
+      return NextResponse.json(
+        { error: "Unauthorized callback IP" },
+        { status: 401 },
+      );
+    }
+
+    if (!internalProcessing && !signatureEvaluation.valid) {
       console.warn(
         "[ONBOARDING_WEBHOOK] Callback token missing/invalid; continuing with challenge + provider verification flow",
+      );
+    }
+
+    if (
+      !internalProcessing &&
+      !ipEvaluation.valid &&
+      ipEvaluation.allowedIps.length > 0
+    ) {
+      console.warn(
+        "[ONBOARDING_WEBHOOK] Callback IP is not in allowlist; continuing because enforcement is disabled",
       );
     }
 
     // Extract payment state and reference
     const webhook = parseDarajaWebhook(body);
     const gatewayState = webhook.state;
-    const canonicalRef = String(
-      webhook.apiRef || webhook.primaryReference || "",
+    const checkoutRequestId = String(
+      webhook.checkoutRequestId || webhook.invoiceId || "",
     ).trim();
-    const invoiceId = webhook.invoiceId || webhook.sessionId;
+    const merchantRequestId = String(
+      webhook.merchantRequestId || webhook.sessionId || "",
+    ).trim();
+
+    let canonicalRef = "";
+
+    if (checkoutRequestId) {
+      const matchedByCheckout = await prisma.transaction.findFirst({
+        where: {
+          type: "ONBOARDING_FEE",
+          OR: [
+            { gatewaySessionId: checkoutRequestId },
+            {
+              gatewayReference:
+                merchantRequestId.length > 0
+                  ? merchantRequestId
+                  : checkoutRequestId,
+            },
+          ],
+        },
+        select: {
+          providerRef: true,
+          metadata: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      canonicalRef =
+        extractApiRefFromProviderRef(matchedByCheckout?.providerRef) ||
+        extractApiRefFromMetadata(matchedByCheckout?.metadata);
+    }
+
+    if (!canonicalRef) {
+      canonicalRef = String(webhook.apiRef || "").trim();
+    }
+
+    if (!canonicalRef) {
+      canonicalRef = String(webhook.primaryReference || "").trim();
+    }
+
+    const invoiceId = checkoutRequestId || null;
     let amount = 0;
     const pendingProviderRef = `DARAJA:ONBOARDING:PENDING:${canonicalRef}`;
     const partialProviderRef = `DARAJA:ONBOARDING:PARTIAL:${canonicalRef}`;
@@ -177,25 +301,47 @@ export async function POST(req: Request) {
       state: gatewayState,
     });
 
-    const webhookReceipt = await prisma.$transaction(async (tx) => {
-      return recordPaymentWebhookReceipt(tx, {
-        kind: "ONBOARDING_FEE",
-        apiRef: canonicalRef,
-        invoiceId: invoiceId ? String(invoiceId) : null,
-        rawState: webhook.rawState,
-        dedupeKey,
-        payload: body,
-        rawBody,
-      });
-    });
+    const receiptIdFromHeader = String(
+      req.headers.get("x-payment-webhook-receipt-id") || "",
+    ).trim();
+    const shouldCreateReceipt = !internalProcessing || !receiptIdFromHeader;
 
-    if (webhookReceipt.duplicate) {
+    const webhookReceipt = shouldCreateReceipt
+      ? await prisma.$transaction(async (tx) => {
+          return recordPaymentWebhookReceipt(tx, {
+            kind: "ONBOARDING_FEE",
+            apiRef: canonicalRef,
+            invoiceId: invoiceId ? String(invoiceId) : null,
+            rawState: webhook.rawState,
+            dedupeKey,
+            payload: body,
+            rawBody,
+          });
+        })
+      : {
+          id: receiptIdFromHeader,
+          duplicate: false,
+          schemaReady: true,
+        };
+
+    if (shouldCreateReceipt && webhookReceipt.duplicate) {
       return NextResponse.json({
         received: true,
         skipped: true,
         reason: "duplicate_webhook_receipt",
         state: gatewayState,
         dedupeKey,
+      });
+    }
+
+    if (queueOnly) {
+      return NextResponse.json({
+        received: true,
+        queued: true,
+        reason: "webhook_queued_for_worker",
+        state: gatewayState,
+        dedupeKey,
+        receiptId: webhookReceipt.id,
       });
     }
 
@@ -210,7 +356,8 @@ export async function POST(req: Request) {
           in: [pendingProviderRef, partialProviderRef, settledProviderRef],
         },
         status: gatewayState,
-        ...(invoiceId ? { gatewayReference: String(invoiceId) } : {}),
+        ...(merchantRequestId ? { gatewayReference: merchantRequestId } : {}),
+        ...(checkoutRequestId ? { gatewaySessionId: checkoutRequestId } : {}),
       },
       select: {
         id: true,
@@ -234,19 +381,19 @@ export async function POST(req: Request) {
       ["FAILED", "CANCELLED", "REVERSED"].includes(gatewayState) &&
       !signatureEvaluation.valid
     ) {
-      if (!invoiceId) {
+      if (!checkoutRequestId) {
         return NextResponse.json({
           received: true,
           skipped: true,
           requiresManualResolution: true,
-          reason: "missing_invoice_id_for_terminal_verification",
+          reason: "missing_checkout_request_id_for_terminal_verification",
           apiRef: canonicalRef,
           state: gatewayState,
         });
       }
 
       const terminalVerification = await verifyDarajaPayment({
-        invoiceId: String(invoiceId),
+        checkoutRequestId,
         expectedApiRef: canonicalRef,
         allowedProviderStates: providerStatesForTerminalState(gatewayState),
         requireAmountMatch: false,
@@ -332,8 +479,8 @@ export async function POST(req: Request) {
                 cancelledAt: gatewayState === "CANCELLED" ? now : null,
                 reversedAt: gatewayState === "REVERSED" ? now : null,
                 createdByType: "WEBHOOK",
-                gatewayReference: invoiceId ? String(invoiceId) : canonicalRef,
-                gatewaySessionId: invoiceId ? String(invoiceId) : null,
+                gatewayReference: merchantRequestId || canonicalRef,
+                gatewaySessionId: checkoutRequestId || null,
                 metadata: {
                   apiRef: canonicalRef,
                   gatewayRawState: webhook.rawState,
@@ -353,8 +500,8 @@ export async function POST(req: Request) {
               amountReceived: null,
               currency: entry.currency || "KES",
               gatewayState,
-              gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
-              gatewaySessionId: invoiceId ? String(invoiceId) : null,
+              gatewayInvoiceId: merchantRequestId || null,
+              gatewaySessionId: checkoutRequestId || null,
               providerRef: entry.providerRef || pendingProviderRef,
               failureReason,
               payload: body as Prisma.InputJsonValue,
@@ -408,7 +555,7 @@ export async function POST(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    if (!invoiceId) {
+    if (!checkoutRequestId) {
       if (intentContext) {
         await prisma.$transaction(async (tx) => {
           await updateOnboardingFeePaymentIntentFromWebhook(tx, {
@@ -423,10 +570,10 @@ export async function POST(req: Request) {
             gatewayInvoiceId: null,
             gatewaySessionId: null,
             providerRef: intentContext.providerRef || pendingProviderRef,
-            failureReason: "Waiting for verifiable invoice_id",
+            failureReason: "Waiting for verifiable checkoutRequestId",
             payload: body as Prisma.InputJsonValue,
             metadata: {
-              reason: "missing_invoice_id_for_verification",
+              reason: "missing_checkout_request_id_for_verification",
               gatewayRawState: webhook.rawState,
               eventFamily: webhook.eventFamily,
               apiRef: canonicalRef,
@@ -439,16 +586,17 @@ export async function POST(req: Request) {
         received: true,
         skipped: true,
         requiresManualResolution: true,
-        reason: "missing_invoice_id_for_verification",
+        reason: "missing_checkout_request_id_for_verification",
         apiRef: canonicalRef,
       });
     }
 
     const verification = await verifyDarajaPayment({
-      invoiceId: String(invoiceId),
+      checkoutRequestId,
       expectedApiRef: canonicalRef,
       expectedAmount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
       expectedCurrency: "KES",
+      requireAmountMatch: false,
     });
 
     if (!verification.ok) {
@@ -463,8 +611,8 @@ export async function POST(req: Request) {
             amountReceived: null,
             currency: intentContext.currency || "KES",
             gatewayState: "PROCESSING",
-            gatewayInvoiceId: String(invoiceId),
-            gatewaySessionId: String(invoiceId),
+            gatewayInvoiceId: merchantRequestId || null,
+            gatewaySessionId: checkoutRequestId || null,
             providerRef: intentContext.providerRef || pendingProviderRef,
             failureReason: "Provider status verification failed",
             payload: body as Prisma.InputJsonValue,
@@ -514,8 +662,8 @@ export async function POST(req: Request) {
             amountReceived: null,
             currency: intentContext.currency || "KES",
             gatewayState: "PROCESSING",
-            gatewayInvoiceId: String(invoiceId),
-            gatewaySessionId: String(invoiceId),
+            gatewayInvoiceId: merchantRequestId || null,
+            gatewaySessionId: checkoutRequestId || null,
             providerRef: intentContext.providerRef || pendingProviderRef,
             failureReason: "Invalid settlement amount",
             payload: body as Prisma.InputJsonValue,
@@ -570,8 +718,8 @@ export async function POST(req: Request) {
             amountReceived: null,
             currency: intentContext.currency || "KES",
             gatewayState: "PROCESSING",
-            gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
-            gatewaySessionId: invoiceId ? String(invoiceId) : null,
+            gatewayInvoiceId: merchantRequestId || null,
+            gatewaySessionId: checkoutRequestId || null,
             providerRef: intentContext.providerRef || pendingProviderRef,
             failureReason: "Missing pending provider reference",
             payload: body as Prisma.InputJsonValue,
@@ -613,8 +761,8 @@ export async function POST(req: Request) {
           amountReceived: null,
           currency: pendingOnboarding.currency || "KES",
           gatewayState: "PROCESSING",
-          gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
-          gatewaySessionId: invoiceId ? String(invoiceId) : null,
+          gatewayInvoiceId: merchantRequestId || null,
+          gatewaySessionId: checkoutRequestId || null,
           providerRef: pendingOnboarding.providerRef || pendingProviderRef,
           failureReason: "User not found for onboarding settlement",
           payload: body as Prisma.InputJsonValue,
@@ -673,8 +821,8 @@ export async function POST(req: Request) {
             existingState === "SETTLED" ? Number(existingTx.amount) : null,
           currency: existingTx.currency || "KES",
           gatewayState: existingState,
-          gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
-          gatewaySessionId: invoiceId ? String(invoiceId) : null,
+          gatewayInvoiceId: merchantRequestId || null,
+          gatewaySessionId: checkoutRequestId || null,
           providerRef: existingTx.providerRef || settledPaymentProviderRef,
           failureReason:
             existingState === "FAILED" ? existingTx.failureReason : null,
@@ -742,8 +890,8 @@ export async function POST(req: Request) {
               category: "ONBOARDING_FEE",
               currency: "KES",
               gateway: "DARAJA",
-              gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
-              gatewaySessionId: invoiceId ? String(invoiceId) : null,
+              gatewayReference: merchantRequestId || refForKeys,
+              gatewaySessionId: checkoutRequestId || null,
               providerRef: partialPaymentProviderRef,
               sourceType: "ONBOARDING_FEE",
               sourceId: user.id,
@@ -779,8 +927,8 @@ export async function POST(req: Request) {
               category: "ONBOARDING_FEE",
               currency: "KES",
               gateway: "DARAJA",
-              gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
-              gatewaySessionId: invoiceId ? String(invoiceId) : null,
+              gatewayReference: merchantRequestId || refForKeys,
+              gatewaySessionId: checkoutRequestId || null,
               providerRef: partialPaymentProviderRef,
               sourceType: "ONBOARDING_FEE",
               sourceId: user.id,
@@ -816,8 +964,8 @@ export async function POST(req: Request) {
           amountReceived: amount,
           currency: "KES",
           gatewayState: "FAILED",
-          gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
-          gatewaySessionId: invoiceId ? String(invoiceId) : null,
+          gatewayInvoiceId: merchantRequestId || null,
+          gatewaySessionId: checkoutRequestId || null,
           providerRef: partialPaymentProviderRef,
           failureReason: "Partial onboarding payment",
           payload: body as Prisma.InputJsonValue,
@@ -890,8 +1038,8 @@ export async function POST(req: Request) {
             category: "ONBOARDING_FEE",
             currency: "KES",
             gateway: "DARAJA",
-            gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
-            gatewaySessionId: invoiceId ? String(invoiceId) : null,
+            gatewayReference: merchantRequestId || refForKeys,
+            gatewaySessionId: checkoutRequestId || null,
             providerRef: settledPaymentProviderRef,
             sourceType: "ONBOARDING_FEE",
             sourceId: user.id,
@@ -926,8 +1074,8 @@ export async function POST(req: Request) {
           amountReceived: amount,
           currency: "KES",
           gatewayState: "SETTLED",
-          gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
-          gatewaySessionId: invoiceId ? String(invoiceId) : null,
+          gatewayInvoiceId: merchantRequestId || null,
+          gatewaySessionId: checkoutRequestId || null,
           providerRef: settledPaymentProviderRef,
           failureReason: null,
           payload: body as Prisma.InputJsonValue,
@@ -950,8 +1098,8 @@ export async function POST(req: Request) {
             category: "ONBOARDING_FEE",
             currency: "KES",
             gateway: "DARAJA",
-            gatewayReference: invoiceId ? String(invoiceId) : refForKeys,
-            gatewaySessionId: invoiceId ? String(invoiceId) : null,
+            gatewayReference: merchantRequestId || refForKeys,
+            gatewaySessionId: checkoutRequestId || null,
             providerRef: settledPaymentProviderRef,
             sourceType: "ONBOARDING_FEE",
             sourceId: user.id,
@@ -983,8 +1131,8 @@ export async function POST(req: Request) {
           amountReceived: amount,
           currency: "KES",
           gatewayState: "SETTLED",
-          gatewayInvoiceId: invoiceId ? String(invoiceId) : null,
-          gatewaySessionId: invoiceId ? String(invoiceId) : null,
+          gatewayInvoiceId: merchantRequestId || null,
+          gatewaySessionId: checkoutRequestId || null,
           providerRef: settledPaymentProviderRef,
           failureReason: null,
           payload: body as Prisma.InputJsonValue,

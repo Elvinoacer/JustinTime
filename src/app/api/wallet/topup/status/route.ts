@@ -20,6 +20,9 @@ function buildSyntheticWebhookRequest(
   const origin = new URL(requestUrl).origin;
   const webhookUrl = new URL("/api/wallet/webhook", origin);
   const callbackToken = (process.env.DARAJA_CALLBACK_TOKEN || "").trim();
+  const internalSecret = (
+    process.env.DARAJA_RECONCILE_CRON_SECRET || ""
+  ).trim();
 
   if (callbackToken) {
     webhookUrl.searchParams.set("token", callbackToken);
@@ -31,6 +34,11 @@ function buildSyntheticWebhookRequest(
 
   if (callbackToken) {
     headers.set("x-daraja-callback-token", callbackToken);
+  }
+
+  if (internalSecret) {
+    headers.set("x-daraja-internal-process", "1");
+    headers.set("x-daraja-internal-secret", internalSecret);
   }
 
   return new Request(webhookUrl.toString(), {
@@ -93,16 +101,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Top-up not found" }, { status: 404 });
     }
 
-    const verificationReference =
-      trackingId ||
+    const verificationCheckoutRequestId =
       checkoutId ||
       topUp.gatewaySessionId ||
+      trackingId ||
       topUp.gatewayInvoiceId;
+    const merchantRequestId =
+      trackingId || topUp.gatewayInvoiceId || topUp.gatewaySessionId || null;
 
-    if (!isTerminalTopUpStatus(topUp.status) && verificationReference) {
+    if (!isTerminalTopUpStatus(topUp.status) && verificationCheckoutRequestId) {
       try {
         const providerSnapshot = await verifyDarajaPayment({
-          invoiceId: verificationReference,
+          checkoutRequestId: verificationCheckoutRequestId,
           expectedApiRef: topUp.apiRef,
           expectedAmount: Number(topUp.amountExpected),
           expectedCurrency: topUp.currency || "KES",
@@ -118,11 +128,9 @@ export async function GET(req: Request) {
 
         if (shouldForwardSettled || shouldForwardTerminal) {
           const syntheticPayload: DarajaWebhookPayload = {
-            CheckoutRequestID: verificationReference,
+            CheckoutRequestID: verificationCheckoutRequestId,
             MerchantRequestID:
-              topUp.gatewayInvoiceId ||
-              topUp.gatewaySessionId ||
-              verificationReference,
+              merchantRequestId || verificationCheckoutRequestId,
             ResultCode:
               canonicalProviderState === "SETTLED"
                 ? 0
@@ -133,7 +141,7 @@ export async function GET(req: Request) {
             api_ref: topUp.apiRef,
             Amount:
               providerSnapshot.amount ?? Number(topUp.amountExpected || 0),
-            id: checkoutId || topUp.gatewaySessionId || verificationReference,
+            id: merchantRequestId || verificationCheckoutRequestId,
             provider: "REDIRECT_STATUS_RECOVERY",
           };
 

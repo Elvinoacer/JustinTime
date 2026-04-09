@@ -17,6 +17,9 @@ const PASSKEY = process.env.DARAJA_PASSKEY || "";
 const TRANSACTION_TYPE =
   process.env.DARAJA_TRANSACTION_TYPE || "CustomerPayBillOnline";
 
+const DARAJA_ACCOUNT_REFERENCE_MAX_LENGTH = 12;
+const DARAJA_TRANSACTION_DESC_MAX_LENGTH = 13;
+
 type CachedToken = {
   token: string;
   expiresAtMs: number;
@@ -98,6 +101,19 @@ function normalizeProviderState(value: string | null): string {
   return String(value || "")
     .trim()
     .toUpperCase();
+}
+
+function normalizeAlphaNumericUpper(value: string): string {
+  return value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+}
+
+function buildStableShortHash(value: string, size: number): string {
+  return crypto
+    .createHash("sha256")
+    .update(value)
+    .digest("hex")
+    .toUpperCase()
+    .slice(0, size);
 }
 
 function canonicalStateFromDaraja(
@@ -284,6 +300,22 @@ export const initiateDarajaStkPush = async (
     throw new Error("A valid positive amount is required for Daraja STK push");
   }
 
+  const accountReference = String(input.accountReference || apiRef).trim();
+  if (!accountReference) {
+    throw new Error("AccountReference is required for Daraja STK push");
+  }
+
+  if (accountReference.length > DARAJA_ACCOUNT_REFERENCE_MAX_LENGTH) {
+    throw new Error(
+      `AccountReference must not exceed ${DARAJA_ACCOUNT_REFERENCE_MAX_LENGTH} characters`,
+    );
+  }
+
+  const normalizedDescription = String(input.description || "Payment").trim();
+  const transactionDesc =
+    normalizedDescription.slice(0, DARAJA_TRANSACTION_DESC_MAX_LENGTH) ||
+    "Payment";
+
   const timestamp = getTimestamp();
   const payload = {
     BusinessShortCode: BUSINESS_SHORT_CODE,
@@ -295,8 +327,8 @@ export const initiateDarajaStkPush = async (
     PartyB: BUSINESS_SHORT_CODE,
     PhoneNumber: normalizedPhone,
     CallBackURL: callbackUrl,
-    AccountReference: input.accountReference || apiRef,
-    TransactionDesc: String(input.description || "Payment").slice(0, 182),
+    AccountReference: accountReference,
+    TransactionDesc: transactionDesc,
   };
 
   const response = await callDaraja<Record<string, unknown>>(
@@ -380,7 +412,9 @@ function normalizeAllowedState(state: string): string {
 const DEFAULT_SUCCESS_STATES = ["SETTLED"];
 
 export interface VerifyDarajaPaymentInput {
-  invoiceId: string;
+  checkoutRequestId?: string;
+  // Backward compatibility alias for checkoutRequestId.
+  invoiceId?: string;
   expectedApiRef?: string | null;
   expectedAmount?: number | null;
   expectedCurrency?: string | null;
@@ -396,6 +430,9 @@ export interface VerifyDarajaPaymentResult {
   ok: boolean;
   providerState: string;
   providerStatesSeen: string[];
+  checkoutRequestId: string | null;
+  merchantRequestId: string | null;
+  // Backward compatibility alias for checkoutRequestId.
   invoiceId: string | null;
   apiRef: string | null;
   amount: number | null;
@@ -412,10 +449,12 @@ export interface VerifyDarajaPaymentResult {
 export const verifyDarajaPayment = async (
   input: VerifyDarajaPaymentInput,
 ): Promise<VerifyDarajaPaymentResult> => {
-  const checkoutRequestId = String(input.invoiceId || "").trim();
+  const checkoutRequestId = String(
+    input.checkoutRequestId || input.invoiceId || "",
+  ).trim();
   if (!checkoutRequestId) {
     throw new Error(
-      "invoiceId (CheckoutRequestID) is required for verification",
+      "checkoutRequestId (CheckoutRequestID) is required for verification",
     );
   }
 
@@ -438,6 +477,12 @@ export const verifyDarajaPayment = async (
     response.ResultCode,
     response.ResultDesc,
   );
+
+  const resolvedCheckoutRequestId =
+    asString(response.CheckoutRequestID) || checkoutRequestId;
+  const resolvedMerchantRequestId =
+    asString(response.MerchantRequestID) || null;
+
   const providerStatesSeen = [
     providerState,
     normalizeProviderState(asString(response.ResultCode)),
@@ -511,7 +556,9 @@ export const verifyDarajaPayment = async (
     ok: stateMatches && apiRefMatches && amountMatches && currencyMatches,
     providerState: normalizedProviderState,
     providerStatesSeen,
-    invoiceId: checkoutRequestId,
+    checkoutRequestId: resolvedCheckoutRequestId,
+    merchantRequestId: resolvedMerchantRequestId,
+    invoiceId: resolvedCheckoutRequestId,
     apiRef: resolvedApiRef,
     amount: resolvedAmount,
     currency: resolvedCurrency,
@@ -529,6 +576,14 @@ export interface DarajaCallbackAuthEvaluation {
   valid: boolean;
   enforceSignature: boolean;
   shouldReject: boolean;
+}
+
+export interface DarajaCallbackIpEvaluation {
+  valid: boolean;
+  enforceIp: boolean;
+  shouldReject: boolean;
+  requestIp: string | null;
+  allowedIps: string[];
 }
 
 export function evaluateDarajaCallbackToken(
@@ -554,6 +609,56 @@ export function evaluateDarajaCallbackToken(
     valid,
     enforceSignature,
     shouldReject: enforceSignature && !valid,
+  };
+}
+
+function extractRequestIp(request: Request): string | null {
+  const directHeaders = [
+    request.headers.get("cf-connecting-ip"),
+    request.headers.get("x-real-ip"),
+    request.headers.get("x-forwarded-for"),
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+
+  for (const headerValue of directHeaders) {
+    const candidate = headerValue.split(",")[0]?.trim();
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+export function evaluateDarajaCallbackIp(
+  request: Request,
+): DarajaCallbackIpEvaluation {
+  const enforceIp = process.env.DARAJA_ENFORCE_CALLBACK_IP === "true";
+  const allowedIps = String(process.env.DARAJA_CALLBACK_IP_WHITELIST || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const requestIp = extractRequestIp(request);
+
+  if (allowedIps.length === 0) {
+    return {
+      valid: !enforceIp,
+      enforceIp,
+      shouldReject: enforceIp,
+      requestIp,
+      allowedIps,
+    };
+  }
+
+  const valid = Boolean(requestIp && allowedIps.includes(requestIp));
+
+  return {
+    valid,
+    enforceIp,
+    shouldReject: enforceIp && !valid,
+    requestIp,
+    allowedIps,
   };
 }
 
@@ -591,6 +696,31 @@ export const getBaseUrl = () => {
   return "http://localhost:3000";
 };
 
+export const buildDarajaCallbackUrl = (
+  baseUrl: string,
+  webhookPath: string,
+): string => {
+  const normalizedPath = webhookPath.startsWith("/")
+    ? webhookPath
+    : `/${webhookPath}`;
+  const pathSecret = String(
+    process.env.DARAJA_CALLBACK_PATH_SECRET || "",
+  ).trim();
+  const callbackToken = String(process.env.DARAJA_CALLBACK_TOKEN || "").trim();
+
+  const callbackPath = pathSecret
+    ? `${normalizedPath}/${encodeURIComponent(pathSecret)}`
+    : normalizedPath;
+
+  const callbackUrl = new URL(callbackPath, `${normalizeBaseUrl(baseUrl)}/`);
+
+  if (callbackToken) {
+    callbackUrl.searchParams.set("token", callbackToken);
+  }
+
+  return callbackUrl.toString();
+};
+
 export const getDarajaCallbackTokenFromRequest = (requestUrl: string) => {
   try {
     const url = new URL(requestUrl);
@@ -604,6 +734,23 @@ export const generateApiRef = (prefix: string, userId: string): string => {
   const timestamp = Date.now().toString(36);
   const userPart = userId.replace(/[^a-zA-Z0-9]/g, "");
   return `${prefix}-${userPart}-${timestamp}`;
+};
+
+export const generateDarajaAccountReference = (
+  prefix: string,
+  apiRef: string,
+): string => {
+  const normalizedPrefix = normalizeAlphaNumericUpper(prefix).slice(0, 3);
+  const effectivePrefix =
+    normalizedPrefix.length > 0 ? normalizedPrefix : "PAY";
+  const hash = buildStableShortHash(
+    `${effectivePrefix}:${apiRef}:${Date.now().toString(36)}`,
+    DARAJA_ACCOUNT_REFERENCE_MAX_LENGTH - effectivePrefix.length,
+  );
+  return `${effectivePrefix}${hash}`.slice(
+    0,
+    DARAJA_ACCOUNT_REFERENCE_MAX_LENGTH,
+  );
 };
 
 export { PAYMENT_AMOUNTS };

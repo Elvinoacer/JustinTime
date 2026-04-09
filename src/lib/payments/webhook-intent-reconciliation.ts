@@ -202,12 +202,12 @@ export async function getWebhookIntentReconciliation(
         r."processedAt"
       FROM "PaymentWebhookReceipt" r
       WHERE r."gateway"::text IN ('DARAJA', 'INTASEND')
-        AND r."processedAt" >= ${lookbackStartedAt}
+        AND r."createdAt" >= ${lookbackStartedAt}
         AND (
           r."kind" IS NULL
           OR r."kind"::text IN ('WALLET_TOPUP', 'ONBOARDING_FEE', 'SUBSCRIPTION')
         )
-      ORDER BY r."processedAt" DESC
+      ORDER BY r."createdAt" DESC
       LIMIT ${scanCap};
     `);
 

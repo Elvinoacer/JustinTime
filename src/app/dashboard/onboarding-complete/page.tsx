@@ -1,21 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, CheckCircle } from "lucide-react";
 
-export default function OnboardingCompletePage() {
+function OnboardingCompleteContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isSettled, setIsSettled] = useState(false);
   const [pollAttempts, setPollAttempts] = useState(0);
+
+  const apiRef =
+    searchParams.get("apiRef") ||
+    searchParams.get("api_ref") ||
+    searchParams.get("reference");
+  const checkoutId =
+    searchParams.get("checkoutId") || searchParams.get("checkout_id");
 
   useEffect(() => {
     let cancelled = false;
 
     const verifySettlement = async () => {
       try {
-        const response = await fetch("/api/onboarding-fee/status", {
+        const statusUrl = new URL(
+          "/api/onboarding-fee/status",
+          window.location.origin,
+        );
+
+        if (apiRef) {
+          statusUrl.searchParams.set("apiRef", apiRef);
+        }
+
+        if (checkoutId) {
+          statusUrl.searchParams.set("checkoutId", checkoutId);
+        }
+
+        const response = await fetch(statusUrl.toString(), {
           cache: "no-store",
         });
 
@@ -51,7 +72,7 @@ export default function OnboardingCompletePage() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [router]);
+  }, [apiRef, checkoutId, router]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
@@ -82,5 +103,19 @@ export default function OnboardingCompletePage() {
         </button>
       )}
     </div>
+  );
+}
+
+export default function OnboardingCompletePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[60vh] items-center justify-center text-gray-500">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
+      }
+    >
+      <OnboardingCompleteContent />
+    </Suspense>
   );
 }
