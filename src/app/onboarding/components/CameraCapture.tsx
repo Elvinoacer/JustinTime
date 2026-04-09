@@ -135,35 +135,43 @@ export default function CameraCapture({
       : "Hold your ID flat, keep all corners visible, and avoid glare.";
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/95 p-0 sm:p-4">
-      <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-none border-0 bg-black shadow-2xl sm:rounded-xl sm:border sm:border-white/10 md:h-[min(860px,92vh)] md:flex-row md:rounded-2xl">
-        <div className="relative min-h-0 flex-1 bg-black">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="h-full w-full object-cover md:object-contain"
-          />
+    <div className="fixed inset-0 z-50 bg-black">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className="absolute inset-0 h-full w-full object-cover"
+      />
 
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-black/25 via-transparent to-black/45" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-black/45 via-black/10 to-black/70" />
 
-          <div className="absolute left-3 top-3 rounded-full border border-white/25 bg-black/45 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-white/90 backdrop-blur">
-            {guideType === "oval" ? "Selfie" : "ID Photo"}
-          </div>
-
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
-            {guideType === "oval" ? (
-              <div className="h-[62%] w-[58%] max-h-[430px] max-w-[320px] rounded-[999px] border-[3px] border-dashed border-white/75 shadow-[0_0_0_9999px_rgba(0,0,0,0.22)]" />
-            ) : (
-              <div className="h-[36%] w-[84%] max-h-[280px] max-w-[520px] rounded-2xl border-[3px] border-dashed border-white/75 shadow-[0_0_0_9999px_rgba(0,0,0,0.22)]" />
-            )}
-          </div>
+      <div className="absolute inset-x-0 top-0 flex items-center justify-between px-3 py-3 sm:px-5 sm:py-4">
+        <div className="rounded-full border border-white/25 bg-black/45 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-white/90 backdrop-blur">
+          {guideType === "oval" ? "Selfie" : "ID Photo"}
         </div>
+        <button
+          type="button"
+          onClick={closeCamera}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/35 text-white/85 transition-colors hover:bg-black/60 hover:text-white"
+          aria-label="Close camera"
+        >
+          <span className="material-symbols-outlined text-lg">close</span>
+        </button>
+      </div>
 
-        <div className="w-full shrink-0 border-t border-white/10 bg-black/85 p-4 sm:p-5 md:w-[340px] md:border-l md:border-t-0">
+      <div className="pointer-events-none absolute inset-x-0 top-[17%] bottom-[24%] flex items-center justify-center px-4 sm:top-[14%] sm:bottom-[26%] md:top-[12%] md:bottom-[28%]">
+        {guideType === "oval" ? (
+          <div className="h-[78%] w-[72%] max-h-[420px] max-w-[300px] rounded-[999px] border-[3px] border-dashed border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.24)] sm:h-[84%] sm:w-[68%]" />
+        ) : (
+          <div className="h-[38%] w-[90%] max-h-[280px] max-w-[560px] rounded-2xl border-[3px] border-dashed border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.24)] sm:h-[42%] sm:w-[88%]" />
+        )}
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-5 sm:pb-5">
+        <div className="mx-auto w-full max-w-2xl rounded-2xl border border-white/15 bg-black/72 p-3 backdrop-blur md:p-4">
           <div className="flex items-start justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">
                 Live camera
               </p>
@@ -171,38 +179,20 @@ export default function CameraCapture({
                 {guideTitle}
               </h3>
             </div>
-            <button
-              type="button"
-              onClick={closeCamera}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
-              aria-label="Close camera"
-            >
-              <span className="material-symbols-outlined text-lg">close</span>
-            </button>
+            {!isStreamReady ? (
+              <span className="inline-flex items-center rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/80">
+                Preparing...
+              </span>
+            ) : null}
           </div>
 
-          <p className="mt-3 text-sm leading-6 text-white/85">{guidePrompt}</p>
+          <p className="mt-2 text-sm leading-6 text-white/85">{guidePrompt}</p>
 
-          <div className="mt-3 space-y-1.5 text-xs text-white/65">
-            <p className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-sm text-emerald-400">
-                check_circle
-              </span>
-              Keep the camera steady and avoid blur.
-            </p>
-            <p className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-sm text-emerald-400">
-                check_circle
-              </span>
-              Use good lighting for faster verification.
-            </p>
-          </div>
-
-          <div className="mt-5 flex flex-col gap-2 sm:flex-row md:flex-col">
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
             <button
               onClick={capture}
               disabled={!isStreamReady}
-              className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 font-bold text-gray-900 shadow-lg transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 font-bold text-gray-900 shadow-lg transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="material-symbols-outlined text-lg">
                 photo_camera
@@ -211,7 +201,7 @@ export default function CameraCapture({
             </button>
             <button
               onClick={closeCamera}
-              className="inline-flex min-h-[46px] items-center justify-center rounded-xl border border-white/25 bg-white/5 px-4 py-3 font-bold text-white transition-colors hover:bg-white/15"
+              className="inline-flex min-h-[48px] items-center justify-center rounded-xl border border-white/25 bg-white/5 px-6 py-3 font-bold text-white transition-colors hover:bg-white/15"
             >
               Cancel
             </button>
