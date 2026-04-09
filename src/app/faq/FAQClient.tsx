@@ -157,7 +157,7 @@ export default function FAQPage() {
   return (
     <div className="flex min-h-screen flex-col bg-linear-to-br from-gray-50 via-white to-emerald-50/30">
       <Header />
-      <main className="flex-1 px-3 sm:px-4 py-6 sm:py-8 md:py-12 pt-20 sm:pt-24">
+      <main className="flex-1 px-3 py-6 pt-[calc(var(--public-header-h)+1rem)] sm:px-4 sm:py-8 sm:pt-[calc(var(--public-header-h)+1.25rem)] md:py-12">
         <div className="max-w-5xl mx-auto">
           {/* Header Section */}
           <div className="text-center mb-8 sm:mb-12">
@@ -175,7 +175,7 @@ export default function FAQPage() {
 
           {/* Search Bar & Mobile Filter Button */}
           <div className="mb-6 sm:mb-8 px-2">
-            <div className="flex gap-2">
+            <div className="flex items-stretch gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                 <input
@@ -188,7 +188,7 @@ export default function FAQPage() {
               </div>
               <button
                 onClick={() => setShowMobileFilters(!showMobileFilters)}
-                className="sm:hidden flex items-center justify-center w-12 h-12 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                className="sm:hidden flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-gray-200 bg-white transition-colors hover:bg-gray-50"
                 aria-label="Filter categories"
               >
                 {showMobileFilters ? (
@@ -202,8 +202,8 @@ export default function FAQPage() {
 
           {/* Mobile Filter Overlay */}
           {showMobileFilters && (
-            <div className="sm:hidden fixed inset-x-0 top-20 z-50 bg-white border-t border-gray-200 shadow-lg animate-in slide-in-from-top">
-              <div className="p-4 max-h-[60vh] overflow-y-auto">
+            <div className="fixed inset-x-0 top-[var(--public-header-h)] z-50 animate-in border-t border-gray-200 bg-white shadow-lg slide-in-from-top sm:hidden">
+              <div className="max-h-[calc(100vh-var(--public-header-h)-1rem)] overflow-y-auto p-4">
                 <div className="flex flex-wrap gap-2">
                   {categories.map((category) => {
                     const Icon = categoryIcons[category];
@@ -306,7 +306,7 @@ export default function FAQPage() {
                       className="w-full px-4 py-3 sm:px-6 sm:py-4 flex items-start gap-3 sm:gap-4 text-left transition-colors group-hover:bg-gray-50"
                     >
                       <div className="shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-linear-to-br from-emerald-50 to-emerald-100 rounded-lg sm:rounded-xl flex items-center justify-center group-hover:from-emerald-100 group-hover:to-emerald-200 transition-colors">
-                        <Icon className="w-4 h-4 sm:w-5 h-5 text-emerald-600" />
+                        <Icon className="h-4 w-4 text-emerald-600 sm:h-5 sm:w-5" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-3">
@@ -314,12 +314,12 @@ export default function FAQPage() {
                             <span className="text-xs font-semibold text-emerald-600 mb-1 block">
                               {faq.category}
                             </span>
-                            <h3 className="text-sm sm:text-base font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors truncate">
+                            <h3 className="text-sm font-semibold leading-snug text-gray-900 transition-colors group-hover:text-emerald-600 sm:text-base">
                               {faq.question}
                             </h3>
                           </div>
                           <ChevronDown
-                            className={`w-4 h-4 sm:w-5 h-5 text-gray-400 shrink-0 transition-transform duration-300 ${
+                            className={`h-4 w-4 shrink-0 text-gray-400 transition-transform duration-300 sm:h-5 sm:w-5 ${
                               isOpen ? "rotate-180 text-emerald-600" : ""
                             }`}
                           />
@@ -356,14 +356,14 @@ export default function FAQPage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a
                 href="/contact"
-                className="inline-flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-white text-emerald-600 font-semibold rounded-lg sm:rounded-xl hover:bg-emerald-50 transition-colors shadow-lg text-sm sm:text-base"
+                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-emerald-600 shadow-lg transition-colors hover:bg-emerald-50 sm:rounded-xl sm:px-6 sm:py-3 sm:text-base"
               >
                 <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                 Contact Support
               </a>
               <a
                 href="tel:+254790670542"
-                className="inline-flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-emerald-700 text-white font-semibold rounded-lg sm:rounded-xl hover:bg-emerald-800 transition-colors text-sm sm:text-base"
+                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 sm:rounded-xl sm:px-6 sm:py-3 sm:text-base"
               >
                 <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
                 Call +254 790 670 542
@@ -432,7 +432,7 @@ export default function FAQPage() {
 
           {/* Mobile Bottom Navigation */}
           <div className="sm:hidden mt-6">
-            <div className="flex items-center justify-between text-xs text-gray-600">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-gray-600">
               <a href="/" className="hover:text-emerald-600 transition-colors">
                 ← Back to Home
               </a>

@@ -87,9 +87,9 @@ export default function BecomeAProviderPage() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-gray-50">
+      <main className="min-h-screen bg-gray-50 pt-[var(--public-header-h)]">
         {/* Hero Section */}
-        <section className="relative overflow-hidden bg-linear-to-br from-gray-900 via-gray-800 to-emerald-900 pt-28 pb-20 lg:pt-36 lg:pb-28">
+        <section className="relative overflow-hidden bg-linear-to-br from-gray-900 via-gray-800 to-emerald-900 pb-20 pt-10 sm:pt-14 lg:pb-28 lg:pt-20">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-500/20 via-transparent to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-emerald-500/50 to-transparent" />
 
@@ -120,7 +120,7 @@ export default function BecomeAProviderPage() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <motion.button
                   onClick={handleCTA}
-                  className="inline-flex items-center gap-2 px-8 py-4 bg-linear-to-r from-emerald-500 to-teal-500 text-white font-bold text-lg rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 hover:scale-[1.02] transition-all"
+                  className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-emerald-500 to-teal-500 px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:scale-[1.02] hover:shadow-emerald-500/40 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -130,7 +130,7 @@ export default function BecomeAProviderPage() {
                   <ArrowRight className="w-5 h-5" />
                 </motion.button>
 
-                <p className="text-sm text-gray-400 flex items-center gap-2">
+                <p className="flex items-center gap-2 text-center text-sm text-gray-400">
                   <Clock className="w-4 h-4" />
                   Takes about 5 minutes
                 </p>
@@ -142,13 +142,16 @@ export default function BecomeAProviderPage() {
         {/* Reassurance Banner */}
         <section className="bg-white border-b border-gray-100">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-10 text-sm text-gray-600">
+            <div className="flex flex-col items-start justify-center gap-3 text-sm text-gray-600 min-[420px]:items-center min-[420px]:text-center sm:flex-row sm:gap-8">
               {[
                 "Your client bookings stay unchanged",
                 "Switch between modes anytime",
                 "One account, two dashboards",
               ].map((text) => (
-                <div key={text} className="flex items-center gap-2">
+                <div
+                  key={text}
+                  className="flex w-full items-center gap-2 sm:w-auto"
+                >
                   <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
                   <span>{text}</span>
                 </div>
@@ -175,7 +178,7 @@ export default function BecomeAProviderPage() {
               </p>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               {benefits.map((benefit, i) => {
                 const Icon = benefit.icon;
                 return (
@@ -228,17 +231,17 @@ export default function BecomeAProviderPage() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.15 }}
-                  className="flex gap-5 items-start"
+                  className="flex items-start gap-4 sm:gap-5"
                 >
                   <div className="w-10 h-10 bg-linear-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-md shadow-emerald-500/20">
                     {step.step}
                   </div>
                   <div className="flex-1 pb-6 border-b border-gray-100 last:border-0">
-                    <div className="flex items-center gap-3 mb-1">
-                      <h3 className="text-lg font-semibold text-gray-900">
+                    <div className="mb-1 flex flex-wrap items-center gap-2 sm:gap-3">
+                      <h3 className="text-base font-semibold text-gray-900 sm:text-lg">
                         {step.title}
                       </h3>
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-medium rounded-md">
+                      <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
                         {step.time}
                       </span>
                     </div>
@@ -251,8 +254,8 @@ export default function BecomeAProviderPage() {
         </section>
 
         {/* CTA Footer */}
-        <section className="py-16 bg-linear-to-br from-gray-900 to-emerald-900">
-          <div className="max-w-3xl mx-auto px-4 text-center">
+        <section className="bg-linear-to-br from-gray-900 to-emerald-900 py-14 sm:py-16">
+          <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
             <h2 className="text-3xl font-bold text-white mb-4">
               Ready to start earning?
             </h2>
@@ -262,7 +265,7 @@ export default function BecomeAProviderPage() {
             </p>
             <motion.button
               onClick={handleCTA}
-              className="inline-flex items-center gap-2 px-8 py-4 bg-linear-to-r from-emerald-500 to-teal-500 text-white font-bold text-lg rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-emerald-500 to-teal-500 px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:shadow-emerald-500/40 sm:w-auto sm:px-8 sm:py-4 sm:text-lg"
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.98 }}
             >

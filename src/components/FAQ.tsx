@@ -82,7 +82,7 @@ const FAQ = () => {
                 viewport={{ once: true, margin: "-30px" }}
               >
                 <button
-                  className="w-full flex items-center justify-between p-4 text-left sm:p-5 min-h-15"
+                  className="flex min-h-[3.5rem] w-full items-center justify-between p-4 text-left sm:p-5"
                   onClick={() => setOpenIndex(isOpen ? null : index)}
                   aria-expanded={isOpen}
                   aria-controls={`faq-panel-${index}`}
@@ -94,7 +94,7 @@ const FAQ = () => {
                     >
                       {String(index + 1).padStart(2, "0")}
                     </span>
-                    <span className="text-sm font-medium text-white/90 sm:text-base">
+                    <span className="text-sm font-medium leading-snug text-white/90 sm:text-base">
                       {faq.question}
                     </span>
                   </div>

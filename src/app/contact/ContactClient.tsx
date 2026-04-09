@@ -108,7 +108,7 @@ const ContactPage = () => {
       <Header />
 
       {/* Hero Section */}
-      <section className="relative bg-linear-to-br from-emerald-600 via-green-600 to-teal-700 pt-16 pb-12 sm:pt-20 sm:pb-16 md:py-28 overflow-hidden">
+      <section className="relative overflow-hidden bg-linear-to-br from-emerald-600 via-green-600 to-teal-700 pb-12 pt-[calc(var(--public-header-h)+1rem)] sm:pb-16 sm:pt-[calc(var(--public-header-h)+1.5rem)] md:pb-20 md:pt-[calc(var(--public-header-h)+2rem)]">
         <div className="absolute inset-0 bg-black/10"></div>
 
         <div className="container mx-auto px-3 sm:px-4 relative z-10 text-center">
@@ -130,7 +130,7 @@ const ContactPage = () => {
       </section>
 
       {/* Main Content */}
-      <main className="container mx-auto px-3 sm:px-4 py-8 sm:py-12 md:py-16 lg:py-20 -mt-6 sm:-mt-8 md:-mt-10 relative z-20">
+      <main className="container relative z-20 mx-auto -mt-4 px-3 py-8 sm:-mt-6 sm:px-4 sm:py-12 md:-mt-8 md:py-16 lg:py-20">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
           {/* Contact Info Cards - Mobile First */}
           <div className="lg:col-span-1 space-y-4 sm:space-y-6">
@@ -172,7 +172,7 @@ const ContactPage = () => {
                     <h4 className="font-semibold text-gray-900 text-sm sm:text-base">
                       Email Us
                     </h4>
-                    <p className="text-gray-600 text-xs sm:text-sm mt-1">
+                    <p className="mt-1 break-words text-xs text-gray-600 sm:text-sm">
                       support@gtss.software
                     </p>
                   </div>
@@ -204,19 +204,19 @@ const ContactPage = () => {
                 <div className="flex flex-wrap gap-2">
                   <a
                     href="mailto:support@gtss.software"
-                    className="px-3 py-2 rounded-lg bg-gray-50 text-gray-700 text-xs sm:text-sm font-medium hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                    className="flex min-h-[44px] items-center rounded-lg bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700 sm:text-sm"
                   >
                     Email Support
                   </a>
                   <a
                     href="tel:+254790670542"
-                    className="px-3 py-2 rounded-lg bg-gray-50 text-gray-700 text-xs sm:text-sm font-medium hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                    className="flex min-h-[44px] items-center rounded-lg bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700 sm:text-sm"
                   >
                     Call Support
                   </a>
                   <a
                     href="/faq"
-                    className="px-3 py-2 rounded-lg bg-gray-50 text-gray-700 text-xs sm:text-sm font-medium hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+                    className="flex min-h-[44px] items-center rounded-lg bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700 sm:text-sm"
                   >
                     Visit FAQ
                   </a>
@@ -287,7 +287,7 @@ const ContactPage = () => {
                 >
                   <div className="flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 shrink-0" />
-                    <p>{errorMessage}</p>
+                    <p className="break-words">{errorMessage}</p>
                   </div>
                 </motion.div>
               )}
@@ -309,7 +309,7 @@ const ContactPage = () => {
                     shortly.
                   </p>
                   {ticketReference ? (
-                    <p className="text-emerald-700 text-xs sm:text-sm mb-4">
+                    <p className="mb-4 break-all text-xs text-emerald-700 sm:text-sm">
                       Ticket reference: {ticketReference}
                     </p>
                   ) : null}
@@ -340,7 +340,7 @@ const ContactPage = () => {
                   />
 
                   {/* Name & Email - Stacked on mobile, side-by-side on larger screens */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
                     <div className="space-y-2">
                       <label
                         htmlFor="name"
@@ -476,10 +476,10 @@ const ContactPage = () => {
                 <h4 className="font-bold text-gray-900 text-sm mb-3">
                   Other Ways to Reach Us
                 </h4>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
                   <a
                     href="tel:+254790670542"
-                    className="flex flex-col items-center justify-center p-3 bg-white border border-gray-200 rounded-lg hover:border-emerald-300 transition-colors"
+                    className="flex min-h-[44px] flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-3 transition-colors hover:border-emerald-300"
                   >
                     <Phone className="w-5 h-5 text-emerald-600 mb-1" />
                     <span className="text-xs font-medium text-gray-700">
@@ -488,7 +488,7 @@ const ContactPage = () => {
                   </a>
                   <a
                     href="mailto:support@gtss.software"
-                    className="flex flex-col items-center justify-center p-3 bg-white border border-gray-200 rounded-lg hover:border-emerald-300 transition-colors"
+                    className="flex min-h-[44px] flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-3 transition-colors hover:border-emerald-300"
                   >
                     <Mail className="w-5 h-5 text-emerald-600 mb-1" />
                     <span className="text-xs font-medium text-gray-700">
@@ -548,7 +548,7 @@ const FAQItem = ({
     <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 sm:px-6 py-3 sm:py-4 text-left flex justify-between items-center hover:bg-gray-50 transition-colors group"
+        className="group flex w-full items-start justify-between px-4 py-3 text-left transition-colors hover:bg-gray-50 sm:px-6 sm:py-4"
         aria-expanded={isOpen}
       >
         <span className="font-semibold text-gray-800 text-sm sm:text-base pr-2">

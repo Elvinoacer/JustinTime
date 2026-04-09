@@ -62,7 +62,7 @@ const LandingNarrativeRail = () => {
           <p className="mb-4 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-400 sm:text-xs">
             Your Booking Journey
           </p>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+          <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 md:grid-cols-4 md:gap-4">
             {milestones.map((item, index) => {
               const Icon = item.icon;
               return (

@@ -145,12 +145,12 @@ const Header = () => {
               : "bg-white border-b border-gray-200"
         }`}
       >
-        <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-3.5">
-          <div className="flex items-center justify-between gap-4">
+        <div className="px-3 py-2.5 sm:px-6 sm:py-3.5 lg:px-8">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
             {/* Logo */}
             <Link
               href="/"
-              className="flex items-center gap-2 sm:gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded-lg shrink-0"
+              className="flex min-w-0 items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 sm:gap-3 shrink-0"
             >
               <Image
                 src="/images/JustinTimeLogo.png"
@@ -160,7 +160,7 @@ const Header = () => {
                 className="h-7 sm:h-8 w-auto"
               />
               <span
-                className={`text-base sm:text-lg font-bold tracking-tight ${
+                className={`hidden min-[360px]:inline text-sm font-bold tracking-tight sm:text-lg ${
                   isLandingPage ? "text-white" : "text-gray-900"
                 }`}
               >
@@ -194,7 +194,7 @@ const Header = () => {
               {/* Mobile Search Button */}
               <button
                 onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
-                className={`lg:hidden p-2 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center ${
+                className={`lg:hidden flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 transition-colors ${
                   isLandingPage ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"
                 }`}
                 aria-label="Toggle search"
@@ -225,7 +225,7 @@ const Header = () => {
                   {/* Mobile Notification Bell */}
                   <button
                     onClick={handleNotifications}
-                    className={`lg:hidden relative p-2 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center ${
+                    className={`lg:hidden relative flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 transition-colors ${
                       isLandingPage
                         ? "hover:bg-white/[0.08]"
                         : "hover:bg-gray-100"
@@ -260,7 +260,7 @@ const Header = () => {
 
                     <button
                       onClick={handleNotifications}
-                      className={`relative p-2 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center ${
+                      className={`relative flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 transition-colors ${
                         isLandingPage
                           ? "hover:bg-white/[0.08]"
                           : "hover:bg-gray-100"
@@ -374,7 +374,7 @@ const Header = () => {
                   {/* Mobile Avatar */}
                   <button
                     onClick={() => setIsMenuOpen(true)}
-                    className="lg:hidden min-w-[40px] min-h-[40px] flex items-center justify-center"
+                    className="lg:hidden flex min-h-[44px] min-w-[44px] items-center justify-center"
                     aria-label="Open menu"
                   >
                     <div
@@ -414,7 +414,7 @@ const Header = () => {
                   {/* Mobile Menu Button */}
                   <button
                     onClick={() => setIsMenuOpen(true)}
-                    className={`lg:hidden p-2 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center ${
+                    className={`lg:hidden flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg p-2 transition-colors ${
                       isLandingPage
                         ? "hover:bg-white/[0.08]"
                         : "hover:bg-gray-100"
@@ -477,14 +477,14 @@ const Header = () => {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 lg:hidden"
+            className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-sm lg:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsMenuOpen(false)}
           >
             <motion.div
-              className="absolute top-0 right-0 h-full w-[85%] max-w-sm bg-white shadow-2xl flex flex-col"
+              className="absolute top-0 right-0 flex h-full w-[min(92vw,22rem)] max-w-full flex-col bg-white shadow-2xl"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -492,7 +492,7 @@ const Header = () => {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Menu Header */}
-              <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div className="flex items-center justify-between border-b border-gray-100 p-4 sm:p-5">
                 <div className="flex items-center gap-3">
                   <Image
                     src="/images/JustinTimeLogo.png"
@@ -506,7 +506,7 @@ const Header = () => {
                   </span>
                 </div>
                 <button
-                  className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-gray-100 p-2 transition-colors hover:bg-gray-200"
                   onClick={() => setIsMenuOpen(false)}
                   aria-label="Close menu"
                 >
@@ -515,7 +515,7 @@ const Header = () => {
               </div>
 
               {/* Navigation Items */}
-              <nav className="flex-1 overflow-y-auto p-4">
+              <nav className="flex-1 overflow-y-auto p-3 sm:p-4">
                 <div className="space-y-1">
                   {navItems.map((item, index) => {
                     const Icon = item.icon;
@@ -523,7 +523,7 @@ const Header = () => {
                       <Link
                         key={index}
                         href={item.href}
-                        className={`flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors ${
+                        className={`flex items-center gap-3 rounded-xl px-3.5 py-3 transition-colors ${
                           pathname === item.href
                             ? "bg-emerald-50 text-emerald-600 font-semibold"
                             : "text-gray-700 hover:bg-gray-50"
@@ -543,7 +543,7 @@ const Header = () => {
 
                 {isAuthenticated ? (
                   <>
-                    <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-xl mb-4">
+                    <div className="mb-4 flex items-center gap-3 rounded-xl bg-emerald-50 p-3.5 sm:p-4">
                       <div
                         className="w-10 h-10 rounded-full bg-cover bg-center border-2 border-emerald-500 shrink-0"
                         style={{
@@ -586,7 +586,7 @@ const Header = () => {
                           key={href}
                           href={href}
                           onClick={() => setIsMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3.5 text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-colors"
+                          className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-gray-700 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
                         >
                           <Icon className="w-5 h-5 shrink-0" />
                           <span className="font-medium">{label}</span>
@@ -595,7 +595,7 @@ const Header = () => {
                     </div>
                   </>
                 ) : (
-                  <div className="mt-6 px-4">
+                  <div className="mt-6 px-3.5 sm:px-4">
                     <p className="text-sm text-gray-500">
                       Sign in to access all features
                     </p>
@@ -604,12 +604,12 @@ const Header = () => {
               </nav>
 
               {/* Footer Actions */}
-              <div className="p-4 border-t border-gray-200">
+              <div className="border-t border-gray-200 p-3 sm:p-4">
                 {isAuthenticated ? (
                   <div className="space-y-3">
                     <motion.button
                       onClick={handlePostService}
-                      className="flex w-full items-center justify-center gap-2 px-6 py-3.5 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm text-sm"
+                      className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -623,7 +623,7 @@ const Header = () => {
                           callbackUrl: "/",
                         });
                       }}
-                      className="flex w-full items-center justify-center gap-2 px-6 py-3 text-red-600 font-semibold hover:bg-red-50 rounded-xl transition-colors text-sm"
+                      className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
                     >
                       <LogOut className="w-5 h-5" />
                       Sign Out
@@ -634,14 +634,14 @@ const Header = () => {
                     <Link
                       href="/auth/signup"
                       onClick={() => setIsMenuOpen(false)}
-                      className="block w-full px-4 py-3.5 bg-emerald-600 text-white rounded-xl text-center font-bold text-sm"
+                      className="block min-h-[44px] w-full rounded-xl bg-emerald-600 px-4 py-3.5 text-center text-sm font-bold text-white"
                     >
                       Get Started
                     </Link>
                     <Link
                       href="/auth/login"
                       onClick={() => setIsMenuOpen(false)}
-                      className="block w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-xl text-center font-semibold text-sm"
+                      className="block min-h-[44px] w-full rounded-xl bg-gray-100 px-4 py-3 text-center text-sm font-semibold text-gray-700"
                     >
                       Sign In
                     </Link>

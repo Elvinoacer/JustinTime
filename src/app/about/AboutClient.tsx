@@ -10,9 +10,9 @@ const AboutPage = () => {
     <div className="flex min-h-screen flex-col bg-white font-sans">
       <Header />
 
-      <main className="flex-1">
+      <main className="flex-1 pt-[var(--public-header-h)]">
         {/* Hero Section */}
-        <section className="relative py-10 sm:py-16 lg:py-20 xl:py-32 overflow-hidden bg-gray-900">
+        <section className="relative overflow-hidden bg-gray-900 py-12 sm:py-16 lg:py-20 xl:py-32">
           <div className="absolute inset-0 z-0">
             <Image
               src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2084&q=80"
@@ -52,7 +52,7 @@ const AboutPage = () => {
         {/* Mission & Vision */}
         <section className="py-12 sm:py-16 lg:py-20 bg-white">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-start">
+            <div className="grid items-start gap-8 sm:gap-12 lg:grid-cols-2 lg:gap-16">
               <motion.div
                 initial={{ opacity: 0, x: -50 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -86,7 +86,7 @@ const AboutPage = () => {
               </motion.div>
 
               <motion.div
-                className="relative h-[280px] xs:h-[320px] sm:h-[380px] md:h-[450px] lg:h-[500px] rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden shadow-lg sm:shadow-xl lg:shadow-2xl order-1 lg:order-2"
+                className="relative order-1 h-[240px] min-[420px]:h-[300px] sm:h-[380px] md:h-[450px] lg:order-2 lg:h-[500px] overflow-hidden rounded-lg shadow-lg sm:rounded-xl sm:shadow-xl lg:rounded-2xl lg:shadow-2xl"
                 initial={{ opacity: 0, x: 50 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.8 }}
@@ -108,7 +108,7 @@ const AboutPage = () => {
         {/* Stats - 2 Columns on Mobile */}
         <section className="py-12 sm:py-16 bg-emerald-600 text-white">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 text-center">
+            <div className="grid grid-cols-1 gap-3 text-center min-[360px]:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
               {[
                 { number: "10k+", label: "Active Users" },
                 { number: "5k+", label: "Professionals" },
@@ -137,7 +137,7 @@ const AboutPage = () => {
 
         {/* Team Section - 2 Columns on Mobile */}
         <section className="py-12 sm:py-16 lg:py-20 bg-gray-50">
-          <div className="container mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-10 sm:mb-14 lg:mb-16">
               <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
                 Meet Our Team
@@ -148,7 +148,7 @@ const AboutPage = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-1 gap-4 sm:gap-6 lg:gap-8 max-w-md mx-auto">
+            <div className="mx-auto grid max-w-xl grid-cols-1 gap-4 sm:gap-6 md:max-w-2xl lg:gap-8">
               {[
                 {
                   name: "Elvin Juma",
@@ -218,7 +218,7 @@ const AboutPage = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+            <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:gap-6 lg:grid-cols-4 lg:gap-8">
               {[
                 {
                   title: "Trust",
@@ -255,7 +255,7 @@ const AboutPage = () => {
                   <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-900 mb-1 sm:mb-2">
                     {value.title}
                   </h3>
-                  <p className="text-xs sm:text-sm text-gray-600 leading-tight">
+                  <p className="text-xs leading-relaxed text-gray-600 sm:text-sm">
                     {value.description}
                   </p>
                 </motion.div>
@@ -274,7 +274,7 @@ const AboutPage = () => {
               Whether you're looking for work or need a service, we have you
               covered.
             </p>
-            <div className="flex flex-col xs:flex-row gap-3 sm:gap-4 justify-center items-stretch xs:items-center max-w-md mx-auto xs:max-w-none">
+            <div className="mx-auto flex max-w-md flex-col items-stretch justify-center gap-3 min-[420px]:max-w-none min-[420px]:flex-row min-[420px]:items-center sm:gap-4">
               <Link
                 href="/auth/signup"
                 className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-bold text-sm sm:text-base md:text-lg transition-all duration-300 shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300 hover:scale-105 inline-flex items-center justify-center flex-1 xs:flex-none"

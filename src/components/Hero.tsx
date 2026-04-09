@@ -277,7 +277,7 @@ const Hero = () => {
 
   return (
     <section
-      className="group/hero relative w-full overflow-hidden px-4 pb-12 pt-20 sm:px-6 sm:pb-20 sm:pt-28 md:pt-32 lg:px-8 lg:pb-24 lg:pt-36"
+      className="group/hero relative w-full overflow-hidden px-4 pb-12 pt-[calc(var(--public-header-h)+1.25rem)] sm:px-6 sm:pb-20 sm:pt-[calc(var(--public-header-h)+2.25rem)] md:pt-[calc(var(--public-header-h)+2.75rem)] lg:px-8 lg:pb-24 lg:pt-[calc(var(--public-header-h)+3rem)]"
       aria-label="Hero"
     >
       {/* Background video */}
@@ -553,7 +553,7 @@ const Hero = () => {
             </div>
 
             {/* Country + Location row */}
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 min-[500px]:grid-cols-2">
               <div className="relative">
                 <Globe
                   className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-400"
