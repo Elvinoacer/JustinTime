@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import apiClient from "@/lib/api/client";
 import {
@@ -163,5 +163,6 @@ export const useDashboardJobs = (filters: DashboardJobsFilters) => {
         })),
       };
     },
+    placeholderData: keepPreviousData,
   });
 };

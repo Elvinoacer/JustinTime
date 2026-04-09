@@ -197,7 +197,11 @@ const DashboardPage = () => {
   }, []);
 
   // Fetch jobs with filters
-  const { data: jobsData, isLoading: jobsLoading } = useDashboardJobs({
+  const {
+    data: jobsData,
+    isLoading: jobsLoading,
+    isFetching: jobsFetching,
+  } = useDashboardJobs({
     ...filters,
     sortBy,
     sortOrder,
@@ -369,6 +373,19 @@ const DashboardPage = () => {
   const closeMobileFilters = () => {
     setShowFilters(false);
   };
+
+  useEffect(() => {
+    if (!isMobile) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = showFilters ? "hidden" : "";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMobile, showFilters]);
 
   const applyMobileFilters = () => {
     setFilters(mobileDraftFilters);
@@ -671,7 +688,7 @@ const DashboardPage = () => {
             onClick={closeMobileFilters}
           />
           <div
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] rounded-t-3xl bg-white shadow-2xl overflow-hidden flex flex-col"
+            className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] rounded-t-3xl bg-white shadow-2xl overflow-hidden flex flex-col overscroll-contain"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-center pt-3">
@@ -743,6 +760,13 @@ const DashboardPage = () => {
             <div className="text-sm text-gray-600 flex items-center gap-2 flex-wrap">
               {jobsLoading ? (
                 <span>Loading jobs...</span>
+              ) : jobsFetching ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="material-symbols-outlined animate-spin text-sm text-emerald-600">
+                    progress_activity
+                  </span>
+                  Updating results...
+                </span>
               ) : isMobile ? (
                 <span>
                   <span className="font-semibold text-gray-900">

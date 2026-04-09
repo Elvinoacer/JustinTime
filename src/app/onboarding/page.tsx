@@ -251,7 +251,7 @@ function OnboardingPageContent() {
   ]);
 
   useEffect(() => {
-    if (isLoading) {
+    if (isLoading || !didHydrateDraft || !persistDrafts) {
       return;
     }
 
@@ -266,7 +266,15 @@ function OnboardingPageContent() {
 
       router.push(getPreferredDashboard(session.user));
     }
-  }, [session, router, currentStep, selectedRole, isLoading]);
+  }, [
+    session,
+    router,
+    currentStep,
+    selectedRole,
+    isLoading,
+    didHydrateDraft,
+    persistDrafts,
+  ]);
 
   const formatPhoneNumber = useCallback((input: string): string => {
     return normalizeKenyanPhone(input);
@@ -427,9 +435,8 @@ function OnboardingPageContent() {
 
       setPersistDrafts(false);
       succeeded = true;
-      setIsLoading(false);
       setCurrentStep(3);
-      router.refresh();
+      setIsLoading(false);
     } catch (error: unknown) {
       console.error("Client onboarding failed:", error);
       toast.error(getErrorMessage(error));
@@ -515,9 +522,8 @@ function OnboardingPageContent() {
       });
       setPersistDrafts(false);
       succeeded = true;
-      setIsLoading(false);
       setCurrentStep(4);
-      router.refresh();
+      setIsLoading(false);
     } catch (error: unknown) {
       console.error("Provider onboarding failed:", error);
 
