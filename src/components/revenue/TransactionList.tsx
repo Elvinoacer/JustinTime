@@ -38,6 +38,8 @@ export function TransactionList({ transactions }: TransactionListProps) {
       <div className="divide-y divide-gray-100 md:hidden">
         {transactions.map((tx) => {
           const debit = isDebit(tx);
+          const reference = referenceFor(tx);
+          const mobileReference = compactReference(reference);
 
           return (
             <div key={tx.id} className="space-y-2 p-4">
@@ -61,12 +63,15 @@ export function TransactionList({ transactions }: TransactionListProps) {
 
               <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-xs">
                 <span className="text-gray-500">Reference</span>
-                <span className="truncate text-right text-gray-700">
-                  {referenceFor(tx)}
+                <span
+                  className="min-w-0 truncate text-right text-gray-700"
+                  title={reference}
+                >
+                  {mobileReference}
                 </span>
                 <span className="text-gray-500">Date</span>
                 <span className="text-right text-gray-700">
-                  {new Date(tx.createdAt).toLocaleDateString()}
+                  {formatMobileDate(tx.createdAt)}
                 </span>
                 <span className="text-gray-500">Amount</span>
                 <span
@@ -206,4 +211,28 @@ function referenceFor(transaction: Transaction) {
   }
 
   return "-";
+}
+
+function compactReference(reference: string, start = 8, end = 4): string {
+  const trimmed = reference.trim();
+  const minLength = start + end + 3;
+  if (trimmed.length <= minLength) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, start)}...${trimmed.slice(-end)}`;
+}
+
+function formatMobileDate(value: Date | string): string {
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) {
+    return "-";
+  }
+
+  return parsed.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

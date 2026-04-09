@@ -95,6 +95,38 @@ function transactionReference(tx: WalletTransaction): string | null {
   return null;
 }
 
+function compactReference(
+  reference: string | null | undefined,
+  start = 8,
+  end = 4,
+): string {
+  if (!reference) {
+    return "N/A";
+  }
+
+  const trimmed = reference.trim();
+  const minLength = start + end + 3;
+  if (trimmed.length <= minLength) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, start)}...${trimmed.slice(-end)}`;
+}
+
+function formatMobileDate(value: Date | string): string {
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) {
+    return "-";
+  }
+
+  return parsed.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function ClientWalletPage() {
   const queryClient = useQueryClient();
   const [topUpAmount, setTopUpAmount] = useState("1000");
@@ -391,31 +423,38 @@ export default function ClientWalletPage() {
               <p className="text-sm font-semibold">Awaiting Confirmation</p>
             </div>
             <div className="space-y-2 text-sm">
-              {wallet.recentPendingTransactions.slice(0, 3).map((tx) => (
-                <div
-                  key={tx.id}
-                  className="flex flex-col gap-1 rounded-lg bg-white/70 p-2.5 sm:flex-row sm:items-center sm:justify-between sm:p-3"
-                >
-                  <div>
-                    <p className="font-medium text-slate-900">
-                      {tx.description || "Wallet top-up"}
-                    </p>
-                    <p className="text-xs text-slate-600">
-                      Ref: {transactionReference(tx) || "N/A"}
-                    </p>
+              {wallet.recentPendingTransactions.slice(0, 3).map((tx) => {
+                const reference = transactionReference(tx);
+
+                return (
+                  <div
+                    key={tx.id}
+                    className="flex flex-col gap-1 rounded-lg bg-white/70 p-2.5 sm:flex-row sm:items-center sm:justify-between sm:p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-900">
+                        {tx.description || "Wallet top-up"}
+                      </p>
+                      <p
+                        className="max-w-full truncate text-[11px] text-slate-600"
+                        title={reference || "N/A"}
+                      >
+                        Ref: {compactReference(reference)}
+                      </p>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <p className="font-semibold text-slate-900">
+                        {formatCurrency(tx.amount)}
+                      </p>
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusTone(tx.status)}`}
+                      >
+                        {statusLabel(tx.status)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-left sm:text-right">
-                    <p className="font-semibold text-slate-900">
-                      {formatCurrency(tx.amount)}
-                    </p>
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusTone(tx.status)}`}
-                    >
-                      {statusLabel(tx.status)}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ) : null}
@@ -489,6 +528,7 @@ export default function ClientWalletPage() {
                 {transactions.map((tx) => {
                   const credit = isCredit(tx);
                   const reference = transactionReference(tx);
+                  const mobileReference = compactReference(reference);
 
                   return (
                     <div key={tx.id} className="space-y-2 p-3">
@@ -527,7 +567,7 @@ export default function ClientWalletPage() {
                           ) : null}
                         </div>
                         <p
-                          className={`shrink-0 text-sm font-semibold ${
+                          className={`shrink-0 text-xs font-semibold ${
                             credit ? "text-emerald-700" : "text-red-700"
                           }`}
                         >
@@ -538,12 +578,15 @@ export default function ClientWalletPage() {
 
                       <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-xs">
                         <span className="text-slate-500">Reference</span>
-                        <span className="truncate text-right text-slate-700">
-                          {reference || "N/A"}
+                        <span
+                          className="min-w-0 truncate text-right text-slate-700"
+                          title={reference || "N/A"}
+                        >
+                          {mobileReference}
                         </span>
                         <span className="text-slate-500">Date</span>
                         <span className="text-right text-slate-700">
-                          {new Date(tx.createdAt).toLocaleString()}
+                          {formatMobileDate(tx.createdAt)}
                         </span>
                       </div>
                     </div>
