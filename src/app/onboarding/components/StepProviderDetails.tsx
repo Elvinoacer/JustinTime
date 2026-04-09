@@ -147,7 +147,11 @@ export default function StepProviderDetails({
   const [isCheckingPhone, setIsCheckingPhone] = React.useState(false);
   const [businessEdited, setBusinessEdited] = React.useState(false);
   const [phoneEdited, setPhoneEdited] = React.useState(false);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] =
+    React.useState(false);
+  const [categorySearch, setCategorySearch] = React.useState("");
   const hasAutoPrefilledRef = React.useRef(false);
+  const categoryDropdownRef = React.useRef<HTMLDivElement | null>(null);
 
   const selectedPrimaryCategory = categories.find(
     (cat) => cat.id === providerData.primaryCategoryId,
@@ -156,6 +160,39 @@ export default function StepProviderDetails({
     () => getCategoryScopedSkills(categories, providerData.primaryCategoryId),
     [categories, providerData.primaryCategoryId],
   );
+  const sortedCategories = React.useMemo(
+    () => [...categories].sort((a, b) => b.count - a.count),
+    [categories],
+  );
+  const filteredCategories = React.useMemo(() => {
+    const query = categorySearch.trim().toLowerCase();
+    if (!query) {
+      return sortedCategories;
+    }
+
+    return sortedCategories.filter((category) => {
+      const haystack = `${category.name} ${category.slug}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [categorySearch, sortedCategories]);
+  const dropdownCategories = React.useMemo(() => {
+    if (filteredCategories.length === 0) {
+      return filteredCategories;
+    }
+
+    const selectedByOrder = providerData.skills
+      .map((skillId) =>
+        filteredCategories.find((category) => category.id === skillId),
+      )
+      .filter((category): category is Category => Boolean(category));
+
+    const selectedIds = new Set(selectedByOrder.map((category) => category.id));
+    const unselected = filteredCategories.filter(
+      (category) => !selectedIds.has(category.id),
+    );
+
+    return [...selectedByOrder, ...unselected];
+  }, [filteredCategories, providerData.skills]);
 
   const isPhoneLocallyValid = isValidKenyanPhone(providerData.phone);
   const showPhoneValid =
@@ -194,6 +231,20 @@ export default function StepProviderDetails({
   React.useEffect(() => {
     if (loc.status === "DENIED") setShowDeniedModal(true);
   }, [loc.status]);
+
+  React.useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (
+        categoryDropdownRef.current &&
+        !categoryDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, []);
 
   const handleSkillToggle = (skillId: string) => {
     setProviderData((prev) => {
@@ -444,26 +495,167 @@ export default function StepProviderDetails({
             </div>
 
             <div className="group">
-              <label
-                htmlFor="provider-primary-category"
-                className="mb-1.5 block text-xs sm:text-sm font-bold text-gray-700 group-focus-within:text-emerald-600 transition-colors"
-              >
-                Primary Service Category *
-              </label>
-              <select
-                id="provider-primary-category"
-                value={providerData.primaryCategoryId}
-                onChange={(e) => handlePrimaryCategoryChange(e.target.value)}
-                className="w-full rounded-lg sm:rounded-xl bg-gray-50 border-2 border-transparent px-3 sm:px-4 py-3 sm:py-4 text-sm sm:text-base font-medium text-gray-900 transition-all duration-300 focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10"
-                required
-              >
-                <option value="">Select your main service</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+              <div ref={categoryDropdownRef}>
+                <label
+                  htmlFor="provider-primary-category"
+                  className="mb-1.5 block text-xs sm:text-sm font-bold text-gray-700 group-focus-within:text-emerald-600 transition-colors"
+                >
+                  Service Categories *
+                </label>
+                <button
+                  id="provider-primary-category"
+                  type="button"
+                  onClick={() => setIsCategoryDropdownOpen((isOpen) => !isOpen)}
+                  className="flex min-h-[44px] w-full items-center justify-between rounded-lg sm:rounded-xl bg-gray-50 border-2 border-transparent px-3 sm:px-4 py-3 sm:py-4 text-sm sm:text-base font-medium text-gray-900 transition-all duration-300 hover:bg-gray-100 focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10"
+                  aria-expanded={isCategoryDropdownOpen}
+                  aria-haspopup="listbox"
+                >
+                  <span className="truncate text-left">
+                    {providerData.skills.length > 0
+                      ? `${providerData.skills.length} selected${selectedPrimaryCategory ? ` • Primary: ${selectedPrimaryCategory.name}` : ""}`
+                      : "Select one or more services"}
+                  </span>
+                  <span className="material-symbols-outlined text-base text-gray-500">
+                    {isCategoryDropdownOpen ? "expand_less" : "expand_more"}
+                  </span>
+                </button>
+
+                <p className="mt-1.5 text-xs text-gray-500">
+                  Pick multiple categories before closing. The first selected
+                  category becomes primary automatically.
+                </p>
+
+                <AnimatePresence>
+                  {isCategoryDropdownOpen ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 6 }}
+                      transition={{ duration: 0.15 }}
+                      className="mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg"
+                    >
+                      <div className="border-b border-gray-100 px-3 py-2.5">
+                        <input
+                          value={categorySearch}
+                          onChange={(e) => setCategorySearch(e.target.value)}
+                          placeholder="Search categories"
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10"
+                        />
+                      </div>
+
+                      <div className="max-h-64 overflow-y-auto p-2">
+                        {isLoadingCategories ? (
+                          <div className="space-y-2">
+                            {Array.from({ length: 5 }).map((_, index) => (
+                              <div
+                                key={index}
+                                className="h-10 rounded-lg bg-gray-100 animate-pulse"
+                              />
+                            ))}
+                          </div>
+                        ) : dropdownCategories.length > 0 ? (
+                          dropdownCategories.map((category) => {
+                            const isSelected = providerData.skills.includes(
+                              category.id,
+                            );
+                            const isDisabled =
+                              providerData.skills.length >=
+                                VALIDATION.MAX_PROVIDER_SKILLS && !isSelected;
+
+                            return (
+                              <button
+                                key={category.id}
+                                type="button"
+                                onClick={() => handleSkillToggle(category.id)}
+                                disabled={isDisabled}
+                                className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                                  isSelected
+                                    ? "bg-emerald-50 text-emerald-800"
+                                    : isDisabled
+                                      ? "cursor-not-allowed text-gray-400"
+                                      : "hover:bg-gray-50 text-gray-700"
+                                }`}
+                              >
+                                <span className="truncate">
+                                  {category.name}
+                                </span>
+                                <span className="material-symbols-outlined text-base">
+                                  {isSelected
+                                    ? "check_box"
+                                    : "check_box_outline_blank"}
+                                </span>
+                              </button>
+                            );
+                          })
+                        ) : (
+                          <p className="px-2 py-3 text-sm text-gray-500">
+                            No categories match your search.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProviderData((prev) => ({
+                              ...prev,
+                              primaryCategoryId: "",
+                              skills: [],
+                            }));
+                            setCategorySearch("");
+                          }}
+                          disabled={providerData.skills.length === 0}
+                          className="rounded-md px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Clear
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCategoryDropdownOpen(false);
+                            setCategorySearch("");
+                          }}
+                          className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                        >
+                          Done
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+
+                {providerData.skills.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {providerData.skills.map((skillId) => {
+                      const category = categories.find(
+                        (cat) => cat.id === skillId,
+                      );
+                      if (!category) return null;
+                      const isPrimary =
+                        providerData.primaryCategoryId === skillId;
+
+                      return (
+                        <button
+                          key={skillId}
+                          type="button"
+                          onClick={() => handlePrimaryCategoryChange(skillId)}
+                          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                            isPrimary
+                              ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                              : "border-gray-200 bg-gray-50 text-gray-600 hover:border-emerald-300 hover:text-emerald-700"
+                          }`}
+                        >
+                          <span>{category.name}</span>
+                          <span className="text-[10px] uppercase tracking-wide">
+                            {isPrimary ? "Primary" : "Set primary"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             <div>
