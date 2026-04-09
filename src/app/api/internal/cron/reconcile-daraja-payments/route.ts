@@ -334,9 +334,8 @@ async function reconcileWalletTopups(
           ),
         );
 
-        const autoFailForwarded = await didForwardSuccessfully(
-          autoFailResponse,
-        );
+        const autoFailForwarded =
+          await didForwardSuccessfully(autoFailResponse);
 
         if (autoFailForwarded) {
           forwarded += 1;
@@ -494,9 +493,8 @@ async function reconcileOnboardingPayments(
           ),
         );
 
-        const autoFailForwarded = await didForwardSuccessfully(
-          autoFailResponse,
-        );
+        const autoFailForwarded =
+          await didForwardSuccessfully(autoFailResponse);
 
         if (autoFailForwarded) {
           forwarded += 1;
@@ -654,9 +652,8 @@ async function reconcileSubscriptionPayments(
           ),
         );
 
-        const autoFailForwarded = await didForwardSuccessfully(
-          autoFailResponse,
-        );
+        const autoFailForwarded =
+          await didForwardSuccessfully(autoFailResponse);
 
         if (autoFailForwarded) {
           forwarded += 1;
@@ -754,7 +751,8 @@ async function runReconciliation(request: Request) {
       forwarded:
         wallet.forwarded + onboarding.forwarded + subscription.forwarded,
       errors: wallet.errors + onboarding.errors + subscription.errors,
-      autoFailed: wallet.autoFailed + onboarding.autoFailed + subscription.autoFailed,
+      autoFailed:
+        wallet.autoFailed + onboarding.autoFailed + subscription.autoFailed,
       failureReasons,
     },
   });
