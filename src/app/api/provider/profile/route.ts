@@ -7,6 +7,7 @@ import { hasRole } from "@/lib/auth/roles";
 import { isPubliclyVerified } from "@/lib/trust/publicTrust";
 import { checkAndAwardBadges } from "@/lib/gamification/badge-checker";
 import { applyLoyaltyRule } from "@/lib/loyalty/rule-engine";
+import { PAYMENT_AMOUNTS } from "@/lib/constants/pricing";
 
 // Schema for profile update
 const updateProfileSchema = z.object({
@@ -63,18 +64,24 @@ export async function GET(_request: NextRequest) {
 
     const userId = session.user.id;
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        profile: true,
-        trustScore: {
-          select: {
-            tier: true,
-            overallScore: true,
+    const [user, onboardingFeeSetting] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          profile: true,
+          trustScore: {
+            select: {
+              tier: true,
+              overallScore: true,
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.systemSetting.findUnique({
+        where: { key: "onboarding_fee_amount" },
+        select: { value: true },
+      }),
+    ]);
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -118,6 +125,11 @@ export async function GET(_request: NextRequest) {
       trustTier: user.trustScore?.tier,
       overallScore: user.trustScore?.overallScore,
     });
+    const configuredOnboardingFee = Number(onboardingFeeSetting?.value);
+    const onboardingFeeAmount =
+      Number.isFinite(configuredOnboardingFee) && configuredOnboardingFee > 0
+        ? configuredOnboardingFee
+        : PAYMENT_AMOUNTS.ONBOARDING_FEE;
 
     const profileData = {
       name: user.name,
@@ -142,6 +154,7 @@ export async function GET(_request: NextRequest) {
       verificationStatus: user.profile?.verificationStatus || "PENDING",
       hasPaidOnboardingFee: user.profile?.hasPaidOnboardingFee || false,
       onboardingFeeWaived: user.profile?.onboardingFeeWaived || false,
+      onboardingFeeAmount,
       verificationAccessGranted,
       onboardingPrivileges: {
         visibilityBoost: verificationAccessGranted,

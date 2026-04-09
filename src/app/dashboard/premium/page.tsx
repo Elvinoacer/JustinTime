@@ -13,6 +13,7 @@ const PremiumPage = () => {
   const [selectedPlan, setSelectedPlan] = useState<"PRO" | "BUSINESS" | null>(
     null,
   );
+  const [stkPhoneNumber, setStkPhoneNumber] = useState("");
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -32,7 +33,10 @@ const PremiumPage = () => {
 
   const handleUpgrade = (plan: "PRO" | "BUSINESS") => {
     setSelectedPlan(plan);
-    initiateSubscription.mutate({ plan });
+    initiateSubscription.mutate({
+      plan,
+      phoneNumber: stkPhoneNumber.trim() || undefined,
+    });
   };
 
   const pricingTiers = [
@@ -176,6 +180,19 @@ const PremiumPage = () => {
           )}
         </motion.div>
       )}
+
+      <div className="mb-4 sm:mb-6 rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Preferred STK Push Phone
+        </label>
+        <input
+          type="tel"
+          value={stkPhoneNumber}
+          onChange={(event) => setStkPhoneNumber(event.target.value)}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none"
+          placeholder="Use profile phone if left blank"
+        />
+      </div>
 
       {/* Pricing Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 md:gap-6 mb-8 sm:mb-10 md:mb-12">

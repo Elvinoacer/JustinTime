@@ -152,6 +152,7 @@ export default function DashboardLayoutClient({
                 {needsVerificationActivation && (
                   <OnboardingAccessNotice
                     userName={session?.user?.name?.split(" ")[0] || "Provider"}
+                    amount={profileData?.data?.onboardingFeeAmount}
                     storageKey={
                       session?.user?.id
                         ? `jit:onboarding-access-notice:${session.user.id}`

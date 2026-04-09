@@ -113,6 +113,13 @@ export async function GET(req: Request) {
       merchantRequestId: string | null;
       failureReason: string | null;
     } | null = null;
+    let latestAttempt: {
+      status: string;
+      apiRef: string | null;
+      checkoutRequestId: string | null;
+      failureReason: string | null;
+      isTerminal: boolean;
+    } | null = null;
 
     if (!isActive || effectivePlan === "FREE") {
       const pendingCandidates = await prisma.transaction.findMany({
@@ -220,6 +227,35 @@ export async function GET(req: Request) {
           }
         }
       }
+
+      if (!pendingPayment) {
+        const recentAttempt = await prisma.transaction.findFirst({
+          where: {
+            type: "PAYMENT",
+            category: "SUBSCRIPTION",
+            wallet: { userId: session.user.id },
+            ...(apiRef
+              ? { providerRef: { contains: apiRef, mode: "insensitive" } }
+              : {}),
+            ...(checkoutRequestId
+              ? { gatewaySessionId: checkoutRequestId }
+              : {}),
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        if (recentAttempt) {
+          latestAttempt = {
+            status: recentAttempt.status,
+            apiRef:
+              extractApiRefFromProviderRef(recentAttempt.providerRef) || apiRef,
+            checkoutRequestId:
+              normalizeParam(recentAttempt.gatewaySessionId) || checkoutRequestId,
+            failureReason: recentAttempt.failureReason,
+            isTerminal: TERMINAL_STATES.has(recentAttempt.status),
+          };
+        }
+      }
     }
 
     const currentNow = new Date();
@@ -248,6 +284,7 @@ export async function GET(req: Request) {
         hasExpired: currentExpired,
       },
       pendingPayment,
+      latestAttempt,
     });
   } catch (error) {
     console.error("Error fetching subscription status:", error);

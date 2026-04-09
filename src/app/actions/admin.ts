@@ -2947,6 +2947,7 @@ export async function updateSystemSetting(
         "min_withdrawal_amount",
         "max_file_upload_mb",
         "booking_cancellation_window_hours",
+        "onboarding_fee_amount",
       ].includes(key) &&
       typeof value === "number" &&
       value < 0

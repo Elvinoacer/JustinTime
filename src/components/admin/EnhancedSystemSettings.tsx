@@ -10,6 +10,7 @@ import {
   Edit2,
   FileText,
   Mail,
+  ShieldCheck,
   Save,
   Wrench,
   X,
@@ -110,6 +111,18 @@ export default function EnhancedSystemSettings({
       unit: "hours",
       color: "text-rose-600",
       bgColor: "bg-rose-100",
+    },
+    {
+      key: "onboarding_fee_amount",
+      defaultValue: 500,
+      description:
+        "One-time verification activation fee charged to providers",
+      type: "number",
+      icon: ShieldCheck,
+      category: "Finance",
+      unit: "KES",
+      color: "text-amber-600",
+      bgColor: "bg-amber-100",
     },
   ];
 

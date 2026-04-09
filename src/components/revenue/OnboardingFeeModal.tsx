@@ -15,6 +15,7 @@ export function OnboardingFeeModal({
   isOpen,
   userName,
 }: OnboardingFeeModalProps) {
+  const [stkPhoneNumber, setStkPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [walletLoading, setWalletLoading] = useState(false);
 
@@ -27,6 +28,9 @@ export function OnboardingFeeModal({
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          phoneNumber: stkPhoneNumber.trim() || undefined,
+        }),
       });
 
       const data = await response.json();
@@ -126,6 +130,14 @@ export function OnboardingFeeModal({
                   KES 500
                 </div>
               </div>
+
+              <input
+                type="tel"
+                value={stkPhoneNumber}
+                onChange={(event) => setStkPhoneNumber(event.target.value)}
+                className="mb-4 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-emerald-500 focus:outline-none"
+                placeholder="Preferred STK phone (optional)"
+              />
 
               {/* Payment methods indicator */}
               <div className="flex items-center justify-center gap-4 mb-4 text-gray-500">

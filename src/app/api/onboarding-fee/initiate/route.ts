@@ -12,7 +12,7 @@ import {
 } from "@/lib/daraja";
 import { ensureOnboardingFeePaymentIntent } from "@/lib/payments/payment-intents";
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -42,6 +42,12 @@ export async function POST() {
     const apiRef = generateApiRef("ONBOARD", session.user.id);
     const accountReference = generateDarajaAccountReference("ONB", apiRef);
 
+    const body = (await req.json().catch(() => ({}))) as {
+      phoneNumber?: unknown;
+    };
+    const requestedPhone =
+      typeof body.phoneNumber === "string" ? body.phoneNumber.trim() : "";
+
     const payer = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -51,15 +57,26 @@ export async function POST() {
       },
     });
 
-    if (!payer?.phone) {
+    const stkPhoneNumber = requestedPhone || payer?.phone || "";
+
+    if (!stkPhoneNumber) {
       return NextResponse.json(
         {
-          error:
-            "A valid phone number is required to initiate M-Pesa STK Push.",
+          error: "Provide a phone number to receive the M-Pesa STK Push prompt.",
         },
         { status: 400 },
       );
     }
+
+    const onboardingFeeSetting = await prisma.systemSetting.findUnique({
+      where: { key: "onboarding_fee_amount" },
+      select: { value: true },
+    });
+    const configuredOnboardingFee = Number(onboardingFeeSetting?.value);
+    const onboardingFeeAmount =
+      Number.isFinite(configuredOnboardingFee) && configuredOnboardingFee > 0
+        ? configuredOnboardingFee
+        : PAYMENT_AMOUNTS.ONBOARDING_FEE;
 
     const baseUrl = getBaseUrl();
     const callbackUrl = buildDarajaCallbackUrl(
@@ -69,12 +86,12 @@ export async function POST() {
     console.log("Initiating onboarding fee payment:", {
       apiRef,
       callbackUrl,
-      amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+      amount: onboardingFeeAmount,
     });
 
     const response = await initiateDarajaStkPush({
-      amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
-      phoneNumber: payer.phone,
+      amount: onboardingFeeAmount,
+      phoneNumber: stkPhoneNumber,
       apiRef,
       callbackUrl,
       accountReference,
@@ -116,7 +133,7 @@ export async function POST() {
         const createdPending = await tx.transaction.create({
           data: {
             walletId: wallet.id,
-            amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+            amount: onboardingFeeAmount,
             type: "ONBOARDING_FEE",
             status: "PENDING",
             direction: "DEBIT",
@@ -140,7 +157,7 @@ export async function POST() {
         userId: session.user.id,
         walletId: wallet.id,
         apiRef,
-        amountExpected: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+        amountExpected: onboardingFeeAmount,
         currency: "KES",
         sourceId: pendingTransactionId || session.user.id,
         gatewaySessionId: response.CheckoutRequestID,
@@ -161,13 +178,40 @@ export async function POST() {
       checkoutUrl: completionUrl,
       sessionId: response.CheckoutRequestID,
       apiRef: apiRef,
-      amount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
+      amount: onboardingFeeAmount,
       provider: "DARAJA",
     });
   } catch (error: unknown) {
     console.error("[ONBOARDING_FEE_INITIATE]", error);
     const message =
       error instanceof Error ? error.message : "Failed to initiate payment";
+    if (/A valid Kenyan phone number is required/i.test(message)) {
+      return NextResponse.json(
+        {
+          error:
+            "The phone number is invalid. Use format 07XXXXXXXX or 2547XXXXXXXX.",
+        },
+        { status: 400 },
+      );
+    }
+    if (/Daraja.+not configured/i.test(message)) {
+      return NextResponse.json(
+        {
+          error:
+            "Verification payments are temporarily unavailable. Please try again shortly.",
+        },
+        { status: 503 },
+      );
+    }
+    if (/ECONN|ENOTFOUND|ETIMEDOUT|Network Error/i.test(message)) {
+      return NextResponse.json(
+        {
+          error:
+            "M-Pesa gateway is currently unreachable. Please retry in a moment.",
+        },
+        { status: 502 },
+      );
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
