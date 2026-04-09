@@ -1,12 +1,12 @@
 "use client";
 import { motion } from "framer-motion";
 import * as faceapi from "face-api.js";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import ImageCropper from "@/components/ImageCropper";
 import CameraCapture from "./CameraCapture";
 
-type VerificationStatus = "PASSED" | "REJECTED" | "MANUAL_REVIEW" | null;
+type VerificationStatus = "PASSED" | "MANUAL_REVIEW" | null;
 
 interface StepVerificationProps {
   onBack: () => void;
@@ -29,36 +29,33 @@ export default function StepVerification({
   isSubmitting,
   submitStage,
 }: StepVerificationProps) {
-  // Models
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [modelLoadError, setModelLoadError] = useState<string | null>(null);
 
-  // Files
   const [idFile, setIdFile] = useState<File | null>(null);
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
 
-  // Previews
+  const idInputRef = useRef<HTMLInputElement | null>(null);
+  const selfieInputRef = useRef<HTMLInputElement | null>(null);
+
   const [idPreview, setIdPreview] = useState<string | null>(null);
   const [selfiePreview, setSelfiePreview] = useState<string | null>(null);
   const idPreviewObjectUrlRef = useRef<string | null>(null);
   const selfiePreviewObjectUrlRef = useRef<string | null>(null);
 
-  // Cropper state
   const [showSelfieCropper, setShowSelfieCropper] = useState(false);
   const [selectedSelfieImage, setSelectedSelfieImage] = useState<string | null>(
     null,
   );
 
-  // Camera state
   const [showCamera, setShowCamera] = useState<"id" | "selfie" | null>(null);
 
-  // Verification
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStatus, setVerificationStatus] =
     useState<VerificationStatus>(null);
   const [verificationMessage, setVerificationMessage] = useState("");
   const [faceMatchScore, setFaceMatchScore] = useState<number | null>(null);
 
-  // Load face-api models
   useEffect(() => {
     const loadModels = async () => {
       try {
@@ -69,8 +66,12 @@ export default function StepVerification({
           faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
         ]);
         setModelsLoaded(true);
+        setModelLoadError(null);
       } catch (error) {
         console.error("Failed to load face-api models", error);
+        setModelLoadError(
+          "Could not load identity verification. Check your connection and refresh.",
+        );
         toast.error("Failed to load verification system. Please refresh.");
       }
     };
@@ -169,10 +170,9 @@ export default function StepVerification({
     setFaceMatchScore(null);
   };
 
-  // Core verification with face matching
-  const verifyIdentity = async () => {
+  const verifyIdentity = useCallback(async () => {
     if (!idFile || !selfieFile) {
-      toast.error("Please upload both ID and Selfie");
+      toast.error("Please upload both ID and selfie.");
       return;
     }
     if (!modelsLoaded) {
@@ -192,12 +192,12 @@ export default function StepVerification({
         .withFaceDescriptor();
 
       if (!idDetection) {
-        setVerificationStatus("REJECTED");
+        setVerificationStatus("MANUAL_REVIEW");
         setFaceMatchScore(0);
         setVerificationMessage(
-          "No face was detected in the ID photo. You can retry, or continue and let our team review it manually.",
+          "Auto-check inconclusive: we could not detect a face in the ID photo.",
         );
-        toast.error("No face detected in ID");
+        toast.error("No face detected in ID photo.");
         setIsVerifying(false);
         return;
       }
@@ -211,12 +211,12 @@ export default function StepVerification({
         .withFaceDescriptor();
 
       if (!selfieDetection) {
-        setVerificationStatus("REJECTED");
+        setVerificationStatus("MANUAL_REVIEW");
         setFaceMatchScore(0);
         setVerificationMessage(
-          "No face was detected in the selfie. You can retry, or continue and let our team review it manually.",
+          "Auto-check inconclusive: we could not detect a face in the selfie.",
         );
-        toast.error("No face detected in selfie");
+        toast.error("No face detected in selfie.");
         setIsVerifying(false);
         return;
       }
@@ -234,41 +234,57 @@ export default function StepVerification({
       setFaceMatchScore(score);
 
       if (distance > MATCH_THRESHOLD) {
-        setVerificationStatus("REJECTED");
+        setVerificationStatus("MANUAL_REVIEW");
         setVerificationMessage(
-          `Face match score: ${score.toFixed(0)}%. The local check could not confirm a strong match. You can retry now or submit for manual review.`,
+          "Auto-check inconclusive. Submit for manual review and our team will verify your documents.",
         );
-        toast.error("Face match failed — photos don't match");
+        toast.error("Automatic face check could not confirm a match.");
         setIsVerifying(false);
         return;
       }
 
-      // 4. Success (local pre-check only; final verification remains server-reviewed)
       setVerificationStatus("PASSED");
       setVerificationMessage(
-        `Local face match passed: ${score.toFixed(0)}%. Your documents will now be submitted for final review.`,
+        "Identity check passed. You are ready to continue.",
       );
-      toast.success(`Face match passed (${score.toFixed(0)}%).`);
+      toast.success("Identity check passed.");
     } catch (error) {
       console.error("Verification error:", error);
-      setVerificationStatus("REJECTED");
+      setVerificationStatus("MANUAL_REVIEW");
       setFaceMatchScore(0);
       setVerificationMessage(
-        "An error occurred during verification. You can retry or continue for manual review.",
+        "Automatic verification was inconclusive. Submit for manual review.",
       );
-      toast.error("Verification error");
+      toast.error("Verification could not complete automatically.");
     } finally {
       setIsVerifying(false);
     }
-  };
+  }, [idFile, selfieFile, modelsLoaded]);
 
-  const handleNext = () => {
+  useEffect(() => {
     if (
       !idFile ||
       !selfieFile ||
-      (faceMatchScore === null && verificationStatus !== "REJECTED")
+      !modelsLoaded ||
+      isVerifying ||
+      verificationStatus !== null
     ) {
-      toast.error("Please complete the face match check.");
+      return;
+    }
+
+    void verifyIdentity();
+  }, [
+    idFile,
+    selfieFile,
+    modelsLoaded,
+    isVerifying,
+    verificationStatus,
+    verifyIdentity,
+  ]);
+
+  const handleNext = () => {
+    if (!idFile || !selfieFile || verificationStatus === null || isVerifying) {
+      toast.error("Please complete identity verification first.");
       return;
     }
 
@@ -286,9 +302,29 @@ export default function StepVerification({
   const verificationTone =
     verificationStatus === "PASSED"
       ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-      : verificationStatus === "REJECTED"
-        ? "bg-red-50 text-red-800 border-red-200"
-        : "bg-blue-50 text-blue-800 border-blue-200";
+      : "bg-amber-50 text-amber-800 border-amber-200";
+
+  if (!modelsLoaded) {
+    return (
+      <motion.div
+        key="step3-verification-loading"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex min-h-[300px] flex-col items-center justify-center gap-4 rounded-2xl border border-gray-100 bg-white p-6 text-center"
+      >
+        <div className="h-12 w-12 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin" />
+        <p className="text-sm font-semibold text-gray-700">
+          Loading identity verification...
+        </p>
+        <p className="text-xs text-gray-500">Usually takes 10-20 seconds</p>
+        {modelLoadError ? (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {modelLoadError}
+          </p>
+        ) : null}
+      </motion.div>
+    );
+  }
 
   return (
     <>
@@ -305,9 +341,8 @@ export default function StepVerification({
             Identity Verification
           </h2>
           <p className="text-sm sm:text-base text-gray-600">
-            This protects clients and providers on the platform. Upload one ID
-            photo and one clear selfie, then we&apos;ll run a local match before
-            sending your documents for final review.
+            Upload your ID and a clear selfie. We run an automatic check, and if
+            it is inconclusive we route you to manual review.
           </p>
         </div>
 
@@ -318,22 +353,22 @@ export default function StepVerification({
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">
-                Step 3 of 4
+                Step 3 of 3
               </p>
               <h3 className="mt-1 text-base sm:text-lg font-bold text-gray-900">
-                Verify your identity in 3 quick actions
+                Verify your identity
               </h3>
               <p className="mt-1 text-sm text-gray-600">
-                1. Upload an ID. 2. Add a selfie. 3. Tap verify to confirm the
-                match.
+                Once both uploads are ready, we automatically run the face
+                check.
               </p>
             </div>
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             {[
-              "Use a well-lit photo with the whole ID visible.",
-              "Take your selfie facing the camera with no heavy blur.",
-              "You&apos;ll see success or error feedback immediately.",
+              "Upload a clear, well-lit ID photo.",
+              "Use a front-facing selfie in good lighting.",
+              "If auto-check is inconclusive, we review manually in 24h.",
             ].map((tip) => (
               <div
                 key={tip}
@@ -346,323 +381,197 @@ export default function StepVerification({
         </div>
 
         <div className="space-y-4 sm:space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-            {/* ID Upload */}
-            <div
-              className={`group relative p-4 sm:p-6 md:p-8 border rounded-lg sm:rounded-xl md:rounded-2xl transition-all duration-300 ${
-                idPreview
-                  ? "border-emerald-500 bg-emerald-50/30"
-                  : "border-gray-200 bg-white hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-500/10"
-              }`}
-            >
-              <div className="mb-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                  Upload 1
-                </p>
-                <h3 className="mt-1 text-base sm:text-lg font-bold text-gray-900">
-                  Government ID
-                </h3>
-                <p className="mt-1 text-xs sm:text-sm text-gray-500">
-                  National ID, passport, or driver&apos;s license
-                </p>
+          <div className="space-y-3">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                    Upload 1
+                  </p>
+                  <h3 className="mt-1 text-sm sm:text-base font-bold text-gray-900">
+                    Government ID
+                  </h3>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-600">
+                  <span className="material-symbols-outlined text-sm">
+                    {idFile ? "check_circle" : "radio_button_unchecked"}
+                  </span>
+                  {idFile ? "Done" : "Pending"}
+                </span>
               </div>
+
               {idPreview ? (
-                <div className="space-y-4 sm:space-y-6">
-                  <div className="flex flex-col items-center">
-                    <div className="relative">
-                      <img
-                        src={idPreview}
-                        alt="ID preview"
-                        className="max-w-full max-h-32 sm:max-h-40 md:max-h-48 rounded-lg sm:rounded-xl border-2 border-white"
-                      />
-                      <div className="absolute -bottom-2 -right-2 sm:-bottom-3 sm:-right-3 bg-emerald-500 text-white p-1 sm:p-1.5 rounded-full shadow-lg">
-                        <span className="material-symbols-outlined text-sm sm:text-base md:text-lg">
-                          check
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-xs sm:text-sm text-emerald-700 font-bold mt-3 sm:mt-4 bg-emerald-100 px-2 sm:px-3 py-1 rounded-full">
-                      ID Document Selected
-                    </span>
-                  </div>
+                <div className="mt-3 flex items-center gap-3">
+                  <img
+                    src={idPreview}
+                    alt="ID preview"
+                    className="h-16 w-24 rounded-lg border border-gray-200 object-cover"
+                  />
                   <button
+                    type="button"
                     onClick={() => {
                       revokePreviewUrl("id");
                       setIdFile(null);
                       setIdPreview(null);
+                      setVerificationStatus(null);
+                      setVerificationMessage("");
+                      setFaceMatchScore(null);
                     }}
-                    className="w-full py-2 sm:py-3 px-3 sm:px-4 bg-white border-2 border-gray-200 text-gray-600 rounded-lg sm:rounded-xl hover:border-red-200 hover:bg-red-50 hover:text-red-600 transition-all duration-200 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 min-h-11"
+                    className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                   >
-                    <span className="material-symbols-outlined text-sm sm:text-base">
-                      delete
-                    </span>
-                    Remove & Upload Again
+                    Replace ID
                   </button>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center min-h-45 sm:min-h-50 gap-3">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 mx-auto bg-white rounded-full shadow-sm flex items-center justify-center group-hover:scale-110 transition-all duration-300">
-                    <span className="material-symbols-outlined text-2xl md:text-3xl text-gray-400 group-hover:text-emerald-500">
-                      id_card
-                    </span>
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <label className="cursor-pointer px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center gap-1.5 border border-emerald-200">
-                      <span className="material-symbols-outlined text-sm">
-                        upload_file
-                      </span>
-                      Upload
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => handleFileChange(e, "id")}
-                      />
-                    </label>
-                    <button
-                      onClick={() => setShowCamera("id")}
-                      className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors flex items-center gap-1.5 border border-blue-200"
-                    >
-                      <span className="material-symbols-outlined text-sm">
-                        photo_camera
-                      </span>
-                      Camera
-                    </button>
-                  </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => idInputRef.current?.click()}
+                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                  >
+                    Upload from gallery
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCamera("id")}
+                    className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                  >
+                    Use camera
+                  </button>
                 </div>
               )}
+              <input
+                ref={idInputRef}
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={(e) => handleFileChange(e, "id")}
+              />
             </div>
 
-            {/* Selfie Upload */}
-            <div
-              className={`group relative p-4 sm:p-6 md:p-8 border rounded-lg sm:rounded-xl md:rounded-2xl transition-all duration-300 ${
-                selfiePreview
-                  ? "border-emerald-500 bg-emerald-50/30"
-                  : "border-gray-200 bg-white hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-500/10"
-              }`}
-            >
-              <div className="mb-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                  Upload 2
-                </p>
-                <h3 className="mt-1 text-base sm:text-lg font-bold text-gray-900">
-                  Selfie photo
-                </h3>
-                <p className="mt-1 text-xs sm:text-sm text-gray-500">
-                  Use a clear front-facing photo in good lighting
-                </p>
+            <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                    Upload 2
+                  </p>
+                  <h3 className="mt-1 text-sm sm:text-base font-bold text-gray-900">
+                    Selfie
+                  </h3>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-semibold text-gray-600">
+                  <span className="material-symbols-outlined text-sm">
+                    {selfieFile ? "check_circle" : "radio_button_unchecked"}
+                  </span>
+                  {selfieFile ? "Done" : "Pending"}
+                </span>
               </div>
+
               {selfiePreview ? (
-                <div className="space-y-4 sm:space-y-6">
-                  <div className="flex flex-col items-center">
-                    <div className="relative">
-                      <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full overflow-hidden border-3 sm:border-4 border-white shadow-lg">
-                        <img
-                          src={selfiePreview}
-                          alt="Selfie preview"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="absolute bottom-0 right-0 bg-emerald-500 text-white p-1 sm:p-1.5 rounded-full shadow-lg border-2 border-white">
-                        <span className="material-symbols-outlined text-sm sm:text-base md:text-lg">
-                          check
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-xs sm:text-sm text-emerald-700 font-bold mt-3 sm:mt-4 bg-emerald-100 px-2 sm:px-3 py-1 rounded-full">
-                      Selfie Ready
-                    </span>
-                  </div>
+                <div className="mt-3 flex items-center gap-3">
+                  <img
+                    src={selfiePreview}
+                    alt="Selfie preview"
+                    className="h-16 w-16 rounded-full border border-gray-200 object-cover"
+                  />
                   <button
+                    type="button"
                     onClick={() => {
                       revokePreviewUrl("selfie");
                       setSelfieFile(null);
                       setSelfiePreview(null);
+                      setVerificationStatus(null);
+                      setVerificationMessage("");
+                      setFaceMatchScore(null);
                     }}
-                    className="w-full py-2 sm:py-3 px-3 sm:px-4 bg-white border-2 border-gray-200 text-gray-600 rounded-lg sm:rounded-xl hover:border-red-200 hover:bg-red-50 hover:text-red-600 transition-all duration-200 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 min-h-11"
+                    className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                   >
-                    <span className="material-symbols-outlined text-sm sm:text-base">
-                      delete
-                    </span>
-                    Remove & Retake
+                    Replace selfie
                   </button>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center min-h-45 sm:min-h-50 gap-3">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 mx-auto bg-white rounded-full shadow-sm flex items-center justify-center group-hover:scale-110 transition-all duration-300">
-                    <span className="material-symbols-outlined text-2xl md:text-3xl text-gray-400 group-hover:text-emerald-500">
-                      face
-                    </span>
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <label className="cursor-pointer px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center gap-1.5 border border-emerald-200">
-                      <span className="material-symbols-outlined text-sm">
-                        upload_file
-                      </span>
-                      Upload
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => handleFileChange(e, "selfie")}
-                      />
-                    </label>
-                    <button
-                      onClick={() => setShowCamera("selfie")}
-                      className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors flex items-center gap-1.5 border border-blue-200"
-                    >
-                      <span className="material-symbols-outlined text-sm">
-                        photo_camera
-                      </span>
-                      Camera
-                    </button>
-                  </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCamera("selfie")}
+                    className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                  >
+                    Use front camera
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selfieInputRef.current?.click()}
+                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                  >
+                    Upload from gallery
+                  </button>
                 </div>
               )}
+              <input
+                ref={selfieInputRef}
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={(e) => handleFileChange(e, "selfie")}
+              />
             </div>
           </div>
 
-          {/* Face Match Score visualization */}
-          {faceMatchScore !== null && (
+          {(isVerifying || (verificationStatus && verificationMessage)) && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`p-3 sm:p-4 rounded-xl border ${
-                verificationStatus === "PASSED"
-                  ? "bg-emerald-50 border-emerald-200"
-                  : "bg-red-50 border-red-200"
+              className={`rounded-xl border p-3 sm:p-4 ${
+                isVerifying
+                  ? "border-blue-200 bg-blue-50 text-blue-800"
+                  : verificationTone
               }`}
             >
-              <div className="flex items-center gap-3 mb-2">
-                <span
-                  className={`material-symbols-outlined text-xl ${
-                    verificationStatus === "PASSED"
-                      ? "text-emerald-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {verificationStatus === "PASSED" ? "verified" : "error"}
-                </span>
-                <span className="text-sm font-bold text-gray-800">
-                  {verificationStatus === "PASSED"
-                    ? "Face Match Passed"
-                    : "Manual Review Recommended"}
-                </span>
-              </div>
-              {/* Match bar */}
-              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                {(() => {
-                  // NEW4 Fix: Remap score so threshold (28) = 50% width
-                  const displayWidth =
-                    faceMatchScore >= 28
-                      ? 50 + ((faceMatchScore - 28) / (100 - 28)) * 50
-                      : (faceMatchScore / 28) * 50;
-
-                  return (
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${displayWidth}%` }}
-                      transition={{ duration: 0.8, ease: "easeOut" }}
-                      className={`h-full rounded-full ${
-                        faceMatchScore >= 28 ? "bg-emerald-500" : "bg-red-500"
-                      }`}
-                    />
-                  );
-                })()}
-              </div>
-              <p className="text-xs mt-1.5 text-gray-600">
-                Match accuracy:{" "}
-                <span className="font-bold">
-                  {faceMatchScore >= 60
-                    ? "Excellent"
-                    : faceMatchScore >= 45
-                      ? "Good"
-                      : faceMatchScore >= 28
-                        ? "Acceptable"
-                        : "Mismatch detected"}
-                </span>
-                {verificationStatus === "PASSED"
-                  ? " ✓ Verified"
-                  : " • Manual review needed"}
-              </p>
+              {isVerifying ? (
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <span className="h-4 w-4 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin" />
+                  Checking identity match...
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined text-lg">
+                      {verificationStatus === "PASSED"
+                        ? "verified"
+                        : "pending_actions"}
+                    </span>
+                    <p className="text-sm font-semibold">
+                      {verificationMessage}
+                    </p>
+                  </div>
+                  {verificationStatus === "MANUAL_REVIEW" ? (
+                    <p className="text-xs text-amber-700">
+                      If the automatic check cannot confirm a match, our team
+                      reviews your documents within 24 hours. This is common for
+                      older ID photos or low-light selfies.
+                    </p>
+                  ) : null}
+                </div>
+              )}
             </motion.div>
           )}
 
-          {/* Verification Status */}
-          {verificationMessage && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`p-3 sm:p-4 rounded-lg sm:rounded-xl flex items-center gap-2 sm:gap-3 border ${verificationTone}`}
-            >
-              <span className="material-symbols-outlined text-lg sm:text-xl">
-                {verificationStatus === "PASSED"
-                  ? "verified"
-                  : verificationStatus === "REJECTED"
-                    ? "error"
-                    : "info"}
-              </span>
-              <p className="text-xs sm:text-sm font-bold">
-                {verificationMessage}
-              </p>
-            </motion.div>
-          )}
+          {verificationStatus === "MANUAL_REVIEW" ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs sm:text-sm text-amber-800">
+              Manual review means no extra work from you. Submit and we will
+              follow up once review is complete.
+            </div>
+          ) : null}
 
-          {/* Verify Button */}
-          <button
-            onClick={verifyIdentity}
-            disabled={
-              isVerifying ||
-              !idFile ||
-              !selfieFile ||
-              verificationStatus === "PASSED"
-            }
-              className={`w-full py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold text-white shadow-lg transition-all duration-300 flex items-center justify-center gap-2 min-h-11 ${
-                verificationStatus === "PASSED"
-                  ? "bg-emerald-500 cursor-default"
-                  : verificationStatus === "REJECTED"
-                    ? "bg-amber-500 hover:bg-amber-600"
-                : "bg-linear-to-r from-blue-600 to-indigo-600 hover:shadow-blue-500/30 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
-              }`}
-          >
-            {isVerifying ? (
-              <>
-                <span className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                {verificationMessage || "Verifying..."}
-              </>
-            ) : verificationStatus === "PASSED" ? (
-              <>
-                <span className="material-symbols-outlined text-sm sm:text-base">
-                  check_circle
-                </span>
-                <span className="hidden sm:inline">Face Match Passed</span>
-                <span className="inline sm:hidden">Passed</span>
-              </>
-            ) : verificationStatus === "REJECTED" ? (
-              <>
-                <span className="material-symbols-outlined text-sm sm:text-base">
-                  rule
-                </span>
-                <span className="hidden sm:inline">Retry or submit for review</span>
-                <span className="inline sm:hidden">Needs Review</span>
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-sm sm:text-base">
-                  verified_user
-                </span>
-                <span className="hidden sm:inline">Verify my identity</span>
-                <span className="inline sm:hidden">Verify</span>
-              </>
-            )}
-          </button>
+          {faceMatchScore !== null ? (
+            <p className="text-xs text-gray-500">
+              Internal face-check score captured for audit.
+            </p>
+          ) : null}
 
           <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs sm:text-sm text-gray-600">
-            {verificationStatus === "PASSED"
-              ? "Local check complete. Continue to submit your documents and start activation payment."
-              : verificationStatus === "REJECTED"
-                ? "The local check could not confidently confirm a match. You can still continue and our team will review the documents manually."
-                : "Why this matters: verification helps build trust, reduce fraud, and improve booking confidence."}
+            Why this matters: verification helps build trust and keeps jobs safe
+            for both clients and providers.
           </div>
         </div>
 
@@ -677,6 +586,7 @@ export default function StepVerification({
             onClick={handleNext}
             disabled={
               isSubmitting ||
+              isVerifying ||
               !idFile ||
               !selfieFile ||
               verificationStatus === null
@@ -697,11 +607,11 @@ export default function StepVerification({
               <>
                 <span className="hidden sm:inline">
                   {verificationStatus === "PASSED"
-                    ? "Continue to activation payment"
-                    : "Submit for manual review"}
+                    ? "Continue"
+                    : "Submit for review"}
                 </span>
                 <span className="inline sm:hidden">
-                  {verificationStatus === "PASSED" ? "Continue" : "Submit"}
+                  {verificationStatus === "PASSED" ? "Continue" : "Review"}
                 </span>
                 <span className="material-symbols-outlined text-xs sm:text-sm">
                   arrow_forward

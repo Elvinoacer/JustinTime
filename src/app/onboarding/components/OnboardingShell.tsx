@@ -18,10 +18,11 @@ export default function OnboardingShell({
 }: OnboardingShellProps) {
   const labels =
     selectedRole === "PROVIDER"
-      ? ["Role", "Details", "Verify", "Pay", "Done"]
+      ? ["Role", "Details", "Verify", "Done"]
       : ["Role", "Details", "Done"];
   const totalSteps = labels.length;
-  const currentLabel = labels[Math.min(currentStep - 1, totalSteps - 1)] || "Start";
+  const currentLabel =
+    labels[Math.min(currentStep - 1, totalSteps - 1)] || "Start";
   const progress = (currentStep / totalSteps) * 100;
 
   return (
@@ -50,7 +51,7 @@ export default function OnboardingShell({
                 />
               </div>
             </div>
-            <h1 className="text-2xl xs:text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight mb-2 sm:mb-3 bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+            <h1 className="text-2xl xs:text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight mb-2 sm:mb-3 bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
               Welcome to JustInTime
             </h1>
             <p className="text-sm xs:text-base sm:text-lg text-gray-600 font-medium max-w-md mx-auto px-2">
@@ -99,8 +100,8 @@ export default function OnboardingShell({
                         isCompleted
                           ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
                           : isCurrent
-                          ? "bg-white border-[3px] border-emerald-500 text-emerald-600 shadow-lg shadow-emerald-500/20"
-                          : "bg-white border-2 border-gray-200 text-gray-400"
+                            ? "bg-white border-[3px] border-emerald-500 text-emerald-600 shadow-lg shadow-emerald-500/20"
+                            : "bg-white border-2 border-gray-200 text-gray-400"
                       }`}
                     >
                       {isCompleted ? (

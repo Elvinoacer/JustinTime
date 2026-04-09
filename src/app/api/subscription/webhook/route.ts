@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendSubscriptionActivationEmail } from "@/lib/email";
 import {
@@ -18,10 +18,7 @@ import {
 import { POST as handleWalletWebhook } from "@/app/api/wallet/webhook/route";
 import { POST as handleOnboardingWebhook } from "@/app/api/onboarding-fee/webhook/route";
 
-function buildDelegatedWebhookRequest(
-  req: NextRequest,
-  rawBody: string,
-): Request {
+function buildDelegatedWebhookRequest(req: Request, rawBody: string): Request {
   return new Request(req.url, {
     method: "POST",
     headers: new Headers(req.headers),
@@ -206,7 +203,7 @@ function isTrustedInternalProcessingRequest(request: Request): boolean {
   return expectedSecret.length > 0 && receivedSecret === expectedSecret;
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const rawBody = await req.text();
     const body = JSON.parse(rawBody) as DarajaWebhookPayload;

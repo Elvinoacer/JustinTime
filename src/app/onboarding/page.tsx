@@ -88,7 +88,6 @@ function OnboardingPageContent() {
   const [submitStage, setSubmitStage] = useState("");
   const [persistDrafts, setPersistDrafts] = useState(true);
   const [didHydrateDraft, setDidHydrateDraft] = useState(false);
-  const [providerCheckoutUrl, setProviderCheckoutUrl] = useState("");
   const [providerData, setProviderData] = useState<ProviderOnboardingData>({
     ...DEFAULT_PROVIDER_ONBOARDING_DATA,
   });
@@ -172,7 +171,6 @@ function OnboardingPageContent() {
         setClientInterests(draft?.clientInterests || []);
         setReferralCode(referralFromUrl || draft?.referralCode || "");
         setVerificationDraft(draft?.verification || DEFAULT_VERIFICATION_DRAFT);
-        setProviderCheckoutUrl(draft?.checkoutUrl || "");
       } catch (error) {
         if (!cancelled) {
           console.error("[ONBOARDING_DRAFT_HYDRATE_ERROR]", error);
@@ -230,8 +228,6 @@ function OnboardingPageContent() {
               clientInterests,
               referralCode,
               verification: verificationDraft,
-              paymentInitiated: Boolean(providerCheckoutUrl),
-              checkoutUrl: providerCheckoutUrl,
             },
           }),
         });
@@ -247,7 +243,6 @@ function OnboardingPageContent() {
     currentStep,
     didHydrateDraft,
     persistDrafts,
-    providerCheckoutUrl,
     providerData,
     referralCode,
     selectedRole,
@@ -259,7 +254,7 @@ function OnboardingPageContent() {
     if (session?.user?.onboardingCompleted) {
       const isOnSuccessStep =
         (selectedRole === "CLIENT" && currentStep === 3) ||
-        (selectedRole === "PROVIDER" && currentStep === 5);
+        (selectedRole === "PROVIDER" && currentStep === 4);
 
       if (isOnSuccessStep) {
         return;
@@ -496,22 +491,6 @@ function OnboardingPageContent() {
       await apiClient.post("/users/onboarding", payload);
       onboardingSaved = true;
 
-      setSubmitStage("Preparing secure activation payment...");
-      const paymentResponse = await fetch("/api/onboarding-fee/initiate", {
-        method: "POST",
-        credentials: "include",
-      });
-      const paymentData = await paymentResponse.json();
-
-      if (!paymentResponse.ok && !paymentData?.alreadyActivated) {
-        throw new Error(
-          paymentData?.error || "Failed to start onboarding payment",
-        );
-      }
-
-      const checkoutUrl =
-        paymentData?.checkoutUrl || "/dashboard/onboarding-complete";
-
       await update({
         user: {
           role: "PROVIDER",
@@ -531,20 +510,15 @@ function OnboardingPageContent() {
           : "PASSED",
         manualReviewRequested: result.manualReviewRequested,
       });
-      setProviderCheckoutUrl(checkoutUrl);
       setPersistDrafts(false);
       succeeded = true;
       setIsLoading(false);
-      setCurrentStep(5);
+      setCurrentStep(4);
       router.refresh();
 
       window.setTimeout(() => {
-        if (/^https?:\/\//i.test(checkoutUrl)) {
-          window.location.assign(checkoutUrl);
-        } else {
-          router.push(checkoutUrl);
-        }
-      }, 1800);
+        router.push("/dashboard");
+      }, 2500);
     } catch (error: unknown) {
       console.error("Provider onboarding failed:", error);
 
@@ -561,14 +535,29 @@ function OnboardingPageContent() {
 
   const isFinalStep =
     (selectedRole === "CLIENT" && currentStep === 3) ||
-    (selectedRole === "PROVIDER" && currentStep === 5);
+    (selectedRole === "PROVIDER" && currentStep === 4);
 
   const providerSuccessMessage = useMemo(() => {
     const needsManualReview = verificationDraft.manualReviewRequested;
     return needsManualReview
-      ? "Your provider profile is submitted. Next we’ll redirect you to secure activation payment, and our team will manually review your verification documents afterwards."
-      : "Your provider profile is submitted. Next we’ll redirect you to secure activation payment so your verification review can continue.";
+      ? "You are all set. Your provider profile is live, and our team is reviewing your documents within 24 hours. In the meantime, browse jobs and complete your profile."
+      : "You are all set. Your provider profile is live and your documents are in review. Browse jobs and get familiar with how JustInTime works.";
   }, [verificationDraft.manualReviewRequested]);
+
+  const clientSuccessMessage = useMemo(() => {
+    const firstName = clientData.name.trim().split(" ")[0] || "there";
+    if (clientInterests.length > 0) {
+      return `Welcome to JustInTime, ${firstName}. We already picked up your interests so you can discover relevant providers faster.`;
+    }
+
+    return `You are in, ${firstName}. Tell us what you need and we will connect you with the right provider quickly.`;
+  }, [clientData.name, clientInterests.length]);
+
+  const prefilledClientName = Boolean(session?.user?.name?.trim());
+  const prefilledProviderBusinessName = Boolean(
+    didHydrateDraft && providerData.businessName.trim(),
+  );
+  const prefilledPhone = Boolean(didHydrateDraft && providerData.phone.trim());
 
   const removeReferralCode = () => {
     setReferralCode("");
@@ -610,6 +599,9 @@ function OnboardingPageContent() {
           <StepClientDetails
             clientData={clientData}
             setClientData={setClientData}
+            prefilledFields={{
+              name: prefilledClientName,
+            }}
             clientInterests={clientInterests}
             onInterestToggle={handleInterestToggle}
             categories={categoriesData}
@@ -626,6 +618,10 @@ function OnboardingPageContent() {
           <StepProviderDetails
             providerData={providerData}
             setProviderData={setProviderData}
+            prefilledFields={{
+              businessName: prefilledProviderBusinessName,
+              phone: prefilledPhone,
+            }}
             categories={categoriesData}
             isLoadingCategories={isLoadingCategories}
             onBack={() => setCurrentStep(1)}
@@ -648,28 +644,22 @@ function OnboardingPageContent() {
           <StepComplete
             role={selectedRole}
             redirectPath={
-              selectedRole === "PROVIDER"
-                ? providerCheckoutUrl || "/dashboard/onboarding-complete"
-                : "/client/dashboard"
+              selectedRole === "PROVIDER" ? "/dashboard" : "/client/dashboard"
             }
-            title={
-              selectedRole === "PROVIDER" ? "Profile Submitted" : "All Set!"
-            }
+            title={selectedRole === "PROVIDER" ? "You are in" : "All Set!"}
             message={
               selectedRole === "PROVIDER"
                 ? providerSuccessMessage
-                : "Your account is ready. Redirecting you to your dashboard..."
+                : clientSuccessMessage
             }
             primaryActionLabel={
-              selectedRole === "PROVIDER" ? "Continue to payment" : undefined
+              selectedRole === "PROVIDER" ? "Browse jobs" : undefined
             }
             secondaryActionLabel={
-              selectedRole === "PROVIDER" ? "Verification overview" : undefined
+              selectedRole === "PROVIDER" ? "View my profile" : undefined
             }
             secondaryActionHref={
-              selectedRole === "PROVIDER"
-                ? "/dashboard/verification"
-                : undefined
+              selectedRole === "PROVIDER" ? "/dashboard/profile" : undefined
             }
           />
         )}

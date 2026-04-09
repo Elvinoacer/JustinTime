@@ -44,8 +44,6 @@ export interface OnboardingDraftState {
   clientInterests: string[];
   referralCode: string;
   verification: VerificationDraftData;
-  paymentInitiated: boolean;
-  checkoutUrl: string;
   updatedAt?: string;
 }
 
@@ -91,8 +89,6 @@ export const DEFAULT_ONBOARDING_DRAFT_STATE: OnboardingDraftState = {
   clientInterests: [],
   referralCode: "",
   verification: DEFAULT_VERIFICATION_DRAFT,
-  paymentInitiated: false,
-  checkoutUrl: "",
 };
 
 export function normalizeOnboardingIntent(
@@ -114,7 +110,7 @@ export function normalizeOnboardingIntent(
 
 export function getStepForRole(
   role: OnboardingRole,
-  phase: "details" | "verification" | "payment" | "complete" = "details",
+  phase: "details" | "verification" | "complete" = "details",
 ): number {
   if (role === "CLIENT") {
     return phase === "complete" ? 3 : 2;
@@ -124,12 +120,8 @@ export function getStepForRole(
     return 3;
   }
 
-  if (phase === "payment") {
-    return 4;
-  }
-
   if (phase === "complete") {
-    return 5;
+    return 4;
   }
 
   return 2;

@@ -86,7 +86,7 @@ export default function StepRoleSelect({
               Find reliable professionals for your home and business needs.
             </p>
             <p className="mt-3 text-xs sm:text-sm font-medium text-emerald-700">
-              Next: add your contact details and location.
+              Find trusted pros near you and book with confidence.
             </p>
           </div>
         </button>
@@ -123,6 +123,9 @@ export default function StepRoleSelect({
             </div>
           )}
           <div className="relative z-10">
+            <span className="inline-flex rounded-full border border-blue-200 bg-blue-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-700">
+              Start earning today
+            </span>
             <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg sm:rounded-xl md:rounded-2xl bg-blue-50 flex items-center justify-center mb-3 sm:mb-4 md:mb-6 group-hover:scale-110 transition-transform duration-300">
               <span className="material-symbols-outlined text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-blue-600">
                 work
@@ -135,8 +138,7 @@ export default function StepRoleSelect({
               Offer your services, find jobs, and grow your business.
             </p>
             <p className="mt-3 text-xs sm:text-sm font-medium text-blue-700">
-              Next: choose your services, confirm your location, then verify
-              your identity.
+              Start earning - takes about 2 minutes to set up.
             </p>
           </div>
         </button>

@@ -29,7 +29,7 @@ export default function StepComplete({
   const resolvedMessage =
     message ||
     (isProvider
-      ? "Your profile is submitted. Next we’ll take you to secure activation payment, then your verification review can continue."
+      ? "Your provider profile is live. Our team is reviewing your verification documents, and you can explore available jobs right away."
       : "Your account is ready. Redirecting you to your dashboard...");
 
   return (
@@ -54,18 +54,18 @@ export default function StepComplete({
       {isProvider && (
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
-            href={redirectPath || "/dashboard/services?create=true"}
+            href={redirectPath || "/dashboard"}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors"
           >
-            <span className="material-symbols-outlined text-base">add</span>
-            {primaryActionLabel || "Continue"}
+            <span className="material-symbols-outlined text-base">work</span>
+            {primaryActionLabel || "Browse jobs"}
           </Link>
           <Link
-            href={secondaryActionHref || "/dashboard/verification"}
+            href={secondaryActionHref || "/dashboard/profile"}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-700 rounded-xl font-semibold border border-gray-200 hover:bg-gray-50 transition-colors"
           >
-            <span className="material-symbols-outlined text-base">schedule</span>
-            {secondaryActionLabel || "View verification"}
+            <span className="material-symbols-outlined text-base">person</span>
+            {secondaryActionLabel || "View my profile"}
           </Link>
         </div>
       )}

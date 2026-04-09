@@ -1,10 +1,12 @@
 "use client";
+
 import { motion, AnimatePresence } from "framer-motion";
 import CategorySelector from "@/components/CategorySelector";
 import React from "react";
 import { useLocation, LocationSource } from "../hooks/useLocation";
 import LocationDeniedModal from "./LocationDeniedModal";
 import { VALIDATION } from "@/lib/constants/validation";
+import { isValidKenyanPhone } from "@/lib/utils/phone";
 import type { ClientOnboardingData } from "@/lib/onboarding/draft";
 
 interface Category {
@@ -19,6 +21,9 @@ interface Category {
 interface StepClientDetailsProps {
   clientData: ClientOnboardingData;
   setClientData: React.Dispatch<React.SetStateAction<ClientOnboardingData>>;
+  prefilledFields?: {
+    name?: boolean;
+  };
   clientInterests: string[];
   onInterestToggle: (id: string) => void;
   categories: Category[];
@@ -38,6 +43,7 @@ interface StepClientDetailsProps {
 export default function StepClientDetails({
   clientData,
   setClientData,
+  prefilledFields,
   clientInterests,
   onInterestToggle,
   categories,
@@ -54,7 +60,13 @@ export default function StepClientDetails({
   const [phoneError, setPhoneError] = React.useState<string | null>(null);
   const [phoneWarning, setPhoneWarning] = React.useState<string | null>(null);
   const [isCheckingPhone, setIsCheckingPhone] = React.useState(false);
+  const [nameEdited, setNameEdited] = React.useState(false);
+  const [interestsExpanded, setInterestsExpanded] = React.useState(false);
   const hasAutoPrefilledRef = React.useRef(false);
+
+  const isPhoneLocallyValid = isValidKenyanPhone(clientData.phone);
+  const showPhoneValid =
+    clientData.phone.trim().length > 0 && isPhoneLocallyValid && !phoneError;
 
   const handleGetLocation = async () => {
     await loc.getLocation();
@@ -66,7 +78,6 @@ export default function StepClientDetails({
     void prefillIfPermitted();
   }, [prefillIfPermitted]);
 
-  // Sync location hook results to clientData
   React.useEffect(() => {
     if (loc.location.latitude != null && loc.location.longitude != null) {
       setClientData((prev) => ({
@@ -93,6 +104,12 @@ export default function StepClientDetails({
       setShowDeniedModal(true);
     }
   }, [loc.status]);
+
+  React.useEffect(() => {
+    if (clientInterests.length > 0) {
+      setInterestsExpanded(true);
+    }
+  }, [clientInterests.length]);
 
   const handlePhoneChange = (value: string) => {
     const formatted = formatPhoneNumber(value);
@@ -131,7 +148,7 @@ export default function StepClientDetails({
       setPhoneError(null);
       setPhoneWarning(
         result.message ||
-          "We could not confirm your phone right now. You can continue and we will validate it again on submit.",
+          "We could not confirm your phone right now. You can continue and we will validate again on submit.",
       );
       setClientData((prev) => ({ ...prev, phoneValidated: false }));
     } else if (!result.ok) {
@@ -195,30 +212,34 @@ export default function StepClientDetails({
     > = {
       GPS: {
         icon: "gps_fixed",
-        label: "GPS (precise)",
+        label: "Location detected",
         color: "text-emerald-700 bg-emerald-50 border-emerald-200",
       },
       IP: {
         icon: "wifi",
-        label: "IP (approximate)",
+        label: "Approximate location detected",
         color: "text-amber-700 bg-amber-50 border-amber-200",
       },
       MANUAL: {
         icon: "edit_location",
-        label: "Manual",
+        label: "Manual location",
         color: "text-blue-700 bg-blue-50 border-blue-200",
       },
     };
     const b = badges[clientData.locationSource || "MANUAL"];
     return (
       <div
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold ${b.color}`}
+        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${b.color}`}
       >
         <span className="material-symbols-outlined text-xs">{b.icon}</span>
         {b.label}
       </div>
     );
   };
+
+  const selectedInterestNames = clientInterests
+    .map((id) => categories.find((cat) => cat.id === id)?.name)
+    .filter((value): value is string => Boolean(value));
 
   return (
     <motion.div
@@ -231,247 +252,270 @@ export default function StepClientDetails({
     >
       <div className="text-center">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-2 sm:mb-3">
-          Contact Information
+          Quick setup
         </h2>
         <p className="text-sm sm:text-base text-gray-600">
-          Tell us how to reach you and where you&apos;re located.
+          This should take under a minute.
         </p>
       </div>
 
       <div className="space-y-4 sm:space-y-6">
-        {/* Phone Number */}
-        <div className="group">
-          <label
-            htmlFor="client-name"
-            className="block text-xs sm:text-sm font-bold text-gray-700 mb-1 sm:mb-2 group-focus-within:text-emerald-600 transition-colors"
-          >
-            Full Name *
-          </label>
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
-              <span className="material-symbols-outlined text-gray-400 group-focus-within:text-emerald-500 transition-colors text-sm sm:text-base">
-                person
-              </span>
-            </span>
-            <input
-              id="client-name"
-              type="text"
-              value={clientData.name}
-              onChange={(e) =>
-                setClientData((prev) => ({ ...prev, name: e.target.value }))
-              }
-              className="w-full pl-9 sm:pl-11 pr-3 sm:pr-4 py-3 sm:py-4 rounded-lg sm:rounded-xl bg-gray-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium text-sm sm:text-base"
-              placeholder="Your full name"
-              required
-            />
-          </div>
-        </div>
-
-        {/* Phone Number */}
-        <div className="group">
-          <label
-            htmlFor="client-phone"
-            className="block text-xs sm:text-sm font-bold text-gray-700 mb-1 sm:mb-2 group-focus-within:text-emerald-600 transition-colors"
-          >
-            Phone Number *
-          </label>
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
-              <span className="material-symbols-outlined text-gray-400 group-focus-within:text-emerald-500 transition-colors text-sm sm:text-base">
-                call
-              </span>
-            </span>
-            <input
-              id="client-phone"
-              type="tel"
-              value={clientData.phone}
-              onChange={(e) => handlePhoneChange(e.target.value)}
-              onBlur={handlePhoneBlur}
-              className="w-full pl-9 sm:pl-11 pr-3 sm:pr-4 py-3 sm:py-4 rounded-lg sm:rounded-xl bg-gray-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium text-sm sm:text-base"
-              placeholder="254712345678"
-              required
-            />
-          </div>
-          {isCheckingPhone && (
-            <p className="mt-1.5 text-xs text-emerald-600">
-              Checking phone number...
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-6 shadow-sm">
+          <div className="mb-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">
+              Section A
             </p>
-          )}
-          {phoneError && (
-            <div className="mt-1.5 flex items-center gap-2 text-xs text-red-600">
-              <span>{phoneError}</span>
-              <a
-                href="/contact"
-                className="font-semibold underline underline-offset-2 hover:text-red-700"
-              >
-                Contact support
-              </a>
+            <h3 className="mt-1 text-base sm:text-lg font-bold text-gray-900">
+              Contact and location
+            </h3>
+          </div>
+
+          <div className="space-y-4 sm:space-y-6">
+            <div className="group">
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <label
+                  htmlFor="client-name"
+                  className="block text-xs sm:text-sm font-bold text-gray-700 group-focus-within:text-emerald-600 transition-colors"
+                >
+                  Full Name *
+                </label>
+                {prefilledFields?.name && clientData.name ? (
+                  <span className="text-[11px] font-medium text-gray-500">
+                    Pre-filled • Edit
+                  </span>
+                ) : null}
+              </div>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                  <span className="material-symbols-outlined text-gray-400 group-focus-within:text-emerald-500 transition-colors text-sm sm:text-base">
+                    person
+                  </span>
+                </span>
+                <input
+                  id="client-name"
+                  type="text"
+                  value={clientData.name}
+                  onChange={(e) => {
+                    setNameEdited(true);
+                    setClientData((prev) => ({
+                      ...prev,
+                      name: e.target.value,
+                    }));
+                  }}
+                  className={`w-full rounded-lg sm:rounded-xl border-2 py-3 sm:py-4 pl-9 sm:pl-11 pr-3 sm:pr-4 text-sm sm:text-base font-medium text-gray-900 placeholder-gray-400 transition-all duration-300 ${
+                    prefilledFields?.name && clientData.name && !nameEdited
+                      ? "bg-gray-100 border-gray-200 focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10"
+                      : "bg-gray-50 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10"
+                  }`}
+                  placeholder="Your full name"
+                  required
+                />
+              </div>
             </div>
-          )}
-          {phoneWarning && !phoneError && (
-            <div className="mt-1.5 flex items-center gap-2 text-xs text-amber-700">
-              <span>{phoneWarning}</span>
+
+            <div className="group">
+              <label
+                htmlFor="client-phone"
+                className="mb-1.5 block text-xs sm:text-sm font-bold text-gray-700 group-focus-within:text-emerald-600 transition-colors"
+              >
+                Phone Number *
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                  <span className="material-symbols-outlined text-gray-400 group-focus-within:text-emerald-500 transition-colors text-sm sm:text-base">
+                    call
+                  </span>
+                </span>
+                <input
+                  id="client-phone"
+                  type="tel"
+                  value={clientData.phone}
+                  onChange={(e) => handlePhoneChange(e.target.value)}
+                  onBlur={handlePhoneBlur}
+                  className="w-full rounded-lg sm:rounded-xl bg-gray-50 border-2 border-transparent py-3 sm:py-4 pl-9 sm:pl-11 pr-10 sm:pr-12 text-sm sm:text-base font-medium text-gray-900 placeholder-gray-400 focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300"
+                  placeholder="254712345678"
+                  required
+                />
+                {showPhoneValid ? (
+                  <span className="absolute inset-y-0 right-0 pr-3 sm:pr-4 flex items-center text-emerald-600">
+                    <span className="material-symbols-outlined text-base">
+                      check_circle
+                    </span>
+                  </span>
+                ) : null}
+              </div>
+
+              {isCheckingPhone && (
+                <p className="mt-1.5 text-xs text-emerald-600">
+                  Checking phone number...
+                </p>
+              )}
+              {phoneError && (
+                <div className="mt-1.5 flex items-center gap-2 text-xs text-red-600">
+                  <span>{phoneError}</span>
+                  <a
+                    href="/contact"
+                    className="font-semibold underline underline-offset-2 hover:text-red-700"
+                  >
+                    Contact support
+                  </a>
+                </div>
+              )}
+              {phoneWarning && !phoneError && (
+                <div className="mt-1.5 flex items-center gap-2 text-xs text-amber-700">
+                  <span>{phoneWarning}</span>
+                  <button
+                    type="button"
+                    onClick={handlePhoneBlur}
+                    className="font-semibold underline underline-offset-2 hover:text-amber-800"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="group">
+              <label
+                htmlFor="client-address"
+                className="mb-1.5 block text-xs sm:text-sm font-bold text-gray-700 group-focus-within:text-emerald-600 transition-colors"
+              >
+                Location / Address *
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                  <span className="material-symbols-outlined text-gray-400 group-focus-within:text-emerald-500 transition-colors text-sm sm:text-base">
+                    location_on
+                  </span>
+                </span>
+                <input
+                  id="client-address"
+                  type="text"
+                  value={clientData.address}
+                  onChange={(e) =>
+                    setClientData((prev) => ({
+                      ...prev,
+                      address: e.target.value,
+                      location: e.target.value,
+                      latitude: null,
+                      longitude: null,
+                      locationSource: "MANUAL",
+                      locationAccuracy: null,
+                    }))
+                  }
+                  className="w-full rounded-lg sm:rounded-xl bg-gray-50 border-2 border-transparent py-3 sm:py-4 pl-9 sm:pl-11 pr-3 sm:pr-4 text-sm sm:text-base font-medium text-gray-900 placeholder-gray-400 focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300"
+                  placeholder="e.g., Westlands, Nairobi"
+                  required
+                />
+              </div>
+              {locationSourceBadge() ? (
+                <div className="mt-2">{locationSourceBadge()}</div>
+              ) : null}
+            </div>
+
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 sm:p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs sm:text-sm font-medium text-emerald-800">
+                  Let us detect your location automatically
+                </p>
+                {clientData.locationSource === "GPS" ||
+                clientData.locationSource === "IP" ? (
+                  <span className="text-[11px] font-semibold text-emerald-700">
+                    Location detected
+                  </span>
+                ) : null}
+              </div>
               <button
                 type="button"
-                onClick={handlePhoneBlur}
-                className="font-semibold underline underline-offset-2 hover:text-amber-800"
+                onClick={handleGetLocation}
+                disabled={loc.status === "LOADING"}
+                className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 transition-all duration-300 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Retry
+                {loc.status === "LOADING" ? (
+                  <>
+                    <span className="h-4 w-4 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin" />
+                    Detecting location...
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-sm">
+                      my_location
+                    </span>
+                    Detect my location
+                  </>
+                )}
               </button>
             </div>
-          )}
-        </div>
-
-        {/* Address */}
-        <div className="group">
-          <label
-            htmlFor="client-address"
-            className="block text-xs sm:text-sm font-bold text-gray-700 mb-1 sm:mb-2 group-focus-within:text-emerald-600 transition-colors"
-          >
-            Full Address *
-          </label>
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
-              <span className="material-symbols-outlined text-gray-400 group-focus-within:text-emerald-500 transition-colors text-sm sm:text-base">
-                home
-              </span>
-            </span>
-            <input
-              id="client-address"
-              type="text"
-              value={clientData.address}
-              onChange={(e) =>
-                setClientData((prev) => ({
-                  ...prev,
-                  address: e.target.value,
-                  location: e.target.value,
-                  latitude: null,
-                  longitude: null,
-                  locationSource: "MANUAL",
-                  locationAccuracy: null,
-                }))
-              }
-              className="w-full pl-9 sm:pl-11 pr-3 sm:pr-4 py-3 sm:py-4 rounded-lg sm:rounded-xl bg-gray-50 border-2 border-transparent focus:bg-white focus:border-emerald-500 focus:ring-2 sm:focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 text-gray-900 placeholder-gray-400 font-medium text-sm sm:text-base"
-              placeholder="e.g., Westlands, Nairobi"
-              required
-            />
           </div>
-        </div>
+        </section>
 
-        {/* Location Picker */}
-        <div className="bg-linear-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-6 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow duration-300">
-          <div className="absolute top-0 right-0 w-20 h-20 sm:w-32 sm:h-32 bg-emerald-100/50 rounded-full blur-2xl -mr-8 -mt-8 sm:-mr-16 sm:-mt-16 pointer-events-none" />
-          <div className="flex items-start gap-3 sm:gap-4 mb-3 sm:mb-4 relative z-10">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-emerald-600 shrink-0">
-              <span className="material-symbols-outlined text-sm sm:text-base">
-                location_on
-              </span>
-            </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-gray-900 text-sm sm:text-base mb-1">
-                Precise Location
-              </h3>
-              <p className="text-xs sm:text-sm text-gray-600">
-                Use your current location to pre-fill your address and improve
-                service matching
-              </p>
-            </div>
-          </div>
-
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-6 shadow-sm">
           <button
             type="button"
-            onClick={handleGetLocation}
-            disabled={loc.status === "LOADING"}
-            className="w-full py-3 sm:py-3.5 px-4 bg-white border-2 border-emerald-100 text-emerald-700 rounded-lg sm:rounded-xl hover:bg-emerald-50 hover:border-emerald-200 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed font-bold shadow-sm relative z-10 text-sm sm:text-base min-h-[44px]"
+            onClick={() => setInterestsExpanded((prev) => !prev)}
+            className="flex w-full items-center justify-between text-left"
           >
-            {loc.status === "LOADING" ? (
-              <>
-                <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
-                Getting Location...
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-sm sm:text-base">
-                  my_location
-                </span>
-                Use my current location
-              </>
-            )}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                Optional
+              </p>
+              <h3 className="mt-1 text-base sm:text-lg font-bold text-gray-900">
+                Service interests
+              </h3>
+              <p className="mt-1 text-sm text-gray-600">
+                Helps us show more relevant providers.
+              </p>
+            </div>
+            <span className="material-symbols-outlined text-gray-500">
+              {interestsExpanded ? "expand_less" : "expand_more"}
+            </span>
           </button>
 
-          {clientData.latitude != null && clientData.longitude != null && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-3 sm:mt-4 flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-emerald-800 bg-white/80 backdrop-blur-sm rounded-lg sm:rounded-xl p-2 sm:p-3 border border-emerald-100/50 shadow-sm"
-            >
-              <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
-                check_circle
-              </span>
-              <div className="flex-1">
-                <p className="font-bold">Location Captured</p>
-                <p className="text-[10px] sm:text-xs text-emerald-600/80 font-mono mt-0.5">
-                  {clientData.latitude.toFixed(4)},{" "}
-                  {clientData.longitude.toFixed(4)}
-                </p>
-              </div>
-              {locationSourceBadge()}
-            </motion.div>
-          )}
-        </div>
-
-        {/* Service Interests */}
-        <div>
-          <CategorySelector
-            categories={categories}
-            selectedIds={clientInterests}
-            onToggle={onInterestToggle}
-            multiSelect={true}
-            isLoading={isLoadingCategories}
-            label={`What services might you need? (Optional, Max ${VALIDATION.MAX_CLIENT_INTERESTS})`}
-            disabled={clientInterests.length >= VALIDATION.MAX_CLIENT_INTERESTS}
-          />
-        </div>
-
-        {/* Sticky selected interests summary */}
-        {clientInterests.length > 0 && (
-          <div className="sticky bottom-0 bg-white border-t border-gray-100 p-3 flex flex-wrap gap-1.5 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] rounded-t-xl -mx-4 sm:-mx-6 md:-mx-8 px-4 sm:px-6 md:px-8">
-            <div className="w-full flex justify-between items-center mb-1">
-              <span className="text-xs font-bold text-gray-500">Selected:</span>
-              <span
-                className={`text-xs font-bold ${clientInterests.length >= VALIDATION.MAX_CLIENT_INTERESTS ? "text-amber-500" : "text-gray-500"}`}
+          <AnimatePresence initial={false}>
+            {interestsExpanded ? (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="overflow-hidden"
               >
-                {clientInterests.length} / {VALIDATION.MAX_CLIENT_INTERESTS}
-              </span>
-            </div>
-            {clientInterests.map((id) => {
-              const cat = categories.find((c) => c.id === id);
-              if (!cat) return null;
-              return (
+                <div className="mt-4">
+                  <CategorySelector
+                    categories={categories}
+                    selectedIds={clientInterests}
+                    onToggle={onInterestToggle}
+                    multiSelect={true}
+                    isLoading={isLoadingCategories}
+                    label={`What services do you need? (Max ${VALIDATION.MAX_CLIENT_INTERESTS})`}
+                    disabled={
+                      clientInterests.length >= VALIDATION.MAX_CLIENT_INTERESTS
+                    }
+                  />
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
+          {selectedInterestNames.length > 0 ? (
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {selectedInterestNames.map((name) => (
                 <span
-                  key={id}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 border border-emerald-200 rounded-md text-xs font-medium text-emerald-700"
+                  key={name}
+                  className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700"
                 >
-                  {cat.name}
-                  <button
-                    onClick={() => onInterestToggle(id)}
-                    className="ml-0.5 hover:text-red-500"
-                  >
-                    <span className="material-symbols-outlined text-xs">
-                      close
-                    </span>
-                  </button>
+                  {name}
                 </span>
-              );
-            })}
-          </div>
-        )}
+              ))}
+            </div>
+          ) : null}
+        </section>
       </div>
 
-      <div className="flex justify-between items-center pt-4 sm:pt-6 md:pt-8 border-t border-gray-100">
+      <div className="flex justify-between items-center border-t border-gray-100 pt-4 sm:pt-6 md:pt-8">
         <button
           onClick={onBack}
-          className="text-gray-500 font-bold hover:text-gray-800 transition-colors px-3 sm:px-4 md:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl hover:bg-gray-100 text-sm sm:text-base min-h-[44px]"
+          className="min-h-[44px] rounded-lg sm:rounded-xl px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-sm sm:text-base font-bold text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
         >
           Back
         </button>
@@ -485,7 +529,7 @@ export default function StepClientDetails({
             !clientData.phone ||
             !clientData.address
           }
-          className="bg-linear-to-r from-emerald-600 to-teal-600 text-white px-4 sm:px-6 md:px-8 py-3 sm:py-4 rounded-lg sm:rounded-xl font-bold hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center gap-2 text-sm sm:text-base min-h-[44px]"
+          className="min-h-[44px] rounded-lg sm:rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-sm sm:text-base font-bold text-white transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none flex items-center gap-2"
         >
           {isLoading ? (
             <>
@@ -495,7 +539,7 @@ export default function StepClientDetails({
             </>
           ) : (
             <>
-              <span className="hidden sm:inline">Complete Setup</span>
+              <span className="hidden sm:inline">Complete setup</span>
               <span className="inline sm:hidden">Complete</span>
               <span className="material-symbols-outlined text-xs sm:text-sm">
                 arrow_forward
@@ -506,12 +550,12 @@ export default function StepClientDetails({
       </div>
 
       <AnimatePresence>
-        {showDeniedModal && (
+        {showDeniedModal ? (
           <LocationDeniedModal
             isOpen={true}
             onClose={() => setShowDeniedModal(false)}
           />
-        )}
+        ) : null}
       </AnimatePresence>
     </motion.div>
   );

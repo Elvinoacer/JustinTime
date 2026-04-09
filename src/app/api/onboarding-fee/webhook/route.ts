@@ -288,6 +288,17 @@ export async function POST(req: Request) {
     const pendingProviderRef = `DARAJA:ONBOARDING:PENDING:${canonicalRef}`;
     const partialProviderRef = `DARAJA:ONBOARDING:PARTIAL:${canonicalRef}`;
     const settledProviderRef = `DARAJA:ONBOARDING:SETTLED:${canonicalRef}`;
+    let providerVerification: {
+      providerState: string;
+      apiRefMatches: boolean;
+      amountMatches: boolean;
+      currencyMatches: boolean;
+    } = {
+      providerState: gatewayState,
+      apiRefMatches: true,
+      amountMatches: true,
+      currencyMatches: true,
+    };
 
     if (!canonicalRef) {
       return NextResponse.json({
@@ -658,6 +669,12 @@ export async function POST(req: Request) {
         Number.isFinite(verifiedAmount) && verifiedAmount > 0
           ? verifiedAmount
           : PAYMENT_AMOUNTS.ONBOARDING_FEE;
+      providerVerification = {
+        providerState: verification.providerState,
+        apiRefMatches: verification.apiRefMatches,
+        amountMatches: verification.amountMatches,
+        currencyMatches: verification.currencyMatches,
+      };
     } else {
       const settledAmountCandidate = Number(webhook.amount);
       amount =
@@ -884,10 +901,10 @@ export async function POST(req: Request) {
                 eventFamily: webhook.eventFamily,
                 invoiceId: invoiceId ? String(invoiceId) : null,
                 providerVerification: {
-                  providerState: verification.providerState,
-                  apiRefMatches: verification.apiRefMatches,
-                  amountMatches: verification.amountMatches,
-                  currencyMatches: verification.currencyMatches,
+                  providerState: providerVerification.providerState,
+                  apiRefMatches: providerVerification.apiRefMatches,
+                  amountMatches: providerVerification.amountMatches,
+                  currencyMatches: providerVerification.currencyMatches,
                 },
               } as Prisma.InputJsonValue,
             },
@@ -921,10 +938,10 @@ export async function POST(req: Request) {
                 eventFamily: webhook.eventFamily,
                 invoiceId: invoiceId ? String(invoiceId) : null,
                 providerVerification: {
-                  providerState: verification.providerState,
-                  apiRefMatches: verification.apiRefMatches,
-                  amountMatches: verification.amountMatches,
-                  currencyMatches: verification.currencyMatches,
+                  providerState: providerVerification.providerState,
+                  apiRefMatches: providerVerification.apiRefMatches,
+                  amountMatches: providerVerification.amountMatches,
+                  currencyMatches: providerVerification.currencyMatches,
                 },
               } as Prisma.InputJsonValue,
             },
@@ -1034,10 +1051,10 @@ export async function POST(req: Request) {
               eventFamily: webhook.eventFamily,
               invoiceId: invoiceId ? String(invoiceId) : null,
               providerVerification: {
-                providerState: verification.providerState,
-                apiRefMatches: verification.apiRefMatches,
-                amountMatches: verification.amountMatches,
-                currencyMatches: verification.currencyMatches,
+                providerState: providerVerification.providerState,
+                apiRefMatches: providerVerification.apiRefMatches,
+                amountMatches: providerVerification.amountMatches,
+                currencyMatches: providerVerification.currencyMatches,
               },
             } as Prisma.InputJsonValue,
           },
@@ -1091,10 +1108,10 @@ export async function POST(req: Request) {
               eventFamily: webhook.eventFamily,
               invoiceId: invoiceId ? String(invoiceId) : null,
               providerVerification: {
-                providerState: verification.providerState,
-                apiRefMatches: verification.apiRefMatches,
-                amountMatches: verification.amountMatches,
-                currencyMatches: verification.currencyMatches,
+                providerState: providerVerification.providerState,
+                apiRefMatches: providerVerification.apiRefMatches,
+                amountMatches: providerVerification.amountMatches,
+                currencyMatches: providerVerification.currencyMatches,
               },
             } as Prisma.InputJsonValue,
           },

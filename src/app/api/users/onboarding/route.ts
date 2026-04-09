@@ -184,8 +184,6 @@ function sanitizeDraftState(input: unknown): OnboardingDraftState {
     referralCode:
       typeof draft.referralCode === "string" ? draft.referralCode : "",
     verification,
-    paymentInitiated: Boolean(draft.paymentInitiated),
-    checkoutUrl: typeof draft.checkoutUrl === "string" ? draft.checkoutUrl : "",
     updatedAt:
       typeof draft.updatedAt === "string" ? draft.updatedAt : undefined,
   };
