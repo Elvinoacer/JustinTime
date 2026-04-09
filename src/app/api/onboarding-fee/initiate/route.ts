@@ -11,13 +11,26 @@ import {
   PAYMENT_AMOUNTS,
 } from "@/lib/daraja";
 import { ensureOnboardingFeePaymentIntent } from "@/lib/payments/payment-intents";
+import {
+  buildPaymentVerificationPath,
+  normalizeInternalReturnPath,
+} from "@/lib/payments/verification";
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
+
+    const body = await req.json().catch(() => null);
+    const requestedReturnValue =
+      body && typeof body === "object"
+        ? (body as Record<string, unknown>).returnUrl
+        : null;
+    const requestedReturnUrl = normalizeInternalReturnPath(
+      typeof requestedReturnValue === "string" ? requestedReturnValue : null,
+    );
 
     // Check if user already paid
     const profile = await prisma.profile.findUnique({
@@ -91,7 +104,14 @@ export async function POST() {
       description: "Provider onboarding fee",
     });
 
-    const completionUrl = `${baseUrl}/dashboard/onboarding-complete?apiRef=${encodeURIComponent(apiRef)}&checkoutId=${encodeURIComponent(response.CheckoutRequestID)}`;
+    const verificationPath = buildPaymentVerificationPath({
+      kind: "onboarding_fee",
+      apiRef,
+      checkoutId: response.CheckoutRequestID,
+      trackingId: response.MerchantRequestID,
+      returnTo: requestedReturnUrl || "/dashboard/verification",
+    });
+    const completionUrl = `${baseUrl}${verificationPath}`;
 
     console.log("Daraja STK push response:", response);
 

@@ -170,7 +170,7 @@ export default function BookingDateTimeSelection({
                 aria-label="Select month"
                 value={selectedMonthIndex}
                 onChange={handleMonthSelect}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[12px] font-semibold text-slate-800 outline-none focus:border-emerald-500 sm:h-9 sm:text-sm"
+                className="h-10 rounded-lg border border-slate-200 bg-white px-2 text-[12px] font-semibold text-slate-800 outline-none focus:border-emerald-500 sm:h-9 sm:text-sm"
               >
                 {monthLabels.map((monthLabel, monthIndex) => {
                   const isOutOfRange =
@@ -193,7 +193,7 @@ export default function BookingDateTimeSelection({
                 aria-label="Select year"
                 value={selectedYear}
                 onChange={handleYearSelect}
-                className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[12px] font-semibold text-slate-800 outline-none focus:border-emerald-500 sm:h-9 sm:text-sm"
+                className="h-10 rounded-lg border border-slate-200 bg-white px-2 text-[12px] font-semibold text-slate-800 outline-none focus:border-emerald-500 sm:h-9 sm:text-sm"
               >
                 {yearOptions.map((year) => (
                   <option key={year} value={year}>
@@ -252,14 +252,14 @@ export default function BookingDateTimeSelection({
               month_caption: "sr-only",
               caption_label: "sr-only",
               button_previous:
-                "absolute left-0 h-8 w-8 rounded-full border border-slate-200 bg-white sm:h-9 sm:w-9",
+                "absolute left-0 h-10 w-10 rounded-full border border-slate-200 bg-white sm:h-9 sm:w-9",
               button_next:
-                "absolute right-0 h-8 w-8 rounded-full border border-slate-200 bg-white sm:h-9 sm:w-9",
+                "absolute right-0 h-10 w-10 rounded-full border border-slate-200 bg-white sm:h-9 sm:w-9",
               month_grid:
                 "w-full table-fixed border-separate border-spacing-y-1",
               weekdays: "w-full",
               weekday:
-                "text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs",
+                "text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs",
               weeks: "w-full",
               week: "mt-1.5",
               day: "w-full p-0",
@@ -283,7 +283,7 @@ export default function BookingDateTimeSelection({
                   <button
                     {...props}
                     disabled={isDisabled}
-                    className={`relative h-10 w-full rounded-2xl text-[12px] font-semibold transition-all sm:h-12 sm:text-sm ${
+                    className={`relative h-11 w-full rounded-2xl text-[12px] font-semibold transition-all sm:h-12 sm:text-sm ${
                       isDisabled
                         ? "cursor-not-allowed bg-slate-100/90 text-slate-400"
                         : isSelected
@@ -318,6 +318,7 @@ export default function BookingDateTimeSelection({
                   {format(date, "EEE, MMM d")}
                   <button
                     type="button"
+                    aria-label={`Remove ${format(date, "EEE, MMM d")}`}
                     onClick={() => {
                       setSelectedDates((prev) =>
                         prev.filter((_, i) => i !== idx),
@@ -475,6 +476,7 @@ export default function BookingDateTimeSelection({
                             {time}
                             <button
                               type="button"
+                              aria-label={`Remove ${time} on ${dateStr}`}
                               onClick={() => {
                                 setSelectedTimeSlots((prev) => ({
                                   ...prev,

@@ -10,6 +10,10 @@ import {
 } from "@/lib/daraja";
 import { SUBSCRIPTION_PRICES } from "@/lib/constants/pricing";
 import { ensureSubscriptionPaymentIntent } from "@/lib/payments/payment-intents";
+import {
+  buildPaymentVerificationPath,
+  normalizeInternalReturnPath,
+} from "@/lib/payments/verification";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,10 +23,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { plan } = await req.json();
+    const body = await req.json().catch(() => null);
+    const plan =
+      body && typeof body === "object"
+        ? (body as Record<string, unknown>).plan
+        : null;
+    const requestedReturnValue =
+      body && typeof body === "object"
+        ? (body as Record<string, unknown>).returnUrl
+        : null;
+    const requestedReturnUrl = normalizeInternalReturnPath(
+      typeof requestedReturnValue === "string" ? requestedReturnValue : null,
+    );
 
     // Validate plan
-    if (!plan || !["PRO", "BUSINESS"].includes(plan)) {
+    if (typeof plan !== "string" || !["PRO", "BUSINESS"].includes(plan)) {
       return NextResponse.json(
         { error: "Invalid subscription plan" },
         { status: 400 },
@@ -129,7 +144,13 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    const completionUrl = `/dashboard/premium/complete?apiRef=${encodeURIComponent(apiRef)}&checkoutId=${encodeURIComponent(checkoutSession.CheckoutRequestID)}`;
+    const completionUrl = buildPaymentVerificationPath({
+      kind: "subscription",
+      apiRef,
+      checkoutId: checkoutSession.CheckoutRequestID,
+      trackingId: checkoutSession.MerchantRequestID,
+      returnTo: requestedReturnUrl || "/dashboard/premium",
+    });
 
     return NextResponse.json({
       checkoutUrl: completionUrl,

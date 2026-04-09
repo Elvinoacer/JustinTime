@@ -1,22 +1,22 @@
 import { Suspense } from "react";
-import { TopUpCompletionStatus } from "@/components/wallet/TopUpCompletionStatus";
+import { PaymentVerificationStatus } from "@/components/payments/PaymentVerificationStatus";
 
 export default function ClientTopupCompletePage() {
   return (
-    <div className="min-h-[70vh] px-4 py-10">
+    <div className="min-h-[70vh] px-3 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-10">
       <Suspense
         fallback={
-          <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-            <h1 className="text-xl font-bold text-slate-900">
+          <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm sm:p-6">
+            <h1 className="text-lg font-bold text-slate-900 sm:text-xl">
               Confirming Your Wallet Top-up
             </h1>
             <p className="mt-2 text-sm text-slate-600">Loading status...</p>
           </div>
         }
       >
-        <TopUpCompletionStatus
-          walletPath="/client/wallet"
-          heading="Confirming Your Wallet Top-up"
+        <PaymentVerificationStatus
+          defaultKind="wallet_topup"
+          defaultReturnTo="/client/wallet"
         />
       </Suspense>
     </div>

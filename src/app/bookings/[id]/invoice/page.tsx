@@ -92,27 +92,29 @@ export default async function InvoicePage({
   const exciseRateLabel = `${(TAX_RATES.EXCISE_DUTY * 100).toFixed(1)}%`;
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-100 px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
       <div className="max-w-3xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden">
         {/* Header */}
-        <div className="bg-emerald-600 px-8 py-6 text-white flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold uppercase tracking-wide">
-              Tax Invoice
-            </h1>
-            <p className="text-emerald-100 text-sm mt-1">
-              JustInTime Systems Ltd
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="font-mono font-medium text-lg">{invoice.number}</p>
-            <p className="text-emerald-100 text-sm">
-              Date: {invoice.createdAt.toLocaleDateString()}
-            </p>
+        <div className="bg-emerald-600 px-4 py-5 text-white sm:px-8 sm:py-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-xl font-bold uppercase tracking-wide sm:text-2xl">
+                Tax Invoice
+              </h1>
+              <p className="text-emerald-100 text-sm mt-1">
+                JustInTime Systems Ltd
+              </p>
+            </div>
+            <div className="sm:text-right">
+              <p className="font-mono font-medium text-lg">{invoice.number}</p>
+              <p className="text-emerald-100 text-sm">
+                Date: {invoice.createdAt.toLocaleDateString()}
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="p-8">
+        <div className="p-4 sm:p-8">
           {/* Parties */}
           <div className="flex flex-col sm:flex-row justify-between mb-8 gap-6">
             <div className="w-full sm:w-1/2">
@@ -148,7 +150,7 @@ export default async function InvoicePage({
           <div className="mb-8">
             <div className="border-b-2 border-gray-200 pb-2 mb-2 flex text-xs font-bold text-gray-500 uppercase tracking-wider">
               <div className="flex-1">Description</div>
-              <div className="w-32 text-right">Amount</div>
+              <div className="w-24 text-right sm:w-32">Amount</div>
             </div>
             <div className="flex py-2 border-b border-gray-100 text-gray-700">
               <div className="flex-1">
@@ -159,7 +161,7 @@ export default async function InvoicePage({
                   {booking.service?.description?.substring(0, 100)}
                 </p>
               </div>
-              <div className="w-32 text-right font-mono">
+              <div className="w-24 text-right font-mono sm:w-32">
                 {formatCurrency(Number(invoice.subtotal))}
               </div>
             </div>
@@ -167,7 +169,7 @@ export default async function InvoicePage({
 
           {/* Totals */}
           <div className="flex justify-end mb-12">
-            <div className="w-64 space-y-2">
+            <div className="w-full space-y-2 sm:w-64">
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Subtotal</span>
                 <span className="font-mono">
@@ -204,7 +206,7 @@ export default async function InvoicePage({
           </div>
 
           {/* eTIMS Footer */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 flex flex-col md:flex-row items-center gap-6">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 sm:p-6 flex flex-col md:flex-row items-start md:items-center gap-4 sm:gap-6">
             <div className="bg-white p-2 rounded border border-gray-200 shadow-sm shrink-0">
               {invoice.etimsQrUrl && (
                 // Use standard img tag if external URL or Image if strictly internal
@@ -238,7 +240,7 @@ export default async function InvoicePage({
             </div>
           </div>
 
-          <div className="mt-8 text-center print:hidden">
+          <div className="mt-8 print:hidden flex flex-col gap-3 text-center sm:flex-row sm:items-center sm:justify-center sm:gap-4">
             <Link
               href={backHref}
               className="text-emerald-600 hover:text-emerald-700 font-medium"

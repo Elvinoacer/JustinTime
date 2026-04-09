@@ -43,7 +43,7 @@ export default function BookingNegotiationDialog({
           onClick={() => setShowNegotiationDialog(false)}
         >
           <motion.div
-            className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-[1.75rem] bg-white p-5 shadow-2xl sm:rounded-[1.75rem] sm:p-6"
+            className="max-h-[88dvh] w-full max-w-md overflow-y-auto rounded-t-[1.75rem] bg-white p-5 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:max-h-[90vh] sm:rounded-[1.75rem] sm:p-6 sm:pb-6"
             initial={{ y: 28, opacity: 0, scale: 0.98 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 20, opacity: 0, scale: 0.98 }}
@@ -56,8 +56,10 @@ export default function BookingNegotiationDialog({
                 Negotiate Terms
               </h2>
               <button
+                type="button"
                 onClick={() => setShowNegotiationDialog(false)}
-                className="p-1"
+                className="rounded-lg p-2 text-gray-600 transition-colors hover:bg-slate-100"
+                aria-label="Close negotiation dialog"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
@@ -140,12 +142,14 @@ export default function BookingNegotiationDialog({
               <div className="sticky bottom-0 -mx-5 mt-4 border-t border-slate-100 bg-white px-5 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] pt-3 sm:static sm:mx-0 sm:mt-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-2">
                 <div className="flex gap-2 sm:gap-3">
                   <button
+                    type="button"
                     onClick={() => setShowNegotiationDialog(false)}
-                    className="flex-1 py-2.5 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm sm:text-base"
+                    className="flex h-11 flex-1 items-center justify-center border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm sm:h-auto sm:py-3 sm:text-base"
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setShowNegotiationDialog(false);
                       handleSubmit(true);
@@ -154,7 +158,7 @@ export default function BookingNegotiationDialog({
                       !negotiationData.proposedPrice &&
                       !negotiationData.proposedLocation
                     }
-                    className="flex-1 py-2.5 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex h-11 flex-1 items-center justify-center bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm sm:h-auto sm:py-3 sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Send Proposal
                   </button>

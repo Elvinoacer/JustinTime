@@ -7,6 +7,14 @@ import { POST as handleSubscriptionWebhook } from "@/app/api/subscription/webhoo
 
 const TERMINAL_STATES = new Set(["SETTLED", "FAILED", "CANCELLED", "REVERSED"]);
 
+type CanonicalPaymentStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "SETTLED"
+  | "FAILED"
+  | "CANCELLED"
+  | "REVERSED";
+
 function normalizeParam(value: string | null): string | null {
   const normalized = String(value || "").trim();
   return normalized.length > 0 ? normalized : null;
@@ -22,6 +30,25 @@ function mapResultCode(state: string): number {
   }
 
   return 1;
+}
+
+function toCanonicalPaymentStatus(
+  value: string | null | undefined,
+): CanonicalPaymentStatus | null {
+  const normalized = String(value || "").trim().toUpperCase();
+
+  if (
+    normalized === "PENDING" ||
+    normalized === "PROCESSING" ||
+    normalized === "SETTLED" ||
+    normalized === "FAILED" ||
+    normalized === "CANCELLED" ||
+    normalized === "REVERSED"
+  ) {
+    return normalized;
+  }
+
+  return null;
 }
 
 function extractApiRefFromProviderRef(
@@ -98,13 +125,10 @@ export async function GET(req: Request) {
     });
 
     const now = new Date();
-    const hasStoredSubscription = Boolean(subscription);
     const isExpired = Boolean(
       subscription?.endDate && subscription.endDate.getTime() <= now.getTime(),
     );
     let isActive = Boolean(subscription?.isActive) && !isExpired;
-    const effectivePlan =
-      hasStoredSubscription && isActive ? subscription!.plan : "FREE";
 
     let pendingPayment: {
       status: string;
@@ -114,7 +138,7 @@ export async function GET(req: Request) {
       failureReason: string | null;
     } | null = null;
 
-    if (!isActive || effectivePlan === "FREE") {
+    if (!isActive) {
       const pendingCandidates = await prisma.transaction.findMany({
         where: {
           type: "PAYMENT",
@@ -208,7 +232,7 @@ export async function GET(req: Request) {
               const refreshedNow = new Date();
               const refreshedExpired = Boolean(
                 subscription?.endDate &&
-                subscription.endDate.getTime() <= refreshedNow.getTime(),
+                  subscription.endDate.getTime() <= refreshedNow.getTime(),
               );
               isActive = Boolean(subscription?.isActive) && !refreshedExpired;
             }
@@ -225,17 +249,98 @@ export async function GET(req: Request) {
     const currentNow = new Date();
     const currentExpired = Boolean(
       subscription?.endDate &&
-      subscription.endDate.getTime() <= currentNow.getTime(),
+        subscription.endDate.getTime() <= currentNow.getTime(),
     );
     const currentActive = Boolean(subscription?.isActive) && !currentExpired;
-    const currentPlan =
-      subscription && currentActive ? subscription.plan : "FREE";
+    const currentPlan = subscription && currentActive ? subscription.plan : "FREE";
 
     let currentDaysRemaining = null;
     if (subscription?.endDate && currentActive && currentPlan !== "FREE") {
       const diffTime = subscription.endDate.getTime() - currentNow.getTime();
       currentDaysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     }
+
+    const recentTransactions = await prisma.transaction.findMany({
+      where: {
+        type: "PAYMENT",
+        category: "SUBSCRIPTION",
+        wallet: {
+          userId: session.user.id,
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 20,
+      select: {
+        status: true,
+        providerRef: true,
+        gatewaySessionId: true,
+        gatewayReference: true,
+        failureReason: true,
+        amount: true,
+        currency: true,
+      },
+    });
+
+    const matchedTransaction =
+      recentTransactions.find((entry) => {
+        const entryApiRef = extractApiRefFromProviderRef(entry.providerRef);
+        if (apiRef && entryApiRef !== apiRef) {
+          return false;
+        }
+
+        if (
+          checkoutRequestId &&
+          normalizeParam(entry.gatewaySessionId) !== checkoutRequestId
+        ) {
+          return false;
+        }
+
+        return true;
+      }) ||
+      recentTransactions[0] ||
+      null;
+
+    const resolvedApiRef =
+      apiRef ||
+      extractApiRefFromProviderRef(matchedTransaction?.providerRef || null) ||
+      pendingPayment?.apiRef ||
+      null;
+    const resolvedCheckoutRequestId =
+      checkoutRequestId ||
+      normalizeParam(matchedTransaction?.gatewaySessionId || null) ||
+      pendingPayment?.checkoutRequestId ||
+      null;
+    const resolvedMerchantRequestId =
+      normalizeParam(matchedTransaction?.gatewayReference || null) ||
+      pendingPayment?.merchantRequestId ||
+      null;
+
+    const statusFromTransaction = toCanonicalPaymentStatus(
+      matchedTransaction?.status,
+    );
+    const pendingStatus = toCanonicalPaymentStatus(pendingPayment?.status);
+    const settledFromSubscription = currentPlan !== "FREE" && currentActive;
+
+    const paymentStatus: CanonicalPaymentStatus = settledFromSubscription
+      ? "SETTLED"
+      : statusFromTransaction || pendingStatus || "PENDING";
+    const isTerminal = TERMINAL_STATES.has(paymentStatus);
+
+    const canonicalPendingPayment = !isTerminal
+      ? {
+          status: paymentStatus,
+          apiRef: resolvedApiRef,
+          checkoutRequestId: resolvedCheckoutRequestId,
+          merchantRequestId: resolvedMerchantRequestId,
+          failureReason:
+            matchedTransaction?.failureReason || pendingPayment?.failureReason || null,
+        }
+      : null;
+
+    const failureReason =
+      matchedTransaction?.failureReason || pendingPayment?.failureReason || null;
 
     return NextResponse.json({
       subscription: {
@@ -247,7 +352,17 @@ export async function GET(req: Request) {
         isPremium: currentPlan !== "FREE" && currentActive,
         hasExpired: currentExpired,
       },
-      pendingPayment,
+      pendingPayment: canonicalPendingPayment,
+      paymentStatus,
+      isTerminal,
+      apiRef: resolvedApiRef,
+      checkoutRequestId: resolvedCheckoutRequestId,
+      merchantRequestId: resolvedMerchantRequestId,
+      failureReason,
+      amountExpected: matchedTransaction?.amount || null,
+      amountReceived:
+        paymentStatus === "SETTLED" ? matchedTransaction?.amount || null : null,
+      currency: matchedTransaction?.currency || "KES",
     });
   } catch (error) {
     console.error("Error fetching subscription status:", error);

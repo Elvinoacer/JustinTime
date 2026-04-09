@@ -269,14 +269,14 @@ export default function ClientWalletPage() {
 
     topUpMutation.mutate({
       amount,
-      returnUrl: "/client/wallet/topup-complete",
+      returnUrl: "/client/wallet",
     });
   };
 
   const transactions = transactionsQuery.data?.items || [];
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
+    <div className="min-h-[calc(100dvh-4rem)] bg-slate-50 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
         <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -287,7 +287,10 @@ export default function ClientWalletPage() {
               Available funds, pending top-ups, and complete ledger history.
             </p>
           </div>
-          <button className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 sm:w-auto">
+          <button
+            type="button"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 sm:w-auto"
+          >
             <Download className="h-4 w-4" />
             Download Statement
           </button>
@@ -349,6 +352,7 @@ export default function ClientWalletPage() {
                   />
                 </div>
                 <button
+                  type="button"
                   onClick={handleTopUp}
                   disabled={topUpMutation.isPending}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-70 sm:text-base"
@@ -705,6 +709,7 @@ export default function ClientWalletPage() {
             </p>
             <div className="flex items-center gap-2 self-end sm:self-auto">
               <button
+                type="button"
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page <= 1}
                 className="rounded-lg border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
@@ -715,6 +720,7 @@ export default function ClientWalletPage() {
                 Page {page}
               </span>
               <button
+                type="button"
                 onClick={() => setPage((prev) => prev + 1)}
                 disabled={!transactionsQuery.data?.hasMore}
                 className="rounded-lg border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"

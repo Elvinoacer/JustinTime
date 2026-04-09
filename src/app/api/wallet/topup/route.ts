@@ -16,19 +16,10 @@ import {
   isWalletSchemaOutOfSyncError,
 } from "@/lib/wallet/errors";
 import { ensureWalletTopUpPaymentIntent } from "@/lib/payments/payment-intents";
-
-function normalizeReturnPath(path?: string): string | null {
-  if (!path || typeof path !== "string") {
-    return null;
-  }
-
-  const trimmed = path.trim();
-  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) {
-    return null;
-  }
-
-  return trimmed;
-}
+import {
+  buildPaymentVerificationPath,
+  normalizeInternalReturnPath,
+} from "@/lib/payments/verification";
 
 export async function POST(req: Request) {
   try {
@@ -46,7 +37,7 @@ export async function POST(req: Request) {
     }
 
     const amount = Number(body?.amount);
-    const requestedReturnUrl = normalizeReturnPath(body?.returnUrl);
+    const requestedReturnUrl = normalizeInternalReturnPath(body?.returnUrl);
 
     if (!Number.isFinite(amount) || amount < PAYMENT_AMOUNTS.MIN_TOPUP) {
       return NextResponse.json(
@@ -80,8 +71,8 @@ export async function POST(req: Request) {
 
     const baseUrl = getBaseUrl();
     const defaultReturnPath = hasRole(session.user, "PROVIDER")
-      ? "/dashboard/wallet/topup-complete"
-      : "/client/wallet/topup-complete";
+      ? "/dashboard/wallet"
+      : "/client/wallet";
     const returnPath = requestedReturnUrl || defaultReturnPath;
     const callbackUrl = buildDarajaCallbackUrl(baseUrl, "/api/wallet/webhook");
 
@@ -121,9 +112,16 @@ export async function POST(req: Request) {
       });
 
       if (existingTopUp) {
+        const verificationPath = buildPaymentVerificationPath({
+          kind: "wallet_topup",
+          apiRef,
+          topUpId: existingTopUp.id,
+          checkoutId: response.CheckoutRequestID,
+          trackingId: response.MerchantRequestID,
+          returnTo: returnPath,
+        });
         const completionUrl =
-          existingTopUp.checkoutUrl ||
-          `${baseUrl}${returnPath}?apiRef=${encodeURIComponent(apiRef)}&topUpId=${encodeURIComponent(existingTopUp.id)}&checkoutId=${encodeURIComponent(response.CheckoutRequestID)}`;
+          existingTopUp.checkoutUrl || `${baseUrl}${verificationPath}`;
 
         if (!existingTopUp.checkoutUrl) {
           await tx.walletTopUp.update({
@@ -161,7 +159,15 @@ export async function POST(req: Request) {
         },
       });
 
-      const completionUrl = `${baseUrl}${returnPath}?apiRef=${encodeURIComponent(apiRef)}&topUpId=${encodeURIComponent(createdTopUp.id)}&checkoutId=${encodeURIComponent(response.CheckoutRequestID)}`;
+      const verificationPath = buildPaymentVerificationPath({
+        kind: "wallet_topup",
+        apiRef,
+        topUpId: createdTopUp.id,
+        checkoutId: response.CheckoutRequestID,
+        trackingId: response.MerchantRequestID,
+        returnTo: returnPath,
+      });
+      const completionUrl = `${baseUrl}${verificationPath}`;
 
       await tx.walletTopUp.update({
         where: { id: createdTopUp.id },

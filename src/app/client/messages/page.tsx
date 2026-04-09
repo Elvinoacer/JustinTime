@@ -116,7 +116,7 @@ function ClientMessagesContent() {
   // Detect mobile on mount
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640);
+      setIsMobile(window.innerWidth < 768);
     };
     checkMobile();
     window.addEventListener("resize", checkMobile);
@@ -586,15 +586,15 @@ function ClientMessagesContent() {
     null;
 
   return (
-    <div className="h-[calc(100dvh-64px)] sm:h-[calc(100dvh-80px)] overflow-hidden bg-gray-50">
-      <div className="max-w-7xl mx-auto h-full min-h-0 px-0 sm:px-3 md:px-4">
-        <div className="flex h-full min-h-0 bg-white rounded-none sm:rounded-xl md:rounded-2xl overflow-hidden shadow-none sm:shadow-sm border-0 sm:border border-gray-200 mt-0 sm:mt-2 md:mt-4">
+    <div className="h-[calc(100dvh-64px)] md:h-[calc(100dvh-80px)] overflow-hidden bg-gray-50 pb-[env(safe-area-inset-bottom)]">
+      <div className="max-w-7xl mx-auto h-full min-h-0 px-0 md:px-4">
+        <div className="flex h-full min-h-0 bg-white rounded-none md:rounded-2xl overflow-hidden shadow-none md:shadow-sm border-0 md:border border-gray-200 mt-0 md:mt-4">
           {/* Conversations List */}
           <div
             className={`h-full min-h-0 overflow-hidden transition-all duration-200 ${
               selectedPartnerId
-                ? "hidden sm:block sm:w-1/3 lg:w-1/4 xl:w-1/3"
-                : "w-full sm:w-1/3 lg:w-1/4 xl:w-1/3"
+                ? "hidden md:block md:w-5/12 lg:w-1/3 xl:w-[32%]"
+                : "w-full md:w-5/12 lg:w-1/3 xl:w-[32%]"
             }`}
           >
             <ConversationsList
@@ -614,8 +614,8 @@ function ClientMessagesContent() {
           <div
             className={`h-full min-h-0 overflow-hidden transition-all duration-200 ${
               selectedPartnerId
-                ? "w-full sm:w-2/3 lg:w-3/4 xl:w-2/3"
-                : "hidden sm:block sm:w-2/3 lg:w-3/4 xl:w-2/3"
+                ? "w-full md:w-7/12 lg:w-2/3 xl:w-[68%]"
+                : "hidden md:block md:w-7/12 lg:w-2/3 xl:w-[68%]"
             }`}
           >
             <ChatWindow

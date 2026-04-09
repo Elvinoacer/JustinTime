@@ -328,6 +328,7 @@ export default function BookingSummarySidebar({
                     </div>
                     {appliedPromo ? (
                       <button
+                        type="button"
                         onClick={() => {
                           setAppliedPromo("");
                           setPromoCode("");
@@ -340,6 +341,7 @@ export default function BookingSummarySidebar({
                       </button>
                     ) : (
                       <button
+                        type="button"
                         onClick={handleApplyPromo}
                         disabled={
                           !promoCode || isApplyingPromo || basePrice <= 0

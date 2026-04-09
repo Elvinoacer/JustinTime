@@ -88,8 +88,12 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
         className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm ${
           isMobile ? "p-0" : "p-3 sm:p-4"
         }`}
+        onClick={onClose}
       >
         <motion.div
+          onClick={(event) => event.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
           initial={{
             opacity: 0,
             y: isMobile ? 100 : 0,
@@ -106,9 +110,9 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
             damping: 25,
             stiffness: 300,
           }}
-          className={`bg-white shadow-xl overflow-hidden w-full ${
+          className={`bg-white shadow-xl overflow-hidden w-full flex flex-col ${
             isMobile
-              ? "rounded-t-3xl rounded-b-none h-[85vh] max-h-[85vh] mt-auto"
+              ? "rounded-t-3xl rounded-b-none h-[88dvh] max-h-[88dvh] mt-auto pb-[env(safe-area-inset-bottom)]"
               : "rounded-xl sm:rounded-2xl max-w-md max-h-[85vh]"
           }`}
         >
@@ -135,6 +139,7 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
               </p>
             </div>
             <button
+              type="button"
               onClick={onClose}
               className={`text-gray-400 hover:text-gray-600 active:text-gray-700 rounded-full p-1 transition-colors touch-manipulation ${
                 isMobile ? "p-2 -mr-2" : ""
@@ -146,11 +151,7 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
           </div>
 
           {/* Content */}
-          <div
-            className={`overflow-y-auto ${
-              isMobile ? "h-[calc(85vh-73px)]" : "max-h-[calc(85vh-80px)]"
-            }`}
-          >
+          <div className="flex-1 overflow-y-auto overscroll-contain">
             <div className={`${isMobile ? "p-4" : "p-4 sm:p-5"}`}>
               {/* Search Input */}
               <div className="relative mb-4">
@@ -350,15 +351,6 @@ export const NewConversationModal: React.FC<NewConversationModalProps> = ({
               </div>
             </div>
           </div>
-
-          {/* Mobile backdrop to close modal */}
-          {isMobile && (
-            <div
-              className="absolute inset-0 -z-10"
-              onClick={onClose}
-              aria-hidden="true"
-            />
-          )}
         </motion.div>
       </div>
     </AnimatePresence>

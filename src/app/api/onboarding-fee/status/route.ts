@@ -7,6 +7,14 @@ import { POST as handleOnboardingWebhook } from "@/app/api/onboarding-fee/webhoo
 
 const TERMINAL_STATES = new Set(["SETTLED", "FAILED", "CANCELLED", "REVERSED"]);
 
+type CanonicalPaymentStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "SETTLED"
+  | "FAILED"
+  | "CANCELLED"
+  | "REVERSED";
+
 function normalizeParam(value: string | null): string | null {
   const normalized = String(value || "").trim();
   return normalized.length > 0 ? normalized : null;
@@ -38,6 +46,27 @@ function extractApiRefFromProviderRef(
   }
 
   return value.slice(index + 1).trim() || null;
+}
+
+function toCanonicalPaymentStatus(
+  value: string | null | undefined,
+): CanonicalPaymentStatus | null {
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase();
+
+  if (
+    normalized === "PENDING" ||
+    normalized === "PROCESSING" ||
+    normalized === "SETTLED" ||
+    normalized === "FAILED" ||
+    normalized === "CANCELLED" ||
+    normalized === "REVERSED"
+  ) {
+    return normalized;
+  }
+
+  return null;
 }
 
 function buildSyntheticWebhookRequest(
@@ -222,12 +251,106 @@ export async function GET(req: Request) {
       }
     }
 
+    const recentTransactions = await prisma.transaction.findMany({
+      where: {
+        type: "ONBOARDING_FEE",
+        wallet: {
+          userId: session.user.id,
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 20,
+      select: {
+        status: true,
+        providerRef: true,
+        gatewaySessionId: true,
+        gatewayReference: true,
+        failureReason: true,
+        amount: true,
+        currency: true,
+      },
+    });
+
+    const matchedTransaction =
+      recentTransactions.find((entry) => {
+        const entryApiRef = extractApiRefFromProviderRef(entry.providerRef);
+        if (apiRef && entryApiRef !== apiRef) {
+          return false;
+        }
+
+        if (
+          checkoutRequestId &&
+          normalizeParam(entry.gatewaySessionId) !== checkoutRequestId
+        ) {
+          return false;
+        }
+
+        return true;
+      }) ||
+      recentTransactions[0] ||
+      null;
+
+    const resolvedApiRef =
+      apiRef ||
+      extractApiRefFromProviderRef(matchedTransaction?.providerRef || null) ||
+      pendingPayment?.apiRef ||
+      null;
+    const resolvedCheckoutRequestId =
+      checkoutRequestId ||
+      normalizeParam(matchedTransaction?.gatewaySessionId || null) ||
+      pendingPayment?.checkoutRequestId ||
+      null;
+    const resolvedMerchantRequestId =
+      normalizeParam(matchedTransaction?.gatewayReference || null) ||
+      pendingPayment?.merchantRequestId ||
+      null;
+
+    const statusFromTransaction = toCanonicalPaymentStatus(
+      matchedTransaction?.status,
+    );
+    const pendingStatus = toCanonicalPaymentStatus(pendingPayment?.status);
+
+    const paymentStatus: CanonicalPaymentStatus = isSettled
+      ? "SETTLED"
+      : statusFromTransaction || pendingStatus || "PENDING";
+    const isTerminal = TERMINAL_STATES.has(paymentStatus);
+
+    const canonicalPendingPayment = !isTerminal
+      ? {
+          status: paymentStatus,
+          apiRef: resolvedApiRef,
+          checkoutRequestId: resolvedCheckoutRequestId,
+          merchantRequestId: resolvedMerchantRequestId,
+          failureReason:
+            matchedTransaction?.failureReason ||
+            pendingPayment?.failureReason ||
+            null,
+        }
+      : null;
+
+    const failureReason =
+      matchedTransaction?.failureReason ||
+      pendingPayment?.failureReason ||
+      null;
+
     return NextResponse.json({
       hasPaidOnboardingFee: Boolean(profile?.hasPaidOnboardingFee),
       onboardingFeeWaived: Boolean(profile?.onboardingFeeWaived),
       verificationStatus: profile?.verificationStatus || "PENDING",
       isSettled,
-      pendingPayment,
+      pendingPayment: canonicalPendingPayment,
+      paymentStatus,
+      isTerminal,
+      apiRef: resolvedApiRef,
+      checkoutRequestId: resolvedCheckoutRequestId,
+      merchantRequestId: resolvedMerchantRequestId,
+      failureReason,
+      amountExpected: matchedTransaction?.amount || null,
+      amountReceived:
+        paymentStatus === "SETTLED" ? matchedTransaction?.amount || null : null,
+      currency: matchedTransaction?.currency || "KES",
     });
   } catch (error) {
     console.error("[ONBOARDING_FEE_STATUS]", error);

@@ -71,7 +71,7 @@ export default function BookingServiceSelection({
                         alt={service.title}
                         fill
                         className="object-cover"
-                        sizes="176px"
+                        sizes="(max-width: 640px) 100vw, 176px"
                         unoptimized
                       />
                     ) : (

@@ -120,6 +120,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     messageInputRef.current.style.height = `${Math.min(messageInputRef.current.scrollHeight, 140)}px`;
   }, [newMessage]);
 
+  useEffect(() => {
+    setShowMenu(false);
+  }, [partner?.id]);
+
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
@@ -294,10 +298,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         <div className="flex items-center space-x-3">
           {onBack && (
             <button
+              type="button"
               onClick={onBack}
               className={`${
                 isMobile ? "mr-1" : "mr-2"
-              } p-2 -ml-2 text-gray-500 hover:bg-gray-100 active:bg-gray-200 rounded-full touch-manipulation`}
+              } md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 active:bg-gray-200 rounded-full touch-manipulation`}
               aria-label="Back to conversations"
             >
               <span className="material-symbols-outlined text-lg">
@@ -371,11 +376,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
           <button
+            type="button"
             onClick={() =>
               partner &&
               toggleCall(partner.id, partner.name, partner.image, "AUDIO")
             }
-            className="inline-flex items-center gap-1.5 p-2 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-full sm:rounded-lg transition-colors touch-manipulation"
+            className="inline-flex h-10 w-10 items-center justify-center sm:h-auto sm:w-auto sm:px-2 sm:py-2 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-full sm:rounded-lg transition-colors touch-manipulation"
             title="In-App Audio Call (Internet required)"
             aria-label="Start in-app audio call"
           >
@@ -385,11 +391,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
             </span>
           </button>
           <button
+            type="button"
             onClick={() =>
               partner &&
               toggleCall(partner.id, partner.name, partner.image, "VIDEO")
             }
-            className="inline-flex items-center gap-1.5 p-2 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-full sm:rounded-lg transition-colors touch-manipulation"
+            className="inline-flex h-10 w-10 items-center justify-center sm:h-auto sm:w-auto sm:px-2 sm:py-2 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-full sm:rounded-lg transition-colors touch-manipulation"
             title="In-App Video Call (Internet required)"
             aria-label="Start in-app video call"
           >
@@ -401,9 +408,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
           <div className="relative">
             <button
+              type="button"
               onClick={() => setShowMenu(!showMenu)}
               className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation"
               aria-label="More options"
+              aria-haspopup="menu"
+              aria-expanded={showMenu}
             >
               <span className="material-symbols-outlined text-lg">
                 more_vert
@@ -422,6 +432,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 {/* Menu */}
                 <div className="absolute right-0 top-full mt-1 sm:mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-20">
                   <button
+                    type="button"
                     className="w-full text-left px-4 py-2.5 sm:py-2 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 flex items-center gap-2 touch-manipulation"
                     onClick={async () => {
                       if (
@@ -444,6 +455,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     Clear Chat
                   </button>
                   <button
+                    type="button"
                     className="w-full text-left px-4 py-2.5 sm:py-2 text-sm text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100 flex items-center gap-2 touch-manipulation"
                     onClick={() => {
                       setShowMenu(false);
@@ -456,6 +468,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     Call History
                   </button>
                   <button
+                    type="button"
                     className="w-full text-left px-4 py-2.5 sm:py-2 text-sm text-red-600 hover:bg-red-50 active:bg-red-100 flex items-center gap-2 touch-manipulation"
                     onClick={() => {
                       setShowMenu(false);
@@ -487,7 +500,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Messages List */}
       <div
-        className={`flex-1 overflow-y-auto bg-gray-50 ${
+        className={`flex-1 overflow-y-auto overscroll-contain bg-gray-50 ${
           isMobile ? "p-3 pb-4 space-y-3" : "p-4 sm:p-5 pb-5 space-y-4"
         }`}
       >
@@ -552,10 +565,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     >
                       {isOwn && (
                         <button
+                          type="button"
                           onClick={() =>
                             onDeleteMessage && onDeleteMessage(msg.id)
                           }
-                          className="opacity-0 group-hover:opacity-100 absolute top-1/2 -translate-y-1/2 right-full mr-1 sm:mr-2 p-1 text-gray-300 hover:text-red-500 transition-all bg-white rounded-full shadow-sm hover:shadow-md touch-manipulation"
+                          className={`${
+                            isMobile
+                              ? "opacity-100"
+                              : "opacity-0 group-hover:opacity-100"
+                          } absolute top-1/2 -translate-y-1/2 right-full mr-1 sm:mr-2 p-1.5 sm:p-1 text-gray-300 hover:text-red-500 transition-all bg-white rounded-full shadow-sm hover:shadow-md touch-manipulation`}
                           title="Delete message"
                         >
                           <span className="material-symbols-outlined text-xs">
@@ -658,7 +676,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                             </div>
                           )}
                         {msg.content && (
-                          <p className="whitespace-pre-wrap wrap-break-word">
+                          <p className="whitespace-pre-wrap break-words">
                             {msg.content}
                           </p>
                         )}

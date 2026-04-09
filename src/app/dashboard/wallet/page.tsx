@@ -35,7 +35,7 @@ export default async function WalletPage() {
   const failedTopUpsCount = wallet.topUpStats.failedCount;
 
   return (
-    <div className="container mx-auto max-w-6xl space-y-6 px-3 py-5 sm:space-y-8 sm:px-4 sm:py-8 md:px-6">
+    <div className="container mx-auto max-w-6xl space-y-6 px-3 py-5 pb-[max(1rem,env(safe-area-inset-bottom))] sm:space-y-8 sm:px-4 sm:py-8 md:px-6">
       <div className="flex flex-col items-start justify-between gap-3 border-b border-gray-100 pb-4 sm:pb-6 md:flex-row md:items-center md:gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
@@ -84,6 +84,7 @@ export default async function WalletPage() {
               </span>
             </Link>
             <button
+              type="button"
               disabled
               className="flex-1 cursor-not-allowed rounded-lg border-0 bg-white/20 py-2 text-xs font-semibold text-white/70 sm:text-sm"
               title="Withdrawals are not available yet"

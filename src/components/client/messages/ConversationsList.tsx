@@ -45,7 +45,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
   isMobile = false,
 }) => {
   const filteredConversations = conversations.filter((conv) =>
-    conv.partner.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    (conv.partner.name || "").toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   // Format time to show "Today", "Yesterday", or date
@@ -89,9 +89,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
           </h2>
           <button
             onClick={onNewMessage}
-            className={`text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100 rounded-full transition-colors touch-manipulation ${
-              isMobile ? "p-1.5" : "p-2 bg-emerald-50 hover:bg-emerald-100"
-            }`}
+            className="inline-flex h-10 w-10 items-center justify-center text-emerald-600 bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 rounded-full transition-colors touch-manipulation"
             title="New Message"
             aria-label="New message"
           >
@@ -115,6 +113,7 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
             placeholder="Search messages..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
+            aria-label="Search conversations"
             className={`w-full pl-10 pr-4 bg-gray-50 border border-gray-200 focus:outline-none focus:ring-1 sm:focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all ${
               isMobile ? "py-1.5 text-sm rounded-lg" : "py-2 text-sm rounded-xl"
             }`}
@@ -181,153 +180,141 @@ export const ConversationsList: React.FC<ConversationsListProps> = ({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.03 }}
-                onClick={() => onSelect(conv.partner.id)}
-                className={`cursor-pointer transition-colors touch-manipulation active:bg-gray-100 ${
-                  selectedPartnerId === conv.partner.id
-                    ? "bg-emerald-50 hover:bg-emerald-50"
-                    : "hover:bg-gray-50"
-                } ${isMobile ? "p-3" : "p-4"}`}
               >
-                <div className="flex space-x-3">
-                  <div className="shrink-0 relative">
-                    {conv.partner.image ? (
-                      <Image
-                        src={conv.partner.image}
-                        alt={conv.partner.name}
-                        width={isMobile ? 40 : 48}
-                        height={isMobile ? 40 : 48}
-                        unoptimized
-                        className={`rounded-full object-cover border border-gray-200 ${
-                          isMobile ? "h-10 w-10" : "h-12 w-12"
-                        }`}
-                      />
-                    ) : (
-                      <div
-                        className={`rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold border border-emerald-200 ${
-                          isMobile ? "h-10 w-10 text-base" : "h-12 w-12 text-lg"
-                        }`}
-                      >
-                        {conv.partner.name.charAt(0)}
-                      </div>
-                    )}
-                    {onlineUsers.has(conv.partner.id) && (
-                      <span
-                        className={`absolute block rounded-full ring-2 ring-white bg-green-400 ${
-                          isMobile
-                            ? "bottom-0 right-0 h-2 w-2"
-                            : "bottom-0 right-0 h-3 w-3"
-                        }`}
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-1">
-                      <p
-                        className={`truncate ${
-                          selectedPartnerId === conv.partner.id
-                            ? "text-emerald-900"
-                            : "text-gray-900"
-                        } ${
-                          isMobile
-                            ? "text-sm font-semibold"
-                            : "text-sm font-bold"
-                        }`}
-                      >
-                        {conv.partner.name}
-                      </p>
-                      <span
-                        className={`text-gray-400 whitespace-nowrap ${
-                          isMobile ? "text-[10px]" : "text-xs"
-                        }`}
-                      >
-                        {formatTime(conv.lastMessage.createdAt)}
-                      </span>
-                    </div>
-
-                    {/* Role Display - Hidden on small mobile */}
-                    {!isMobile && conv.partner.role && (
-                      <div className="flex items-center gap-2 mb-1">
-                        {conv.partner.role && (
-                          <span
-                            className={`px-1.5 py-0.5 rounded font-medium ${
-                              conv.partner.role === "PROVIDER"
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-gray-100 text-gray-600"
-                            } text-[10px]`}
-                          >
-                            {conv.partner.role}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex justify-between items-center">
-                      <p
-                        className={`truncate ${
-                          !conv.lastMessage.isRead && !conv.lastMessage.isOwn
-                            ? "font-bold text-gray-900"
-                            : "text-gray-500"
-                        } ${isMobile ? "text-xs" : "text-sm"}`}
-                      >
-                        {conv.lastMessage.isOwn ? (
-                          <span
-                            className={`${
-                              isMobile ? "text-[10px]" : "text-xs"
-                            } text-gray-400 mr-1`}
-                          >
-                            You:
-                          </span>
-                        ) : (
-                          <span
-                            className={`${
-                              isMobile ? "text-[10px]" : "text-xs"
-                            } text-gray-400 mr-1`}
-                          >
-                            {conv.partner.name.split(" ")[0] ||
-                              conv.partner.name}
-                            :
-                          </span>
-                        )}
-                        {conv.lastMessage.content || "📎 Attachment"}
-                      </p>
-                      {conv.unreadCount > 0 && (
-                        <span
-                          className={`ml-2 inline-flex items-center justify-center text-white bg-emerald-500 rounded-full ${
+                <button
+                  type="button"
+                  onClick={() => onSelect(conv.partner.id)}
+                  className={`w-full text-left transition-colors touch-manipulation active:bg-gray-100 ${
+                    selectedPartnerId === conv.partner.id
+                      ? "bg-emerald-50 hover:bg-emerald-50"
+                      : "hover:bg-gray-50"
+                  } ${isMobile ? "p-3" : "p-4"}`}
+                  aria-label={`Open conversation with ${conv.partner.name || "Unknown"}`}
+                  aria-pressed={selectedPartnerId === conv.partner.id}
+                >
+                  <div className="flex space-x-3">
+                    <div className="shrink-0 relative">
+                      {conv.partner.image ? (
+                        <Image
+                          src={conv.partner.image}
+                          alt={conv.partner.name}
+                          width={isMobile ? 40 : 48}
+                          height={isMobile ? 40 : 48}
+                          unoptimized
+                          className={`rounded-full object-cover border border-gray-200 ${
+                            isMobile ? "h-10 w-10" : "h-12 w-12"
+                          }`}
+                        />
+                      ) : (
+                        <div
+                          className={`rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold border border-emerald-200 ${
                             isMobile
-                              ? "px-1.5 py-0.5 text-[10px] font-bold min-w-4 h-4"
-                              : "px-2 py-0.5 text-xs font-bold min-w-4.5 h-4.5"
+                              ? "h-10 w-10 text-base"
+                              : "h-12 w-12 text-lg"
                           }`}
                         >
-                          {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
-                        </span>
+                          {(conv.partner.name || "?").charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      {onlineUsers.has(conv.partner.id) && (
+                        <span
+                          className={`absolute block rounded-full ring-2 ring-white bg-green-400 ${
+                            isMobile
+                              ? "bottom-0 right-0 h-2 w-2"
+                              : "bottom-0 right-0 h-3 w-3"
+                          }`}
+                        />
                       )}
                     </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline mb-1">
+                        <p
+                          className={`truncate ${
+                            selectedPartnerId === conv.partner.id
+                              ? "text-emerald-900"
+                              : "text-gray-900"
+                          } ${
+                            isMobile
+                              ? "text-sm font-semibold"
+                              : "text-sm font-bold"
+                          }`}
+                        >
+                          {conv.partner.name}
+                        </p>
+                        <span
+                          className={`text-gray-400 whitespace-nowrap ${
+                            isMobile ? "text-[10px]" : "text-xs"
+                          }`}
+                        >
+                          {formatTime(conv.lastMessage.createdAt)}
+                        </span>
+                      </div>
+
+                      {!isMobile && conv.partner.role && (
+                        <div className="flex items-center gap-2 mb-1">
+                          {conv.partner.role && (
+                            <span
+                              className={`px-1.5 py-0.5 rounded font-medium ${
+                                conv.partner.role === "PROVIDER"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-gray-100 text-gray-600"
+                              } text-[10px]`}
+                            >
+                              {conv.partner.role}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex justify-between items-center">
+                        <p
+                          className={`truncate ${
+                            !conv.lastMessage.isRead && !conv.lastMessage.isOwn
+                              ? "font-bold text-gray-900"
+                              : "text-gray-500"
+                          } ${isMobile ? "text-xs" : "text-sm"}`}
+                        >
+                          {conv.lastMessage.isOwn ? (
+                            <span
+                              className={`${
+                                isMobile ? "text-[10px]" : "text-xs"
+                              } text-gray-400 mr-1`}
+                            >
+                              You:
+                            </span>
+                          ) : (
+                            <span
+                              className={`${
+                                isMobile ? "text-[10px]" : "text-xs"
+                              } text-gray-400 mr-1`}
+                            >
+                              {(conv.partner.name?.split(" ")[0] ||
+                                conv.partner.name ||
+                                "Unknown") + ":"}
+                            </span>
+                          )}
+                          {conv.lastMessage.content || "📎 Attachment"}
+                        </p>
+                        {conv.unreadCount > 0 && (
+                          <span
+                            className={`ml-2 inline-flex items-center justify-center text-white bg-emerald-500 rounded-full ${
+                              isMobile
+                                ? "px-1.5 py-0.5 text-[10px] font-bold min-w-4 h-4"
+                                : "px-2 py-0.5 text-xs font-bold min-w-4.5 h-4.5"
+                            }`}
+                          >
+                            {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </button>
               </motion.li>
             ))}
           </ul>
         )}
       </div>
-
-      {/* Mobile-only empty state if no conversations */}
-      {!isLoading && conversations.length === 0 && isMobile && (
-        <div className="flex-1 flex flex-col items-center justify-center p-6">
-          <span className="material-symbols-outlined text-5xl text-gray-200 mb-4">
-            chat
-          </span>
-          <p className="text-sm font-medium text-gray-500 mb-2">
-            Start your first conversation
-          </p>
-          <button
-            onClick={onNewMessage}
-            className="mt-4 px-4 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors touch-manipulation text-sm flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined text-lg">add</span>
-            New Message
-          </button>
-        </div>
-      )}
     </div>
   );
 };

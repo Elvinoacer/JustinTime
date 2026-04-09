@@ -7,7 +7,7 @@ import apiClient from "@/lib/api/client";
 import { socket } from "@/lib/socket";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 interface Conversation {
   partner: {
@@ -64,7 +64,9 @@ interface Contact {
   phone?: string | null;
 }
 
-export default function ProviderMessagesPage() {
+export const dynamic = "force-dynamic";
+
+function ProviderMessagesContent() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -75,7 +77,9 @@ export default function ProviderMessagesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const deepLinkPartnerId = searchParams.get("partnerId");
   const deepLinkPartnerName = searchParams.get("partnerName");
   const deepLinkPartnerImage = searchParams.get("partnerImage");
@@ -123,17 +127,22 @@ export default function ProviderMessagesPage() {
   useEffect(() => {
     const fetchConversations = async () => {
       try {
+        setIsLoading(true);
         const { data } = await apiClient.get<{ conversations: Conversation[] }>(
           "/messages/conversations",
         );
         setConversations(ensureDeepLinkConversation(data.conversations));
       } catch (error) {
         console.error("Failed to fetch conversations:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     if (session?.user) {
       fetchConversations();
+    } else {
+      setIsLoading(false);
     }
   }, [ensureDeepLinkConversation, session]);
 
@@ -664,53 +673,61 @@ export default function ProviderMessagesPage() {
     setIsNewConversationOpen(false);
   };
 
-  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const selectedPartner =
+    conversations.find((c) => c.partner.id === selectedPartnerId)?.partner ||
+    null;
 
   return (
-    <div className="flex h-[calc(100dvh-64px)] bg-gray-50 rounded-none sm:rounded-lg md:rounded-xl lg:rounded-2xl overflow-hidden shadow-xs sm:shadow-sm border-0 sm:border border-gray-200 m-0 sm:m-2 md:m-4 min-h-0">
-      <div
-        className={`${
-          selectedPartnerId ? "hidden md:block" : "block"
-        } w-full md:w-1/3 h-full min-h-0 overflow-hidden`}
-      >
-        <ConversationsList
-          conversations={conversations}
-          selectedPartnerId={selectedPartnerId}
-          onSelect={setSelectedPartnerId}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onNewMessage={() => setIsNewConversationOpen(true)}
-          onlineUsers={onlineUsers}
-          isMobile={isMobile}
-        />
+    <div className="h-[calc(100dvh-64px)] md:h-[calc(100dvh-80px)] overflow-hidden bg-gray-50 pb-[env(safe-area-inset-bottom)]">
+      <div className="max-w-7xl mx-auto h-full min-h-0 px-0 md:px-4">
+        <div className="flex h-full min-h-0 bg-white rounded-none md:rounded-2xl overflow-hidden shadow-none md:shadow-sm border-0 md:border border-gray-200 mt-0 md:mt-4">
+          <div
+            className={`h-full min-h-0 overflow-hidden transition-all duration-200 ${
+              selectedPartnerId
+                ? "hidden md:block md:w-5/12 lg:w-1/3 xl:w-[32%]"
+                : "w-full md:w-5/12 lg:w-1/3 xl:w-[32%]"
+            }`}
+          >
+            <ConversationsList
+              conversations={conversations}
+              selectedPartnerId={selectedPartnerId}
+              onSelect={setSelectedPartnerId}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onNewMessage={() => setIsNewConversationOpen(true)}
+              onlineUsers={onlineUsers}
+              isLoading={isLoading}
+              isMobile={isMobile}
+            />
+          </div>
+
+          <div
+            className={`h-full min-h-0 overflow-hidden transition-all duration-200 ${
+              selectedPartnerId
+                ? "w-full md:w-7/12 lg:w-2/3 xl:w-[68%]"
+                : "hidden md:block md:w-7/12 lg:w-2/3 xl:w-[68%]"
+            }`}
+          >
+            <ChatWindow
+              partner={selectedPartner}
+              messages={messages}
+              currentUserId={session?.user?.id || ""}
+              onSendMessage={handleSendMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onClearConversation={handleClearConversation}
+              onTypingStart={emitTypingStart}
+              onTypingStop={emitTypingStop}
+              isTyping={isTyping}
+              isOnline={
+                selectedPartnerId ? onlineUsers.has(selectedPartnerId) : false
+              }
+              onBack={() => setSelectedPartnerId(null)}
+              isMobile={isMobile}
+            />
+          </div>
+        </div>
       </div>
-      <div
-        className={`${
-          !selectedPartnerId ? "hidden md:block" : "block"
-        } w-full md:w-2/3 h-full min-h-0 overflow-hidden`}
-      >
-        <ChatWindow
-          partner={
-            selectedPartnerId
-              ? conversations.find((c) => c.partner.id === selectedPartnerId)
-                  ?.partner || null
-              : null
-          }
-          messages={messages}
-          currentUserId={session?.user?.id || ""}
-          onSendMessage={handleSendMessage}
-          onDeleteMessage={handleDeleteMessage}
-          onClearConversation={handleClearConversation}
-          onTypingStart={emitTypingStart}
-          onTypingStop={emitTypingStop}
-          isTyping={isTyping}
-          isOnline={
-            selectedPartnerId ? onlineUsers.has(selectedPartnerId) : false
-          }
-          onBack={() => setSelectedPartnerId(null)}
-          isMobile={isMobile}
-        />
-      </div>
+
       <NewConversationModal
         isOpen={isNewConversationOpen}
         onClose={() => setIsNewConversationOpen(false)}
@@ -718,5 +735,13 @@ export default function ProviderMessagesPage() {
         isMobile={isMobile}
       />
     </div>
+  );
+}
+
+export default function ProviderMessagesPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProviderMessagesContent />
+    </Suspense>
   );
 }

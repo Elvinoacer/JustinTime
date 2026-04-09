@@ -890,6 +890,7 @@ function BookingPageContent() {
                           return to submit it without losing progress.
                         </p>
                         <button
+                          type="button"
                           onClick={handleLoginRedirect}
                           className="mt-4 rounded-2xl bg-sky-600 px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-sky-700 sm:mt-5 sm:px-6 sm:py-3 sm:text-sm"
                         >
@@ -962,6 +963,7 @@ function BookingPageContent() {
                           this step.
                         </p>
                         <button
+                          type="button"
                           onClick={handleLoginRedirect}
                           className="mt-4 rounded-2xl bg-sky-600 px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-sky-700 sm:mt-5 sm:px-6 sm:py-3 sm:text-sm"
                         >
@@ -1004,6 +1006,7 @@ function BookingPageContent() {
                 <div className="hidden items-center justify-between border-t border-slate-100 pt-6 lg:flex">
                   {currentStep > 1 ? (
                     <button
+                      type="button"
                       onClick={handlePrevStep}
                       className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950"
                     >
@@ -1016,6 +1019,7 @@ function BookingPageContent() {
 
                   {currentStep < 3 ? (
                     <button
+                      type="button"
                       onClick={handleNextStep}
                       disabled={
                         currentStep === 1
@@ -1098,7 +1102,7 @@ function BookingPageContent() {
       </div>
 
       {currentStep < 3 ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 shadow-[0_-12px_30px_-20px_rgba(15,23,42,0.45)] backdrop-blur lg:hidden">
           <div className="mx-auto max-w-7xl px-3 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] pt-2.5 sm:px-4 sm:pt-3">
             <div className="mb-2.5 flex flex-col gap-2 rounded-xl bg-slate-50 px-2.5 py-1.5 min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between sm:mb-3 sm:px-3 sm:py-2">
               <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
@@ -1148,7 +1152,7 @@ function BookingPageContent() {
       ) : null}
 
       {currentStep === 3 && status !== "unauthenticated" ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 shadow-[0_-12px_30px_-20px_rgba(15,23,42,0.45)] backdrop-blur lg:hidden">
           <div className="mx-auto max-w-7xl px-3 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] pt-2.5 sm:px-4 sm:pt-3">
             <div className="mb-2.5 flex flex-col gap-2 rounded-xl bg-slate-50 px-2.5 py-1.5 min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between sm:mb-3 sm:px-3 sm:py-2">
               <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
@@ -1200,7 +1204,7 @@ function BookingPageContent() {
       ) : null}
 
       {currentStep === 4 && status !== "unauthenticated" ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 shadow-[0_-12px_30px_-20px_rgba(15,23,42,0.45)] backdrop-blur lg:hidden">
           <div className="mx-auto max-w-7xl px-3 pb-[calc(env(safe-area-inset-bottom)+0.8rem)] pt-2.5 sm:px-4 sm:pt-3">
             <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
               <button
