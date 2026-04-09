@@ -439,7 +439,7 @@ export default function StepProviderDetails({
       </div>
 
       <div className="space-y-4 sm:space-y-6">
-        <section className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-6 shadow-sm">
+        <section className="rounded-2xl border border-gray-100 bg-white p-3 sm:p-6 shadow-sm">
           <div className="mb-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">
               Section A
@@ -451,7 +451,7 @@ export default function StepProviderDetails({
 
           <div className="space-y-4 sm:space-y-5">
             <div className="group">
-              <div className="mb-1.5 flex items-center justify-between gap-2">
+              <div className="mb-1.5 flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <label
                   htmlFor="provider-business-name"
                   className="block text-xs sm:text-sm font-bold text-gray-700 group-focus-within:text-emerald-600 transition-colors"
@@ -520,8 +520,8 @@ export default function StepProviderDetails({
                   </span>
                 </button>
 
-                <p className="mt-1.5 text-xs text-gray-500">
-                  Pick multiple categories before closing. The first selected
+                <p className="mt-1.5 text-xs leading-5 text-gray-500">
+                  Pick multiple categories, then tap Done. Your first selected
                   category becomes primary automatically.
                 </p>
 
@@ -532,7 +532,7 @@ export default function StepProviderDetails({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 6 }}
                       transition={{ duration: 0.15 }}
-                      className="mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg"
+                      className="mt-2 -mx-1 sm:mx-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg"
                     >
                       <div className="border-b border-gray-100 px-3 py-2.5">
                         <input
@@ -543,7 +543,7 @@ export default function StepProviderDetails({
                         />
                       </div>
 
-                      <div className="max-h-64 overflow-y-auto p-2">
+                      <div className="max-h-72 sm:max-h-64 overflow-y-auto p-2">
                         {isLoadingCategories ? (
                           <div className="space-y-2">
                             {Array.from({ length: 5 }).map((_, index) => (
@@ -568,7 +568,7 @@ export default function StepProviderDetails({
                                 type="button"
                                 onClick={() => handleSkillToggle(category.id)}
                                 disabled={isDisabled}
-                                className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                                className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
                                   isSelected
                                     ? "bg-emerald-50 text-emerald-800"
                                     : isDisabled
@@ -594,7 +594,7 @@ export default function StepProviderDetails({
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2">
+                      <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2.5">
                         <button
                           type="button"
                           onClick={() => {
@@ -606,7 +606,7 @@ export default function StepProviderDetails({
                             setCategorySearch("");
                           }}
                           disabled={providerData.skills.length === 0}
-                          className="rounded-md px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="rounded-md px-2.5 py-1.5 text-sm sm:text-xs font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           Clear
                         </button>
@@ -616,7 +616,7 @@ export default function StepProviderDetails({
                             setIsCategoryDropdownOpen(false);
                             setCategorySearch("");
                           }}
-                          className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm sm:text-xs font-semibold text-white hover:bg-emerald-700"
                         >
                           Done
                         </button>
@@ -760,7 +760,7 @@ export default function StepProviderDetails({
           </div>
         </section>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-6 shadow-sm">
+        <section className="rounded-2xl border border-gray-100 bg-white p-3 sm:p-6 shadow-sm">
           <div className="mb-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
               Section B
@@ -772,7 +772,7 @@ export default function StepProviderDetails({
 
           <div className="space-y-4 sm:space-y-5">
             <div className="group">
-              <div className="mb-1.5 flex items-center justify-between gap-2">
+              <div className="mb-1.5 flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <label
                   htmlFor="provider-phone"
                   className="block text-xs sm:text-sm font-bold text-gray-700 group-focus-within:text-emerald-600 transition-colors"

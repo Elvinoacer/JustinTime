@@ -26,7 +26,7 @@ export default function OnboardingShell({
   const progress = (currentStep / totalSteps) * 100;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-100 via-gray-50 to-white flex items-center justify-center p-2 sm:p-4 md:p-6 lg:p-8 relative overflow-hidden">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-100 via-gray-50 to-white flex items-start sm:items-center justify-center px-2 py-3 sm:p-4 md:p-6 lg:p-8 relative overflow-y-auto">
       {/* Decorative background */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute -top-[20%] -right-[10%] w-[50%] h-[50%] rounded-full bg-emerald-400/10 blur-3xl" />
@@ -34,12 +34,12 @@ export default function OnboardingShell({
         <div className="absolute bottom-[10%] right-[20%] w-[30%] h-[30%] rounded-full bg-green-400/10 blur-3xl" />
       </div>
 
-      <div className="max-w-3xl w-full bg-white/80 backdrop-blur-xl rounded-xl sm:rounded-2xl md:rounded-[2.5rem] shadow-lg sm:shadow-2xl overflow-hidden border border-white/50 relative z-10 mx-2">
-        <div className="p-4 sm:p-6 md:p-8 lg:p-12">
+      <div className="max-w-3xl w-full bg-white/85 backdrop-blur-xl rounded-xl sm:rounded-2xl md:rounded-[2.5rem] shadow-lg sm:shadow-2xl overflow-hidden border border-white/50 relative z-10">
+        <div className="p-3 sm:p-6 md:p-8 lg:p-12">
           {/* Logo + Header */}
-          <div className="mb-6 sm:mb-8 md:mb-10 text-center">
-            <div className="flex justify-center mb-4 sm:mb-6 md:mb-8">
-              <div className="relative w-full max-w-[200px] xs:max-w-[240px] sm:max-w-70 md:max-w-[320px] lg:max-w-[360px] aspect-[3/1] transition-transform duration-500 hover:scale-105">
+          <div className="mb-4 sm:mb-8 md:mb-10 text-center">
+            <div className="flex justify-center mb-3 sm:mb-6 md:mb-8">
+              <div className="relative w-full max-w-[170px] xs:max-w-[210px] sm:max-w-70 md:max-w-[320px] lg:max-w-[360px] aspect-[3/1] transition-transform duration-500 hover:scale-105">
                 <div className="absolute inset-0 bg-emerald-500/20 blur-3xl rounded-full opacity-20" />
                 <Image
                   src="/images/JustinTimeLogo.png"
@@ -51,16 +51,16 @@ export default function OnboardingShell({
                 />
               </div>
             </div>
-            <h1 className="text-2xl xs:text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight mb-2 sm:mb-3 bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+            <h1 className="text-xl xs:text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight mb-1.5 sm:mb-3 bg-linear-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
               Welcome to JustInTime
             </h1>
-            <p className="text-sm xs:text-base sm:text-lg text-gray-600 font-medium max-w-md mx-auto px-2">
+            <p className="text-xs xs:text-sm sm:text-lg text-gray-600 font-medium max-w-md mx-auto px-2">
               A quick setup that adapts to what you want to do next.
             </p>
           </div>
 
           {/* Step Dot Progress Bar */}
-          <div className="mb-6 sm:mb-8 md:mb-12 relative">
+          <div className="mb-5 sm:mb-8 md:mb-12 relative">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-600">
@@ -70,7 +70,7 @@ export default function OnboardingShell({
                   {currentLabel}
                 </p>
               </div>
-              <div className="min-w-[88px] rounded-full bg-gray-100 px-3 py-1 text-right text-xs font-semibold text-gray-500">
+              <div className="hidden sm:block min-w-[88px] rounded-full bg-gray-100 px-3 py-1 text-right text-xs font-semibold text-gray-500">
                 {Math.round(progress)}% complete
               </div>
             </div>
@@ -96,7 +96,7 @@ export default function OnboardingShell({
                     className="relative z-10 flex flex-col items-center"
                   >
                     <div
-                      className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-all duration-300 ${
+                      className={`w-7 h-7 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-[11px] sm:text-sm font-bold transition-all duration-300 ${
                         isCompleted
                           ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
                           : isCurrent
@@ -113,7 +113,7 @@ export default function OnboardingShell({
                       )}
                     </div>
                     <span
-                      className={`mt-1.5 text-[10px] xs:text-xs font-bold uppercase tracking-wider transition-colors ${
+                      className={`hidden sm:block mt-1.5 text-[10px] xs:text-xs font-bold uppercase tracking-wider transition-colors ${
                         isCompleted || isCurrent
                           ? "text-emerald-600"
                           : "text-gray-400"
