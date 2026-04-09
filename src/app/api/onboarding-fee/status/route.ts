@@ -173,15 +173,14 @@ export async function GET(req: Request) {
               expectedApiRef: resolvedApiRef,
               expectedAmount: Number(pending.amount),
               expectedCurrency: pending.currency || "KES",
-              requireApiRefMatch: Boolean(resolvedApiRef),
+              requireApiRefMatch: false,
               requireAmountMatch: false,
+              requireCurrencyMatch: false,
             });
 
             const providerState = snapshot.providerState;
-            const shouldForwardSettled =
-              providerState === "SETTLED" && snapshot.apiRefMatches;
-            const shouldForwardTerminal =
-              TERMINAL_STATES.has(providerState) && snapshot.apiRefMatches;
+            const shouldForwardSettled = providerState === "SETTLED";
+            const shouldForwardTerminal = TERMINAL_STATES.has(providerState);
 
             if (shouldForwardSettled || shouldForwardTerminal) {
               const syntheticPayload: DarajaWebhookPayload = {

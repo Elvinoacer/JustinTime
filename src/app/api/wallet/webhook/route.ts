@@ -753,9 +753,11 @@ export async function POST(req: Request) {
           expectedApiRef: trustedApiRef,
           expectedAmount: Number(topUp.amountExpected),
           expectedCurrency: topUp.currency || "KES",
+          requireAmountMatch: false,
+          requireCurrencyMatch: false,
         });
 
-        if (!verification.ok) {
+        if (!verification.stateMatches) {
           await updateWalletTopUpPaymentIntentFromWebhook(tx, {
             userId: topUp.userId,
             walletId: topUp.walletId,

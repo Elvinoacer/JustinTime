@@ -128,13 +128,14 @@ async function reconcileWalletTopups(requestUrl: string, staleBefore: Date) {
         expectedApiRef: topUp.apiRef,
         expectedAmount: Number(topUp.amountExpected),
         expectedCurrency: topUp.currency || "KES",
+        requireAmountMatch: false,
+        requireCurrencyMatch: false,
       });
 
       const providerState = snapshot.providerState;
-      const shouldForwardSettled = providerState === "SETTLED" && snapshot.ok;
+      const shouldForwardSettled = providerState === "SETTLED";
       const shouldForwardTerminal =
-        ["FAILED", "CANCELLED", "REVERSED"].includes(providerState) &&
-        snapshot.apiRefMatches;
+        ["FAILED", "CANCELLED", "REVERSED"].includes(providerState);
 
       if (!shouldForwardSettled && !shouldForwardTerminal) {
         continue;
@@ -227,18 +228,15 @@ async function reconcileOnboardingPayments(
         expectedApiRef: apiRef,
         expectedAmount: Number(entry.amount),
         expectedCurrency: entry.currency || "KES",
-        requireApiRefMatch: Boolean(apiRef),
+        requireApiRefMatch: false,
         requireAmountMatch: false,
+        requireCurrencyMatch: false,
       });
 
       const providerState = snapshot.providerState;
-      const shouldForwardSettled =
-        providerState === "SETTLED" &&
-        snapshot.apiRefMatches &&
-        snapshot.currencyMatches;
+      const shouldForwardSettled = providerState === "SETTLED";
       const shouldForwardTerminal =
-        ["FAILED", "CANCELLED", "REVERSED"].includes(providerState) &&
-        snapshot.apiRefMatches;
+        ["FAILED", "CANCELLED", "REVERSED"].includes(providerState);
 
       if (!shouldForwardSettled && !shouldForwardTerminal) {
         continue;
@@ -326,14 +324,15 @@ async function reconcileSubscriptionPayments(
         expectedApiRef: apiRef,
         expectedAmount: Number(entry.amount),
         expectedCurrency: entry.currency || "KES",
-        requireApiRefMatch: Boolean(apiRef),
+        requireApiRefMatch: false,
+        requireAmountMatch: false,
+        requireCurrencyMatch: false,
       });
 
       const providerState = snapshot.providerState;
-      const shouldForwardSettled = providerState === "SETTLED" && snapshot.ok;
+      const shouldForwardSettled = providerState === "SETTLED";
       const shouldForwardTerminal =
-        ["FAILED", "CANCELLED", "REVERSED"].includes(providerState) &&
-        snapshot.apiRefMatches;
+        ["FAILED", "CANCELLED", "REVERSED"].includes(providerState);
 
       if (!shouldForwardSettled && !shouldForwardTerminal) {
         continue;

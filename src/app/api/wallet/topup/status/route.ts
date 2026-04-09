@@ -116,15 +116,15 @@ export async function GET(req: Request) {
           expectedApiRef: topUp.apiRef,
           expectedAmount: Number(topUp.amountExpected),
           expectedCurrency: topUp.currency || "KES",
+          requireAmountMatch: false,
+          requireCurrencyMatch: false,
         });
 
         const canonicalProviderState = providerSnapshot.providerState;
-        const shouldForwardSettled =
-          canonicalProviderState === "SETTLED" && providerSnapshot.ok;
-        const shouldForwardTerminal =
-          ["FAILED", "CANCELLED", "REVERSED"].includes(
-            canonicalProviderState,
-          ) && providerSnapshot.apiRefMatches;
+        const shouldForwardSettled = canonicalProviderState === "SETTLED";
+        const shouldForwardTerminal = ["FAILED", "CANCELLED", "REVERSED"].includes(
+          canonicalProviderState,
+        );
 
         if (shouldForwardSettled || shouldForwardTerminal) {
           const syntheticPayload: DarajaWebhookPayload = {

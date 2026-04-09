@@ -796,9 +796,12 @@ export async function POST(req: NextRequest) {
       expectedApiRef: canonicalRef,
       expectedAmount,
       expectedCurrency: pendingSubscription.currency || "KES",
+      requireApiRefMatch: false,
+      requireAmountMatch: false,
+      requireCurrencyMatch: false,
     });
 
-    if (!verification.ok) {
+    if (!verification.stateMatches) {
       await prisma.$transaction(async (tx) => {
         await updateSubscriptionPaymentIntentFromWebhook(tx, {
           userId: pendingSubscription.wallet.userId,
@@ -841,41 +844,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const settledAmount = Number(verification.amount);
-
-    if (!Number.isFinite(settledAmount) || settledAmount <= 0) {
-      await prisma.$transaction(async (tx) => {
-        await updateSubscriptionPaymentIntentFromWebhook(tx, {
-          userId: pendingSubscription.wallet.userId,
-          walletId: pendingSubscription.walletId,
-          sourceId: pendingSubscription.id,
-          apiRef: canonicalRef,
-          amountExpected: Number(pendingSubscription.amount),
-          amountReceived: null,
-          currency: pendingSubscription.currency || "KES",
-          gatewayState: "PROCESSING",
-          gatewayInvoiceId: merchantRequestId || null,
-          gatewaySessionId: checkoutRequestId || null,
-          providerRef: pendingSubscription.providerRef || pendingProviderRef,
-          failureReason: "Invalid settlement amount",
-          payload: body as Prisma.InputJsonValue,
-          metadata: {
-            reason: "invalid_amount_for_settlement",
-            providerState: verification.providerState,
-            apiRef: canonicalRef,
-            invoiceId: String(invoiceId),
-          },
-        });
-      });
-
-      return NextResponse.json({
-        received: true,
-        requiresManualResolution: true,
-        skipped: true,
-        reason: "invalid_amount_for_settlement",
-        apiRef: canonicalRef,
-      });
-    }
+    const settledAmountCandidate = Number(verification.amount);
+    const settledAmount =
+      Number.isFinite(settledAmountCandidate) && settledAmountCandidate > 0
+        ? settledAmountCandidate
+        : expectedAmount;
 
     const startDate = new Date();
     const endDate = new Date(startDate);

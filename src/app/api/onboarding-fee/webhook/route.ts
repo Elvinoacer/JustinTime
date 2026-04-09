@@ -596,10 +596,12 @@ export async function POST(req: Request) {
       expectedApiRef: canonicalRef,
       expectedAmount: PAYMENT_AMOUNTS.ONBOARDING_FEE,
       expectedCurrency: "KES",
+      requireApiRefMatch: false,
       requireAmountMatch: false,
+      requireCurrencyMatch: false,
     });
 
-    if (!verification.ok) {
+    if (!verification.stateMatches) {
       if (intentContext) {
         await prisma.$transaction(async (tx) => {
           await updateOnboardingFeePaymentIntentFromWebhook(tx, {
@@ -644,49 +646,11 @@ export async function POST(req: Request) {
       });
     }
 
-    const verifiedAmount = verification.amount;
-
-    if (
-      typeof verifiedAmount !== "number" ||
-      !Number.isFinite(verifiedAmount) ||
-      verifiedAmount <= 0
-    ) {
-      if (intentContext) {
-        await prisma.$transaction(async (tx) => {
-          await updateOnboardingFeePaymentIntentFromWebhook(tx, {
-            userId: intentContext.wallet.userId,
-            walletId: intentContext.walletId,
-            sourceId: intentContext.id,
-            apiRef: canonicalRef,
-            amountExpected: Number(intentContext.amount),
-            amountReceived: null,
-            currency: intentContext.currency || "KES",
-            gatewayState: "PROCESSING",
-            gatewayInvoiceId: merchantRequestId || null,
-            gatewaySessionId: checkoutRequestId || null,
-            providerRef: intentContext.providerRef || pendingProviderRef,
-            failureReason: "Invalid settlement amount",
-            payload: body as Prisma.InputJsonValue,
-            metadata: {
-              reason: "invalid_amount_for_settlement",
-              apiRef: canonicalRef,
-              invoiceId: String(invoiceId),
-              providerState: verification.providerState,
-            },
-          });
-        });
-      }
-
-      return NextResponse.json({
-        received: true,
-        skipped: true,
-        requiresManualResolution: true,
-        reason: "invalid_amount_for_settlement",
-        apiRef: canonicalRef,
-      });
-    }
-
-    amount = verifiedAmount;
+    const verifiedAmount = Number(verification.amount);
+    amount =
+      Number.isFinite(verifiedAmount) && verifiedAmount > 0
+        ? verifiedAmount
+        : PAYMENT_AMOUNTS.ONBOARDING_FEE;
 
     const pendingOnboarding = await prisma.transaction.findFirst({
       where: {
