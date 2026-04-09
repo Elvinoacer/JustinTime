@@ -34,54 +34,105 @@ export function TransactionList({ transactions }: TransactionListProps) {
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Type</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Description</TableHead>
-          <TableHead>Reference</TableHead>
-          <TableHead>Date</TableHead>
-          <TableHead className="text-right">Amount</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      <div className="divide-y divide-gray-100 md:hidden">
         {transactions.map((tx) => {
           const debit = isDebit(tx);
 
           return (
-            <TableRow key={tx.id}>
-              <TableCell className="font-medium">
-                {formatType(tx.type)}
-              </TableCell>
-              <TableCell>
+            <div key={tx.id} className="space-y-2 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-gray-900">
+                    {formatType(tx.type)}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-600">
+                    {tx.description || "-"}
+                  </p>
+                </div>
                 <span
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusTone(
+                  className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${statusTone(
                     tx.status,
                   )}`}
                 >
                   {statusLabel(tx.status)}
                 </span>
-              </TableCell>
-              <TableCell>{tx.description || "-"}</TableCell>
-              <TableCell className="text-xs text-gray-500">
-                {referenceFor(tx)}
-              </TableCell>
-              <TableCell>
-                {new Date(tx.createdAt).toLocaleDateString()}
-              </TableCell>
-              <TableCell
-                className={`text-right font-bold ${
-                  debit ? "text-red-600" : "text-green-600"
-                }`}
-              >
-                {debit ? "-" : "+"} {Number(tx.amount).toLocaleString()}
-              </TableCell>
-            </TableRow>
+              </div>
+
+              <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-xs">
+                <span className="text-gray-500">Reference</span>
+                <span className="truncate text-right text-gray-700">
+                  {referenceFor(tx)}
+                </span>
+                <span className="text-gray-500">Date</span>
+                <span className="text-right text-gray-700">
+                  {new Date(tx.createdAt).toLocaleDateString()}
+                </span>
+                <span className="text-gray-500">Amount</span>
+                <span
+                  className={`text-right font-semibold ${
+                    debit ? "text-red-600" : "text-green-600"
+                  }`}
+                >
+                  {debit ? "-" : "+"} {Number(tx.amount).toLocaleString()}
+                </span>
+              </div>
+            </div>
           );
         })}
-      </TableBody>
-    </Table>
+      </div>
+
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Type</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Reference</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {transactions.map((tx) => {
+              const debit = isDebit(tx);
+
+              return (
+                <TableRow key={tx.id}>
+                  <TableCell className="font-medium">
+                    {formatType(tx.type)}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusTone(
+                        tx.status,
+                      )}`}
+                    >
+                      {statusLabel(tx.status)}
+                    </span>
+                  </TableCell>
+                  <TableCell>{tx.description || "-"}</TableCell>
+                  <TableCell className="text-xs text-gray-500">
+                    {referenceFor(tx)}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(tx.createdAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell
+                    className={`whitespace-nowrap text-right font-bold ${
+                      debit ? "text-red-600" : "text-green-600"
+                    }`}
+                  >
+                    {debit ? "-" : "+"} {Number(tx.amount).toLocaleString()}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }
 

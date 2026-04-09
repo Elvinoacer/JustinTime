@@ -245,32 +245,32 @@ export default function ClientWalletPage() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+        <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-slate-900 sm:text-2xl lg:text-3xl">
               Wallet & Payments
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-xs text-slate-500 sm:text-sm">
               Available funds, pending top-ups, and complete ledger history.
             </p>
           </div>
-          <button className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+          <button className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 sm:w-auto">
             <Download className="h-4 w-4" />
             Download Statement
           </button>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <div className="rounded-2xl bg-linear-to-br from-emerald-600 to-teal-700 p-6 text-white shadow-lg">
-              <div className="mb-4 flex items-center justify-between">
-                <p className="text-sm font-medium text-emerald-100">
+            <div className="rounded-2xl bg-linear-to-br from-emerald-600 to-teal-700 p-4 text-white shadow-lg sm:p-6">
+              <div className="mb-3 flex items-center justify-between sm:mb-4">
+                <p className="text-xs font-medium text-emerald-100 sm:text-sm">
                   Available Balance
                 </p>
                 <Wallet className="h-5 w-5 text-emerald-100" />
               </div>
-              <p className="text-3xl font-bold sm:text-4xl">
+              <p className="text-2xl font-bold leading-tight sm:text-4xl">
                 {walletLoading
                   ? "..."
                   : formatCurrency(
@@ -279,21 +279,21 @@ export default function ClientWalletPage() {
               </p>
 
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                <div className="rounded-xl bg-white/15 p-3">
+                <div className="rounded-xl bg-white/15 p-2.5 sm:p-3">
                   <p className="text-xs uppercase tracking-wide text-emerald-100">
                     Pending Incoming
                   </p>
-                  <p className="mt-1 text-lg font-semibold">
+                  <p className="mt-1 text-base font-semibold sm:text-lg">
                     {walletLoading
                       ? "..."
                       : formatCurrency(wallet?.pendingIncoming || 0)}
                   </p>
                 </div>
-                <div className="rounded-xl bg-white/15 p-3">
+                <div className="rounded-xl bg-white/15 p-2.5 sm:p-3">
                   <p className="text-xs uppercase tracking-wide text-emerald-100">
                     Pending Top-ups
                   </p>
-                  <p className="mt-1 text-lg font-semibold">
+                  <p className="mt-1 text-base font-semibold sm:text-lg">
                     {walletLoading
                       ? "..."
                       : (wallet?.topUpStats.pendingCount || 0) +
@@ -302,7 +302,7 @@ export default function ClientWalletPage() {
                 </div>
               </div>
 
-              <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <div className="mt-4 flex flex-col gap-2 sm:mt-5 sm:flex-row">
                 <div className="relative flex-1">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-semibold text-slate-500">
                     KES
@@ -312,14 +312,14 @@ export default function ClientWalletPage() {
                     min="10"
                     value={topUpAmount}
                     onChange={(e) => setTopUpAmount(e.target.value)}
-                    className="w-full rounded-xl border border-emerald-100 bg-white py-2.5 pl-11 pr-3 text-slate-900 focus:border-emerald-300 focus:outline-none"
+                    className="w-full rounded-xl border border-emerald-100 bg-white py-2.5 pl-11 pr-3 text-sm text-slate-900 focus:border-emerald-300 focus:outline-none sm:text-base"
                     placeholder="Top-up amount"
                   />
                 </div>
                 <button
                   onClick={handleTopUp}
                   disabled={topUpMutation.isPending}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-70"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-70 sm:text-base"
                 >
                   <Plus className="h-4 w-4" />
                   {topUpMutation.isPending ? "Creating checkout..." : "Top Up"}
@@ -328,12 +328,12 @@ export default function ClientWalletPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-slate-900">
+          <div className="space-y-3 sm:space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
+              <h2 className="text-xs font-semibold text-slate-900 sm:text-sm">
                 This Month
               </h2>
-              <div className="mt-3 space-y-2 text-sm">
+              <div className="mt-3 space-y-2 text-xs sm:text-sm">
                 <div className="flex items-center justify-between text-slate-600">
                   <span>Total Spent</span>
                   <span className="font-semibold text-slate-900">
@@ -355,11 +355,11 @@ export default function ClientWalletPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-slate-900">
+            <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
+              <h2 className="text-xs font-semibold text-slate-900 sm:text-sm">
                 Top-up Health
               </h2>
-              <div className="mt-3 space-y-2 text-sm">
+              <div className="mt-3 space-y-2 text-xs sm:text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-600">Pending / Processing</span>
                   <span className="font-semibold text-amber-700">
@@ -375,7 +375,7 @@ export default function ClientWalletPage() {
                 </div>
               </div>
               {(wallet?.topUpStats.pendingCount || 0) > 0 && (
-                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800 sm:text-xs">
                   Pending top-ups are not spendable until status becomes
                   Confirmed.
                 </p>
@@ -385,7 +385,7 @@ export default function ClientWalletPage() {
         </div>
 
         {wallet?.recentPendingTransactions?.length ? (
-          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 sm:mt-5 sm:p-4">
             <div className="mb-2 flex items-center gap-2 text-amber-800">
               <Clock3 className="h-4 w-4" />
               <p className="text-sm font-semibold">Awaiting Confirmation</p>
@@ -394,7 +394,7 @@ export default function ClientWalletPage() {
               {wallet.recentPendingTransactions.slice(0, 3).map((tx) => (
                 <div
                   key={tx.id}
-                  className="flex flex-col gap-1 rounded-lg bg-white/70 p-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-1 rounded-lg bg-white/70 p-2.5 sm:flex-row sm:items-center sm:justify-between sm:p-3"
                 >
                   <div>
                     <p className="font-medium text-slate-900">
@@ -404,7 +404,7 @@ export default function ClientWalletPage() {
                       Ref: {transactionReference(tx) || "N/A"}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-left sm:text-right">
                     <p className="font-semibold text-slate-900">
                       {formatCurrency(tx.amount)}
                     </p>
@@ -420,15 +420,15 @@ export default function ClientWalletPage() {
           </div>
         ) : null}
 
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-white shadow-sm sm:mt-6">
           <div className="border-b border-slate-200 p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <h2 className="inline-flex items-center gap-2 text-lg font-bold text-slate-900">
+              <h2 className="inline-flex items-center gap-2 text-base font-bold text-slate-900 sm:text-lg">
                 <History className="h-5 w-5 text-slate-500" />
                 Transaction History
               </h2>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                 <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-500">
                   <Filter className="h-3.5 w-3.5" />
                   Filters
@@ -446,7 +446,7 @@ export default function ClientWalletPage() {
                       setStatusFilter(value);
                     }
                   }}
-                  className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-700"
+                  className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-700 sm:w-auto sm:text-sm"
                 >
                   <option value="ALL">All statuses</option>
                   <option value="SETTLED">Confirmed</option>
@@ -465,7 +465,7 @@ export default function ClientWalletPage() {
                       setDirectionFilter(value);
                     }
                   }}
-                  className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-700"
+                  className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs font-medium text-slate-700 sm:w-auto sm:text-sm"
                 >
                   <option value="ALL">All directions</option>
                   <option value="CREDIT">Credits</option>
@@ -475,7 +475,85 @@ export default function ClientWalletPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="md:hidden">
+            {transactionsQuery.isLoading ? (
+              <p className="px-4 py-8 text-center text-sm text-slate-500">
+                Loading transactions...
+              </p>
+            ) : transactions.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-slate-500">
+                No transactions found for selected filters.
+              </p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {transactions.map((tx) => {
+                  const credit = isCredit(tx);
+                  const reference = transactionReference(tx);
+
+                  return (
+                    <div key={tx.id} className="space-y-2 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-start gap-2">
+                            <div
+                              className={`mt-0.5 rounded-full p-1 ${
+                                credit
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {credit ? (
+                                <ArrowDownRight className="h-3.5 w-3.5" />
+                              ) : (
+                                <ArrowUpRight className="h-3.5 w-3.5" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-slate-900">
+                                {tx.description || "Wallet transaction"}
+                              </p>
+                              <span
+                                className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusTone(tx.status)}`}
+                              >
+                                {statusLabel(tx.status)}
+                              </span>
+                            </div>
+                          </div>
+                          {tx.failureReason ? (
+                            <p className="mt-1 inline-flex items-start gap-1 text-xs text-red-600">
+                              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                              <span>{tx.failureReason}</span>
+                            </p>
+                          ) : null}
+                        </div>
+                        <p
+                          className={`shrink-0 text-sm font-semibold ${
+                            credit ? "text-emerald-700" : "text-red-700"
+                          }`}
+                        >
+                          {credit ? "+" : "-"}
+                          {formatCurrency(tx.amount)}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-xs">
+                        <span className="text-slate-500">Reference</span>
+                        <span className="truncate text-right text-slate-700">
+                          {reference || "N/A"}
+                        </span>
+                        <span className="text-slate-500">Date</span>
+                        <span className="text-right text-slate-700">
+                          {new Date(tx.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
@@ -561,7 +639,7 @@ export default function ClientWalletPage() {
                           {new Date(tx.createdAt).toLocaleString()}
                         </td>
                         <td
-                          className={`px-4 py-3 text-right font-semibold ${
+                          className={`whitespace-nowrap px-4 py-3 text-right font-semibold ${
                             credit ? "text-emerald-700" : "text-red-700"
                           }`}
                         >
@@ -576,13 +654,13 @@ export default function ClientWalletPage() {
             </table>
           </div>
 
-          <div className="flex items-center justify-between border-t border-slate-200 p-4 text-sm">
-            <p className="text-slate-500">
+          <div className="flex flex-col gap-3 border-t border-slate-200 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-slate-500 sm:text-sm">
               {transactionsQuery.data
                 ? `Showing ${transactions.length} of ${transactionsQuery.data.total} transactions`
                 : "Loading history..."}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 self-end sm:self-auto">
               <button
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page <= 1}
@@ -590,7 +668,9 @@ export default function ClientWalletPage() {
               >
                 Previous
               </button>
-              <span className="text-slate-600">Page {page}</span>
+              <span className="text-xs text-slate-600 sm:text-sm">
+                Page {page}
+              </span>
               <button
                 onClick={() => setPage((prev) => prev + 1)}
                 disabled={!transactionsQuery.data?.hasMore}
@@ -602,7 +682,7 @@ export default function ClientWalletPage() {
           </div>
         </div>
 
-        <div className="mt-3 text-xs text-slate-500">
+        <div className="mt-3 text-[11px] text-slate-500 sm:text-xs">
           Full wallet history uses paginated data from the server. Confirmed
           funds are shown separately from pending top-ups.
         </div>

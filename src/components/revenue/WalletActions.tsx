@@ -14,10 +14,10 @@ export function WalletActions({ currentBalance }: WalletActionsProps) {
 
   return (
     <>
-      <div className="flex gap-2">
+      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
         <Button
           onClick={() => setIsBuyCreditsOpen(true)}
-          className="bg-purple-600 hover:bg-purple-700 text-white"
+          className="w-full bg-purple-600 text-white hover:bg-purple-700 sm:w-auto"
         >
           <Plus className="h-4 w-4 mr-2" /> Buy Credits
         </Button>
