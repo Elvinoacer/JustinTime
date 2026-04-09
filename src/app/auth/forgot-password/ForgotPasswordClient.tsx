@@ -80,7 +80,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-emerald-50 via-white to-blue-50 p-3 sm:p-4 lg:p-8">
+    <div className="flex min-h-screen items-start justify-center bg-linear-to-br from-emerald-50 via-white to-blue-50 px-3 py-6 sm:items-center sm:p-4 lg:p-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -105,8 +105,7 @@ export default function ForgotPasswordPage() {
               Forgot Password?
             </h2>
             <p className="text-gray-600 text-sm sm:text-base">
-              No worries! Enter your email and we&apos;ll send you a reset
-              link.
+              No worries! Enter your email and we&apos;ll send you a reset link.
             </p>
           </div>
 
@@ -130,7 +129,9 @@ export default function ForgotPasswordPage() {
                   ) : (
                     <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 mt-0.5 shrink-0" />
                   )}
-                  <p className="text-sm font-medium">{message.text}</p>
+                  <p className="break-words text-sm font-medium">
+                    {message.text}
+                  </p>
                 </div>
               </div>
             )}
@@ -168,7 +169,7 @@ export default function ForgotPasswordPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg sm:rounded-xl text-white bg-linear-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 font-semibold shadow-lg shadow-emerald-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+              className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-linear-to-r from-emerald-600 to-emerald-700 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-600/30 transition-all hover:from-emerald-700 hover:to-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:rounded-xl sm:text-base"
             >
               {isLoading ? (
                 <>
@@ -188,7 +189,7 @@ export default function ForgotPasswordPage() {
           <div className="mt-6 text-center">
             <Link
               href={loginHref}
-              className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-medium transition-colors text-sm sm:text-base group"
+              className="group inline-flex min-h-[44px] items-center gap-2 text-sm font-medium text-emerald-600 transition-colors hover:text-emerald-700 sm:text-base"
             >
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-1 transition-transform" />
               Back to Sign In

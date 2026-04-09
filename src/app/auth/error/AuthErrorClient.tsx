@@ -68,7 +68,7 @@ function AuthErrorContent() {
     errorMessages[error || ""] || errorMessages.Default;
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-red-50/30 flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-start justify-center bg-linear-to-br from-slate-50 to-red-50/30 px-3 py-6 sm:items-center sm:p-4">
       <div className="max-w-md w-full">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -96,7 +96,9 @@ function AuthErrorContent() {
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-6">
                 <p className="text-xs text-slate-500 text-center">
                   Error code:{" "}
-                  <code className="font-mono text-slate-700">{error}</code>
+                  <code className="break-all font-mono text-slate-700">
+                    {error}
+                  </code>
                 </p>
               </div>
             )}
@@ -105,14 +107,14 @@ function AuthErrorContent() {
             <div className="space-y-3">
               <Link
                 href="/auth/login"
-                className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors text-sm"
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
               >
                 <RefreshCw className="w-4 h-4" />
                 Try Again
               </Link>
               <Link
                 href="/"
-                className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition-colors text-sm"
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Home
@@ -123,7 +125,9 @@ function AuthErrorContent() {
           <div className="bg-slate-50 p-3 text-center border-t border-slate-100">
             <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
               <Shield className="w-3 h-3" />
-              <span>Need help? Email support@gtss.software</span>
+              <span className="break-words">
+                Need help? Email support@gtss.software
+              </span>
             </div>
           </div>
         </motion.div>
@@ -137,7 +141,10 @@ export default function AuthErrorPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center bg-slate-50">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
+          <div
+            className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600"
+            aria-label="Loading auth error page"
+          />
         </div>
       }
     >

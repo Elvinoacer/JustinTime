@@ -22,7 +22,10 @@ function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const authQuery = getAuthQueryState(searchParams);
   const loginHref = withAuthQuery("/auth/login", authQuery);
-  const loginSuccessHref = withAuthQuery("/auth/login?reset=success", authQuery);
+  const loginSuccessHref = withAuthQuery(
+    "/auth/login?reset=success",
+    authQuery,
+  );
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -167,7 +170,7 @@ function ResetPasswordContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-emerald-50 via-white to-blue-50 p-4 sm:p-6 lg:p-8">
+    <div className="flex min-h-screen items-start justify-center bg-linear-to-br from-emerald-50 via-white to-blue-50 px-3 py-6 sm:items-center sm:p-6 lg:p-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -180,7 +183,7 @@ function ResetPasswordContent() {
           <div className="lg:hidden mb-4">
             <Link
               href={loginHref}
-              className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium"
+              className="inline-flex min-h-[44px] items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
             >
               <ChevronLeft className="w-4 h-4" />
               Back to Login
@@ -229,7 +232,9 @@ function ResetPasswordContent() {
                   ) : (
                     <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 mt-0.5 shrink-0" />
                   )}
-                  <p className="text-sm font-medium">{message.text}</p>
+                  <p className="break-words text-sm font-medium">
+                    {message.text}
+                  </p>
                 </div>
               </div>
             )}
@@ -266,7 +271,7 @@ function ResetPasswordContent() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none"
                     aria-label={
                       showPassword ? "Hide password" : "Show password"
                     }
@@ -370,7 +375,7 @@ function ResetPasswordContent() {
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                    className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none"
                     aria-label={
                       showConfirmPassword ? "Hide password" : "Show password"
                     }
@@ -397,7 +402,7 @@ function ResetPasswordContent() {
                   password !== confirmPassword ||
                   passwordStrength.score < 3
                 }
-                className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg sm:rounded-xl text-white bg-linear-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 font-semibold shadow-lg shadow-emerald-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-linear-to-r from-emerald-600 to-emerald-700 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-600/30 transition-all hover:from-emerald-700 hover:to-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:rounded-xl sm:text-base"
               >
                 {isLoading ? (
                   <>
@@ -467,9 +472,12 @@ export default function ResetPasswordPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-emerald-50 via-white to-blue-50">
+        <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-emerald-50 via-white to-blue-50 px-4">
           <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
+            <Loader2
+              className="h-8 w-8 animate-spin text-emerald-600"
+              aria-label="Loading reset password"
+            />
             <p className="text-sm text-gray-600">Validating reset link...</p>
           </div>
         </div>

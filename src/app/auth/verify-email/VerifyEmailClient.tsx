@@ -20,7 +20,10 @@ function VerifyEmailContent() {
   const token = searchParams.get("token");
   const authQuery = getAuthQueryState(searchParams);
   const loginHref = withAuthQuery("/auth/login", authQuery);
-  const verifiedLoginHref = withAuthQuery("/auth/login?verified=true", authQuery);
+  const verifiedLoginHref = withAuthQuery(
+    "/auth/login?verified=true",
+    authQuery,
+  );
   const router = useRouter();
 
   const [status, setStatus] = useState<"loading" | "success" | "error">(
@@ -71,7 +74,7 @@ function VerifyEmailContent() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 to-blue-50 flex items-center justify-center p-3 sm:p-4">
+    <div className="flex min-h-screen items-start justify-center bg-linear-to-br from-slate-50 to-blue-50 px-3 py-6 sm:items-center sm:p-4">
       <div className="max-w-md w-full">
         {/* Header for Mobile */}
         <motion.div
@@ -182,7 +185,7 @@ function VerifyEmailContent() {
                 <div className="space-y-4">
                   <Link
                     href={verifiedLoginHref}
-                    className="flex items-center justify-center gap-2 px-4 sm:px-8 py-3 sm:py-3.5 bg-linear-to-r from-emerald-600 to-emerald-700 text-white rounded-xl sm:rounded-xl font-bold hover:shadow-lg hover:shadow-emerald-500/30 transition-all active:scale-[0.98] shadow-md shadow-emerald-500/20"
+                    className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-linear-to-r from-emerald-600 to-emerald-700 px-4 py-3 text-white shadow-md shadow-emerald-500/20 transition-all hover:shadow-lg hover:shadow-emerald-500/30 active:scale-[0.98] sm:px-8 sm:py-3.5"
                   >
                     <span className="text-sm sm:text-base">
                       Continue to Login
@@ -203,14 +206,14 @@ function VerifyEmailContent() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Link
                       href={loginHref}
-                      className="flex items-center justify-center px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all active:scale-[0.98] text-sm"
+                      className="flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.98]"
                     >
                       Back to Login
                     </Link>
 
                     <button
                       onClick={handleRetry}
-                      className="flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all active:scale-[0.98] text-sm"
+                      className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white transition-all hover:bg-slate-800 active:scale-[0.98]"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                       Try Again
@@ -320,7 +323,10 @@ export default function VerifyEmailPage() {
         <div className="min-h-screen bg-linear-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
           <div className="text-center">
             <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full flex items-center justify-center shadow-lg mb-4 mx-auto">
-              <Loader2 className="w-7 h-7 sm:w-10 sm:h-10 text-indigo-600 animate-spin" />
+              <Loader2
+                className="w-7 h-7 sm:w-10 sm:h-10 text-indigo-600 animate-spin"
+                aria-label="Loading email verification"
+              />
             </div>
             <h3 className="text-sm sm:text-base font-semibold text-slate-900">
               Loading verification...

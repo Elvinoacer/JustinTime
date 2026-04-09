@@ -253,7 +253,7 @@ function LoginPageContent() {
   };
 
   return (
-    <div className="min-h-screen flex bg-white">
+    <div className="min-h-screen bg-white lg:flex">
       {/* Left Side - Image (Desktop Only) */}
       <div className="hidden lg:flex w-1/2 relative bg-gray-900">
         <Image
@@ -287,18 +287,18 @@ function LoginPageContent() {
       </div>
 
       {/* Right Side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 lg:p-12 xl:p-16 bg-gray-50">
+      <div className="flex min-h-screen w-full items-start justify-center overflow-y-auto bg-gray-50 px-3 py-6 sm:px-6 sm:py-8 lg:w-1/2 lg:items-center lg:p-12 xl:p-16">
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
-          className="max-w-md w-full bg-white p-6 sm:p-8 rounded-xl sm:rounded-2xl shadow-lg"
+          className="w-full max-w-md rounded-xl bg-white p-5 shadow-lg sm:rounded-2xl sm:p-8"
         >
           {/* Mobile Back Button */}
           <div className="lg:hidden mb-4">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium"
+              className="inline-flex min-h-[44px] items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
             >
               <ChevronLeft className="w-4 h-4" />
               Back to Home
@@ -344,12 +344,12 @@ function LoginPageContent() {
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm text-red-800">{error}</p>
+                    <p className="break-words text-sm text-red-800">{error}</p>
                     {showVerifyAction && (
                       <button
                         type="button"
                         onClick={handleGoToVerifyRequest}
-                        className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-emerald-700 hover:text-emerald-600"
+                        className="mt-2 inline-flex min-h-[44px] items-center gap-1 text-sm font-medium text-emerald-700 hover:text-emerald-600"
                       >
                         <Mail className="w-4 h-4" />
                         Resend verification email
@@ -444,7 +444,7 @@ function LoginPageContent() {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none"
                         aria-label={
                           showPassword ? "Hide password" : "Show password"
                         }
@@ -459,7 +459,7 @@ function LoginPageContent() {
                   </div>
 
                   {/* Remember & Forgot */}
-                  <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center">
                       <input
                         id="remember-me"
@@ -582,7 +582,7 @@ function LoginPageContent() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent text-sm sm:text-base font-bold rounded-lg sm:rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all shadow-lg hover:shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg transition-all hover:bg-emerald-700 hover:shadow-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:rounded-xl sm:text-base"
               >
                 {isLoading ? (
                   <>
@@ -617,7 +617,7 @@ function LoginPageContent() {
                   type="button"
                   onClick={handleGoogleSignIn}
                   disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-3 py-2.5 sm:py-3 px-4 border border-gray-300 rounded-lg sm:rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="flex min-h-[44px] w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:opacity-50 sm:rounded-xl sm:py-3"
                 >
                   <svg className="h-5 w-5" viewBox="0 0 24 24">
                     <path
@@ -675,8 +675,11 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex justify-center items-center min-h-screen bg-gray-50">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+        <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+          <div
+            className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600"
+            aria-label="Loading login"
+          />
         </div>
       }
     >
