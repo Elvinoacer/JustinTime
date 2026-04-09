@@ -110,7 +110,7 @@ export function OnboardingAccessNotice({
   }
 
   return (
-    <section className="mb-3 sm:mb-6 rounded-xl sm:rounded-2xl border border-amber-200 bg-[linear-gradient(135deg,#fffdf5_0%,#fff8e8_52%,#fff4e4_100%)] p-3 sm:p-5">
+    <section className="mb-3 sm:mb-6 rounded-xl sm:rounded-2xl border border-amber-200 bg-[linear-gradient(135deg,#fffdf5_0%,#fff8e8_52%,#fff4e4_100%)] p-3 sm:p-5 lg:p-6">
       <div className="flex flex-col gap-3 sm:gap-4">
         <div className="flex items-start justify-between gap-2 sm:gap-4">
           <div className="space-y-1.5 sm:space-y-2">
@@ -132,9 +132,9 @@ export function OnboardingAccessNotice({
           </button>
         </div>
 
-        <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-2 sm:space-y-3">
-            <p className="max-w-3xl text-xs sm:text-sm leading-5 text-gray-700">
+        <div className="flex flex-col gap-3 sm:gap-4 md:grid md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:gap-6">
+          <div className="min-w-0 space-y-2 sm:space-y-3">
+            <p className="max-w-none lg:max-w-2xl text-xs sm:text-sm leading-5 text-gray-700">
               Pay a one-time activation of KES {amount}. Payment unlocks your
               verification processing path, but Trust and Safety still performs
               the final verification decision.
@@ -155,7 +155,7 @@ export function OnboardingAccessNotice({
             </div>
           </div>
 
-          <div className="flex w-full shrink-0 flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
+          <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center md:w-auto md:justify-end">
             <span className="inline-flex w-fit rounded-full bg-amber-100 px-3 py-1 text-[11px] sm:text-xs font-semibold text-amber-700">
               One-time fee
             </span>
