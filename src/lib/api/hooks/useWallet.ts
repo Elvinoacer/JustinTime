@@ -92,6 +92,7 @@ export type WalletTransactionsResponse = PaginatedResponse<WalletTransaction>;
 export interface WalletTopUpPayload {
   amount: number;
   returnUrl?: string;
+  phoneNumber?: string;
 }
 
 export interface WalletTopUpResponse {

@@ -12,7 +12,7 @@ import {
 } from "@/lib/daraja";
 import { ensureOnboardingFeePaymentIntent } from "@/lib/payments/payment-intents";
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -42,6 +42,12 @@ export async function POST() {
     const apiRef = generateApiRef("ONBOARD", session.user.id);
     const accountReference = generateDarajaAccountReference("ONB", apiRef);
 
+    const body = (await req.json().catch(() => ({}))) as {
+      phoneNumber?: unknown;
+    };
+    const requestedPhone =
+      typeof body.phoneNumber === "string" ? body.phoneNumber.trim() : "";
+
     const payer = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -51,11 +57,12 @@ export async function POST() {
       },
     });
 
-    if (!payer?.phone) {
+    const stkPhoneNumber = requestedPhone || payer?.phone || "";
+
+    if (!stkPhoneNumber) {
       return NextResponse.json(
         {
-          error:
-            "A valid phone number is required to initiate M-Pesa STK Push.",
+          error: "Provide a phone number to receive the M-Pesa STK Push prompt.",
         },
         { status: 400 },
       );
@@ -178,6 +185,33 @@ export async function POST() {
     console.error("[ONBOARDING_FEE_INITIATE]", error);
     const message =
       error instanceof Error ? error.message : "Failed to initiate payment";
+    if (/A valid Kenyan phone number is required/i.test(message)) {
+      return NextResponse.json(
+        {
+          error:
+            "The phone number is invalid. Use format 07XXXXXXXX or 2547XXXXXXXX.",
+        },
+        { status: 400 },
+      );
+    }
+    if (/Daraja.+not configured/i.test(message)) {
+      return NextResponse.json(
+        {
+          error:
+            "Verification payments are temporarily unavailable. Please try again shortly.",
+        },
+        { status: 503 },
+      );
+    }
+    if (/ECONN|ENOTFOUND|ETIMEDOUT|Network Error/i.test(message)) {
+      return NextResponse.json(
+        {
+          error:
+            "M-Pesa gateway is currently unreachable. Please retry in a moment.",
+        },
+        { status: 502 },
+      );
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

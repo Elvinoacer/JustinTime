@@ -19,7 +19,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { plan } = await req.json();
+    const { plan, phoneNumber } = (await req.json()) as {
+      plan?: string;
+      phoneNumber?: unknown;
+    };
 
     // Validate plan
     if (!plan || !["PRO", "BUSINESS"].includes(plan)) {
@@ -42,11 +45,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    if (!user?.phone) {
+    const requestedPhone =
+      typeof phoneNumber === "string" ? phoneNumber.trim() : "";
+    const stkPhoneNumber = requestedPhone || user?.phone || "";
+
+    if (!stkPhoneNumber) {
       return NextResponse.json(
         {
-          error:
-            "A valid phone number is required to initiate M-Pesa STK Push.",
+          error: "Provide a phone number to receive the M-Pesa STK Push prompt.",
         },
         { status: 400 },
       );
@@ -62,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     const checkoutSession = await initiateDarajaStkPush({
       amount,
-      phoneNumber: user.phone,
+      phoneNumber: stkPhoneNumber,
       apiRef,
       callbackUrl,
       accountReference,
@@ -139,10 +145,38 @@ export async function POST(req: NextRequest) {
       apiRef,
       provider: "DARAJA",
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error initiating subscription:", error);
+    const message = error instanceof Error ? error.message : "";
+    if (/A valid Kenyan phone number is required/i.test(message)) {
+      return NextResponse.json(
+        {
+          error:
+            "The phone number is invalid. Use format 07XXXXXXXX or 2547XXXXXXXX.",
+        },
+        { status: 400 },
+      );
+    }
+    if (/Daraja.+not configured/i.test(message)) {
+      return NextResponse.json(
+        {
+          error:
+            "Subscription payments are temporarily unavailable. Please try again shortly.",
+        },
+        { status: 503 },
+      );
+    }
+    if (/ECONN|ENOTFOUND|ETIMEDOUT|Network Error/i.test(message)) {
+      return NextResponse.json(
+        {
+          error:
+            "M-Pesa gateway is currently unreachable. Please retry in a moment.",
+        },
+        { status: 502 },
+      );
+    }
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: message || "Failed to initiate subscription checkout." },
       { status: 500 },
     );
   }
