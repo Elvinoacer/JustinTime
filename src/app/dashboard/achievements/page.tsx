@@ -14,7 +14,7 @@ export default async function AchievementsPage() {
 
   if (!result.success || !result.badges || !result.stats) {
     return (
-      <div className="container mx-auto py-8 px-4">
+      <div className="container mx-auto py-8 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <p className="text-red-600">Failed to load achievements</p>
       </div>
     );

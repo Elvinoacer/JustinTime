@@ -124,7 +124,7 @@ export default async function SurgePricingControlPage({
   );
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl">
+    <div className="container mx-auto py-8 px-4 max-w-6xl pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="mb-8">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
           <h1 className="text-3xl font-bold text-gray-900">

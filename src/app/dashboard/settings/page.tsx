@@ -453,7 +453,7 @@ const SettingsPage = () => {
 
   if (isLoading || !settingsData) {
     return (
-      <div className="flex items-center justify-center min-h-[300px] sm:min-h-100">
+      <div className="flex items-center justify-center min-h-[300px] sm:min-h-[400px]">
         <div
           role="status"
           aria-label="Loading settings"
@@ -466,7 +466,7 @@ const SettingsPage = () => {
   const { settings } = settingsData;
 
   return (
-    <div className="max-w-6xl mx-auto px-2 sm:px-4 lg:px-6">
+    <div className="max-w-6xl mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
       {/* Success Notification */}
       <AnimatePresence>
         {showNotification && (
@@ -536,14 +536,14 @@ const SettingsPage = () => {
 
       {/* Tabs */}
       <div className="bg-white rounded-lg sm:rounded-xl shadow-xs sm:shadow-sm border border-gray-200 overflow-hidden">
-        <div className="border-b border-gray-200 overflow-x-auto">
+        <div className="border-b border-gray-200 overflow-x-auto overscroll-contain">
           <nav className="flex -mb-px min-w-max">
             {tabs.map((tab) => (
-              <button
+              <button type="button"
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`
-                  group inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap transition-colors flex-1 sm:flex-none justify-center
+                  group inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap transition-colors flex-1 sm:flex-none justify-center touch-manipulation
                   ${
                     activeTab === tab.id
                       ? "border-emerald-500 text-emerald-600 bg-emerald-50/50"
@@ -661,10 +661,10 @@ const SettingsPage = () => {
                           placeholder="e.g., +254 700 000 000"
                         />
                       </div>
-                      <button
+                      <button type="button"
                         onClick={handlePhoneUpdate}
                         disabled={updateSettings.isPending}
-                        className="px-4 sm:px-5 py-2.5 sm:py-3 bg-emerald-600 text-white rounded-lg font-medium text-xs sm:text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 whitespace-nowrap"
+                        className="px-4 sm:px-5 py-2.5 sm:py-3 bg-emerald-600 text-white rounded-lg font-medium text-xs sm:text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 whitespace-nowrap touch-manipulation"
                       >
                         {updateSettings.isPending ? "Saving..." : "Save"}
                       </button>
@@ -844,10 +844,10 @@ const SettingsPage = () => {
                         </div>
 
                         {/* Restore Button */}
-                        <button
+                        <button type="button"
                           onClick={handleCancelDeletion}
                           disabled={isRestoring}
-                          className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-linear-to-r from-emerald-600 to-teal-500 text-white rounded-lg font-bold text-sm sm:text-base hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3"
+                          className="w-full px-4 sm:px-6 py-3 sm:py-4 bg-linear-to-r from-emerald-600 to-teal-500 text-white rounded-lg font-bold text-sm sm:text-base hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3 touch-manipulation"
                         >
                           {isRestoring ? (
                             <>
@@ -879,10 +879,10 @@ const SettingsPage = () => {
                         <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
                           Once you delete your account, there is no going back.
                         </p>
-                        <button
+                        <button type="button"
                           onClick={() => setShowDeleteConfirm(true)}
                           disabled={isDeleting}
-                          className="px-4 sm:px-6 py-2.5 sm:py-3 bg-red-50 text-red-700 border border-red-200 rounded-lg font-medium text-xs sm:text-sm hover:bg-red-100 transition-colors flex items-center gap-1.5 sm:gap-2 disabled:opacity-50"
+                          className="px-4 sm:px-6 py-2.5 sm:py-3 bg-red-50 text-red-700 border border-red-200 rounded-lg font-medium text-xs sm:text-sm hover:bg-red-100 transition-colors flex items-center gap-1.5 sm:gap-2 disabled:opacity-50 touch-manipulation"
                         >
                           {isDeleting ? (
                             <>
@@ -1211,10 +1211,10 @@ const SettingsPage = () => {
                     </h3>
                     <PushNotificationToggle />
                   </div>
-                  <button
+                  <button type="button"
                     onClick={handleNotificationsUpdate}
                     disabled={updateSettings.isPending}
-                    className="px-4 sm:px-6 py-2.5 sm:py-3 bg-emerald-600 text-white rounded-lg font-medium text-xs sm:text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 w-full sm:w-auto"
+                    className="px-4 sm:px-6 py-2.5 sm:py-3 bg-emerald-600 text-white rounded-lg font-medium text-xs sm:text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 w-full sm:w-auto touch-manipulation"
                   >
                     {updateSettings.isPending
                       ? "Saving..."
@@ -1293,10 +1293,10 @@ const SettingsPage = () => {
                     </div>
                   </div>
 
-                  <button
+                  <button type="button"
                     onClick={handlePrivacyUpdate}
                     disabled={updateSettings.isPending}
-                    className="px-4 sm:px-6 py-2.5 sm:py-3 bg-emerald-600 text-white rounded-lg font-medium text-xs sm:text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 w-full sm:w-auto"
+                    className="px-4 sm:px-6 py-2.5 sm:py-3 bg-emerald-600 text-white rounded-lg font-medium text-xs sm:text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 w-full sm:w-auto touch-manipulation"
                   >
                     {updateSettings.isPending
                       ? "Saving..."

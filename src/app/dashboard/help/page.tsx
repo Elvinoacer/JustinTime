@@ -366,7 +366,7 @@ const HelpPage = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-2 sm:px-4 md:px-6">
+    <div className="max-w-6xl mx-auto px-2 sm:px-4 md:px-6 py-4 sm:py-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
       {/* Header */}
       <div className="mb-4 sm:mb-6 md:mb-8">
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-1.5 sm:mb-2">
@@ -623,10 +623,10 @@ const HelpPage = () => {
         </div>
 
         {/* Status Filter */}
-        <div className="p-3 sm:p-4 border-b border-gray-200 bg-gray-50 flex gap-1.5 sm:gap-2 overflow-x-auto pb-2">
+        <div className="p-3 sm:p-4 border-b border-gray-200 bg-gray-50 flex gap-1.5 sm:gap-2 overflow-x-auto overscroll-contain pb-2">
           {["ALL", "OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"].map(
             (status) => (
-              <button
+              <button type="button"
                 key={status}
                 onClick={() => setStatusFilter(status)}
                 className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
@@ -724,13 +724,13 @@ const HelpPage = () => {
                       >
                         Open Thread
                       </Link>
-                      <button
+                      <button type="button"
                         onClick={() =>
                           setExpandedTicket(
                             expandedTicket === ticket.id ? null : ticket.id,
                           )
                         }
-                        className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
+                        className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors shrink-0 touch-manipulation"
                       >
                         <span
                           className={`material-symbols-outlined transition-transform text-base sm:text-lg ${
@@ -783,14 +783,14 @@ const HelpPage = () => {
                               placeholder="Update ticket details"
                             />
                             <div className="flex flex-wrap gap-2">
-                              <button
+                              <button type="button"
                                 onClick={() => saveTicketEdit(ticket)}
                                 disabled={activeTicketActionId === ticket.id}
                                 className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
                               >
                                 Save
                               </button>
-                              <button
+                              <button type="button"
                                 onClick={cancelEditingTicket}
                                 disabled={activeTicketActionId === ticket.id}
                                 className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
@@ -862,7 +862,7 @@ const HelpPage = () => {
                           />
 
                           <div className="flex flex-wrap gap-2">
-                            <button
+                            <button type="button"
                               onClick={() => submitReply(ticket)}
                               disabled={activeTicketActionId === ticket.id}
                               className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
@@ -873,14 +873,14 @@ const HelpPage = () => {
                             {(ticket.status === "OPEN" ||
                               ticket.status === "IN_PROGRESS") && (
                               <>
-                                <button
+                                <button type="button"
                                   onClick={() => beginEditingTicket(ticket)}
                                   disabled={activeTicketActionId === ticket.id}
                                   className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                                 >
                                   Edit Ticket
                                 </button>
-                                <button
+                                <button type="button"
                                   onClick={() =>
                                     updateTicket(
                                       ticket.id,
@@ -899,7 +899,7 @@ const HelpPage = () => {
 
                             {(ticket.status === "RESOLVED" ||
                               ticket.status === "CLOSED") && (
-                              <button
+                              <button type="button"
                                 onClick={() =>
                                   updateTicket(
                                     ticket.id,
@@ -916,7 +916,7 @@ const HelpPage = () => {
                             )}
 
                             {ticket.status === "RESOLVED" && (
-                              <button
+                              <button type="button"
                                 onClick={() =>
                                   updateTicket(
                                     ticket.id,
@@ -961,9 +961,9 @@ const HelpPage = () => {
       </div>
 
       {/* Category Filters */}
-      <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4 sm:mb-6 md:mb-8 overflow-x-auto pb-2">
+      <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4 sm:mb-6 md:mb-8 overflow-x-auto overscroll-contain pb-2">
         {categories.map((category) => (
-          <button
+          <button type="button"
             key={category}
             onClick={() => setSelectedCategory(category)}
             className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
@@ -1011,11 +1011,11 @@ const HelpPage = () => {
                 transition={{ delay: index * 0.03 }}
                 className="p-3 sm:p-4 md:p-6 hover:bg-gray-50 transition-colors"
               >
-                <button
+                <button type="button"
                   onClick={() =>
                     setExpandedFAQ(expandedFAQ === faq.id ? null : faq.id)
                   }
-                  className="w-full flex items-start justify-between gap-2 sm:gap-3 md:gap-4 text-left group"
+                  className="w-full flex items-start justify-between gap-2 sm:gap-3 md:gap-4 text-left group touch-manipulation"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-1.5 sm:mb-2">

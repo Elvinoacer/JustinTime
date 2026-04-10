@@ -48,6 +48,33 @@ function buildSyntheticWebhookRequest(
   });
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function extractInitiatedPhoneNumber(
+  rawInitiationPayload: unknown,
+  transactionMetadata: unknown,
+): string | null {
+  const rawPayload = asRecord(rawInitiationPayload);
+  const rawPhone = rawPayload?.initiatedPhoneNumber;
+  if (typeof rawPhone === "string" && rawPhone.trim().length > 0) {
+    return rawPhone.trim();
+  }
+
+  const metadata = asRecord(transactionMetadata);
+  const metadataPhone = metadata?.initiatedPhoneNumber;
+  if (typeof metadataPhone === "string" && metadataPhone.trim().length > 0) {
+    return metadataPhone.trim();
+  }
+
+  return null;
+}
+
 export async function GET(req: Request) {
   try {
     const session = await auth();
@@ -172,6 +199,10 @@ export async function GET(req: Request) {
 
     const latestLedger = topUp.ledgerEntries[0] || null;
     const isTerminal = isTerminalTopUpStatus(topUp.status);
+    const initiatedPhoneNumber = extractInitiatedPhoneNumber(
+      topUp.rawInitiationPayload,
+      latestLedger?.metadata,
+    );
 
     return NextResponse.json({
       topUpId: topUp.id,
@@ -192,6 +223,7 @@ export async function GET(req: Request) {
       failureReason: topUp.failureReason,
       reconciliationError,
       isTerminal,
+      initiatedPhoneNumber,
       transaction: latestLedger
         ? {
             id: latestLedger.id,

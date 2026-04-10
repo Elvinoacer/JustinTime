@@ -6,7 +6,8 @@ export type MarketingEventChannel =
   | "landing"
   | "jobs"
   | "newsletter"
-  | "contact";
+  | "contact"
+  | "payments";
 
 type MarketingEventChannelFilter = MarketingEventChannel | "all";
 
@@ -39,6 +40,35 @@ export type MarketingEventLogEntry = {
   event: string;
   payload: Record<string, unknown> | null;
   createdAt: Date;
+};
+
+type StkTelemetryAggregateRow = {
+  flow: string;
+  overrideUsed: boolean;
+  initiatedCount: bigint | number;
+  failedCount: bigint | number;
+  totalCount: bigint | number;
+};
+
+export type StkPhoneTelemetrySummaryRow = {
+  flow: string;
+  overrideUsed: boolean;
+  initiatedCount: number;
+  failedCount: number;
+  totalCount: number;
+  successRate: number;
+  failureRate: number;
+};
+
+export type StkPhoneTelemetrySummary = {
+  rows: StkPhoneTelemetrySummaryRow[];
+  totals: {
+    initiatedCount: number;
+    failedCount: number;
+    totalCount: number;
+    successRate: number;
+    failureRate: number;
+  };
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -187,5 +217,94 @@ export async function listMarketingEvents(
         row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
     })),
     total: toNumber(totalRows[0]?.count),
+  };
+}
+
+export async function getStkPhoneTelemetrySummary(input?: {
+  startDate?: Date;
+  endDate?: Date;
+}): Promise<StkPhoneTelemetrySummary> {
+  await ensureMarketingEventTable();
+
+  const conditions: Prisma.Sql[] = [
+    Prisma.sql`"channel" = ${"payments"}`,
+    Prisma.sql`"event" LIKE ${"stk_phone_%"}`,
+  ];
+
+  if (input?.startDate) {
+    conditions.push(Prisma.sql`"createdAt" >= ${input.startDate}`);
+  }
+
+  if (input?.endDate) {
+    conditions.push(Prisma.sql`"createdAt" <= ${input.endDate}`);
+  }
+
+  const whereClause = Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`;
+
+  const rows = await prisma.$queryRaw<StkTelemetryAggregateRow[]>(Prisma.sql`
+    SELECT
+      COALESCE("payload"->>'flow', 'unknown') AS "flow",
+      CASE
+        WHEN LOWER(COALESCE("payload"->>'overrideUsed', 'false')) = 'true' THEN true
+        ELSE false
+      END AS "overrideUsed",
+      COUNT(*) FILTER (WHERE COALESCE("payload"->>'outcome', '') = 'initiated')::bigint AS "initiatedCount",
+      COUNT(*) FILTER (WHERE COALESCE("payload"->>'outcome', '') = 'failed')::bigint AS "failedCount",
+      COUNT(*)::bigint AS "totalCount"
+    FROM "MarketingEventLog"
+    ${whereClause}
+    GROUP BY
+      COALESCE("payload"->>'flow', 'unknown'),
+      CASE
+        WHEN LOWER(COALESCE("payload"->>'overrideUsed', 'false')) = 'true' THEN true
+        ELSE false
+      END
+    ORDER BY "flow" ASC, "overrideUsed" DESC
+  `);
+
+  const formattedRows = rows.map((row) => {
+    const initiatedCount = toNumber(row.initiatedCount);
+    const failedCount = toNumber(row.failedCount);
+    const totalCount = toNumber(row.totalCount);
+    const denominator = initiatedCount + failedCount;
+    const successRate = denominator > 0 ? initiatedCount / denominator : 0;
+    const failureRate = denominator > 0 ? failedCount / denominator : 0;
+
+    return {
+      flow: row.flow,
+      overrideUsed: Boolean(row.overrideUsed),
+      initiatedCount,
+      failedCount,
+      totalCount,
+      successRate,
+      failureRate,
+    };
+  });
+
+  const totals = formattedRows.reduce(
+    (acc, row) => {
+      acc.initiatedCount += row.initiatedCount;
+      acc.failedCount += row.failedCount;
+      acc.totalCount += row.totalCount;
+      return acc;
+    },
+    {
+      initiatedCount: 0,
+      failedCount: 0,
+      totalCount: 0,
+      successRate: 0,
+      failureRate: 0,
+    },
+  );
+
+  const totalOutcomeCount = totals.initiatedCount + totals.failedCount;
+  totals.successRate =
+    totalOutcomeCount > 0 ? totals.initiatedCount / totalOutcomeCount : 0;
+  totals.failureRate =
+    totalOutcomeCount > 0 ? totals.failedCount / totalOutcomeCount : 0;
+
+  return {
+    rows: formattedRows,
+    totals,
   };
 }

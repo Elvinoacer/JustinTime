@@ -9,6 +9,7 @@ import apiClient from "../client";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/api/queryKeys";
 import { PaginatedResponse } from "@/types/api";
+import { maskPhoneForDisplay } from "@/lib/utils/phone";
 
 const TOPUP_STORAGE_KEY = "jt.wallet.topup.pending";
 const TOPUP_STORAGE_TTL_MS = 15 * 60 * 1000;
@@ -92,6 +93,7 @@ export type WalletTransactionsResponse = PaginatedResponse<WalletTransaction>;
 export interface WalletTopUpPayload {
   amount: number;
   returnUrl?: string;
+  phoneNumber?: string;
 }
 
 export interface WalletTopUpResponse {
@@ -107,6 +109,7 @@ export interface WalletTopUpStatusResponse {
   topUpId: string;
   apiRef: string;
   status: WalletTransactionStatus;
+  initiatedPhoneNumber: string | null;
   currency: string;
   amountExpected: number | string;
   amountReceived: number | string | null;
@@ -251,7 +254,17 @@ export const useTopUpWallet = (
       }
 
       if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+        if (variables.phoneNumber) {
+          toast.success(
+            `STK push sent to ${maskPhoneForDisplay(variables.phoneNumber)}. Redirecting...`,
+          );
+        } else {
+          toast.success("STK push sent. Redirecting...");
+        }
+
+        window.setTimeout(() => {
+          window.location.href = data.checkoutUrl;
+        }, 600);
       }
 
       queryClient.invalidateQueries({ queryKey: queryKeys.wallet.balance() });

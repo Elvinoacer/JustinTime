@@ -399,14 +399,14 @@ const DashboardPage = () => {
 
   return (
     <div
-      className="relative space-y-3 lg:space-y-8 pb-28 lg:pb-12 px-3 sm:px-6 lg:px-0"
+      className="relative space-y-3 px-3 pb-[max(7rem,env(safe-area-inset-bottom))] sm:px-6 lg:px-0 lg:space-y-8 lg:pb-12"
       style={{ fontFamily: '"Work Sans", "Noto Sans", sans-serif' }}
     >
       <div className="pointer-events-none absolute -top-10 right-0 h-44 w-44 rounded-full bg-emerald-100/60 blur-3xl hidden lg:block" />
       <div className="pointer-events-none absolute top-56 -left-8 h-40 w-40 rounded-full bg-cyan-100/50 blur-3xl hidden lg:block" />
 
       {isMobile && (
-        <button
+        <button type="button"
           onClick={() => {
             if (showFilters) {
               closeMobileFilters();
@@ -414,7 +414,7 @@ const DashboardPage = () => {
               openMobileFilters();
             }
           }}
-          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-40 h-12 min-w-[122px] rounded-full bg-linear-to-r from-emerald-600 to-teal-600 text-white shadow-xl flex items-center justify-center hover:from-emerald-700 hover:to-teal-700 transition-colors px-4"
+          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-40 h-12 min-w-[122px] rounded-full bg-linear-to-r from-emerald-600 to-teal-600 text-white shadow-xl flex items-center justify-center hover:from-emerald-700 hover:to-teal-700 transition-colors px-4 touch-manipulation active:scale-[0.98]"
           aria-label={showFilters ? "Close filters" : "Open filters"}
         >
           <span className="material-symbols-outlined text-xl mr-1.5">
@@ -662,7 +662,7 @@ const DashboardPage = () => {
             </h2>
             <span className="text-xs text-gray-500">Core tools</span>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          <div className="-mx-1 flex gap-2 overflow-x-auto overscroll-contain px-1 pb-1">
             {mobileQuickActions.map((action) => (
               <Link
                 key={action.href}
@@ -701,9 +701,9 @@ const DashboardPage = () => {
                   {mobileDraftFilterCount} active
                 </p>
               </div>
-              <button
+              <button type="button"
                 onClick={closeMobileFilters}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-100 rounded-lg touch-manipulation"
                 aria-label="Close filters"
               >
                 <span className="material-symbols-outlined text-xl">close</span>
@@ -826,9 +826,9 @@ const DashboardPage = () => {
                   : "There are no jobs available at the moment. Please check back later."}
               </p>
               {activeFilterCount > 0 && (
-                <button
+                <button type="button"
                   onClick={resetFilters}
-                  className="h-11 px-6 lg:px-8 bg-emerald-600 text-white rounded-lg lg:rounded-xl hover:bg-emerald-700 transition-colors font-bold shadow-lg shadow-emerald-200 text-sm lg:text-base"
+                  className="h-11 px-6 lg:px-8 bg-emerald-600 text-white rounded-lg lg:rounded-xl hover:bg-emerald-700 transition-colors font-bold shadow-lg shadow-emerald-200 text-sm lg:text-base touch-manipulation"
                 >
                   Clear All Filters
                 </button>
@@ -849,9 +849,9 @@ const DashboardPage = () => {
 
               {hasMore && (
                 <div className="flex justify-center pt-4 lg:pt-8">
-                  <button
+                  <button type="button"
                     onClick={() => setCurrentPage((prev) => prev + 1)}
-                    className="h-11 px-7 lg:px-10 lg:h-auto lg:py-4 bg-white border border-gray-200 text-gray-900 rounded-lg lg:rounded-xl font-bold hover:bg-gray-50 transition-all shadow-sm hover:shadow-md text-sm lg:text-base"
+                    className="h-11 px-7 lg:px-10 lg:h-auto lg:py-4 bg-white border border-gray-200 text-gray-900 rounded-lg lg:rounded-xl font-bold hover:bg-gray-50 transition-all shadow-sm hover:shadow-md text-sm lg:text-base touch-manipulation"
                   >
                     Load More Jobs
                   </button>

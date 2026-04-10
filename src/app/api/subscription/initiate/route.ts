@@ -14,8 +14,20 @@ import {
   buildPaymentVerificationPath,
   normalizeInternalReturnPath,
 } from "@/lib/payments/verification";
+import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
+import { trackStkPhoneEvent } from "@/lib/payments/stk-analytics";
 
 export async function POST(req: NextRequest) {
+  let analyticsContext: {
+    userId?: string;
+    apiRef?: string;
+    amount?: number;
+    initiatedPhoneNumber?: string;
+    profilePhoneNumber?: string;
+    overrideProvided?: boolean;
+    overrideUsed?: boolean;
+  } = {};
+
   try {
     const session = await auth();
 
@@ -24,17 +36,33 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => null);
-    const plan =
+    const payload =
       body && typeof body === "object"
-        ? (body as Record<string, unknown>).plan
+        ? (body as Record<string, unknown>)
         : null;
+    const plan =
+      payload && typeof payload.plan === "string" ? payload.plan : null;
     const requestedReturnValue =
-      body && typeof body === "object"
-        ? (body as Record<string, unknown>).returnUrl
+      payload && typeof payload.returnUrl === "string"
+        ? payload.returnUrl
         : null;
     const requestedReturnUrl = normalizeInternalReturnPath(
       typeof requestedReturnValue === "string" ? requestedReturnValue : null,
     );
+    const hasPhoneOverride = payload
+      ? Object.prototype.hasOwnProperty.call(payload, "phoneNumber")
+      : false;
+    const requestedPhoneRaw =
+      payload && typeof payload.phoneNumber === "string"
+        ? payload.phoneNumber
+        : null;
+
+    if (hasPhoneOverride && requestedPhoneRaw == null) {
+      return NextResponse.json(
+        { error: "Phone number must be provided as text." },
+        { status: 400 },
+      );
+    }
 
     // Validate plan
     if (typeof plan !== "string" || !["PRO", "BUSINESS"].includes(plan)) {
@@ -47,6 +75,7 @@ export async function POST(req: NextRequest) {
     // Get amount for the plan
     const amount =
       SUBSCRIPTION_PRICES[plan as keyof typeof SUBSCRIPTION_PRICES];
+    analyticsContext.amount = amount;
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -67,9 +96,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const profilePhone = normalizeKenyanPhone(String(user.phone || ""));
+    const requestedPhone = requestedPhoneRaw
+      ? normalizeKenyanPhone(requestedPhoneRaw)
+      : "";
+
+    if (hasPhoneOverride && !isValidKenyanPhone(requestedPhone)) {
+      return NextResponse.json(
+        {
+          error:
+            "Enter a valid M-Pesa phone number in format 2547XXXXXXXX or 2541XXXXXXXX.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const phoneNumberToUse = requestedPhone || profilePhone;
+    const overrideUsed =
+      hasPhoneOverride &&
+      requestedPhone.length > 0 &&
+      requestedPhone !== profilePhone;
+
+    analyticsContext = {
+      userId: session.user.id,
+      amount,
+      initiatedPhoneNumber: phoneNumberToUse,
+      profilePhoneNumber: profilePhone,
+      overrideProvided: hasPhoneOverride,
+      overrideUsed,
+    };
+
+    if (!isValidKenyanPhone(phoneNumberToUse)) {
+      return NextResponse.json(
+        {
+          error:
+            "A valid phone number is required to initiate M-Pesa STK Push.",
+        },
+        { status: 400 },
+      );
+    }
+
     const normalizedUserId = session.user.id.replace(/[^a-zA-Z0-9]/g, "");
     const apiRef = `SUB-${plan}-${normalizedUserId}-${Date.now().toString(36)}`;
     const accountReference = generateDarajaAccountReference("SUB", apiRef);
+    analyticsContext.apiRef = apiRef;
     const callbackUrl = buildDarajaCallbackUrl(
       getBaseUrl(),
       "/api/subscription/webhook",
@@ -77,11 +147,17 @@ export async function POST(req: NextRequest) {
 
     const checkoutSession = await initiateDarajaStkPush({
       amount,
-      phoneNumber: user.phone,
+      phoneNumber: phoneNumberToUse,
       apiRef,
       callbackUrl,
       accountReference,
       description: `Subscription ${plan}`,
+    });
+
+    trackStkPhoneEvent({
+      flow: "subscription",
+      outcome: "initiated",
+      ...analyticsContext,
     });
 
     await prisma.$transaction(async (tx) => {
@@ -119,6 +195,14 @@ export async function POST(req: NextRequest) {
           sourceId: plan,
           createdByType: "USER",
           description: `Subscription payment pending (${plan}) [Ref:${apiRef}]`,
+          metadata: {
+            apiRef,
+            plan,
+            initiatedPhoneNumber: phoneNumberToUse,
+            checkoutRequestId: checkoutSession.CheckoutRequestID,
+            merchantRequestId: checkoutSession.MerchantRequestID,
+            source: "subscription_initiate",
+          },
         },
       });
 
@@ -140,6 +224,7 @@ export async function POST(req: NextRequest) {
           source: "subscription_initiate",
           checkoutRequestId: checkoutSession.CheckoutRequestID,
           merchantRequestId: checkoutSession.MerchantRequestID,
+          initiatedPhoneNumber: phoneNumberToUse,
         },
       });
     });
@@ -162,6 +247,14 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Error initiating subscription:", error);
+
+    trackStkPhoneEvent({
+      flow: "subscription",
+      outcome: "failed",
+      ...analyticsContext,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

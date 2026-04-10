@@ -34,6 +34,7 @@ interface UnifiedStatusPayload {
   apiRef: string | null;
   checkoutRequestId: string | null;
   merchantRequestId: string | null;
+  initiatedPhoneNumber: string | null;
   amountExpected: number | string | null;
   amountReceived: number | string | null;
   currency: string | null;
@@ -316,6 +317,10 @@ async function fetchUnifiedStatus(params: {
         typeof payload.gatewayInvoiceId === "string"
           ? payload.gatewayInvoiceId
           : null,
+      initiatedPhoneNumber:
+        typeof payload.initiatedPhoneNumber === "string"
+          ? payload.initiatedPhoneNumber
+          : null,
       amountExpected:
         typeof payload.amountExpected === "number" ||
         typeof payload.amountExpected === "string"
@@ -374,6 +379,12 @@ async function fetchUnifiedStatus(params: {
         ? payload.merchantRequestId
         : typeof pendingPayment?.merchantRequestId === "string"
           ? pendingPayment.merchantRequestId
+          : null,
+    initiatedPhoneNumber:
+      typeof payload.initiatedPhoneNumber === "string"
+        ? payload.initiatedPhoneNumber
+        : typeof pendingPayment?.initiatedPhoneNumber === "string"
+          ? pendingPayment.initiatedPhoneNumber
           : null,
     amountExpected:
       typeof payload.amountExpected === "number" ||
@@ -680,6 +691,10 @@ export function PaymentVerificationStatus({
           <p className="text-slate-600 break-all">
             <span className="font-semibold text-slate-900">Gateway Ref:</span>{" "}
             {statusPayload?.merchantRequestId || "Pending"}
+          </p>
+          <p className="text-slate-600 break-all">
+            <span className="font-semibold text-slate-900">STK Phone:</span>{" "}
+            {statusPayload?.initiatedPhoneNumber || "Not captured"}
           </p>
           <p className="text-slate-600 break-all">
             <span className="font-semibold text-slate-900">Expected:</span>{" "}

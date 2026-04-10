@@ -378,7 +378,7 @@ export default function AvailabilityPage() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 via-white to-emerald-50 py-4 sm:py-6 lg:py-8">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 via-white to-emerald-50 py-4 sm:py-6 lg:py-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8">
         {/* Header */}
         <motion.div
@@ -395,7 +395,7 @@ export default function AvailabilityPage() {
                 Manage your weekly schedule and date exceptions
               </p>
             </div>
-            <button
+            <button type="button"
               onClick={openNewExceptionModal}
               className="px-3 sm:px-4 py-2 bg-linear-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-semibold text-sm transition-all shadow-sm sm:shadow-md flex items-center gap-1.5 sm:gap-2 self-start xs:self-center"
             >
@@ -530,7 +530,7 @@ export default function AvailabilityPage() {
                                               />
                                             </div>
                                             <div className="flex items-center justify-end gap-2">
-                                              <button
+                                              <button type="button"
                                                 onClick={() =>
                                                   setEditingSlotId(null)
                                                 }
@@ -538,7 +538,7 @@ export default function AvailabilityPage() {
                                               >
                                                 Cancel
                                               </button>
-                                              <button
+                                              <button type="button"
                                                 onClick={saveSlotEdit}
                                                 disabled={isSaving}
                                                 className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
@@ -567,7 +567,7 @@ export default function AvailabilityPage() {
                                             </div>
                                             {slot.id && (
                                               <div className="flex items-center gap-1">
-                                                <button
+                                                <button type="button"
                                                   onClick={() =>
                                                     beginSlotEdit(slot)
                                                   }
@@ -578,7 +578,7 @@ export default function AvailabilityPage() {
                                                     edit
                                                   </span>
                                                 </button>
-                                                <button
+                                                <button type="button"
                                                   onClick={() =>
                                                     deleteSlot(slot.id!)
                                                   }
@@ -655,7 +655,7 @@ export default function AvailabilityPage() {
                                     />
                                   </div>
                                 </div>
-                                <button
+                                <button type="button"
                                   onClick={() => addSlot(index)}
                                   disabled={isSaving}
                                   className="w-full py-2 sm:py-2.5 bg-linear-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
@@ -722,7 +722,7 @@ export default function AvailabilityPage() {
                 <h3 className="text-base sm:text-lg font-bold text-gray-900">
                   Upcoming Exceptions
                 </h3>
-                <button
+                <button type="button"
                   onClick={openNewExceptionModal}
                   className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1"
                 >
@@ -737,7 +737,7 @@ export default function AvailabilityPage() {
                     event_busy
                   </span>
                   <p className="text-xs sm:text-sm">No exceptions set</p>
-                  <button
+                  <button type="button"
                     onClick={openNewExceptionModal}
                     className="mt-3 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition-colors"
                   >
@@ -787,7 +787,7 @@ export default function AvailabilityPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0 ml-1">
-                          <button
+                          <button type="button"
                             onClick={() => beginExceptionEdit(exception)}
                             className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                             title="Edit exception"
@@ -796,7 +796,7 @@ export default function AvailabilityPage() {
                               edit
                             </span>
                           </button>
-                          <button
+                          <button type="button"
                             onClick={() => deleteException(exception.id!)}
                             className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                             title="Remove exception"
@@ -821,7 +821,7 @@ export default function AvailabilityPage() {
                   ))}
 
                   {exceptions.length > 3 && isMobile && (
-                    <button
+                    <button type="button"
                       onClick={openNewExceptionModal}
                       className="w-full text-center text-xs text-gray-500 hover:text-gray-700 py-2"
                     >
@@ -873,7 +873,7 @@ export default function AvailabilityPage() {
       <AnimatePresence>
         {showExceptionModal && (
           <motion.div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-3 sm:p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -893,7 +893,7 @@ export default function AvailabilityPage() {
                       ? "Edit Date Exception"
                       : "Add Date Exception"}
                   </h2>
-                  <button
+                  <button type="button"
                     onClick={closeExceptionModal}
                     className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                   >
@@ -1015,13 +1015,13 @@ export default function AvailabilityPage() {
                   </div>
 
                   <div className="flex gap-2.5 sm:gap-3 pt-2">
-                    <button
+                    <button type="button"
                       onClick={closeExceptionModal}
                       className="flex-1 px-4 py-2.5 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold text-sm"
                     >
                       Cancel
                     </button>
-                    <button
+                    <button type="button"
                       onClick={addException}
                       disabled={isSaving}
                       className="flex-1 px-4 py-2.5 sm:py-3 bg-linear-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"

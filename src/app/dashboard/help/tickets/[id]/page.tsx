@@ -247,7 +247,7 @@ export default function TicketDetailPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-2 sm:px-4 md:px-6 py-4 sm:py-6">
+    <div className="max-w-4xl mx-auto px-2 sm:px-4 md:px-6 py-4 sm:py-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <Link
         href="/dashboard/help"
         className="inline-flex items-center gap-2 text-sm text-emerald-700 hover:text-emerald-800 mb-4"

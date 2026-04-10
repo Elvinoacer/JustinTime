@@ -15,8 +15,20 @@ import {
   buildPaymentVerificationPath,
   normalizeInternalReturnPath,
 } from "@/lib/payments/verification";
+import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
+import { trackStkPhoneEvent } from "@/lib/payments/stk-analytics";
 
 export async function POST(req: Request) {
+  let analyticsContext: {
+    userId?: string;
+    apiRef?: string;
+    amount?: number;
+    initiatedPhoneNumber?: string;
+    profilePhoneNumber?: string;
+    overrideProvided?: boolean;
+    overrideUsed?: boolean;
+  } = {};
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -24,13 +36,31 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json().catch(() => null);
-    const requestedReturnValue =
+    const payload =
       body && typeof body === "object"
-        ? (body as Record<string, unknown>).returnUrl
+        ? (body as Record<string, unknown>)
+        : null;
+    const requestedReturnValue =
+      payload && typeof payload.returnUrl === "string"
+        ? payload.returnUrl
         : null;
     const requestedReturnUrl = normalizeInternalReturnPath(
       typeof requestedReturnValue === "string" ? requestedReturnValue : null,
     );
+    const hasPhoneOverride = payload
+      ? Object.prototype.hasOwnProperty.call(payload, "phoneNumber")
+      : false;
+    const requestedPhoneRaw =
+      payload && typeof payload.phoneNumber === "string"
+        ? payload.phoneNumber
+        : null;
+
+    if (hasPhoneOverride && requestedPhoneRaw == null) {
+      return NextResponse.json(
+        { error: "Phone number must be provided as text." },
+        { status: 400 },
+      );
+    }
 
     // Check if user already paid
     const profile = await prisma.profile.findUnique({
@@ -54,6 +84,7 @@ export async function POST(req: Request) {
     // Generate API reference (alphanumeric + hyphens only)
     const apiRef = generateApiRef("ONBOARD", session.user.id);
     const accountReference = generateDarajaAccountReference("ONB", apiRef);
+    analyticsContext.apiRef = apiRef;
 
     const payer = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -74,6 +105,46 @@ export async function POST(req: Request) {
       );
     }
 
+    const profilePhone = normalizeKenyanPhone(String(payer.phone || ""));
+    const requestedPhone = requestedPhoneRaw
+      ? normalizeKenyanPhone(requestedPhoneRaw)
+      : "";
+
+    if (hasPhoneOverride && !isValidKenyanPhone(requestedPhone)) {
+      return NextResponse.json(
+        {
+          error:
+            "Enter a valid M-Pesa phone number in format 2547XXXXXXXX or 2541XXXXXXXX.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const phoneNumberToUse = requestedPhone || profilePhone;
+    const overrideUsed =
+      hasPhoneOverride &&
+      requestedPhone.length > 0 &&
+      requestedPhone !== profilePhone;
+
+    analyticsContext = {
+      userId: session.user.id,
+      apiRef,
+      initiatedPhoneNumber: phoneNumberToUse,
+      profilePhoneNumber: profilePhone,
+      overrideProvided: hasPhoneOverride,
+      overrideUsed,
+    };
+
+    if (!isValidKenyanPhone(phoneNumberToUse)) {
+      return NextResponse.json(
+        {
+          error:
+            "A valid phone number is required to initiate M-Pesa STK Push.",
+        },
+        { status: 400 },
+      );
+    }
+
     const onboardingFeeSetting = await prisma.systemSetting.findUnique({
       where: { key: "onboarding_fee_amount" },
       select: { value: true },
@@ -83,6 +154,7 @@ export async function POST(req: Request) {
       Number.isFinite(configuredOnboardingFee) && configuredOnboardingFee > 0
         ? configuredOnboardingFee
         : PAYMENT_AMOUNTS.ONBOARDING_FEE;
+    analyticsContext.amount = onboardingFeeAmount;
 
     const baseUrl = getBaseUrl();
     const callbackUrl = buildDarajaCallbackUrl(
@@ -97,11 +169,17 @@ export async function POST(req: Request) {
 
     const response = await initiateDarajaStkPush({
       amount: onboardingFeeAmount,
-      phoneNumber: payer.phone,
+      phoneNumber: phoneNumberToUse,
       apiRef,
       callbackUrl,
       accountReference,
       description: "Provider onboarding fee",
+    });
+
+    trackStkPhoneEvent({
+      flow: "onboarding_fee",
+      outcome: "initiated",
+      ...analyticsContext,
     });
 
     const verificationPath = buildPaymentVerificationPath({
@@ -160,6 +238,13 @@ export async function POST(req: Request) {
             sourceId: session.user.id,
             createdByType: "USER",
             description: `Onboarding Fee Payment Pending [Ref:${apiRef}]`,
+            metadata: {
+              apiRef,
+              initiatedPhoneNumber: phoneNumberToUse,
+              checkoutRequestId: response.CheckoutRequestID,
+              merchantRequestId: response.MerchantRequestID,
+              source: "onboarding_fee_initiate",
+            },
           },
         });
 
@@ -183,6 +268,7 @@ export async function POST(req: Request) {
           source: "onboarding_fee_initiate",
           checkoutRequestId: response.CheckoutRequestID,
           merchantRequestId: response.MerchantRequestID,
+          initiatedPhoneNumber: phoneNumberToUse,
         },
       });
     });
@@ -196,6 +282,14 @@ export async function POST(req: Request) {
     });
   } catch (error: unknown) {
     console.error("[ONBOARDING_FEE_INITIATE]", error);
+
+    trackStkPhoneEvent({
+      flow: "onboarding_fee",
+      outcome: "failed",
+      ...analyticsContext,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+
     const message =
       error instanceof Error ? error.message : "Failed to initiate payment";
     return NextResponse.json({ error: message }, { status: 500 });

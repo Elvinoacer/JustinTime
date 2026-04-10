@@ -96,7 +96,7 @@ const EarningsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-75 sm:min-h-100">
+      <div className="flex flex-col items-center justify-center min-h-[18rem] sm:min-h-[24rem]">
         <div
           role="status"
           aria-label="Loading earnings"
@@ -110,7 +110,7 @@ const EarningsPage = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6">
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
       {/* Header */}
       <div className="mb-4 sm:mb-6 md:mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -133,7 +133,7 @@ const EarningsPage = () => {
             <option value="last-month">Last Month</option>
             <option value="this-year">This Year</option>
           </select>
-          <button
+          <button type="button"
             onClick={handleExport}
             className="px-3 py-2 sm:px-5 sm:py-2.5 bg-gray-900 text-white rounded-lg font-medium text-xs sm:text-sm hover:bg-gray-800 transition-colors flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm w-full md:w-auto whitespace-nowrap"
             aria-label="Export earnings data"
@@ -417,7 +417,7 @@ const EarningsPage = () => {
             </div>
             {earnings.payouts.length > 0 && (
               <div className="border-t border-gray-200 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 md:py-4 bg-gray-50">
-                <button className="w-full text-gray-900 hover:text-blue-600 font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 transition-colors py-1.5 sm:py-2 rounded-lg hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200">
+                <button type="button" className="w-full text-gray-900 hover:text-blue-600 font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 transition-colors py-1.5 sm:py-2 rounded-lg hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-200">
                   <span>View All Payouts</span>
                   <span className="material-symbols-outlined text-xs sm:text-sm">
                     arrow_forward

@@ -197,7 +197,7 @@ const BookingsPage = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-6 lg:py-8">
+    <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-6 lg:py-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
       {/* Header */}
       <div className="mb-6 sm:mb-8">
         <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-4 mb-4">
@@ -384,7 +384,7 @@ const BookingsPage = () => {
               leaveFrom="opacity-100 translate-y-0"
               leaveTo="opacity-0 translate-y-1"
             >
-              <Popover.Panel className="absolute right-0 z-10 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-2 sm:p-4 w-[calc(100vw-2rem)] max-w-sm sm:max-w-none">
+              <Popover.Panel className="absolute left-0 sm:left-auto sm:right-0 z-10 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-2 sm:p-4 w-[calc(100vw-2rem)] max-w-sm sm:max-w-none">
                 <Calendar
                   initialFocus
                   mode="range"
@@ -460,7 +460,7 @@ const BookingsPage = () => {
                       )}`}
                     >
                       <span className="material-symbols-outlined text-xs">
-                        ${getStatusIcon(booking.status)}
+                        {getStatusIcon(booking.status)}
                       </span>
                       {booking.status}
                     </div>
@@ -633,7 +633,7 @@ const BookingsPage = () => {
       ) : (
         // List View
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto -mx-1">
+          <div className="overflow-x-auto overscroll-contain -mx-2 sm:mx-0 pb-1">
             <table className="w-full min-w-[640px]">
               <thead className="bg-linear-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
                 <tr>
@@ -742,7 +742,7 @@ const BookingsPage = () => {
                           )}`}
                         >
                           <span className="material-symbols-outlined text-xs">
-                            ${getStatusIcon(booking.status)}
+                            {getStatusIcon(booking.status)}
                           </span>
                           {booking.status}
                         </span>
@@ -1058,7 +1058,7 @@ const BookingsPage = () => {
                   )}`}
                 >
                   <span className="material-symbols-outlined text-sm">
-                    ${getStatusIcon(selectedBooking.status)}
+                    {getStatusIcon(selectedBooking.status)}
                   </span>
                   {selectedBooking.status}
                 </span>
@@ -1104,7 +1104,7 @@ const BookingsPage = () => {
       >
         <div className="space-y-4 sm:space-y-5">
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2 flex items-center gap-1.5 sm:gap-2">
+            <label className="text-sm font-bold text-gray-700 mb-1.5 sm:mb-2 flex items-center gap-1.5 sm:gap-2">
               <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
                 flag
               </span>
@@ -1126,7 +1126,7 @@ const BookingsPage = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5 sm:mb-2 flex items-center gap-1.5 sm:gap-2">
+            <label className="text-sm font-bold text-gray-700 mb-1.5 sm:mb-2 flex items-center gap-1.5 sm:gap-2">
               <span className="material-symbols-outlined text-emerald-600 text-sm sm:text-base">
                 notes
               </span>

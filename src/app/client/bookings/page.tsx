@@ -342,7 +342,7 @@ export default function ClientBookingsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 md:py-6 lg:py-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
       {/* Header */}
       <div className="mb-6 md:mb-8">
         <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
@@ -355,7 +355,7 @@ export default function ClientBookingsPage() {
 
       {/* Stats Cards - 2 columns on mobile */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-2 md:gap-3 lg:gap-4 mb-6 md:mb-8">
-        <button
+        <button type="button"
           onClick={() => setStatusFilter("all")}
           className={`p-3 md:p-4 rounded-lg md:rounded-xl border-2 transition-all touch-manipulation ${
             statusFilter === "all"
@@ -371,7 +371,7 @@ export default function ClientBookingsPage() {
         {Object.entries(statusCounts)
           .filter(([status]) => status !== "ALL")
           .map(([status, count]) => (
-            <button
+            <button type="button"
               key={status}
               onClick={() => {
                 setStatusFilter(status);
@@ -597,7 +597,7 @@ export default function ClientBookingsPage() {
 
                     {/* Action Buttons - Stack on mobile, inline on larger screens */}
                     <div className="mt-3 md:mt-4 flex flex-col xs:flex-row items-stretch xs:items-center gap-2">
-                      <button
+                      <button type="button"
                         onClick={() => {
                           setSelectedBooking(booking);
                           setIsViewModalOpen(true);
@@ -610,9 +610,9 @@ export default function ClientBookingsPage() {
                         <span>View Details</span>
                       </button>
 
-                      <div className="flex gap-2">
+                        <div className="flex gap-2 overflow-x-auto overscroll-contain pb-1 xs:overflow-visible xs:pb-0">
                         {booking.status === "AWAITING_CLIENT_CONFIRMATION" && (
-                          <button
+                          <button type="button"
                             onClick={() => handleConfirmCompletion(booking.id)}
                             disabled={confirmCompletionMutation.isPending}
                             className="flex-1 xs:flex-none px-3 py-2 md:px-4 md:py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5 text-sm md:text-base touch-manipulation disabled:opacity-50"
@@ -629,7 +629,7 @@ export default function ClientBookingsPage() {
                         )}
 
                         {canCancelBooking(booking.status) && (
-                          <button
+                          <button type="button"
                             onClick={() => handleInitiateCancel(booking)}
                             className="flex-1 xs:flex-none px-3 py-2 md:px-4 md:py-2 bg-white border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5 text-sm md:text-base touch-manipulation"
                           >
@@ -641,7 +641,7 @@ export default function ClientBookingsPage() {
                         )}
 
                         {canDisputeBooking(booking.status) && (
-                          <button
+                          <button type="button"
                             onClick={() => handleInitiateDispute(booking)}
                             className="flex-1 xs:flex-none px-3 py-2 md:px-4 md:py-2 bg-white border border-orange-300 text-orange-700 rounded-lg font-medium hover:bg-orange-50 transition-colors flex items-center justify-center gap-1.5 text-sm md:text-base touch-manipulation"
                           >
@@ -653,7 +653,7 @@ export default function ClientBookingsPage() {
                         )}
 
                         {canManageInsuranceClaim(booking) && (
-                          <button
+                          <button type="button"
                             onClick={() => handleOpenInsuranceClaim(booking)}
                             className="flex-1 xs:flex-none px-3 py-2 md:px-4 md:py-2 bg-white border border-emerald-300 text-emerald-700 rounded-lg font-medium hover:bg-emerald-50 transition-colors flex items-center justify-center gap-1.5 text-sm md:text-base touch-manipulation"
                           >
@@ -670,7 +670,7 @@ export default function ClientBookingsPage() {
 
                         {(booking.status === "CANCELLED" ||
                           booking.status === "COMPLETED") && (
-                          <button
+                          <button type="button"
                             onClick={() => {
                               setSelectedBooking(booking);
                               setIsDeleteModalOpen(true);
@@ -693,7 +693,7 @@ export default function ClientBookingsPage() {
 
           {total > pageSize && (
             <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 sm:px-6">
-              <button
+              <button type="button"
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                 disabled={page <= 1}
                 className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -703,7 +703,7 @@ export default function ClientBookingsPage() {
               <p className="text-xs text-gray-600 sm:text-sm">
                 Page {page} of {Math.max(1, Math.ceil(total / pageSize))}
               </p>
-              <button
+              <button type="button"
                 onClick={() => setPage((prev) => prev + 1)}
                 disabled={!hasMore}
                 className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -930,7 +930,7 @@ export default function ClientBookingsPage() {
             </div>
 
             <div className="flex justify-end gap-2 md:gap-3 pt-3 md:pt-4 border-t border-gray-200">
-              <button
+              <button type="button"
                 onClick={() => setIsViewModalOpen(false)}
                 className="px-4 py-2 md:px-6 md:py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors text-sm md:text-base touch-manipulation"
               >
@@ -938,7 +938,7 @@ export default function ClientBookingsPage() {
               </button>
 
               {canCancelBooking(selectedBooking.status) && (
-                <button
+                <button type="button"
                   onClick={() => handleInitiateCancel(selectedBooking)}
                   className="px-4 py-2 md:px-6 md:py-2.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg font-medium transition-colors text-sm md:text-base touch-manipulation"
                 >
@@ -947,7 +947,7 @@ export default function ClientBookingsPage() {
               )}
 
               {canDisputeBooking(selectedBooking.status) && (
-                <button
+                <button type="button"
                   onClick={() => handleInitiateDispute(selectedBooking)}
                   className="px-4 py-2 md:px-6 md:py-2.5 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg font-medium transition-colors text-sm md:text-base touch-manipulation"
                 >
@@ -956,7 +956,7 @@ export default function ClientBookingsPage() {
               )}
 
               {canManageInsuranceClaim(selectedBooking) && (
-                <button
+                <button type="button"
                   onClick={() => handleOpenInsuranceClaim(selectedBooking)}
                   className="px-4 py-2 md:px-6 md:py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-medium transition-colors text-sm md:text-base touch-manipulation"
                 >
@@ -981,7 +981,7 @@ export default function ClientBookingsPage() {
               )}
 
               {selectedBooking.status === "AWAITING_CLIENT_CONFIRMATION" && (
-                <button
+                <button type="button"
                   onClick={() => handleConfirmCompletion(selectedBooking.id)}
                   disabled={confirmCompletionMutation.isPending}
                   className="px-4 py-2 md:px-6 md:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors text-sm md:text-base touch-manipulation disabled:opacity-50"
@@ -1172,14 +1172,14 @@ export default function ClientBookingsPage() {
             </div>
           )}
           <div className="flex flex-col xs:flex-row justify-end gap-2 md:gap-3 pt-3 md:pt-4">
-            <button
+            <button type="button"
               onClick={() => setIsDeleteModalOpen(false)}
               disabled={deleteBookingMutation.isPending}
               className="order-2 xs:order-1 px-4 py-2 md:px-6 md:py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors disabled:opacity-50 text-sm md:text-base touch-manipulation"
             >
               Keep Booking
             </button>
-            <button
+            <button type="button"
               onClick={handleDeleteBooking}
               disabled={deleteBookingMutation.isPending}
               className="order-1 xs:order-2 px-4 py-2 md:px-6 md:py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 text-sm md:text-base touch-manipulation"

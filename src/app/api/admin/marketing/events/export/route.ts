@@ -16,7 +16,8 @@ function parseChannelFilter(value: string | null): ChannelFilter {
     value === "landing" ||
     value === "jobs" ||
     value === "newsletter" ||
-    value === "contact"
+    value === "contact" ||
+    value === "payments"
   ) {
     return value;
   }

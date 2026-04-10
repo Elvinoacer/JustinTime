@@ -280,7 +280,7 @@ const ServicesPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[300px] md:min-h-100 px-4">
+      <div className="flex min-h-[300px] items-center justify-center px-4 md:min-h-[400px]">
         <div
           role="status"
           aria-label="Loading services"
@@ -293,7 +293,7 @@ const ServicesPage = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 pb-10">
+    <div className="mx-auto max-w-7xl px-3 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-4 lg:px-6">
       {/* Header */}
       <div className="mb-5 rounded-[28px] border border-emerald-100 bg-[linear-gradient(135deg,#f7fffb_0%,#ffffff_50%,#f5f9ff_100%)] p-4 shadow-sm sm:mb-7 sm:p-6 lg:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -343,12 +343,12 @@ const ServicesPage = () => {
             </div>
           </div>
 
-          <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-70">
-            <button
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[17.5rem]">
+            <button type="button"
               onClick={openAddModal}
               className={`${
                 isMobile ? "px-3 py-3 text-sm" : "px-5 py-3.5 text-sm"
-              } rounded-2xl bg-emerald-600 font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 flex items-center justify-center gap-2 active:scale-95`}
+              } rounded-2xl bg-emerald-600 font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 flex items-center justify-center gap-2 active:scale-95 touch-manipulation`}
               aria-label="Add new service"
             >
               <span className="material-symbols-outlined text-base">add</span>
@@ -395,10 +395,10 @@ const ServicesPage = () => {
                     </p>
                   </div>
                 </div>
-                <button
+                <button type="button"
                   onClick={item.onClick}
                   disabled={item.completed}
-                  className="mt-3 inline-flex items-center justify-center rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 disabled:cursor-default disabled:border-emerald-100 disabled:text-emerald-400"
+                  className="mt-3 inline-flex items-center justify-center rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 disabled:cursor-default disabled:border-emerald-100 disabled:text-emerald-400 touch-manipulation"
                 >
                   {item.completed ? "Completed" : item.actionLabel}
                 </button>
@@ -749,33 +749,33 @@ const ServicesPage = () => {
                       </div>
 
                       <div className="rounded-[22px] border border-gray-100 bg-[linear-gradient(135deg,#f8fafc_0%,#ffffff_100%)] p-3 shadow-sm">
-                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
-                          <button
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
+                          <button type="button"
                             onClick={() => {
                               setPromotingService(service);
                               setShowPromoteModal(true);
                             }}
-                            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-fuchsia-600 via-violet-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95"
+                            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-fuchsia-600 via-violet-600 to-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-95 touch-manipulation"
                           >
                             <span className="material-symbols-outlined text-sm">
                               rocket_launch
                             </span>
                             <span>Boost Visibility</span>
                           </button>
-                          <button
+                          <button type="button"
                             onClick={() => openEditModal(service)}
-                            className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition-colors active:scale-95 ${accent.action}`}
+                            className={`flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition-colors active:scale-95 touch-manipulation ${accent.action}`}
                           >
                             <span className="material-symbols-outlined text-sm">
                               edit
                             </span>
                             <span>Edit</span>
                           </button>
-                          <button
+                          <button type="button"
                             onClick={() =>
                               handleToggleStatus(service.id, service.isActive)
                             }
-                            className={`flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors active:scale-95 ${
+                            className={`flex min-h-[44px] items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors active:scale-95 touch-manipulation ${
                               service.isActive
                                 ? "bg-orange-50 text-orange-700 hover:bg-orange-100"
                                 : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
@@ -788,9 +788,9 @@ const ServicesPage = () => {
                               {service.isActive ? "Pause" : "Activate"}
                             </span>
                           </button>
-                          <button
+                          <button type="button"
                             onClick={() => setDeleteConfirm(service.id)}
-                            className="flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-red-600 opacity-80 transition-colors hover:bg-red-50 hover:opacity-100 active:scale-95"
+                            className="flex min-h-[44px] items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-red-600 opacity-80 transition-colors hover:bg-red-50 hover:opacity-100 active:scale-95 touch-manipulation"
                           >
                             <span className="material-symbols-outlined text-sm">
                               delete
@@ -845,13 +845,13 @@ const ServicesPage = () => {
             {serviceLimit === Infinity ? "unlimited" : `up to ${serviceLimit}`}{" "}
             services to showcase your expertise.
           </p>
-          <button
+          <button type="button"
             onClick={openAddModal}
             className={`${
               isMobile ? "px-3 py-2.5 text-xs" : "px-4 sm:px-6 py-3 text-sm"
             } bg-emerald-600 text-white ${
               isMobile ? "rounded-lg" : "rounded-xl"
-            } font-bold hover:bg-emerald-700 transition-all shadow-md hover:shadow-lg shadow-emerald-200 inline-flex items-center justify-center gap-1.5 sm:gap-2 w-full sm:w-auto active:scale-95`}
+            } font-bold hover:bg-emerald-700 transition-all shadow-md hover:shadow-lg shadow-emerald-200 inline-flex items-center justify-center gap-1.5 sm:gap-2 w-full sm:w-auto active:scale-95 touch-manipulation`}
           >
             <span
               className={`material-symbols-outlined ${
@@ -872,7 +872,7 @@ const ServicesPage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm sm:p-4"
             onClick={() => setDeleteConfirm(null)}
           >
             <motion.div
@@ -882,7 +882,7 @@ const ServicesPage = () => {
               onClick={(e) => e.stopPropagation()}
               className={`bg-white ${
                 isMobile ? "rounded-lg p-4" : "rounded-xl p-5 sm:p-6 lg:p-8"
-              } shadow-lg sm:shadow-2xl max-w-sm w-full text-center relative overflow-hidden`}
+              } relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto text-center shadow-lg sm:max-h-[90vh] sm:shadow-2xl`}
             >
               {/* Decorative background element */}
               <div className="absolute top-0 left-0 w-full h-1.5 sm:h-2 bg-linear-to-r from-red-400 to-red-600" />
@@ -919,7 +919,7 @@ const ServicesPage = () => {
               </p>
 
               <div className={`flex flex-col ${isMobile ? "gap-2" : "gap-3"}`}>
-                <button
+                <button type="button"
                   onClick={() => handleDelete(deleteConfirm!)}
                   className={`w-full ${
                     isMobile
@@ -927,7 +927,7 @@ const ServicesPage = () => {
                       : "px-4 sm:px-5 py-3 text-sm"
                   } bg-red-600 text-white ${
                     isMobile ? "rounded-lg" : "rounded-xl"
-                  } font-bold hover:bg-red-700 transition-all shadow-md hover:shadow-lg shadow-red-200 flex items-center justify-center gap-1.5 sm:gap-2 active:scale-95`}
+                  } font-bold hover:bg-red-700 transition-all shadow-md hover:shadow-lg shadow-red-200 flex items-center justify-center gap-1.5 sm:gap-2 active:scale-95 touch-manipulation`}
                 >
                   <span
                     className={`material-symbols-outlined ${
@@ -938,7 +938,7 @@ const ServicesPage = () => {
                   </span>
                   Yes, Delete Service
                 </button>
-                <button
+                <button type="button"
                   onClick={() => setDeleteConfirm(null)}
                   className={`w-full ${
                     isMobile
@@ -946,7 +946,7 @@ const ServicesPage = () => {
                       : "px-4 sm:px-5 py-3 text-sm"
                   } bg-white text-gray-700 border border-gray-200 ${
                     isMobile ? "rounded-lg" : "rounded-xl"
-                  } font-semibold hover:bg-gray-50 transition-colors active:scale-95`}
+                  } font-semibold hover:bg-gray-50 transition-colors active:scale-95 touch-manipulation`}
                 >
                   Cancel
                 </button>

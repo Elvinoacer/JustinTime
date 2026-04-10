@@ -2,10 +2,14 @@
 
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   useInitiateSubscription,
   useSubscriptionStatus,
 } from "@/lib/api/hooks/useSubscription";
+import { StkPhonePromptModal } from "@/components/payments/StkPhonePromptModal";
+import { useStkPhonePrefill } from "@/hooks/useStkPhonePrefill";
+import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
 
 const PremiumPage = () => {
   const { data: subscriptionData } = useSubscriptionStatus();
@@ -13,7 +17,15 @@ const PremiumPage = () => {
   const [selectedPlan, setSelectedPlan] = useState<"PRO" | "BUSINESS" | null>(
     null,
   );
+  const [planForPhonePrompt, setPlanForPhonePrompt] = useState<
+    "PRO" | "BUSINESS" | null
+  >(null);
   const [isMobile, setIsMobile] = useState(false);
+  const {
+    phone: stkPhoneNumber,
+    setPhone: setStkPhoneNumber,
+    isLoadingPhone: isLoadingStkPhone,
+  } = useStkPhonePrefill();
 
   useEffect(() => {
     const updateViewport = () => {
@@ -31,8 +43,29 @@ const PremiumPage = () => {
   const currentPlan = subscriptionData?.subscription?.plan || "FREE";
 
   const handleUpgrade = (plan: "PRO" | "BUSINESS") => {
-    setSelectedPlan(plan);
-    initiateSubscription.mutate({ plan });
+    setPlanForPhonePrompt(plan);
+  };
+
+  const handleConfirmUpgrade = () => {
+    if (!planForPhonePrompt) {
+      return;
+    }
+
+    const normalizedPhone = normalizeKenyanPhone(stkPhoneNumber);
+    if (!isValidKenyanPhone(normalizedPhone)) {
+      toast.error(
+        "Enter a valid M-Pesa phone number (e.g. 254712345678).",
+      );
+      return;
+    }
+
+    setStkPhoneNumber(normalizedPhone);
+
+    setSelectedPlan(planForPhonePrompt);
+    initiateSubscription.mutate({
+      plan: planForPhonePrompt,
+      phoneNumber: normalizedPhone,
+    });
   };
 
   const pricingTiers = [
@@ -97,7 +130,7 @@ const PremiumPage = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
       {/* Header */}
       <div className="text-center mb-6 sm:mb-8 md:mb-12">
         <motion.h1
@@ -275,6 +308,7 @@ const PremiumPage = () => {
 
             {/* CTA Button */}
             <button
+              type="button"
               onClick={() =>
                 !tier.disabled &&
                 tier.name !== "FREE" &&
@@ -332,7 +366,7 @@ const PremiumPage = () => {
           Feature Comparison
         </h2>
         <div className="overflow-x-auto -mx-2 sm:mx-0">
-          <div className="min-w-150 sm:min-w-0">
+          <div className="min-w-[42rem] sm:min-w-0">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
@@ -555,6 +589,19 @@ const PremiumPage = () => {
           ))}
         </div>
       </motion.div>
+
+      <StkPhonePromptModal
+        isOpen={Boolean(planForPhonePrompt)}
+        title="Confirm STK phone"
+        description="Use the phone number that should receive this subscription STK prompt."
+        phoneNumber={stkPhoneNumber}
+        onPhoneNumberChange={setStkPhoneNumber}
+        onClose={() => setPlanForPhonePrompt(null)}
+        onConfirm={handleConfirmUpgrade}
+        confirmLabel="Pay with M-Pesa"
+        isSubmitting={initiateSubscription.isPending}
+        isLoadingDefaultPhone={isLoadingStkPhone}
+      />
     </div>
   );
 };

@@ -310,7 +310,7 @@ export default function SolarSpecialistApplyPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="rounded-2xl bg-white border border-gray-200 p-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Solar Specialist Application

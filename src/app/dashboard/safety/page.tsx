@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function SafetyPage() {
   return (
-    <div className="container mx-auto py-8 max-w-5xl space-y-8">
+    <div className="container mx-auto py-8 max-w-5xl space-y-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <SOSOverlay />
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">

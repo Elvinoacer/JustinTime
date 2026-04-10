@@ -24,6 +24,9 @@ import {
 } from "@/lib/api/hooks/useWallet";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/api/queryKeys";
+import { StkPhonePromptModal } from "@/components/payments/StkPhonePromptModal";
+import { useStkPhonePrefill } from "@/hooks/useStkPhonePrefill";
+import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
 
 function formatCurrency(value: number | string | null | undefined): string {
   const parsed = Number(value || 0);
@@ -142,6 +145,13 @@ export default function ClientWalletPage() {
     topUpId?: string;
   } | null>(null);
   const [statusToastKey, setStatusToastKey] = useState<string | null>(null);
+  const [isTopUpPhonePromptOpen, setIsTopUpPhonePromptOpen] = useState(false);
+
+  const {
+    phone: stkPhoneNumber,
+    setPhone: setStkPhoneNumber,
+    isLoadingPhone: isLoadingStkPhone,
+  } = useStkPhonePrefill();
 
   const { data: wallet, isLoading: walletLoading } = useWallet();
   const topUpMutation = useTopUpWallet();
@@ -267,9 +277,30 @@ export default function ClientWalletPage() {
       return;
     }
 
+    setIsTopUpPhonePromptOpen(true);
+  };
+
+  const handleConfirmTopUp = () => {
+    const amount = parseInt(topUpAmount, 10);
+    if (!amount || amount < 10) {
+      toast.error("Minimum top-up is KES 10");
+      return;
+    }
+
+    const normalizedPhone = normalizeKenyanPhone(stkPhoneNumber);
+    if (!isValidKenyanPhone(normalizedPhone)) {
+      toast.error(
+        "Enter a valid M-Pesa phone number (e.g. 254712345678).",
+      );
+      return;
+    }
+
+    setStkPhoneNumber(normalizedPhone);
+
     topUpMutation.mutate({
       amount,
       returnUrl: "/client/wallet",
+      phoneNumber: normalizedPhone,
     });
   };
 
@@ -736,6 +767,19 @@ export default function ClientWalletPage() {
           funds are shown separately from pending top-ups.
         </div>
       </div>
+
+      <StkPhonePromptModal
+        isOpen={isTopUpPhonePromptOpen}
+        title="Confirm STK phone"
+        description="Use the number that should receive the wallet top-up STK prompt."
+        phoneNumber={stkPhoneNumber}
+        onPhoneNumberChange={setStkPhoneNumber}
+        onClose={() => setIsTopUpPhonePromptOpen(false)}
+        onConfirm={handleConfirmTopUp}
+        confirmLabel="Start Top-up"
+        isSubmitting={topUpMutation.isPending}
+        isLoadingDefaultPhone={isLoadingStkPhone}
+      />
     </div>
   );
 }

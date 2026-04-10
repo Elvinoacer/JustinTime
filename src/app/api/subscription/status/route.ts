@@ -35,7 +35,9 @@ function mapResultCode(state: string): number {
 function toCanonicalPaymentStatus(
   value: string | null | undefined,
 ): CanonicalPaymentStatus | null {
-  const normalized = String(value || "").trim().toUpperCase();
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase();
 
   if (
     normalized === "PENDING" ||
@@ -65,6 +67,27 @@ function extractApiRefFromProviderRef(
   }
 
   return value.slice(index + 1).trim() || null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function extractInitiatedPhoneNumberFromMetadata(
+  metadata: unknown,
+): string | null {
+  const parsed = asRecord(metadata);
+  const candidate = parsed?.initiatedPhoneNumber;
+  if (typeof candidate !== "string") {
+    return null;
+  }
+
+  const normalized = candidate.trim();
+  return normalized.length > 0 ? normalized : null;
 }
 
 function buildSyntheticWebhookRequest(
@@ -136,6 +159,7 @@ export async function GET(req: Request) {
       checkoutRequestId: string | null;
       merchantRequestId: string | null;
       failureReason: string | null;
+      initiatedPhoneNumber: string | null;
     } | null = null;
 
     if (!isActive) {
@@ -190,6 +214,9 @@ export async function GET(req: Request) {
           checkoutRequestId: resolvedCheckoutRequestId,
           merchantRequestId: resolvedMerchantRequestId,
           failureReason: pending.failureReason,
+          initiatedPhoneNumber: extractInitiatedPhoneNumberFromMetadata(
+            pending.metadata,
+          ),
         };
 
         if (resolvedCheckoutRequestId) {
@@ -232,7 +259,7 @@ export async function GET(req: Request) {
               const refreshedNow = new Date();
               const refreshedExpired = Boolean(
                 subscription?.endDate &&
-                  subscription.endDate.getTime() <= refreshedNow.getTime(),
+                subscription.endDate.getTime() <= refreshedNow.getTime(),
               );
               isActive = Boolean(subscription?.isActive) && !refreshedExpired;
             }
@@ -249,10 +276,11 @@ export async function GET(req: Request) {
     const currentNow = new Date();
     const currentExpired = Boolean(
       subscription?.endDate &&
-        subscription.endDate.getTime() <= currentNow.getTime(),
+      subscription.endDate.getTime() <= currentNow.getTime(),
     );
     const currentActive = Boolean(subscription?.isActive) && !currentExpired;
-    const currentPlan = subscription && currentActive ? subscription.plan : "FREE";
+    const currentPlan =
+      subscription && currentActive ? subscription.plan : "FREE";
 
     let currentDaysRemaining = null;
     if (subscription?.endDate && currentActive && currentPlan !== "FREE") {
@@ -280,6 +308,7 @@ export async function GET(req: Request) {
         failureReason: true,
         amount: true,
         currency: true,
+        metadata: true,
       },
     });
 
@@ -335,12 +364,26 @@ export async function GET(req: Request) {
           checkoutRequestId: resolvedCheckoutRequestId,
           merchantRequestId: resolvedMerchantRequestId,
           failureReason:
-            matchedTransaction?.failureReason || pendingPayment?.failureReason || null,
+            matchedTransaction?.failureReason ||
+            pendingPayment?.failureReason ||
+            null,
+          initiatedPhoneNumber:
+            extractInitiatedPhoneNumberFromMetadata(
+              matchedTransaction?.metadata,
+            ) ||
+            pendingPayment?.initiatedPhoneNumber ||
+            null,
         }
       : null;
 
     const failureReason =
-      matchedTransaction?.failureReason || pendingPayment?.failureReason || null;
+      matchedTransaction?.failureReason ||
+      pendingPayment?.failureReason ||
+      null;
+    const initiatedPhoneNumber =
+      extractInitiatedPhoneNumberFromMetadata(matchedTransaction?.metadata) ||
+      pendingPayment?.initiatedPhoneNumber ||
+      null;
 
     return NextResponse.json({
       subscription: {
@@ -363,6 +406,7 @@ export async function GET(req: Request) {
       amountReceived:
         paymentStatus === "SETTLED" ? matchedTransaction?.amount || null : null,
       currency: matchedTransaction?.currency || "KES",
+      initiatedPhoneNumber,
     });
   } catch (error) {
     console.error("Error fetching subscription status:", error);

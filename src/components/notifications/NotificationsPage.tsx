@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
@@ -252,6 +258,16 @@ const NotificationsPage = ({ roleOverride }: NotificationsPageProps) => {
     }
   };
 
+  const handleNotificationKeyDown = (
+    event: KeyboardEvent<HTMLDivElement>,
+    notification: NotificationItem,
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      void openNotification(notification);
+    }
+  };
+
   const openNotification = async (notification: NotificationItem) => {
     const roleSource = roleOverride
       ? { role: roleOverride }
@@ -385,7 +401,7 @@ const NotificationsPage = ({ roleOverride }: NotificationsPageProps) => {
 
   if (notificationsQuery.isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-75 sm:min-h-100">
+      <div className="flex items-center justify-center min-h-[18rem] sm:min-h-[24rem]">
         <div
           className={`border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin ${
             isMobile ? "w-8 h-8 border-3" : "w-10 h-10 sm:w-12 sm:h-12 border-4"
@@ -409,7 +425,7 @@ const NotificationsPage = ({ roleOverride }: NotificationsPageProps) => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-2 sm:px-4 md:px-6 pb-16 sm:pb-8 pt-2 sm:pt-4 md:pt-6">
+    <div className="max-w-4xl mx-auto min-h-[70vh] px-2 sm:px-4 md:px-6 pb-[max(4.5rem,env(safe-area-inset-bottom))] sm:pb-8 pt-2 sm:pt-4 md:pt-6">
       <div className="mb-4 sm:mb-6 md:mb-8">
         <div className="flex items-center justify-between mb-2">
           <div className="flex-1 min-w-0">
@@ -447,7 +463,7 @@ const NotificationsPage = ({ roleOverride }: NotificationsPageProps) => {
       </div>
 
       <div className="flex flex-col xs:flex-row items-stretch xs:items-center justify-between gap-2 sm:gap-3 mb-4 sm:mb-5">
-        <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-1 -mx-2 px-2">
+        <div className="flex gap-1 sm:gap-2 overflow-x-auto overscroll-contain pb-1 -mx-2 px-2">
           {[
             { value: "all", label: "All" },
             {
@@ -460,15 +476,16 @@ const NotificationsPage = ({ roleOverride }: NotificationsPageProps) => {
             },
           ].map((item) => (
             <button
+              type="button"
               key={item.value}
               onClick={() =>
                 setFilter(item.value as "all" | "unread" | "applications")
               }
-              className={`rounded-lg font-medium transition-colors touch-manipulation whitespace-nowrap ${
+              className={`rounded-lg font-medium transition-colors touch-manipulation whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-1 ${
                 filter === item.value
                   ? "bg-emerald-600 text-white"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300"
-              } ${isMobile ? "px-3 py-1.5 text-xs" : "px-3 py-2 sm:px-4 text-sm"}`}
+              } ${isMobile ? "min-h-10 px-3 py-1.5 text-xs" : "min-h-10 px-3 py-2 sm:px-4 text-sm"}`}
             >
               {item.label.trim()}
             </button>
@@ -478,8 +495,9 @@ const NotificationsPage = ({ roleOverride }: NotificationsPageProps) => {
         <div className="flex items-center gap-1 sm:gap-2 mt-2 xs:mt-0">
           {unreadCount > 0 && (
             <button
+              type="button"
               onClick={() => markAllAsReadMutation.mutate()}
-              className={`text-emerald-600 hover:text-emerald-700 active:text-emerald-800 font-medium flex items-center gap-1 sm:gap-2 touch-manipulation ${
+              className={`text-emerald-700 hover:text-emerald-800 active:text-emerald-900 font-medium flex items-center gap-1 sm:gap-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 touch-manipulation ${
                 isMobile
                   ? "text-xs px-2 py-1.5"
                   : "text-xs sm:text-sm px-3 py-2 sm:px-4"
@@ -495,10 +513,11 @@ const NotificationsPage = ({ roleOverride }: NotificationsPageProps) => {
           )}
           {notifications.length > 0 && (
             <button
+              type="button"
               onClick={() => {
                 void clearAllNotifications();
               }}
-              className={`text-red-600 hover:text-red-700 active:text-red-800 font-medium flex items-center gap-1 sm:gap-2 touch-manipulation ${
+              className={`text-red-700 hover:text-red-800 active:text-red-900 font-medium flex items-center gap-1 sm:gap-2 rounded-lg bg-red-50 hover:bg-red-100 active:bg-red-200 touch-manipulation ${
                 isMobile
                   ? "text-xs px-2 py-1.5"
                   : "text-xs sm:text-sm px-3 py-2 sm:px-4"
@@ -515,7 +534,7 @@ const NotificationsPage = ({ roleOverride }: NotificationsPageProps) => {
         </div>
       </div>
 
-      <div className="space-y-2 sm:space-y-3">
+      <div className="space-y-2 sm:space-y-3 overscroll-contain">
         {filteredNotifications.length === 0 ? (
           <div className="text-center py-6 sm:py-8 md:py-12 bg-gray-50 rounded-lg sm:rounded-xl">
             <span
@@ -575,10 +594,16 @@ const NotificationsPage = ({ roleOverride }: NotificationsPageProps) => {
                 </div>
 
                 <div
-                  className="flex-1 min-w-0 cursor-pointer"
+                  className="flex-1 min-w-0 cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2"
                   onClick={() => {
                     void openNotification(notification);
                   }}
+                  onKeyDown={(event) =>
+                    handleNotificationKeyDown(event, notification)
+                  }
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open notification: ${notification.title}`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1.5 sm:gap-2">
                     <div className="flex-1 min-w-0">
@@ -617,13 +642,12 @@ const NotificationsPage = ({ roleOverride }: NotificationsPageProps) => {
                     <div className="flex items-center gap-0.5 self-end sm:self-start mt-1 sm:mt-0">
                       {!notification.isRead && (
                         <button
+                          type="button"
                           onClick={(event) => {
                             event.stopPropagation();
                             void markAsRead(notification.id);
                           }}
-                          className={`text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100 rounded-lg transition-colors touch-manipulation ${
-                            isMobile ? "p-1" : "p-1.5"
-                          }`}
+                          className="inline-flex h-9 w-9 items-center justify-center text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 active:bg-emerald-100 rounded-lg transition-colors touch-manipulation"
                           title="Mark as read"
                           aria-label="Mark as read"
                         >
@@ -637,15 +661,14 @@ const NotificationsPage = ({ roleOverride }: NotificationsPageProps) => {
                         </button>
                       )}
                       <button
+                        type="button"
                         onClick={(event) => {
                           event.stopPropagation();
                           setDeletingId(notification.id);
                           deleteNotificationMutation.mutate(notification.id);
                         }}
                         disabled={deletingId === notification.id}
-                        className={`text-gray-400 hover:text-red-600 hover:bg-red-50 active:bg-red-100 rounded-lg transition-colors touch-manipulation disabled:opacity-50 ${
-                          isMobile ? "p-1" : "p-1.5"
-                        }`}
+                        className="inline-flex h-9 w-9 items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 active:bg-red-100 rounded-lg transition-colors touch-manipulation disabled:opacity-50"
                         title="Delete notification"
                         aria-label="Delete notification"
                       >

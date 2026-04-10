@@ -489,7 +489,7 @@ export default function JobApplicationsPage() {
   };
 
   return (
-    <div className="space-y-4 md:space-y-6 px-2 sm:px-4">
+    <div className="space-y-4 px-2 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 md:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-xl md:text-2xl font-bold text-gray-900">My Jobs</h1>
         <Link
@@ -516,12 +516,12 @@ export default function JobApplicationsPage() {
       ) : null}
 
       {/* Tabs */}
-      <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="-mx-1 flex gap-1 overflow-x-auto overscroll-contain px-1 pb-1 sm:gap-2">
         {tabs.map((tab) => (
-          <button
+          <button type="button"
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap min-w-20 ${
+            className={`min-h-10 min-w-20 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap touch-manipulation ${
               activeTab === tab
                 ? "bg-gray-900 text-white shadow-sm"
                 : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
@@ -733,13 +733,13 @@ export default function JobApplicationsPage() {
                         )}
                       </div>
                       <div
-                        className="flex gap-1.5 sm:gap-2"
+                        className="flex gap-1.5 sm:gap-2 overflow-x-auto overscroll-contain pb-1 sm:pb-0"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {(activeTab === "available" ||
                           activeTab === "recommended") && (
                           <>
-                            <button
+                            <button type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 void handleQuickApply(job);
@@ -750,7 +750,7 @@ export default function JobApplicationsPage() {
                             >
                               Quick Apply
                             </button>
-                            <button
+                            <button type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleApplyClick(job);
@@ -762,7 +762,7 @@ export default function JobApplicationsPage() {
                           </>
                         )}
                         {activeTab === "applied" && pendingProposalId && (
-                          <button
+                          <button type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleWithdraw(pendingProposalId);
@@ -803,7 +803,7 @@ export default function JobApplicationsPage() {
                 <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 truncate">
                   Submit Proposal
                 </h2>
-                <button
+                <button type="button"
                   onClick={() => setShowProposalModal(false)}
                   className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors shrink-0 ml-2"
                 >
@@ -1021,13 +1021,13 @@ export default function JobApplicationsPage() {
               </div>
 
               <div className="flex flex-col xs:flex-row gap-2 sm:gap-3 mt-4 sm:mt-5 md:mt-6">
-                <button
+                <button type="button"
                   onClick={() => setShowProposalModal(false)}
                   className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold text-xs sm:text-sm"
                 >
                   Cancel
                 </button>
-                <button
+                <button type="button"
                   onClick={handleSubmitProposal}
                   disabled={submitProposal.isPending}
                   className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 sm:gap-2"
@@ -1068,7 +1068,7 @@ export default function JobApplicationsPage() {
                 <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 truncate">
                   Job Details
                 </h2>
-                <button
+                <button type="button"
                   onClick={() => setShowJobDetailsModal(false)}
                   className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-full transition-colors shrink-0 ml-2"
                 >
@@ -1224,7 +1224,7 @@ export default function JobApplicationsPage() {
 
                 {(activeTab === "available" || activeTab === "recommended") &&
                   !selectedJob.proposal && (
-                    <button
+                    <button type="button"
                       onClick={() => {
                         setShowJobDetailsModal(false);
                         handleApplyClick(selectedJob);

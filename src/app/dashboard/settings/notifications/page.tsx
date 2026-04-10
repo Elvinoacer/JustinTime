@@ -75,7 +75,7 @@ export default function DashboardNotificationSettingsPage() {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-auto max-w-3xl space-y-6 p-2 sm:p-4"
+      className="mx-auto max-w-3xl space-y-6 p-2 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4"
     >
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
@@ -111,11 +111,11 @@ export default function DashboardNotificationSettingsPage() {
           ].map((item) => (
             <label
               key={item.key}
-              className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-100 bg-gray-50 p-3 hover:bg-gray-100"
+              className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-100 bg-gray-50 p-3 hover:bg-gray-100 touch-manipulation"
             >
               <input
                 type="checkbox"
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                className="mt-1 h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 checked={formState[item.key as keyof NotificationFormState]}
                 onChange={(event) =>
                   updateKey(
@@ -174,11 +174,11 @@ export default function DashboardNotificationSettingsPage() {
           ].map((item) => (
             <label
               key={item.key}
-              className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-100 bg-gray-50 p-3 hover:bg-gray-100"
+              className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-100 bg-gray-50 p-3 hover:bg-gray-100 touch-manipulation"
             >
               <input
                 type="checkbox"
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                className="mt-1 h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                 checked={formState[item.key as keyof NotificationFormState]}
                 onChange={(event) =>
                   updateKey(
@@ -200,9 +200,10 @@ export default function DashboardNotificationSettingsPage() {
 
       <div className="flex justify-end">
         <button
+          type="button"
           onClick={saveChanges}
           disabled={updateSettings.isPending}
-          className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full sm:w-auto rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 touch-manipulation disabled:cursor-not-allowed disabled:opacity-60"
         >
           {updateSettings.isPending ? "Saving..." : "Save preferences"}
         </button>

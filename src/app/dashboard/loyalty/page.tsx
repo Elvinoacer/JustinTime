@@ -113,7 +113,7 @@ export default async function LoyaltyPage({
 
   if (!loyaltyResult.success || !loyaltyResult.loyalty) {
     return (
-      <div className="container mx-auto max-w-6xl py-8 px-4">
+      <div className="container mx-auto max-w-6xl py-8 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <p className="text-red-600">Failed to load loyalty dashboard</p>
       </div>
     );

@@ -44,7 +44,7 @@ export default function PremiumPricingToggle({
       type="button"
       onClick={handleToggle}
       disabled={loading}
-      className={`px-6 py-2 text-white rounded-lg transition-colors font-medium disabled:opacity-70 ${
+      className={`min-h-10 px-4 sm:px-6 py-2 text-white rounded-lg transition-colors font-medium touch-manipulation disabled:opacity-70 ${
         enabled
           ? "bg-slate-700 hover:bg-slate-800"
           : "bg-purple-600 hover:bg-purple-700"

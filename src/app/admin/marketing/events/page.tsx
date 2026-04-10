@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  getStkPhoneTelemetrySummary,
   listMarketingEvents,
   type MarketingEventChannel,
 } from "@/lib/analytics/event-store";
@@ -17,6 +18,7 @@ const CHANNEL_FILTERS: Array<{ value: ChannelFilter; label: string }> = [
   { value: "jobs", label: "Jobs" },
   { value: "newsletter", label: "Newsletter" },
   { value: "contact", label: "Contact" },
+  { value: "payments", label: "Payments" },
 ];
 
 const CHANNEL_BADGE_STYLES: Record<string, string> = {
@@ -24,6 +26,7 @@ const CHANNEL_BADGE_STYLES: Record<string, string> = {
   jobs: "bg-indigo-50 text-indigo-700 border-indigo-200",
   newsletter: "bg-emerald-50 text-emerald-700 border-emerald-200",
   contact: "bg-amber-50 text-amber-700 border-amber-200",
+  payments: "bg-violet-50 text-violet-700 border-violet-200",
 };
 
 function getSingleValue(
@@ -75,6 +78,10 @@ function getPayloadPreview(payload: Record<string, unknown> | null): string {
   }
 
   return `${compact.slice(0, 177)}...`;
+}
+
+function formatPercent(value: number): string {
+  return `${(value * 100).toFixed(1)}%`;
 }
 
 function buildHref(input: {
@@ -138,6 +145,21 @@ export default async function AdminMarketingEventsPage({
   const currentPage = Math.min(page, totalPages);
   const startCount = total === 0 ? 0 : offset + 1;
   const endCount = Math.min(offset + events.length, total);
+  const isStkPresetActive = channel === "payments" && query === "stk_phone_";
+  const stkPresetHref = buildHref({
+    channel: "payments",
+    query: "stk_phone_",
+    startDate,
+    endDate,
+    page: 1,
+  });
+  const stkSummary =
+    channel === "payments" || query.includes("stk_phone_")
+      ? await getStkPhoneTelemetrySummary({
+          startDate: startDateFilter,
+          endDate: endDateFilter,
+        })
+      : null;
   const exportHref = (() => {
     const exportParams = new URLSearchParams();
 
@@ -171,7 +193,7 @@ export default async function AdminMarketingEventsPage({
             Marketing Event Log
           </h1>
           <p className="text-gray-600">
-            Review captured landing, jobs, newsletter, and contact events.
+            Review captured landing, jobs, newsletter, contact, and payments events.
           </p>
         </div>
         <div className="flex gap-2">
@@ -250,7 +272,124 @@ export default async function AdminMarketingEventsPage({
             </div>
           </label>
         </div>
+
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-gray-100 pt-3">
+          <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Presets
+          </span>
+          <Link
+            href={stkPresetHref}
+            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
+              isStkPresetActive
+                ? "border-violet-300 bg-violet-100 text-violet-700"
+                : "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"
+            }`}
+          >
+            STK Telemetry
+          </Link>
+          {isStkPresetActive ? (
+            <Link
+              href={buildHref({
+                channel: "all",
+                query: "",
+                startDate,
+                endDate,
+                page: 1,
+              })}
+              className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+            >
+              Clear preset
+            </Link>
+          ) : null}
+        </div>
       </form>
+
+      {stkSummary ? (
+        <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-bold text-violet-900">
+                STK Initiation Telemetry
+              </h2>
+              <p className="text-xs text-violet-700">
+                Success/failure by flow and override usage.
+              </p>
+            </div>
+            <Link
+              href="/api/admin/marketing/events/stk-summary"
+              className="inline-flex items-center rounded-md border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+            >
+              JSON summary endpoint
+            </Link>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="rounded-lg border border-violet-200 bg-white px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-violet-700">Initiated</p>
+              <p className="text-xl font-bold text-violet-900">
+                {stkSummary.totals.initiatedCount.toLocaleString()}
+              </p>
+            </div>
+            <div className="rounded-lg border border-rose-200 bg-white px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-rose-600">Failed</p>
+              <p className="text-xl font-bold text-rose-700">
+                {stkSummary.totals.failedCount.toLocaleString()}
+              </p>
+            </div>
+            <div className="rounded-lg border border-violet-200 bg-white px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-violet-700">Success Rate</p>
+              <p className="text-xl font-bold text-violet-900">
+                {formatPercent(stkSummary.totals.successRate)}
+              </p>
+            </div>
+            <div className="rounded-lg border border-violet-200 bg-white px-3 py-2">
+              <p className="text-[11px] uppercase tracking-wide text-violet-700">Telemetry Events</p>
+              <p className="text-xl font-bold text-violet-900">
+                {stkSummary.totals.totalCount.toLocaleString()}
+              </p>
+            </div>
+          </div>
+
+          {stkSummary.rows.length > 0 ? (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-150 text-left text-xs">
+                <thead className="text-violet-700">
+                  <tr>
+                    <th className="px-2 py-1 font-semibold">Flow</th>
+                    <th className="px-2 py-1 font-semibold">Override Used</th>
+                    <th className="px-2 py-1 font-semibold">Initiated</th>
+                    <th className="px-2 py-1 font-semibold">Failed</th>
+                    <th className="px-2 py-1 font-semibold">Success Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stkSummary.rows.map((row) => (
+                    <tr key={`${row.flow}:${String(row.overrideUsed)}`}>
+                      <td className="px-2 py-1 font-medium text-violet-900">{row.flow}</td>
+                      <td className="px-2 py-1 text-violet-800">
+                        {row.overrideUsed ? "yes" : "no"}
+                      </td>
+                      <td className="px-2 py-1 text-violet-800">
+                        {row.initiatedCount.toLocaleString()}
+                      </td>
+                      <td className="px-2 py-1 text-violet-800">
+                        {row.failedCount.toLocaleString()}
+                      </td>
+                      <td className="px-2 py-1 text-violet-900">
+                        {formatPercent(row.successRate)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-violet-700">
+              No STK telemetry found for the selected date range.
+            </p>
+          )}
+        </div>
+      ) : null}
 
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 text-sm text-gray-600">

@@ -48,6 +48,27 @@ function extractApiRefFromProviderRef(
   return value.slice(index + 1).trim() || null;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function extractInitiatedPhoneNumberFromMetadata(
+  metadata: unknown,
+): string | null {
+  const parsed = asRecord(metadata);
+  const candidate = parsed?.initiatedPhoneNumber;
+  if (typeof candidate !== "string") {
+    return null;
+  }
+
+  const normalized = candidate.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
 function toCanonicalPaymentStatus(
   value: string | null | undefined,
 ): CanonicalPaymentStatus | null {
@@ -140,6 +161,7 @@ export async function GET(req: Request) {
       checkoutRequestId: string | null;
       merchantRequestId: string | null;
       failureReason: string | null;
+      initiatedPhoneNumber: string | null;
     } | null = null;
 
     if (!isSettled) {
@@ -193,6 +215,9 @@ export async function GET(req: Request) {
           checkoutRequestId: resolvedCheckoutRequestId,
           merchantRequestId: resolvedMerchantRequestId,
           failureReason: pending.failureReason,
+          initiatedPhoneNumber: extractInitiatedPhoneNumberFromMetadata(
+            pending.metadata,
+          ),
         };
 
         if (resolvedCheckoutRequestId) {
@@ -270,6 +295,7 @@ export async function GET(req: Request) {
         failureReason: true,
         amount: true,
         currency: true,
+        metadata: true,
       },
     });
 
@@ -327,12 +353,20 @@ export async function GET(req: Request) {
             matchedTransaction?.failureReason ||
             pendingPayment?.failureReason ||
             null,
+          initiatedPhoneNumber:
+            extractInitiatedPhoneNumberFromMetadata(
+              matchedTransaction?.metadata,
+            ) || pendingPayment?.initiatedPhoneNumber || null,
         }
       : null;
 
     const failureReason =
       matchedTransaction?.failureReason ||
       pendingPayment?.failureReason ||
+      null;
+    const initiatedPhoneNumber =
+      extractInitiatedPhoneNumberFromMetadata(matchedTransaction?.metadata) ||
+      pendingPayment?.initiatedPhoneNumber ||
       null;
 
     return NextResponse.json({
@@ -351,6 +385,7 @@ export async function GET(req: Request) {
       amountReceived:
         paymentStatus === "SETTLED" ? matchedTransaction?.amount || null : null,
       currency: matchedTransaction?.currency || "KES",
+      initiatedPhoneNumber,
     });
   } catch (error) {
     console.error("[ONBOARDING_FEE_STATUS]", error);

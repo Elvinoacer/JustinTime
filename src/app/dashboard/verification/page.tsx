@@ -104,7 +104,7 @@ export default async function VerificationPage() {
   const badgeLookup = new Map(badges?.map((b) => [b.type, b]) || []);
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
+    <div className="container mx-auto py-8 px-4 max-w-4xl pb-[max(1rem,env(safe-area-inset-bottom))]">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <Link

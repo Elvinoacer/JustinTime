@@ -37,7 +37,7 @@ const ReviewsPage = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[300px] md:min-h-100">
+      <div className="flex items-center justify-center min-h-[18rem] sm:min-h-[24rem]">
         <div
           role="status"
           aria-label="Loading reviews"
@@ -48,7 +48,7 @@ const ReviewsPage = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-2 md:px-4 lg:px-6">
+    <div className="max-w-7xl mx-auto px-2 md:px-4 lg:px-6 py-4 md:py-6 lg:py-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
       {/* Header */}
       <div className="mb-4 md:mb-6 lg:mb-8">
         <h1 className="text-gray-800 text-xl md:text-2xl lg:text-3xl font-bold leading-tight mb-1 md:mb-2">
@@ -160,7 +160,7 @@ const ReviewsPage = () => {
                 stats.totalReviews > 0 ? (count / stats.totalReviews) * 100 : 0;
 
               return (
-                <button
+                <button type="button"
                   key={rating}
                   onClick={() =>
                     setRatingFilter(ratingFilter === rating ? "all" : rating)
@@ -195,7 +195,7 @@ const ReviewsPage = () => {
 
           {/* Filter Reset */}
           {ratingFilter !== "all" && (
-            <button
+            <button type="button"
               onClick={() => setRatingFilter("all")}
               className="w-full mt-3 md:mt-4 px-3 py-1.5 md:px-4 md:py-2 bg-gray-100 text-gray-700 rounded-md md:rounded-lg font-medium text-xs md:text-sm hover:bg-gray-200 transition-colors"
             >
@@ -300,7 +300,7 @@ const ReviewsPage = () => {
 
                   {/* Action Buttons - Mobile Optimized */}
                   <div className="flex items-center gap-2 md:gap-3 pt-2 md:pt-3 border-t border-gray-100">
-                    <button
+                    <button type="button"
                       className="flex items-center gap-1 text-xs md:text-sm text-gray-600 hover:text-primary-600 transition-colors p-1"
                       aria-label="Reply to review"
                     >
@@ -309,7 +309,7 @@ const ReviewsPage = () => {
                       </span>
                       <span className="hidden xs:inline">Reply</span>
                     </button>
-                    <button
+                    <button type="button"
                       className="flex items-center gap-1 text-xs md:text-sm text-gray-600 hover:text-green-600 transition-colors p-1"
                       aria-label="Mark as helpful"
                     >
@@ -318,7 +318,7 @@ const ReviewsPage = () => {
                       </span>
                       <span className="hidden xs:inline">Helpful</span>
                     </button>
-                    <button
+                    <button type="button"
                       className="flex items-center gap-1 text-xs md:text-sm text-gray-600 hover:text-blue-600 transition-colors p-1 ml-auto"
                       aria-label="Share review"
                     >

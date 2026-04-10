@@ -20,8 +20,20 @@ import {
   buildPaymentVerificationPath,
   normalizeInternalReturnPath,
 } from "@/lib/payments/verification";
+import { isValidKenyanPhone, normalizeKenyanPhone } from "@/lib/utils/phone";
+import { trackStkPhoneEvent } from "@/lib/payments/stk-analytics";
 
 export async function POST(req: Request) {
+  let analyticsContext: {
+    userId?: string;
+    apiRef?: string;
+    amount?: number;
+    initiatedPhoneNumber?: string;
+    profilePhoneNumber?: string;
+    overrideProvided?: boolean;
+    overrideUsed?: boolean;
+  } = {};
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -38,6 +50,21 @@ export async function POST(req: Request) {
 
     const amount = Number(body?.amount);
     const requestedReturnUrl = normalizeInternalReturnPath(body?.returnUrl);
+    const hasPhoneOverride = Object.prototype.hasOwnProperty.call(
+      body,
+      "phoneNumber",
+    );
+    const requestedPhoneRaw =
+      hasPhoneOverride && typeof body.phoneNumber === "string"
+        ? body.phoneNumber
+        : null;
+
+    if (hasPhoneOverride && requestedPhoneRaw == null) {
+      return NextResponse.json(
+        { error: "Phone number must be provided as text." },
+        { status: 400 },
+      );
+    }
 
     if (!Number.isFinite(amount) || amount < PAYMENT_AMOUNTS.MIN_TOPUP) {
       return NextResponse.json(
@@ -65,9 +92,50 @@ export async function POST(req: Request) {
       );
     }
 
+    const profilePhone = normalizeKenyanPhone(String(payer.phone || ""));
+    const requestedPhone = requestedPhoneRaw
+      ? normalizeKenyanPhone(requestedPhoneRaw)
+      : "";
+
+    if (hasPhoneOverride && !isValidKenyanPhone(requestedPhone)) {
+      return NextResponse.json(
+        {
+          error:
+            "Enter a valid M-Pesa phone number in format 2547XXXXXXXX or 2541XXXXXXXX.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const phoneNumberToUse = requestedPhone || profilePhone;
+    const overrideUsed =
+      hasPhoneOverride &&
+      requestedPhone.length > 0 &&
+      requestedPhone !== profilePhone;
+
+    analyticsContext = {
+      userId: session.user.id,
+      amount,
+      initiatedPhoneNumber: phoneNumberToUse,
+      profilePhoneNumber: profilePhone,
+      overrideProvided: hasPhoneOverride,
+      overrideUsed,
+    };
+
+    if (!isValidKenyanPhone(phoneNumberToUse)) {
+      return NextResponse.json(
+        {
+          error:
+            "A valid phone number is required to initiate M-Pesa STK Push.",
+        },
+        { status: 400 },
+      );
+    }
+
     // Generate API reference (alphanumeric + hyphens only)
     const apiRef = generateApiRef("TOPUP", session.user.id);
     const accountReference = generateDarajaAccountReference("WT", apiRef);
+    analyticsContext.apiRef = apiRef;
 
     const baseUrl = getBaseUrl();
     const defaultReturnPath = hasRole(session.user, "PROVIDER")
@@ -84,11 +152,17 @@ export async function POST(req: Request) {
 
     const response = await initiateDarajaStkPush({
       amount,
-      phoneNumber: payer.phone,
+      phoneNumber: phoneNumberToUse,
       apiRef,
       callbackUrl,
       accountReference,
       description: "Wallet top-up",
+    });
+
+    trackStkPhoneEvent({
+      flow: "wallet_topup",
+      outcome: "initiated",
+      ...analyticsContext,
     });
 
     console.log("Daraja topup STK response:", response);
@@ -155,7 +229,11 @@ export async function POST(req: Request) {
           gatewayInvoiceId: response.MerchantRequestID,
           checkoutUrl: null,
           initiatedAt: new Date(),
-          rawInitiationPayload: response as unknown as Prisma.InputJsonValue,
+          rawInitiationPayload: {
+            providerResponse: response,
+            initiatedPhoneNumber: phoneNumberToUse,
+            overrideUsed: hasPhoneOverride,
+          } as Prisma.InputJsonValue,
         },
       });
 
@@ -194,6 +272,7 @@ export async function POST(req: Request) {
           checkoutRequestId: response.CheckoutRequestID,
           merchantRequestId: response.MerchantRequestID,
           source: "wallet_topup_initiate",
+          initiatedPhoneNumber: phoneNumberToUse,
         },
       });
 
@@ -221,6 +300,7 @@ export async function POST(req: Request) {
             checkoutUrl: completionUrl,
             checkoutRequestId: response.CheckoutRequestID,
             merchantRequestId: response.MerchantRequestID,
+            initiatedPhoneNumber: phoneNumberToUse,
           },
         },
       });
@@ -248,6 +328,13 @@ export async function POST(req: Request) {
     });
   } catch (error: unknown) {
     console.error("[WALLET_TOPUP_INITIATE]", error);
+
+    trackStkPhoneEvent({
+      flow: "wallet_topup",
+      outcome: "failed",
+      ...analyticsContext,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
 
     if (isWalletSchemaOutOfSyncError(error)) {
       return NextResponse.json(

@@ -5,6 +5,12 @@ import { Loader2, ShieldCheck, CheckCircle2, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import { payOnboardingFee } from "@/app/actions/revenue";
+import { useStkPhonePrefill } from "@/hooks/useStkPhonePrefill";
+import {
+  isValidKenyanPhone,
+  maskPhoneForDisplay,
+  normalizeKenyanPhone,
+} from "@/lib/utils/phone";
 
 interface OnboardingFeeModalProps {
   isOpen: boolean;
@@ -17,8 +23,23 @@ export function OnboardingFeeModal({
 }: OnboardingFeeModalProps) {
   const [loading, setLoading] = useState(false);
   const [walletLoading, setWalletLoading] = useState(false);
+  const {
+    phone: stkPhoneNumber,
+    setPhone: setStkPhoneNumber,
+    isLoadingPhone: isLoadingStkPhone,
+  } = useStkPhonePrefill();
 
   const handlePayFee = async () => {
+    const normalizedPhone = normalizeKenyanPhone(stkPhoneNumber);
+    if (!isValidKenyanPhone(normalizedPhone)) {
+      toast.error(
+        "Enter a valid M-Pesa phone number (e.g. 254712345678).",
+      );
+      return;
+    }
+
+    setStkPhoneNumber(normalizedPhone);
+
     setLoading(true);
     try {
       // Call API to initiate Daraja STK Push
@@ -27,6 +48,9 @@ export function OnboardingFeeModal({
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          phoneNumber: normalizedPhone,
+        }),
       });
 
       const data = await response.json();
@@ -37,8 +61,12 @@ export function OnboardingFeeModal({
 
       if (data.checkoutUrl) {
         // Redirect to completion page while STK push runs on phone
-        toast.info("Redirecting to payment page...");
-        window.location.href = data.checkoutUrl;
+        toast.success(
+          `STK push sent to ${maskPhoneForDisplay(normalizedPhone)}. Redirecting...`,
+        );
+        window.setTimeout(() => {
+          window.location.href = data.checkoutUrl;
+        }, 600);
       } else {
         throw new Error("No checkout URL received");
       }
@@ -133,6 +161,30 @@ export function OnboardingFeeModal({
                   <Smartphone className="h-4 w-4" />
                   <span>M-Pesa STK Push</span>
                 </div>
+              </div>
+
+              <div className="mb-4 text-left">
+                <label
+                  htmlFor="onboarding-stk-phone"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500"
+                >
+                  STK phone number
+                </label>
+                <input
+                  id="onboarding-stk-phone"
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  value={stkPhoneNumber}
+                  onChange={(event) => setStkPhoneNumber(event.target.value)}
+                  placeholder="e.g. 254712345678"
+                  disabled={loading || walletLoading}
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                />
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Enter the number that should receive this M-Pesa prompt.
+                  {isLoadingStkPhone ? " Loading saved phone..." : ""}
+                </p>
               </div>
 
               <button

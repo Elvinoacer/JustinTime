@@ -571,7 +571,7 @@ const ProfilePage = () => {
 
   if (isLoading || !formData) {
     return (
-      <div className="flex items-center justify-center min-h-75 sm:min-h-100">
+      <div className="flex items-center justify-center min-h-[18rem] sm:min-h-[24rem]">
         <div
           role="status"
           aria-label="Loading profile"
@@ -584,7 +584,7 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6">
+    <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
       {/* Success Notification */}
       {showNotification && (
         <motion.div
@@ -641,7 +641,7 @@ const ProfilePage = () => {
           </p>
         </div>
         {!isEditing ? (
-          <button
+          <button type="button"
             onClick={() => setIsEditing(true)}
             className={`bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex items-center gap-1.5 sm:gap-2 touch-manipulation ${
               isMobile
@@ -655,7 +655,7 @@ const ProfilePage = () => {
           </button>
         ) : (
           <div className="flex gap-2 sm:gap-3 mt-2 sm:mt-0">
-            <button
+            <button type="button"
               onClick={handleCancel}
               className={`bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 active:bg-gray-300 transition-colors touch-manipulation ${
                 isMobile
@@ -666,7 +666,7 @@ const ProfilePage = () => {
             >
               Cancel
             </button>
-            <button
+            <button type="button"
               onClick={handleSave}
               disabled={updateProfileMutation.isPending}
               className={`bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex items-center gap-1.5 sm:gap-2 disabled:opacity-50 touch-manipulation ${
@@ -819,7 +819,7 @@ const ProfilePage = () => {
               accept="image/*"
               className="hidden"
             />
-            <button
+            <button type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploadingAvatar}
               className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:cursor-not-allowed touch-manipulation"
@@ -1007,7 +1007,7 @@ const ProfilePage = () => {
                     aria-label="Location"
                     placeholder="e.g., Nairobi, Kenya"
                   />
-                  <button
+                  <button type="button"
                     onClick={handleGetLocation}
                     disabled={isGettingLocation}
                     className={`bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap touch-manipulation ${
@@ -1164,7 +1164,7 @@ const ProfilePage = () => {
                           <span className="text-xs sm:text-sm font-medium text-gray-700">
                             {category.name}
                           </span>
-                          <button
+                          <button type="button"
                             onClick={() => handleSkillToggle(skillId)}
                             className="ml-1 p-0.5 hover:bg-red-50 rounded-full transition-colors"
                             aria-label={`Remove ${category.name}`}
@@ -1206,7 +1206,7 @@ const ProfilePage = () => {
                         <span className="text-xs sm:text-sm font-medium text-gray-700">
                           {skill}
                         </span>
-                        <button
+                        <button type="button"
                           onClick={() => handleLegacySkillRemove(skill)}
                           className="ml-1 p-0.5 hover:bg-red-50 rounded-full transition-colors"
                           aria-label={`Remove legacy skill ${skill}`}
@@ -1397,7 +1397,7 @@ const ProfilePage = () => {
                 action: handleDownloadData,
               },
             ].map((action) => (
-              <button
+              <button type="button"
                 key={action.label}
                 onClick={action.action}
                 className="w-full flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors text-left touch-manipulation"
@@ -1550,7 +1550,7 @@ const ProfilePage = () => {
 
             {!subscriptionData.subscription.isPremium && (
               <div className="flex flex-col gap-2 sm:gap-3 mt-3 sm:mt-0">
-                <button
+                <button type="button"
                   onClick={() => router.push("/dashboard/premium")}
                   className={`bg-linear-to-r from-emerald-600 to-teal-500 text-white rounded-lg sm:rounded-xl font-semibold hover:shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap touch-manipulation ${
                     isMobile
@@ -1564,7 +1564,7 @@ const ProfilePage = () => {
                   </span>
                   <span>Upgrade to Premium</span>
                 </button>
-                <button
+                <button type="button"
                   onClick={() => router.push("/dashboard/premium")}
                   className={`text-emerald-600 hover:text-emerald-700 active:text-emerald-800 transition-colors ${
                     isMobile
@@ -1601,7 +1601,7 @@ const ProfilePage = () => {
             Certifications
           </h3>
           {isEditing && (
-            <button
+            <button type="button"
               onClick={() => setShowCertModal(true)}
               className={`bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex items-center gap-1.5 sm:gap-2 touch-manipulation ${
                 isMobile
@@ -1661,7 +1661,7 @@ const ProfilePage = () => {
                   </a>
                 </div>
                 {isEditing && (
-                  <button
+                  <button type="button"
                     onClick={() => handleRemoveCertification(index)}
                     className="text-red-600 hover:bg-red-50 active:bg-red-100 p-1 rounded transition-colors ml-2 shrink-0 touch-manipulation"
                     aria-label="Remove certification"
@@ -1712,7 +1712,7 @@ const ProfilePage = () => {
             Education
           </h3>
           {isEditing && (
-            <button
+            <button type="button"
               onClick={() => setShowEduModal(true)}
               className={`bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex items-center gap-1.5 sm:gap-2 touch-manipulation ${
                 isMobile
@@ -1757,7 +1757,7 @@ const ProfilePage = () => {
                   </p>
                 </div>
                 {isEditing && (
-                  <button
+                  <button type="button"
                     onClick={() => handleRemoveEducation(index)}
                     className="text-red-600 hover:bg-red-50 active:bg-red-100 p-1 rounded transition-colors ml-2 shrink-0 touch-manipulation"
                     aria-label="Remove education"
@@ -1908,7 +1908,7 @@ const ProfilePage = () => {
 
       {/* Certification Modal */}
       {showCertModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-3 sm:p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -1924,7 +1924,7 @@ const ProfilePage = () => {
               >
                 Add Certification
               </h3>
-              <button
+              <button type="button"
                 onClick={() => {
                   setShowCertModal(false);
                   setNewCertification({
@@ -2025,7 +2025,7 @@ const ProfilePage = () => {
                   accept="application/pdf"
                   className="hidden"
                 />
-                <button
+                <button type="button"
                   onClick={() => certFileInputRef.current?.click()}
                   disabled={isUploadingCert}
                   className={`w-full border-2 border-dashed border-gray-300 rounded-lg hover:border-emerald-500 active:border-emerald-600 transition-colors flex items-center justify-center gap-1.5 sm:gap-2 touch-manipulation ${
@@ -2060,7 +2060,7 @@ const ProfilePage = () => {
               </div>
             </div>
             <div className="flex gap-2 sm:gap-3 mt-5 sm:mt-6">
-              <button
+              <button type="button"
                 onClick={() => {
                   setShowCertModal(false);
                   setNewCertification({
@@ -2076,7 +2076,7 @@ const ProfilePage = () => {
               >
                 Cancel
               </button>
-              <button
+              <button type="button"
                 onClick={handleAddCertification}
                 disabled={
                   !newCertification.name ||
@@ -2096,7 +2096,7 @@ const ProfilePage = () => {
 
       {/* Education Modal */}
       {showEduModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-3 sm:p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -2112,7 +2112,7 @@ const ProfilePage = () => {
               >
                 Add Education
               </h3>
-              <button
+              <button type="button"
                 onClick={() => {
                   setShowEduModal(false);
                   setNewEducation({
@@ -2243,7 +2243,7 @@ const ProfilePage = () => {
               </div>
             </div>
             <div className="flex gap-2 sm:gap-3 mt-5 sm:mt-6">
-              <button
+              <button type="button"
                 onClick={() => {
                   setShowEduModal(false);
                   setNewEducation({
@@ -2260,7 +2260,7 @@ const ProfilePage = () => {
               >
                 Cancel
               </button>
-              <button
+              <button type="button"
                 onClick={handleAddEducation}
                 disabled={
                   !newEducation.institution ||

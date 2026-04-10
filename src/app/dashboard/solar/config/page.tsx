@@ -90,7 +90,7 @@ export default async function SolarConfigPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <section className="rounded-2xl bg-white border border-gray-200 p-6">
         <div className="flex flex-wrap justify-between items-start gap-4">
           <div>

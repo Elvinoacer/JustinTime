@@ -320,7 +320,7 @@ export default async function AnalyticsPage() {
       : 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-6 sm:space-y-8">
+    <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8 py-4 sm:py-6 lg:py-8 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-6 sm:space-y-8">
       {/* Header */}
       <div className="mb-2 sm:mb-4">
         <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3">
@@ -334,22 +334,22 @@ export default async function AnalyticsPage() {
           </div>
 
           {/* Quick Stats - Mobile Only */}
-          <div className="xs:hidden grid grid-cols-3 gap-2 mt-2">
-            <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-xs">
+          <div className="xs:hidden mt-2 grid grid-cols-3 gap-2">
+            <div className="min-w-0 rounded-lg border border-gray-200 bg-white p-3 shadow-xs">
               <p className="text-xs text-gray-500 mb-0.5">Bookings</p>
-              <p className="text-base font-bold text-gray-900">
+              <p className="truncate text-base font-bold tabular-nums text-gray-900">
                 {totalBookings}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-xs">
+            <div className="min-w-0 rounded-lg border border-gray-200 bg-white p-3 shadow-xs">
               <p className="text-xs text-gray-500 mb-0.5">Earnings</p>
-              <p className="text-base font-bold text-emerald-600">
+              <p className="truncate text-base font-bold tabular-nums text-emerald-600">
                 ${totalEarnings.toFixed(0)}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-3 border border-gray-200 shadow-xs">
+            <div className="min-w-0 rounded-lg border border-gray-200 bg-white p-3 shadow-xs">
               <p className="text-xs text-gray-500 mb-0.5">Rating</p>
-              <p className="text-base font-bold text-amber-500">
+              <p className="truncate text-base font-bold tabular-nums text-amber-500">
                 {averageRating.toFixed(1)}
               </p>
             </div>

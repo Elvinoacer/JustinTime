@@ -29,3 +29,18 @@ export function normalizeKenyanPhone(input: string): string {
 export function isValidKenyanPhone(phone: string): boolean {
   return /^254(?:7\d{8}|1\d{8})$/.test(phone);
 }
+
+export function maskPhoneForDisplay(phone: string): string {
+  const normalized = normalizeKenyanPhone(phone);
+  if (!normalized) {
+    return "unknown number";
+  }
+
+  if (normalized.length <= 6) {
+    return normalized;
+  }
+
+  const start = normalized.slice(0, 6);
+  const end = normalized.slice(-3);
+  return `${start}***${end}`;
+}

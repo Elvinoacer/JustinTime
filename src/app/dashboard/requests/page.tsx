@@ -92,7 +92,7 @@ export default function JobRequestsPage() {
   };
 
   return (
-    <div className="space-y-4 md:space-y-6 p-2 md:p-0">
+    <div className="space-y-4 p-2 pb-[max(1rem,env(safe-area-inset-bottom))] md:space-y-6 md:p-0">
       <div className="flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">
@@ -110,9 +110,9 @@ export default function JobRequestsPage() {
         </div>
 
         {/* Tabs - Mobile Optimized */}
-        <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1">
+        <div className="-mx-1 flex gap-1 overflow-x-auto overscroll-contain px-1 pb-1">
           {tabs.map((tab) => (
-            <button
+            <button type="button"
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition-all whitespace-nowrap min-w-20 ${
@@ -264,7 +264,7 @@ export default function JobRequestsPage() {
 
                     {request.status === "PENDING" && (
                       <div className="flex gap-2 w-full">
-                        <button
+                        <button type="button"
                           onClick={() => handleAccept(request.id)}
                           disabled={acceptBooking.isPending}
                           className="flex-1 px-3 py-2 md:px-4 md:py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-xs md:text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
@@ -283,7 +283,7 @@ export default function JobRequestsPage() {
                             </>
                           )}
                         </button>
-                        <button
+                        <button type="button"
                           onClick={() => handleRejectClick(request)}
                           disabled={rejectBooking.isPending}
                           className="flex-1 px-3 py-2 md:px-4 md:py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-xs md:text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
@@ -307,7 +307,7 @@ export default function JobRequestsPage() {
       <AnimatePresence>
         {showRejectModal && selectedRequest && (
           <motion.div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 md:p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-3 md:p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -324,7 +324,7 @@ export default function JobRequestsPage() {
                 <h2 className="text-lg md:text-xl font-bold text-gray-900">
                   Reject Booking
                 </h2>
-                <button
+                <button type="button"
                   onClick={() => setShowRejectModal(false)}
                   className="p-1.5 md:p-2 hover:bg-gray-100 rounded-full transition-colors"
                 >
@@ -356,13 +356,13 @@ export default function JobRequestsPage() {
               </div>
 
               <div className="flex gap-2 md:gap-3">
-                <button
+                <button type="button"
                   onClick={() => setShowRejectModal(false)}
                   className="flex-1 py-2.5 md:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold text-sm md:text-base"
                 >
                   Cancel
                 </button>
-                <button
+                <button type="button"
                   onClick={handleRejectConfirm}
                   disabled={rejectBooking.isPending}
                   className="flex-1 py-2.5 md:py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold text-sm md:text-base disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 md:gap-2"

@@ -66,7 +66,7 @@ export default async function TeamDashboardPage({
       : [];
 
     return (
-      <div className="container mx-auto py-12 px-4 max-w-2xl">
+      <div className="container mx-auto max-w-2xl px-4 py-12 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:pb-12">
         <div className="text-center">
           <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <Users className="h-10 w-10 text-emerald-600" />
@@ -289,7 +289,7 @@ export default async function TeamDashboardPage({
   };
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-7xl">
+    <div className="container mx-auto max-w-7xl px-4 py-8 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:pb-8">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-1">{team.name}</h1>

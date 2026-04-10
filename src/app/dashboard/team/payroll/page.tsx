@@ -132,7 +132,7 @@ export default async function TeamPayrollPage({
   );
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
+    <div className="container mx-auto max-w-4xl px-4 py-8 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:pb-8">
       <div className="flex items-center gap-4 mb-8">
         <Link
           href={teamBasePath}

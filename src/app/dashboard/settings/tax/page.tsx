@@ -40,7 +40,7 @@ export default async function TaxSettingsPage({
   const isSuccess = params.status === "success";
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-3xl">
+    <div className="container mx-auto py-8 px-4 max-w-3xl pb-[max(1rem,env(safe-area-inset-bottom))]">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
