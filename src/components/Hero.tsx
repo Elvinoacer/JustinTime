@@ -99,18 +99,35 @@ const HERO_STYLE = `
 
   @media (max-width: 767px) {
     .jit-hero-content-layer {
-      justify-content: flex-end;
-      padding: 0 16px 24px;
+      justify-content: center;
+      padding: 20px 14px 24px;
     }
 
     .jit-hero-video {
-      object-position: 70% center;
+      object-position: 58% center;
+      filter: saturate(1) contrast(0.94) brightness(0.78);
+      animation: none;
+      transform: none;
     }
 
     .jit-hero-overlay {
       background:
-        linear-gradient(180deg, rgba(0, 0, 0, 0.21) 0%, rgba(0, 0, 0, 0.31) 52%, rgba(0, 0, 0, 0.58) 100%),
-        linear-gradient(90deg, rgba(0, 0, 0, 0.56) 0%, rgba(0, 0, 0, 0.34) 56%, rgba(0, 0, 0, 0.2) 100%);
+        linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.38) 56%, rgba(0, 0, 0, 0.66) 100%),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.42) 56%, rgba(0, 0, 0, 0.26) 100%);
+    }
+
+    .jit-hero-grid {
+      gap: 16px;
+    }
+
+    .jit-hero-main-col {
+      max-width: 100%;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: linear-gradient(180deg, rgba(1, 8, 6, 0.56) 0%, rgba(1, 8, 6, 0.3) 100%);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      padding: 12px 12px 10px;
     }
   }
 
@@ -161,8 +178,8 @@ const HERO_STYLE = `
     letter-spacing: -0.045em;
     line-height: 1.06;
     font-size: clamp(1.95rem, 6.4vw, 4.6rem);
-    color: transparent;
-    background-image: linear-gradient(
+    color: #f8fafc;
+    --jit-heading-gradient: linear-gradient(
       114deg,
       #fdfefe 2%,
       #f3f4f6 24%,
@@ -171,15 +188,9 @@ const HERO_STYLE = `
       #a7f3d0 82%,
       #f8fafc 98%
     );
-    background-size: 240% 240%;
-    background-position: 0% 50%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
     filter:
       drop-shadow(0 10px 30px rgba(0, 0, 0, 0.42))
       drop-shadow(0 0 20px rgba(16, 185, 129, 0.12));
-    animation: jit-heading-gradient-shift 11s ease-in-out infinite;
     text-wrap: balance;
   }
 
@@ -200,15 +211,15 @@ const HERO_STYLE = `
     }
 
     .jit-hero-heading {
-      margin-bottom: 10px;
-      font-size: clamp(1.9rem, 9.2vw, 2.6rem);
-      line-height: 1.08;
+      margin-bottom: 8px;
+      font-size: clamp(1.58rem, 8vw, 2.15rem);
+      line-height: 1.1;
     }
 
     .jit-hero-sub {
-      margin-bottom: 14px;
-      font-size: 0.95rem;
-      line-height: 1.55;
+      margin-bottom: 12px;
+      font-size: 0.93rem;
+      line-height: 1.5;
       max-width: 34rem;
     }
   }
@@ -222,11 +233,11 @@ const HERO_STYLE = `
   @media (max-width: 767px) {
     .jit-hero-buttons {
       width: 100%;
-      max-width: 360px;
+      max-width: 100%;
       flex-wrap: nowrap;
       flex-direction: row;
       align-items: stretch;
-      gap: 8px;
+      gap: 10px;
     }
   }
 
@@ -272,9 +283,26 @@ const HERO_STYLE = `
       width: auto;
       flex: 1 1 0;
       min-width: 0;
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       text-align: center;
-      padding: 11px 12px;
-      font-size: 0.88rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding: 0 8px;
+      border-radius: 14px;
+      font-size: clamp(0.76rem, 3.4vw, 0.88rem);
+      letter-spacing: -0.01em;
+    }
+
+    .jit-btn-primary {
+      flex: 0.95 1 0;
+    }
+
+    .jit-btn-glass {
+      flex: 1.05 1 0;
     }
   }
 
@@ -344,13 +372,31 @@ const HERO_STYLE = `
   .jit-char-span {
     display: inline-block;
     transition: opacity 520ms ease, transform 520ms ease, filter 520ms ease;
-    background-image: inherit;
-    background-size: inherit;
-    background-position: inherit;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
+    color: inherit;
+  }
+
+  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .jit-hero-heading {
+      color: transparent;
+      background-image: var(--jit-heading-gradient);
+      background-size: 240% 240%;
+      background-position: 0% 50%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: jit-heading-gradient-shift 11s ease-in-out infinite;
+    }
+
+    .jit-char-span {
+      background-image: var(--jit-heading-gradient);
+      background-size: 240% 240%;
+      background-position: 0% 50%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+      animation: jit-heading-gradient-shift 11s ease-in-out infinite;
+    }
   }
 
   @keyframes jit-hero-video-drift {
