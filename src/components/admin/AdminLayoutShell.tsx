@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { usePathname } from "next/navigation";
 import AdminSidebar from "@/components/AdminSidebar";
 
 export default function AdminLayoutShell({
@@ -9,6 +10,8 @@ export default function AdminLayoutShell({
   children: React.ReactNode;
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const pathname = usePathname();
+  const isAdminMessagesRoute = pathname?.startsWith("/admin/messages");
 
   return (
     <div className="fixed inset-0 flex bg-slate-50 overflow-hidden flex-col lg:flex-row">
@@ -48,8 +51,20 @@ export default function AdminLayoutShell({
         />
       )}
 
-      <main className="flex-1 p-4 lg:p-8 overflow-y-auto w-full">
-        <div className="max-w-7xl mx-auto">{children}</div>
+      <main
+        className={`flex-1 w-full ${
+          isAdminMessagesRoute
+            ? "overflow-hidden p-0"
+            : "overflow-y-auto p-4 lg:p-8"
+        }`}
+      >
+        <div
+          className={
+            isAdminMessagesRoute ? "h-full min-h-0" : "max-w-7xl mx-auto"
+          }
+        >
+          {children}
+        </div>
       </main>
     </div>
   );

@@ -64,9 +64,15 @@ interface Contact {
   phone?: string | null;
 }
 
+type MessagesWorkspaceVariant = "provider" | "admin";
+
 export const dynamic = "force-dynamic";
 
-function ProviderMessagesContent() {
+export function MessagesWorkspaceContent({
+  variant = "provider",
+}: {
+  variant?: MessagesWorkspaceVariant;
+}) {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -677,8 +683,13 @@ function ProviderMessagesContent() {
     conversations.find((c) => c.partner.id === selectedPartnerId)?.partner ||
     null;
 
+  const workspaceContainerClass =
+    variant === "admin"
+      ? "h-full min-h-0 overflow-hidden bg-slate-50"
+      : "h-[calc(100dvh-64px-var(--dashboard-mobile-bottom-nav-offset,0px))] md:h-[calc(100dvh-80px)] overflow-hidden bg-gray-50";
+
   return (
-    <div className="h-[calc(100dvh-64px-var(--dashboard-mobile-bottom-nav-offset,0px))] md:h-[calc(100dvh-80px)] overflow-hidden bg-gray-50">
+    <div className={workspaceContainerClass}>
       <div className="max-w-7xl mx-auto h-full min-h-0 px-0 md:px-4">
         <div className="flex h-full min-h-0 bg-white rounded-none md:rounded-2xl overflow-hidden shadow-none md:shadow-sm border-0 md:border border-gray-200 mt-0 md:mt-4">
           <div
@@ -741,7 +752,7 @@ function ProviderMessagesContent() {
 export default function ProviderMessagesPage() {
   return (
     <Suspense fallback={null}>
-      <ProviderMessagesContent />
+      <MessagesWorkspaceContent variant="provider" />
     </Suspense>
   );
 }

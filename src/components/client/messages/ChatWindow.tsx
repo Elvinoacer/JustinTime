@@ -490,9 +490,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       <MessageSecurityBanner
         onReportUser={() => setShowReportModal(true)}
         onOpenSafety={() => {
-          const basePath = pathname?.startsWith("/client")
-            ? "/client"
-            : "/dashboard";
+          const basePath = pathname?.startsWith("/admin")
+            ? "/admin"
+            : pathname?.startsWith("/client")
+              ? "/client"
+              : "/dashboard";
           router.push(`${basePath}/safety`);
         }}
         partnerName={partner.name}

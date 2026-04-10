@@ -25,6 +25,7 @@ import {
   TicketPercent,
   Activity,
   Mail,
+  MessageSquare,
 } from "lucide-react";
 import { signOutWithNotificationCleanup } from "@/lib/auth/signOutWithNotificationCleanup";
 
@@ -36,6 +37,7 @@ const navItems = [
   { name: "Jobs", href: "/admin/jobs", icon: Briefcase },
   { name: "Disputes", href: "/admin/disputes", icon: Gavel },
   { name: "Support", href: "/admin/support", icon: Headphones },
+  { name: "Messages", href: "/admin/messages", icon: MessageSquare },
   { name: "Finance", href: "/admin/finance", icon: CreditCard },
   { name: "Promotions", href: "/admin/marketing/promos", icon: TicketPercent },
   { name: "Newsletter", href: "/admin/marketing/newsletter", icon: Mail },

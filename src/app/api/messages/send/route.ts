@@ -102,7 +102,11 @@ export async function POST(request: NextRequest) {
         process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "";
       const baseUrl = appUrl.replace(/\/+$/, "");
       const messagePath =
-        receiver.role === "CLIENT" ? "/client/messages" : "/dashboard/messages";
+        receiver.role === "CLIENT"
+          ? "/client/messages"
+          : receiver.role === "ADMIN"
+            ? "/admin/messages"
+            : "/dashboard/messages";
       const params = new URLSearchParams({
         partnerId: session.user.id,
         partnerName: session.user.name || "Conversation",
