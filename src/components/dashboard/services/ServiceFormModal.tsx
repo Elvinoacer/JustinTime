@@ -827,7 +827,7 @@ const ServiceFormModal = ({
                       <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                         Cancellation Policy
                       </label>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         {CANCELLATION_POLICY_OPTIONS.map((option) => (
                           <button
                             key={option.value}
@@ -869,7 +869,7 @@ const ServiceFormModal = ({
                       <span className="text-xs text-gray-500">Max 2MB</span>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {formData.images.map((url, idx) => (
                         <div
                           key={idx}
@@ -1035,7 +1035,7 @@ const ServiceFormModal = ({
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center">
+            <div className="flex items-center justify-between gap-2 border-t border-gray-100 bg-gray-50/50 px-4 py-3">
               {step > 1 ? (
                 <button
                   onClick={() => setStep((prev) => prev - 1)}
@@ -1065,7 +1065,7 @@ const ServiceFormModal = ({
                   updateServiceMutation.isPending ||
                   uploadingFiles.length > 0
                 }
-                className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-all shadow-md shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 min-w-[100px] active:scale-95"
+                className="flex min-w-0 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-emerald-200 transition-all hover:bg-emerald-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {(createServiceMutation.isPending ||
                   updateServiceMutation.isPending) && (
@@ -1606,7 +1606,7 @@ const ServiceFormModal = ({
               <div className="space-y-6 lg:space-y-8">
                 {/* Image Upload */}
                 <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                  <div className="mb-4 flex items-center justify-between">
+                  <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <label className="block text-sm font-semibold text-gray-800">
                         Gallery Images ({formData.images.length}/
@@ -1622,7 +1622,7 @@ const ServiceFormModal = ({
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 lg:gap-4">
                     {formData.images.map((url, idx) => (
                       <div
                         key={idx}
@@ -1671,7 +1671,7 @@ const ServiceFormModal = ({
 
                 {/* Video Upload */}
                 <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                  <div className="mb-4 flex items-center justify-between">
+                  <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <label className="block text-sm font-semibold text-gray-800">
                         Service Video (Optional)
@@ -1765,19 +1765,19 @@ const ServiceFormModal = ({
 
           {/* Footer */}
           <div className="border-t border-gray-100 bg-white px-6 py-4 lg:px-8">
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-sm text-gray-500">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <p className="text-sm text-gray-500 lg:max-w-xl">
                 {step === 1
                   ? "Complete the basics to continue."
                   : step === 2
                     ? "Add enough detail so clients know what to expect."
                     : "Review your media, then publish the service."}
               </p>
-              <div className="flex items-center gap-3">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
                 {step > 1 ? (
                   <button
                     onClick={() => setStep((prev) => prev - 1)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:w-auto"
                   >
                     <span className="material-symbols-outlined text-base">
                       arrow_back
@@ -1787,7 +1787,7 @@ const ServiceFormModal = ({
                 ) : (
                   <button
                     onClick={onClose}
-                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:w-auto"
                   >
                     <span className="material-symbols-outlined text-base">
                       close
@@ -1803,7 +1803,7 @@ const ServiceFormModal = ({
                     updateServiceMutation.isPending ||
                     uploadingFiles.length > 0
                   }
-                  className="inline-flex min-w-[160px] items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[160px] sm:w-auto"
                 >
                   {(createServiceMutation.isPending ||
                     updateServiceMutation.isPending) && (

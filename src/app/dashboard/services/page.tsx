@@ -344,7 +344,8 @@ const ServicesPage = () => {
           </div>
 
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[17.5rem]">
-            <button type="button"
+            <button
+              type="button"
               onClick={openAddModal}
               className={`${
                 isMobile ? "px-3 py-3 text-sm" : "px-5 py-3.5 text-sm"
@@ -395,7 +396,8 @@ const ServicesPage = () => {
                     </p>
                   </div>
                 </div>
-                <button type="button"
+                <button
+                  type="button"
                   onClick={item.onClick}
                   disabled={item.completed}
                   className="mt-3 inline-flex items-center justify-center rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 disabled:cursor-default disabled:border-emerald-100 disabled:text-emerald-400 touch-manipulation"
@@ -554,7 +556,7 @@ const ServicesPage = () => {
                           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/70">
                             Starting at
                           </p>
-                          <div className="mt-1 flex items-end justify-between gap-3">
+                          <div className="mt-1 flex flex-wrap items-end justify-between gap-3 sm:flex-nowrap">
                             <div className="min-w-0">
                               <p className="truncate text-2xl font-bold">
                                 KES {service.price.toLocaleString()}
@@ -602,7 +604,7 @@ const ServicesPage = () => {
                             </span>
                           </div>
                           <div className="space-y-2">
-                            <h3 className="max-w-3xl truncate text-2xl font-bold tracking-tight text-gray-950">
+                            <h3 className="max-w-3xl truncate text-xl font-bold tracking-tight text-gray-950 sm:text-2xl">
                               {service.name}
                             </h3>
                             <p className="line-clamp-2 max-w-2xl text-sm font-medium leading-6 text-gray-500">
@@ -617,7 +619,7 @@ const ServicesPage = () => {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 self-start">
+                        <div className="grid grid-cols-1 gap-3 self-start sm:grid-cols-2">
                           <div className="min-w-0 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
                             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
                               Positioning
@@ -648,7 +650,7 @@ const ServicesPage = () => {
                       </div>
 
                       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_240px]">
-                        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
                           <div
                             className={`min-w-0 rounded-2xl px-3 py-3 ring-1 ${accent.metric}`}
                             title="Total Views"
@@ -750,7 +752,8 @@ const ServicesPage = () => {
 
                       <div className="rounded-[22px] border border-gray-100 bg-[linear-gradient(135deg,#f8fafc_0%,#ffffff_100%)] p-3 shadow-sm">
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
-                          <button type="button"
+                          <button
+                            type="button"
                             onClick={() => {
                               setPromotingService(service);
                               setShowPromoteModal(true);
@@ -762,7 +765,8 @@ const ServicesPage = () => {
                             </span>
                             <span>Boost Visibility</span>
                           </button>
-                          <button type="button"
+                          <button
+                            type="button"
                             onClick={() => openEditModal(service)}
                             className={`flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition-colors active:scale-95 touch-manipulation ${accent.action}`}
                           >
@@ -771,7 +775,8 @@ const ServicesPage = () => {
                             </span>
                             <span>Edit</span>
                           </button>
-                          <button type="button"
+                          <button
+                            type="button"
                             onClick={() =>
                               handleToggleStatus(service.id, service.isActive)
                             }
@@ -788,7 +793,8 @@ const ServicesPage = () => {
                               {service.isActive ? "Pause" : "Activate"}
                             </span>
                           </button>
-                          <button type="button"
+                          <button
+                            type="button"
                             onClick={() => setDeleteConfirm(service.id)}
                             className="flex min-h-[44px] items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium text-red-600 opacity-80 transition-colors hover:bg-red-50 hover:opacity-100 active:scale-95 touch-manipulation"
                           >
@@ -845,7 +851,8 @@ const ServicesPage = () => {
             {serviceLimit === Infinity ? "unlimited" : `up to ${serviceLimit}`}{" "}
             services to showcase your expertise.
           </p>
-          <button type="button"
+          <button
+            type="button"
             onClick={openAddModal}
             className={`${
               isMobile ? "px-3 py-2.5 text-xs" : "px-4 sm:px-6 py-3 text-sm"
@@ -919,7 +926,8 @@ const ServicesPage = () => {
               </p>
 
               <div className={`flex flex-col ${isMobile ? "gap-2" : "gap-3"}`}>
-                <button type="button"
+                <button
+                  type="button"
                   onClick={() => handleDelete(deleteConfirm!)}
                   className={`w-full ${
                     isMobile
@@ -938,7 +946,8 @@ const ServicesPage = () => {
                   </span>
                   Yes, Delete Service
                 </button>
-                <button type="button"
+                <button
+                  type="button"
                   onClick={() => setDeleteConfirm(null)}
                   className={`w-full ${
                     isMobile

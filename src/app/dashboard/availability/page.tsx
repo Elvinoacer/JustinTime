@@ -379,25 +379,26 @@ export default function AvailabilityPage() {
 
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-50 via-white to-emerald-50 py-4 sm:py-6 lg:py-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
-      <div className="max-w-7xl mx-auto px-3 xs:px-4 sm:px-5 lg:px-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8">
         {/* Header */}
         <motion.div
           className="mb-6 sm:mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 mb-3">
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl xs:text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+              <h1 className="mb-1 text-2xl font-bold text-gray-900 sm:text-3xl">
                 Availability
               </h1>
-              <p className="text-xs xs:text-xs sm:text-sm text-gray-600">
+              <p className="text-xs text-gray-600 sm:text-sm">
                 Manage your weekly schedule and date exceptions
               </p>
             </div>
-            <button type="button"
+            <button
+              type="button"
               onClick={openNewExceptionModal}
-              className="px-3 sm:px-4 py-2 bg-linear-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-semibold text-sm transition-all shadow-sm sm:shadow-md flex items-center gap-1.5 sm:gap-2 self-start xs:self-center"
+              className="flex w-full items-center justify-center gap-1.5 self-stretch rounded-lg bg-linear-to-r from-blue-500 to-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:from-blue-600 hover:to-blue-700 sm:w-auto sm:gap-2 sm:px-4 sm:shadow-md sm:self-center"
             >
               <span className="material-symbols-outlined text-sm sm:text-base">
                 event_busy
@@ -458,17 +459,17 @@ export default function AvailabilityPage() {
                           </div>
                           <div className="flex items-center gap-2">
                             {hasSlots && !isExpanded && (
-                              <div className="hidden xs:flex flex-wrap gap-1 mr-2">
+                              <div className="mr-2 hidden flex-wrap gap-1 sm:flex">
                                 {daySlots.slice(0, 2).map((slot, i) => (
                                   <span
                                     key={i}
-                                    className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] xs:text-xs font-semibold"
+                                    className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 sm:text-xs"
                                   >
                                     {slot.startTime} - {slot.endTime}
                                   </span>
                                 ))}
                                 {daySlots.length > 2 && (
-                                  <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-[10px] xs:text-xs font-semibold">
+                                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600 sm:text-xs">
                                     +{daySlots.length - 2}
                                   </span>
                                 )}
@@ -505,7 +506,7 @@ export default function AvailabilityPage() {
                                       >
                                         {editingSlotId === slot.id ? (
                                           <div className="w-full space-y-2">
-                                            <div className="grid grid-cols-2 gap-2">
+                                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                               <input
                                                 type="time"
                                                 value={slotEditForm.startTime}
@@ -529,8 +530,9 @@ export default function AvailabilityPage() {
                                                 className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
                                               />
                                             </div>
-                                            <div className="flex items-center justify-end gap-2">
-                                              <button type="button"
+                                            <div className="flex flex-col items-stretch justify-end gap-2 sm:flex-row sm:items-center">
+                                              <button
+                                                type="button"
                                                 onClick={() =>
                                                   setEditingSlotId(null)
                                                 }
@@ -538,7 +540,8 @@ export default function AvailabilityPage() {
                                               >
                                                 Cancel
                                               </button>
-                                              <button type="button"
+                                              <button
+                                                type="button"
                                                 onClick={saveSlotEdit}
                                                 disabled={isSaving}
                                                 className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
@@ -559,7 +562,7 @@ export default function AvailabilityPage() {
                                                   {slot.endTime}
                                                 </span>
                                                 {slot.id && (
-                                                  <p className="text-[10px] xs:text-xs text-gray-500 mt-0.5">
+                                                  <p className="mt-0.5 text-[10px] text-gray-500 sm:text-xs">
                                                     Use edit to adjust this slot
                                                   </p>
                                                 )}
@@ -567,7 +570,8 @@ export default function AvailabilityPage() {
                                             </div>
                                             {slot.id && (
                                               <div className="flex items-center gap-1">
-                                                <button type="button"
+                                                <button
+                                                  type="button"
                                                   onClick={() =>
                                                     beginSlotEdit(slot)
                                                   }
@@ -578,7 +582,8 @@ export default function AvailabilityPage() {
                                                     edit
                                                   </span>
                                                 </button>
-                                                <button type="button"
+                                                <button
+                                                  type="button"
                                                   onClick={() =>
                                                     deleteSlot(slot.id!)
                                                   }
@@ -613,7 +618,7 @@ export default function AvailabilityPage() {
                                 <h4 className="text-sm sm:text-base font-semibold text-gray-900 mb-2.5 sm:mb-3">
                                   Add New Time Slot
                                 </h4>
-                                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 mb-3">
+                                <div className="mb-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
                                   <div>
                                     <label
                                       htmlFor={`start-time-${index}`}
@@ -655,7 +660,8 @@ export default function AvailabilityPage() {
                                     />
                                   </div>
                                 </div>
-                                <button type="button"
+                                <button
+                                  type="button"
                                   onClick={() => addSlot(index)}
                                   disabled={isSaving}
                                   className="w-full py-2 sm:py-2.5 bg-linear-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
@@ -693,7 +699,7 @@ export default function AvailabilityPage() {
                   <div className="text-xl sm:text-2xl font-bold mb-1">
                     {DAYS.filter((_, i) => getDaySlots(i).length > 0).length}
                   </div>
-                  <div className="text-[10px] xs:text-xs opacity-90">
+                  <div className="text-[10px] opacity-90 sm:text-xs">
                     Active Days
                   </div>
                 </div>
@@ -701,7 +707,7 @@ export default function AvailabilityPage() {
                   <div className="text-xl sm:text-2xl font-bold mb-1">
                     {availability.length}
                   </div>
-                  <div className="text-[10px] xs:text-xs opacity-90">
+                  <div className="text-[10px] opacity-90 sm:text-xs">
                     Total Slots
                   </div>
                 </div>
@@ -709,7 +715,7 @@ export default function AvailabilityPage() {
                   <div className="text-xl sm:text-2xl font-bold mb-1">
                     {exceptions.length}
                   </div>
-                  <div className="text-[10px] xs:text-xs opacity-90">
+                  <div className="text-[10px] opacity-90 sm:text-xs">
                     Exceptions
                   </div>
                 </div>
@@ -722,7 +728,8 @@ export default function AvailabilityPage() {
                 <h3 className="text-base sm:text-lg font-bold text-gray-900">
                   Upcoming Exceptions
                 </h3>
-                <button type="button"
+                <button
+                  type="button"
                   onClick={openNewExceptionModal}
                   className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1"
                 >
@@ -737,7 +744,8 @@ export default function AvailabilityPage() {
                     event_busy
                   </span>
                   <p className="text-xs sm:text-sm">No exceptions set</p>
-                  <button type="button"
+                  <button
+                    type="button"
                     onClick={openNewExceptionModal}
                     className="mt-3 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition-colors"
                   >
@@ -787,7 +795,8 @@ export default function AvailabilityPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0 ml-1">
-                          <button type="button"
+                          <button
+                            type="button"
                             onClick={() => beginExceptionEdit(exception)}
                             className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                             title="Edit exception"
@@ -796,7 +805,8 @@ export default function AvailabilityPage() {
                               edit
                             </span>
                           </button>
-                          <button type="button"
+                          <button
+                            type="button"
                             onClick={() => deleteException(exception.id!)}
                             className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                             title="Remove exception"
@@ -821,7 +831,8 @@ export default function AvailabilityPage() {
                   ))}
 
                   {exceptions.length > 3 && isMobile && (
-                    <button type="button"
+                    <button
+                      type="button"
                       onClick={openNewExceptionModal}
                       className="w-full text-center text-xs text-gray-500 hover:text-gray-700 py-2"
                     >
@@ -893,7 +904,8 @@ export default function AvailabilityPage() {
                       ? "Edit Date Exception"
                       : "Add Date Exception"}
                   </h2>
-                  <button type="button"
+                  <button
+                    type="button"
                     onClick={closeExceptionModal}
                     className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                   >
@@ -948,7 +960,7 @@ export default function AvailabilityPage() {
                   </div>
 
                   {newException.isAvailable && (
-                    <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
                       <div>
                         <label
                           htmlFor="exception-start-time"
@@ -1014,14 +1026,16 @@ export default function AvailabilityPage() {
                     />
                   </div>
 
-                  <div className="flex gap-2.5 sm:gap-3 pt-2">
-                    <button type="button"
+                  <div className="flex flex-col gap-2.5 pt-2 sm:flex-row sm:gap-3">
+                    <button
+                      type="button"
                       onClick={closeExceptionModal}
                       className="flex-1 px-4 py-2.5 sm:py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold text-sm"
                     >
                       Cancel
                     </button>
-                    <button type="button"
+                    <button
+                      type="button"
                       onClick={addException}
                       disabled={isSaving}
                       className="flex-1 px-4 py-2.5 sm:py-3 bg-linear-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"

@@ -132,7 +132,7 @@ export default function CategorySelector({
     };
 
     const textSize = {
-      small: "text-[10px] xs:text-xs sm:text-sm",
+      small: "text-[10px] sm:text-xs md:text-sm",
       medium: "text-xs sm:text-sm md:text-base",
       large: "text-sm sm:text-base md:text-lg",
     };
@@ -250,14 +250,14 @@ export default function CategorySelector({
 
   return (
     <div className={`space-y-2 ${compact ? "sm:space-y-3" : "sm:space-y-4"}`}>
-      <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
+      <div className="mb-0.5 flex flex-col justify-between gap-1.5 sm:mb-1 sm:flex-row sm:items-center sm:gap-2">
         <label className="block text-xs sm:text-sm font-semibold text-gray-700 truncate">
           {label} <span className="text-red-500">*</span>
         </label>
 
         {/* Main Search Input - Only show in non-compact mode */}
         {!compact && (
-          <div className="relative w-full xs:w-auto xs:min-w-[150px] sm:min-w-[180px]">
+          <div className="relative w-full sm:w-auto sm:min-w-[180px]">
             <span className="absolute inset-y-0 left-0 pl-2 sm:pl-2.5 flex items-center pointer-events-none">
               <span className="material-symbols-outlined text-gray-400 text-sm">
                 search
@@ -276,10 +276,10 @@ export default function CategorySelector({
 
       {isLoading ? (
         <div
-          className={`grid grid-cols-2 xs:grid-cols-3 ${
+          className={`grid grid-cols-2 sm:grid-cols-3 ${
             compact
-              ? "sm:grid-cols-4"
-              : "sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6"
+              ? "md:grid-cols-4"
+              : "md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
           } gap-1.5 sm:gap-2 ${!compact ? "md:gap-3" : ""}`}
         >
           {[...Array(maxVisible)].map((_, i) => (
@@ -292,10 +292,10 @@ export default function CategorySelector({
       ) : (
         <>
           <div
-            className={`grid grid-cols-2 xs:grid-cols-3 ${
+            className={`grid grid-cols-2 sm:grid-cols-3 ${
               compact
-                ? "sm:grid-cols-4"
-                : "sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6"
+                ? "md:grid-cols-4"
+                : "md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
             } gap-1.5 sm:gap-2 ${!compact ? "md:gap-3" : ""}`}
           >
             {filteredCategories.slice(0, maxVisible).map((cat) => (
@@ -411,7 +411,7 @@ export default function CategorySelector({
 
               {/* Modal Content - Scrollable */}
               <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 bg-gray-50/50">
-                <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-1.5 sm:gap-2 md:gap-3">
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2 md:grid-cols-4 md:gap-3 lg:grid-cols-5 xl:grid-cols-6">
                   {modalFilteredCategories.slice(0, visibleCount).map((cat) => (
                     <CategoryCard
                       key={cat.id}
@@ -450,13 +450,13 @@ export default function CategorySelector({
               </div>
 
               {/* Modal Footer */}
-              <div className="p-2 sm:p-3 md:p-4 border-t border-gray-100 bg-white flex flex-col xs:flex-row justify-between items-center gap-1.5 sm:gap-2">
-                <div className="text-xs text-gray-500 text-center xs:text-left">
+              <div className="flex flex-col items-stretch justify-between gap-1.5 border-t border-gray-100 bg-white p-2 sm:flex-row sm:items-center sm:gap-2 sm:p-3 md:p-4">
+                <div className="text-center text-xs text-gray-500 sm:text-left">
                   Showing{" "}
                   {Math.min(visibleCount, modalFilteredCategories.length)} of{" "}
                   {modalFilteredCategories.length} categories
                 </div>
-                <div className="flex gap-1.5 sm:gap-2 w-full xs:w-auto">
+                <div className="flex w-full gap-1.5 sm:w-auto sm:gap-2">
                   <button
                     onClick={() => {
                       if (multiSelect) {
@@ -466,14 +466,14 @@ export default function CategorySelector({
                         onToggle(selectedIds[0]);
                       }
                     }}
-                    className="px-3 sm:px-4 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md sm:rounded-lg font-medium text-xs sm:text-sm transition-colors flex-1 xs:flex-none"
+                    className="flex-1 rounded-md bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-200 sm:flex-none sm:rounded-lg sm:px-4 sm:text-sm"
                     disabled={selectedIds.length === 0}
                   >
                     Clear
                   </button>
                   <button
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 sm:px-5 py-1.5 bg-emerald-600 text-white rounded-md sm:rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-200 flex-1 xs:flex-none text-xs sm:text-sm"
+                    className="flex-1 rounded-md bg-emerald-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm shadow-emerald-200 transition-colors hover:bg-emerald-700 sm:flex-none sm:rounded-lg sm:px-5 sm:text-sm"
                   >
                     Done
                   </button>

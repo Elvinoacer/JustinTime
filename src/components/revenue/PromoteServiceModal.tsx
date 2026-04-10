@@ -60,7 +60,7 @@ export function PromoteServiceModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+        className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 backdrop-blur-sm sm:items-center sm:p-4"
         onClick={onClose}
       >
         <motion.div
@@ -68,12 +68,12 @@ export function PromoteServiceModal({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 10 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-white rounded-xl lg:rounded-2xl shadow-xl lg:shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
+          className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90vh] sm:max-w-lg sm:rounded-xl lg:rounded-2xl lg:shadow-2xl"
         >
-          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-            <div className="flex items-center gap-2">
-              <Rocket className="h-5 w-5 text-purple-600" />
-              <h2 className="text-xl font-bold text-gray-900 truncate">
+          <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/50 px-4 py-3 sm:px-6 sm:py-4">
+            <div className="flex min-w-0 items-center gap-2">
+              <Rocket className="h-5 w-5 shrink-0 text-purple-600" />
+              <h2 className="truncate text-base font-bold text-gray-900 sm:text-xl">
                 Promote "{serviceTitle}"
               </h2>
             </div>
@@ -86,12 +86,12 @@ export function PromoteServiceModal({
             </button>
           </div>
 
-          <div className="p-6 overflow-y-auto">
-            <p className="text-gray-600 mb-6">
+          <div className="overflow-y-auto p-4 sm:p-6">
+            <p className="mb-5 text-sm text-gray-600 sm:mb-6 sm:text-base">
               Boost your service visibility to get more bookings.
             </p>
 
-            <div className="mb-6 space-y-2">
+            <div className="mb-5 space-y-2 sm:mb-6">
               <label
                 htmlFor="promotion-promo-code"
                 className="text-xs font-semibold text-gray-600 uppercase tracking-wide"
@@ -114,7 +114,7 @@ export function PromoteServiceModal({
               {PLANS.map((plan) => (
                 <div
                   key={plan.id}
-                  className={`relative flex flex-col p-4 border rounded-xl hover:border-purple-500 cursor-pointer transition-all ${plan.popular ? "border-purple-500 bg-purple-50/50 shadow-sm" : "border-gray-200 hover:shadow-md"}`}
+                  className={`relative flex cursor-pointer flex-col rounded-xl border p-3 transition-all hover:border-purple-500 sm:p-4 ${plan.popular ? "border-purple-500 bg-purple-50/50 shadow-sm" : "border-gray-200 hover:shadow-md"}`}
                   onClick={() =>
                     !loading && handlePromote(plan.id as "STANDARD" | "PREMIUM")
                   }
@@ -126,15 +126,15 @@ export function PromoteServiceModal({
                   )}
 
                   <div className="mb-2 text-center">
-                    <h4 className="font-bold text-lg text-gray-900">
+                    <h4 className="text-base font-bold text-gray-900 sm:text-lg">
                       {plan.label}
                     </h4>
-                    <div className="text-2xl font-bold text-purple-700 mt-1">
+                    <div className="mt-1 text-xl font-bold text-purple-700 sm:text-2xl">
                       KES {plan.price.toLocaleString()}
                     </div>
                   </div>
 
-                  <ul className="space-y-2 text-sm text-gray-600 mb-4 flex-1">
+                  <ul className="mb-4 flex-1 space-y-2 text-sm text-gray-600">
                     {plan.features.map((feat, i) => (
                       <li key={i} className="flex items-start gap-2">
                         <Check className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
@@ -144,7 +144,7 @@ export function PromoteServiceModal({
                   </ul>
 
                   <button
-                    className={`w-full py-2.5 rounded-lg font-bold transition-all text-sm flex items-center justify-center gap-2 ${plan.popular ? "bg-purple-600 text-white hover:bg-purple-700 shadow-md shadow-purple-200" : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"}`}
+                    className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-bold transition-all touch-manipulation ${plan.popular ? "bg-purple-600 text-white shadow-md shadow-purple-200 hover:bg-purple-700" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`}
                     disabled={loading}
                   >
                     {loading ? (
