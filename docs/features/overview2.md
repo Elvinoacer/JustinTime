@@ -10,9 +10,9 @@
 
 | Metric                     | Count                             |
 | -------------------------- | --------------------------------- |
-| App Router pages & screens | 90+                               |
-| API routes                 | 89                                |
-| Prisma data models         | 72                                |
+| App Router pages & screens | 126                               |
+| API routes                 | 145                               |
+| Prisma data models         | 89                                |
 | Server actions modules     | 23                                |
 | Supported roles            | Guest · Client · Provider · Admin |
 | Supported languages        | English · Swahili · Sheng         |
@@ -55,10 +55,12 @@
 
 ### 1.1 Landing & Conversion
 
+- **1.1.0** Root landing route at `/`.
 - **1.1.1** Hero landing page with service search and category entry points.
 - **1.1.2** Conversion funnel pages for both service seekers and professionals.
 - **1.1.3** Join/signup prompt page (`/join`) for professional acquisition.
 - **1.1.4** Analytics event capture for landing page interactions (`/api/analytics/landing-events`).
+- **1.1.5** Provider acquisition entry page at `/become-a-provider`.
 
 ### 1.2 Public Services Catalog
 
@@ -67,6 +69,7 @@
 - **1.2.3** Service detail page (`/services/[id]`) with provider profile, pricing, and reviews.
 - **1.2.4** Service interaction tracking for ranking and performance intelligence.
 - **1.2.5** Category browsing via `/api/categories` — returns all categories with service counts.
+- **1.2.6** Public job category discovery via `/api/jobs/categories`.
 
 ### 1.3 Public Professionals Directory
 
@@ -90,6 +93,7 @@
 - **1.5.6** Privacy Policy page (`/privacy`).
 - **1.5.7** Cookie Policy page (`/cookie-policy`).
 - **1.5.8** Newsletter subscription via `/api/newsletter/subscribe`.
+- **1.5.9** Blog post detail page at `/blog/[slug]`.
 
 ---
 
@@ -97,6 +101,7 @@
 
 ### 2.1 Authentication Methods
 
+- **2.1.0** Dedicated login page at `/auth/login`.
 - **2.1.1** Email/password authentication via NextAuth Credentials provider.
 - **2.1.2** Google OAuth sign-in via `/api/auth/google-signin`.
 - **2.1.3** Two-factor authentication (2FA) — token generation, confirmation, and enforcement via `TwoFactorToken` and `TwoFactorConfirmation` models.
@@ -111,6 +116,7 @@
 - **2.2.4** Verify page (`/auth/verify`) for direct token handling.
 - **2.2.5** Resend verification email via `/api/auth/resend-verification`.
 - **2.2.6** Auth error handling page (`/auth/error`).
+- **2.2.7** Admin invite acceptance page at `/auth/admin-invite` with invite redemption workflow.
 
 ### 2.3 Password Recovery
 
@@ -149,6 +155,8 @@
 - **3.2.4** Location capture step — GPS-based, with denied-location fallback handling.
 - **3.2.5** Onboarding fee payment initiation integrated directly in the flow via `/api/onboarding-fee/initiate`.
 - **3.2.6** Onboarding completion handoff to the Provider dashboard at `/dashboard/onboarding-complete`.
+- **3.2.7** Provider setup workspace at `/provider/setup`.
+- **3.2.8** Provider setup checklist at `/provider/setup/checklist`.
 
 ### 3.3 Client Onboarding Path
 
@@ -163,15 +171,15 @@
 
 ### 4.1 Client Workspace Pages
 
-`/client/dashboard` · `/client/jobs` · `/client/jobs/[id]` · `/client/proposals` · `/client/bookings` · `/client/messages` · `/client/notifications` · `/client/wallet` · `/client/analytics` · `/client/referral` · `/client/profile` · `/client/settings` · `/client/post-job` · `/client/reviews/submit/[bookingId]`
+`/client/dashboard` · `/client/jobs` · `/client/jobs/[id]` · `/client/proposals` · `/client/bookings` · `/client/messages` · `/client/notifications` · `/client/wallet` · `/client/wallet/topup-complete` · `/client/analytics` · `/client/referral` · `/client/profile` · `/client/settings` · `/client/post-job` · `/client/reviews/submit/[bookingId]` · `/client/solar/projects` · `/client/solar/projects/[id]`
 
 ### 4.2 Provider Workspace Pages
 
-`/dashboard` · `/dashboard/services` · `/dashboard/jobs` · `/dashboard/requests` · `/dashboard/bookings` · `/dashboard/earnings` · `/dashboard/analytics` · `/dashboard/availability` · `/dashboard/invoices` · `/dashboard/settings/tax` · `/dashboard/verification` · `/dashboard/premium` · `/dashboard/expenses` · `/dashboard/team` · `/dashboard/team/jobs` · `/dashboard/team/members` · `/dashboard/team/payroll` · `/dashboard/safety` · `/dashboard/reviews` · `/dashboard/wallet/topup-complete` · `/dashboard/messages` · `/dashboard/notifications` · `/dashboard/profile` · `/dashboard/settings` · `/dashboard/help` · `/dashboard/achievements` · `/dashboard/surge-pricing-demo`
+`/dashboard` · `/dashboard/services` · `/dashboard/jobs` · `/dashboard/requests` · `/dashboard/bookings` · `/dashboard/earnings` · `/dashboard/analytics` · `/dashboard/availability` · `/dashboard/invoices` · `/dashboard/settings/tax` · `/dashboard/settings/notifications` · `/dashboard/verification` · `/dashboard/premium` · `/dashboard/premium/complete` · `/dashboard/expenses` · `/dashboard/wallet` · `/dashboard/wallet/topup-complete` · `/dashboard/loyalty` · `/dashboard/team` · `/dashboard/team/settings` · `/dashboard/team/jobs` · `/dashboard/team/members` · `/dashboard/team/payroll` · `/dashboard/team/[teamId]` · `/dashboard/team/[teamId]/jobs` · `/dashboard/team/[teamId]/members` · `/dashboard/team/[teamId]/payroll` · `/dashboard/team/[teamId]/settings` · `/dashboard/safety` · `/dashboard/reviews` · `/dashboard/messages` · `/dashboard/notifications` · `/dashboard/profile` · `/dashboard/settings` · `/dashboard/help` · `/dashboard/help/tickets/[id]` · `/dashboard/achievements` · `/dashboard/surge-pricing-demo` · `/dashboard/solar` · `/dashboard/solar/certifications` · `/dashboard/solar/config` · `/dashboard/solar/projects` · `/dashboard/solar/projects/[id]` · `/dashboard/solar/templates` · `/dashboard/verticals/solar/apply` · `/dashboard/verticals/solar/projects` · `/dashboard/verticals/solar/projects/[id]`
 
 ### 4.3 Admin Workspace Pages
 
-`/admin/login` · `/admin/dashboard` · `/admin/users` · `/admin/users/[id]` · `/admin/bookings` · `/admin/jobs` · `/admin/jobs/[id]` · `/admin/disputes` · `/admin/finance` · `/admin/verifications` · `/admin/support` · `/admin/logs` · `/admin/settings` · `/admin/churn-analysis` · `/admin/marketing/promos` · `/admin/reconciliation`
+`/admin` · `/admin/login` · `/admin/dashboard` · `/admin/users` · `/admin/users/[id]` · `/admin/bookings` · `/admin/jobs` · `/admin/jobs/[id]` · `/admin/disputes` · `/admin/finance` · `/admin/verifications` · `/admin/support` · `/admin/logs` · `/admin/settings` · `/admin/churn-analysis` · `/admin/marketing/promos` · `/admin/marketing/events` · `/admin/marketing/newsletter` · `/admin/reconciliation` · `/admin/reconciliation/payment-intents` · `/admin/safety` · `/admin/trust` · `/admin/insurance`
 
 ---
 
@@ -185,6 +193,8 @@
 - **5.1.4** Category-tagged services with filterable public discovery.
 - **5.1.5** Service promotion — providers can pay to boost visibility.
 - **5.1.6** Interaction analytics on service pages (`/api/services/[id]/interactions`).
+- **5.1.7** Provider per-service detail management via `/api/provider/services/[id]`.
+- **5.1.8** Service interaction deduplication safeguards via `ServiceInteractionDedup`.
 
 ### 5.2 Professionals Marketplace
 
@@ -227,6 +237,7 @@
 - **6.1.3** Booking detail retrieval at `/api/bookings/[id]`.
 - **6.1.4** Booking lifecycle events tracked via `BookingLifecycleEvent` model and `/api/bookings/[id]/timeline`.
 - **6.1.5** Escrow milestone support via `/api/bookings/[id]/escrow/milestones`.
+- **6.1.6** Booking quote generation via `/api/bookings/quote`.
 
 ### 6.2 Booking Management
 
@@ -238,6 +249,7 @@
 - **6.2.6** Provider bookings list at `/api/provider/bookings`.
 - **6.2.7** Client bookings list at `/client/bookings`.
 - **6.2.8** Admin bookings overview at `/admin/bookings`.
+- **6.2.9** Booking completion confirmation endpoint at `/api/bookings/[id]/confirm-completion`.
 
 ### 6.3 Booking Invoice
 
@@ -249,6 +261,12 @@
 - **6.4.1** Dispute submission directly from a booking context via `/api/bookings/[id]/dispute`.
 - **6.4.2** Dispute model persisted and routed to admin review queue.
 
+### 6.5 Pricing & Quote Engine
+
+- **6.5.1** Quote generation endpoint for pre-booking cost estimation at `/api/bookings/quote`.
+- **6.5.2** Quote persistence and replay support via `PricingQuote`.
+- **6.5.3** Quote-to-booking handoff integrated into booking creation and negotiation workflows.
+
 ---
 
 ## 7. Communication & Calls
@@ -257,7 +275,7 @@
 
 - **7.1.1** Real-time chat with Socket.IO integration.
 - **7.1.2** Conversation listing via `/api/messages/conversations`.
-- **7.1.3** Full message history with a user at `/api/messages/history/[userId]`.
+- **7.1.3** Full message history with a user at `/api/messages/history/[otherUserId]`.
 - **7.1.4** Send message via `/api/messages/send`.
 - **7.1.5** Contact list for frequent conversations at `/api/messages/contacts`.
 - **7.1.6** Per-message management (edit/delete) at `/api/messages/[messageId]`.
@@ -265,6 +283,10 @@
 - **7.1.8** Message reporting model backed by `MessageReport`.
 - **7.1.9** Provider messages page at `/dashboard/messages`.
 - **7.1.10** Client messages page at `/client/messages`.
+- **7.1.11** Message delivery acknowledgement endpoint at `/api/messages/delivered`.
+- **7.1.12** Message read receipt endpoint at `/api/messages/read`.
+- **7.1.13** Recent contacts optimization endpoint at `/api/messages/recent-contacts`.
+- **7.1.14** Conversation read-state and sync tracking via `MessageConversationState`.
 
 ### 7.2 Calls
 
@@ -273,6 +295,8 @@
 - **7.2.3** Call status tracking from initiation to completion backed by the `Call` model.
 - **7.2.4** Communication components for call overlay and video call interface.
 - **7.2.5** Proxy session support for masked communication via the `ProxySession` model.
+- **7.2.6** Call liveness heartbeat endpoint at `/api/calls/heartbeat`.
+- **7.2.7** Stale call cleanup endpoint at `/api/calls/sweep-stale`.
 
 ### 7.3 WhatsApp Integration
 
@@ -291,6 +315,10 @@
 - **8.4** FCM push token storage at `/api/notifications/store-token`.
 - **8.5** Notification center pages in both Provider (`/dashboard/notifications`) and Client (`/client/notifications`) workspaces.
 - **8.6** Admin notification debug and delivery test endpoint at `/api/admin/debug-notifications`.
+- **8.7** Notification outbox processing pipeline via `/api/internal/notifications/outbox/process`.
+- **8.8** Persistent outbox queue model for deferred delivery via `NotificationOutbox`.
+- **8.9** Delivery attempt and outcome tracking via `NotificationDelivery`.
+- **8.10** Delivery observability across queued, sent, failed, and retried notification states.
 
 ---
 
@@ -304,6 +332,7 @@
 - **9.1.4** Admin approve/revoke decisions for provider verifications.
 - **9.1.5** Verification audit history backed by `VerificationAudit` model.
 - **9.1.6** Verification actions via `verification.ts` server action.
+- **9.1.7** Verification request lifecycle persistence via `IdentityVerificationRequest`.
 
 ### 9.2 Trust-as-a-Service (TaaS)
 
@@ -312,6 +341,7 @@
 - **9.2.3** Verification badge model with active/expired/revoked states (`VerificationBadge`).
 - **9.2.4** Premium pricing eligibility tied to trust tier state.
 - **9.2.5** Automated badge sync and validity checks via `taas.ts` server action.
+- **9.2.6** Dedicated trust governance workspace for admin operations at `/admin/trust`.
 
 ### 9.3 Safety Operations
 
@@ -321,6 +351,7 @@
 - **9.3.4** Trusted contacts management — add, remove, list via `TrustedContact` model.
 - **9.3.5** User blocking backed by `BlockedUser` model.
 - **9.3.6** Safety dashboard at `/dashboard/safety`.
+- **9.3.7** Dedicated safety governance workspace for admin operations at `/admin/safety`.
 
 ### 9.4 Reviews & Dispute Resolution
 
@@ -335,6 +366,7 @@
 - **9.5.1** Insurance claim submission backed by `InsuranceClaim` model.
 - **9.5.2** Claim retrieval and management via `insurance.ts` server action.
 - **9.5.3** Claims linked to specific bookings and users for audit trail.
+- **9.5.4** Dedicated insurance governance workspace for admin operations at `/admin/insurance`.
 
 ---
 
@@ -351,6 +383,11 @@
 - **10.1.7** Top-up completion page at `/dashboard/wallet/topup-complete`.
 - **10.1.8** Client wallet page at `/client/wallet`.
 - **10.1.9** Wallet and transaction models: `Wallet`, `Transaction`, `Payment`.
+- **10.1.10** Unified wallet route handler at `/api/wallet`.
+- **10.1.11** Wallet top-up status polling endpoint at `/api/wallet/topup/status`.
+- **10.1.12** Secret-scoped wallet webhook variant at `/api/wallet/webhook/[secret]`.
+- **10.1.13** Additional wallet UX surfaces at `/dashboard/wallet` and `/client/wallet/topup-complete`.
+- **10.1.14** Wallet top-up orchestration model: `WalletTopUp`.
 
 ### 10.2 Provider Earnings
 
@@ -364,6 +401,8 @@
 - **10.3.1** Onboarding fee payment initiation at `/api/onboarding-fee/initiate`.
 - **10.3.2** Webhook reconciliation for fee payment status at `/api/onboarding-fee/webhook`.
 - **10.3.3** Admin fee waiver action for specific providers at `/api/admin/users/[id]/waive-fee`.
+- **10.3.4** Onboarding fee status polling endpoint at `/api/onboarding-fee/status`.
+- **10.3.5** Secret-scoped onboarding webhook variant at `/api/onboarding-fee/webhook/[secret]`.
 
 ### 10.4 Subscriptions & Plans
 
@@ -373,6 +412,8 @@
 - **10.4.4** Premium settings and plan display at `/dashboard/premium`.
 - **10.4.5** Plan and user-role update support in admin and server action layer.
 - **10.4.6** Subscription model: `Subscription`.
+- **10.4.7** Secret-scoped subscription webhook variant at `/api/subscription/webhook/[secret]`.
+- **10.4.8** Subscription payment completion page at `/dashboard/premium/complete`.
 
 ### 10.5 Promo Codes
 
@@ -385,6 +426,15 @@
 - **10.6.1** Service promotion payment via `revenue.ts` server action.
 - **10.6.2** Credit purchase flows and transaction list components.
 - **10.6.3** Financial reconciliation overview at `/admin/reconciliation`.
+
+### 10.7 Payment Intent & Reconciliation Architecture
+
+- **10.7.1** Payment intent orchestration for STK-initiated flows via `PaymentIntent`.
+- **10.7.2** Durable webhook receipt persistence for replay/reconciliation via `PaymentWebhookReceipt`.
+- **10.7.3** Internal receipt processing and reconciliation jobs via `/api/internal/cron/process-daraja-webhook-receipts` and `/api/internal/cron/reconcile-daraja-payments`.
+- **10.7.4** Cross-flow status polling endpoints for wallet, onboarding fee, and subscriptions.
+- **10.7.5** Unified verification UX surface at `/payment/verify`.
+- **10.7.6** Payment intent administration and reconciliation tooling via `/admin/reconciliation/payment-intents` and `/api/admin/reconciliation/payment-intents`.
 
 ---
 
@@ -430,6 +480,7 @@
 - **12.1.2** Provider activity stream at `/api/provider/activities`.
 - **12.1.3** Portfolio links management.
 - **12.1.4** Provider stats dashboard at `/api/provider/stats`.
+- **12.1.5** Provider activation endpoint for workspace enablement at `/api/provider/activate`.
 
 ### 12.2 Availability & Scheduling Engine
 
@@ -445,6 +496,7 @@
 - **12.3.2** Receipt scan for automated spend capture.
 - **12.3.3** Expense dashboard at `/dashboard/expenses`.
 - **12.3.4** Expense model: `Expense`.
+- **12.3.5** Job-linked expense retrieval endpoint at `/api/provider/expenses/jobs`.
 
 ### 12.4 Dynamic Pricing
 
@@ -461,6 +513,7 @@
 - **12.6.1** Help page at `/dashboard/help`.
 - **12.6.2** Support ticket creation and updates via `/api/support/tickets`.
 - **12.6.3** Per-ticket detail management at `/api/support/tickets/[id]`.
+- **12.6.4** Provider ticket detail workspace at `/dashboard/help/tickets/[id]`.
 
 ---
 
@@ -503,6 +556,19 @@
 - **13.5.1** Team announcement broadcasting backed by `TeamAnnouncement` model.
 - **13.5.2** Team-centric UI cards in the team dashboard.
 
+### 13.6 Team Invitation Lifecycle
+
+- **13.6.1** Team invitation issuance and pending-state management via `TeamInvitation`.
+- **13.6.2** Invite status lifecycle tracking for acceptance, expiry, and cancellation.
+
+### 13.7 Team Detail Workspaces
+
+- **13.7.1** Team detail hub at `/dashboard/team/[teamId]`.
+- **13.7.2** Team-scoped jobs at `/dashboard/team/[teamId]/jobs`.
+- **13.7.3** Team-scoped members at `/dashboard/team/[teamId]/members`.
+- **13.7.4** Team-scoped payroll at `/dashboard/team/[teamId]/payroll`.
+- **13.7.5** Team-scoped settings at `/dashboard/team/[teamId]/settings` and `/dashboard/team/settings`.
+
 ---
 
 ## 14. Client Workspace Features
@@ -518,12 +584,16 @@
 - **14.2.1** Job posting interface at `/client/post-job`.
 - **14.2.2** Client jobs list at `/client/jobs`.
 - **14.2.3** Job detail view at `/client/jobs/[id]`.
+- **14.2.4** Client job detail API at `/api/client/jobs/[id]`.
+- **14.2.5** Client job proposals listing at `/api/client/jobs/[id]/proposals`.
+- **14.2.6** Client per-proposal decision endpoint at `/api/client/jobs/[id]/proposals/[proposalId]`.
 
 ### 14.3 Proposals & Bookings
 
 - **14.3.1** Received proposals overview at `/client/proposals`.
 - **14.3.2** Client bookings history at `/client/bookings`.
 - **14.3.3** Post-service review submission at `/client/reviews/submit/[bookingId]`.
+- **14.3.4** Client booking detail endpoint at `/api/client/bookings/[id]`.
 
 ### 14.4 Analytics & Referral
 
@@ -537,6 +607,13 @@
 
 - **14.5.1** Client profile management at `/client/profile` and `/api/client/profile`.
 - **14.5.2** Client settings page at `/client/settings`.
+- **14.5.3** Client settings API endpoint at `/api/client/settings`.
+
+### 14.6 Wallet & Solar Project Workspaces
+
+- **14.6.1** Client wallet top-up completion workspace at `/client/wallet/topup-complete`.
+- **14.6.2** Client solar projects listing at `/client/solar/projects`.
+- **14.6.3** Client solar project detail workspace at `/client/solar/projects/[id]`.
 
 ---
 
@@ -547,6 +624,9 @@
 - **15.1.1** Recommendation hooks for personalized service and professional suggestions.
 - **15.1.2** Geolocation utilities for nearest-provider relevance ranking.
 - **15.1.3** Search normalization utility for local language query patterns.
+- **15.1.4** Service recommendation API at `/api/recommendations/services`.
+- **15.1.5** Professional recommendation API at `/api/recommendations/professionals`.
+- **15.1.6** Job recommendation API at `/api/recommendations/jobs`.
 
 ### 15.2 Provider Benchmarking & Performance
 
@@ -558,6 +638,11 @@
 
 - **15.3.1** User GPS location update via `/api/user/location`.
 - **15.3.2** Location data used for proximity-based discovery and dispatch.
+- **15.3.3** Location lookup endpoint for geocoding/reverse lookup flows at `/api/location/lookup`.
+
+### 15.4 Workspace Routing Intelligence
+
+- **15.4.1** User workspace resolution endpoint at `/api/user/workspace`.
 
 ---
 
@@ -584,6 +669,8 @@
 - **16.3.2** Reward redemption flow and history.
 - **16.3.3** Partner ecosystem seeding action.
 - **16.3.4** Partner models: `Partner`, `PartnerReward`, `RewardRedemption`.
+- **16.3.5** Reward redemption validation endpoint at `/api/rewards/redemptions/validate`.
+- **16.3.6** Reward redemption consumption endpoint at `/api/rewards/redemptions/consume`.
 
 ---
 
@@ -606,6 +693,7 @@
 - **18.1.3** Quick estimate and detailed estimate actions via `solar.ts` server action.
 - **18.1.4** Estimation calculator library for system sizing and ROI-style outputs.
 - **18.1.5** Solar estimation configuration model: `SolarEstimationConfig`.
+- **18.1.6** Public solar installer discovery page at `/solar/installers`.
 
 ### 18.2 Specialist Management
 
@@ -623,6 +711,16 @@
 - **18.3.4** Equipment registry and project template models: `EquipmentRegistry`, `ProjectTemplate`.
 - **18.3.5** Vertical category model: `VerticalCategory`.
 
+### 18.4 Operational Solar Workspaces
+
+- **18.4.1** Provider solar control center at `/dashboard/solar`.
+- **18.4.2** Solar certifications workspace at `/dashboard/solar/certifications`.
+- **18.4.3** Solar configuration workspace at `/dashboard/solar/config`.
+- **18.4.4** Solar project management at `/dashboard/solar/projects` and `/dashboard/solar/projects/[id]`.
+- **18.4.5** Solar template management at `/dashboard/solar/templates`.
+- **18.4.6** Vertical solar application workspace at `/dashboard/verticals/solar/apply`.
+- **18.4.7** Vertical solar project workspaces at `/dashboard/verticals/solar/projects` and `/dashboard/verticals/solar/projects/[id]`.
+
 ---
 
 ## 19. Growth & Marketing Systems
@@ -632,6 +730,10 @@
 - **19.3** Referral program with client-facing page and API.
 - **19.4** Promo code engine with admin management at `/admin/marketing/promos`.
 - **19.5** Landing and job analytics event capture for funnel analysis.
+- **19.6** Newsletter confirmation and unsubscribe flows via `/api/newsletter/confirm` and `/api/newsletter/unsubscribe`.
+- **19.7** Marketing event logging and attribution persistence via `MarketingEventLog`.
+- **19.8** Marketing analytics workspaces at `/admin/marketing/events` and `/admin/marketing/newsletter`.
+- **19.9** Marketing event export and STK payment telemetry summary via `/api/admin/marketing/events/export` and `/api/admin/marketing/events/stk-summary`.
 
 ---
 
@@ -639,6 +741,7 @@
 
 ### 20.1 User Governance
 
+- **20.1.0** Admin entry workspace at `/admin`.
 - **20.1.1** Full user listing at `/admin/users`.
 - **20.1.2** User detail view at `/admin/users/[id]`.
 - **20.1.3** User role updates and plan changes via `admin.ts` server action.
@@ -652,6 +755,8 @@
 - **20.2.3** Wallet and transaction administration tables.
 - **20.2.4** Manual refund processing action.
 - **20.2.5** Dispute center at `/admin/disputes`.
+- **20.2.6** Payment intent reconciliation workspace at `/admin/reconciliation/payment-intents`.
+- **20.2.7** Payment intent reconciliation API at `/api/admin/reconciliation/payment-intents`.
 
 ### 20.3 Trust & Compliance Governance
 
@@ -659,6 +764,9 @@
 - **20.3.2** Background check review and approve/reject decisions.
 - **20.3.3** Expiring checks and expiring badge monitoring.
 - **20.3.4** Admin audit log retrieval at `/admin/logs` backed by `AdminLog` model.
+- **20.3.5** Dedicated admin trust workspace at `/admin/trust`.
+- **20.3.6** Dedicated admin safety workspace at `/admin/safety`.
+- **20.3.7** Dedicated admin insurance workspace at `/admin/insurance`.
 
 ### 20.4 Content & Platform Configuration
 
@@ -676,6 +784,12 @@
 - **20.6.1** Churn analysis workspace at `/admin/churn-analysis`.
 - **20.6.2** At-risk user report with intervention tooling.
 
+### 20.7 Admin Invite System
+
+- **20.7.1** Admin invite issuance endpoint at `/api/admin/invites`.
+- **20.7.2** Admin invite redemption endpoint at `/api/admin/invites/redeem`.
+- **20.7.3** Invite-gated admin onboarding flow through `/auth/admin-invite`.
+
 ---
 
 ## 21. Platform Integrations
@@ -684,6 +798,8 @@
 
 - **21.1.1** **Daraja STK Push** — M-Pesa wallet top-ups, subscription renewals, onboarding fee payments, with dedicated webhook handlers.
 - **21.1.2** M-Pesa STK Push orchestrated via Daraja for all payment flows.
+- **21.1.3** Secret-scoped webhook variants for hardened callback validation at `/api/wallet/webhook/[secret]`, `/api/onboarding-fee/webhook/[secret]`, and `/api/subscription/webhook/[secret]`.
+- **21.1.4** Payment status polling endpoints for asynchronous verification convergence.
 
 ### 21.2 Communication
 
@@ -721,7 +837,7 @@
 
 - **23.1.1** **Next.js App Router** — server components, server actions, and route handlers.
 - **23.1.2** **TypeScript** — end-to-end type safety.
-- **23.1.3** **Prisma ORM** with PostgreSQL — 72 models, full relational schema.
+- **23.1.3** **Prisma ORM** with PostgreSQL — 89 models, full relational schema.
 - **23.1.4** **NextAuth.js** — session management, OAuth, and credentials auth.
 - **23.1.5** **Tailwind CSS** with `shadcn/ui` components.
 
@@ -744,6 +860,16 @@
 - **23.4.1** Unified upload handler at `/api/upload` (POST/DELETE) for images and documents.
 - **23.4.2** Dedicated PDF upload handler at `/api/upload-pdf`.
 
+### 23.5 Internal Operations & Automation
+
+- **23.5.1** Churn processing automation via `/api/internal/cron/churn`.
+- **23.5.2** Badge expiry automation via `/api/internal/cron/expire-badges`.
+- **23.5.3** Reward redemption expiry automation via `/api/internal/cron/expire-reward-redemptions`.
+- **23.5.4** Subscription expiry automation via `/api/internal/cron/expire-subscriptions`.
+- **23.5.5** Daraja webhook receipt processing automation via `/api/internal/cron/process-daraja-webhook-receipts`.
+- **23.5.6** Daraja payment reconciliation automation via `/api/internal/cron/reconcile-daraja-payments`.
+- **23.5.7** Notification outbox processing via `/api/internal/notifications/outbox/process`.
+
 ---
 
 ## 24. API Route Index
@@ -759,8 +885,12 @@
 | `/api/professionals/[id]`       | GET    | Professional public profile         |
 | `/api/jobs`                     | GET    | Public job listings                 |
 | `/api/jobs/[id]`                | GET    | Job detail                          |
+| `/api/jobs/categories`          | GET    | Public job category listing         |
+| `/api/location/lookup`          | POST   | Location lookup/reverse lookup      |
 | `/api/contact`                  | POST   | Contact form submission             |
 | `/api/newsletter/subscribe`     | POST   | Newsletter sign-up                  |
+| `/api/newsletter/confirm`       | GET    | Newsletter confirmation             |
+| `/api/newsletter/unsubscribe`   | GET    | Newsletter unsubscribe              |
 | `/api/auth/signup`              | POST   | New user registration               |
 | `/api/auth/verify-email`        | GET    | Email verification                  |
 | `/api/auth/resend-verification` | POST   | Resend verification email           |
@@ -782,48 +912,62 @@
 | `/api/notifications/[id]`              | PATCH/DELETE | Per-notification management |
 | `/api/notifications/store-token`       | POST         | FCM token storage           |
 | `/api/messages/conversations`          | GET          | Conversation list           |
-| `/api/messages/history/[userId]`       | GET          | Chat history                |
+| `/api/messages/history/[otherUserId]`  | GET          | Chat history                |
 | `/api/messages/send`                   | POST         | Send message                |
 | `/api/messages/contacts`               | GET          | Recent contacts             |
+| `/api/messages/recent-contacts`        | GET          | Optimized recent contacts   |
+| `/api/messages/delivered`              | POST         | Message delivery updates    |
+| `/api/messages/read`                   | POST         | Message read updates        |
+| `/api/calls/heartbeat`                 | POST         | Call liveness heartbeat     |
+| `/api/calls/sweep-stale`               | POST         | Stale call cleanup          |
 | `/api/messages/[messageId]`            | PATCH/DELETE | Message management          |
 | `/api/messages/clear/[otherUserId]`    | DELETE       | Clear conversation          |
 | `/api/upload`                          | POST/DELETE  | File upload/delete          |
 | `/api/upload-pdf`                      | POST         | PDF upload                  |
+| `/api/wallet`                          | GET/POST     | Wallet entry route          |
 | `/api/wallet/balance`                  | GET          | Wallet balance              |
 | `/api/wallet/transactions`             | GET          | Transaction history         |
+| `/api/wallet/topup/status`             | GET          | Wallet top-up status        |
 | `/api/badges`                          | GET          | User badges                 |
 | `/api/badges/check`                    | POST         | Trigger badge check         |
 | `/api/support/tickets`                 | GET/POST     | Support tickets             |
 | `/api/user/location`                   | POST         | GPS location update         |
+| `/api/user/workspace`                  | GET          | Resolve user workspace      |
 | `/api/account/request-deletion`        | POST         | Request account deletion    |
 | `/api/account/cancel-deletion`         | POST         | Cancel deletion             |
 | `/api/account/cleanup-deletions`       | POST         | Cleanup scheduled deletions |
 
 ### 24.3 Client Routes
 
-| Route                                   | Method           | Purpose                  |
-| --------------------------------------- | ---------------- | ------------------------ |
-| `/api/client/dashboard/stats`           | GET              | Client stats             |
-| `/api/client/dashboard/activity`        | GET              | Activity feed            |
-| `/api/client/profile`                   | GET/PATCH        | Client profile           |
-| `/api/client/jobs`                      | GET/POST         | Client job management    |
-| `/api/client/referral`                  | GET              | Referral stats           |
-| `/api/client/analytics/overview`        | GET              | Spending analytics       |
-| `/api/client/analytics/trends`          | GET              | Trend data               |
-| `/api/bookings`                         | POST             | Create booking           |
-| `/api/bookings/[id]`                    | GET              | Booking detail           |
-| `/api/bookings/[id]/timeline`           | GET              | Booking lifecycle events |
-| `/api/bookings/[id]/escrow/milestones`  | GET/POST         | Escrow milestones        |
-| `/api/bookings/[id]/dispute`            | POST             | File dispute             |
-| `/api/reviews`                          | POST             | Submit review            |
-| `/api/jobs/[id]/proposals`              | GET              | View proposals on job    |
-| `/api/jobs/[id]/proposals/[proposalId]` | GET/PATCH        | Proposal decision        |
-| `/api/jobs/[id]/timeline`               | GET              | Job timeline             |
-| `/api/negotiations`                     | GET/POST         | Negotiation management   |
-| `/api/negotiations/[id]`                | GET/PATCH        | Negotiation detail       |
-| `/api/proposals/[id]`                   | GET/PATCH/DELETE | Proposal management      |
-| `/api/wallet/topup`                     | POST             | Top-up initiation        |
-| `/api/wallet/verify`                    | POST             | Top-up verification      |
+| Route                                          | Method           | Purpose                  |
+| ---------------------------------------------- | ---------------- | ------------------------ |
+| `/api/client/dashboard/stats`                  | GET              | Client stats             |
+| `/api/client/dashboard/activity`               | GET              | Activity feed            |
+| `/api/client/profile`                          | GET/PATCH        | Client profile           |
+| `/api/client/jobs`                             | GET/POST         | Client job management    |
+| `/api/client/jobs/[id]`                        | GET/PATCH/DELETE | Client job detail        |
+| `/api/client/jobs/[id]/proposals`              | GET              | Client job proposals     |
+| `/api/client/jobs/[id]/proposals/[proposalId]` | GET/PATCH        | Client proposal decision |
+| `/api/client/bookings/[id]`                    | GET              | Client booking detail    |
+| `/api/client/settings`                         | GET/PATCH        | Client settings          |
+| `/api/client/referral`                         | GET              | Referral stats           |
+| `/api/client/analytics/overview`               | GET              | Spending analytics       |
+| `/api/client/analytics/trends`                 | GET              | Trend data               |
+| `/api/bookings`                                | POST             | Create booking           |
+| `/api/bookings/[id]`                           | GET              | Booking detail           |
+| `/api/bookings/[id]/timeline`                  | GET              | Booking lifecycle events |
+| `/api/bookings/[id]/escrow/milestones`         | GET/POST         | Escrow milestones        |
+| `/api/bookings/[id]/dispute`                   | POST             | File dispute             |
+| `/api/reviews`                                 | POST             | Submit review            |
+| `/api/jobs/[id]/proposals`                     | GET              | View proposals on job    |
+| `/api/jobs/[id]/proposals/[proposalId]`        | GET/PATCH        | Proposal decision        |
+| `/api/jobs/[id]/timeline`                      | GET              | Job timeline             |
+| `/api/negotiations`                            | GET/POST         | Negotiation management   |
+| `/api/negotiations/[id]`                       | GET/PATCH        | Negotiation detail       |
+| `/api/proposals/[id]`                          | GET/PATCH/DELETE | Proposal management      |
+| `/api/wallet/topup`                            | POST             | Top-up initiation        |
+| `/api/wallet/verify`                           | POST             | Top-up verification      |
+| `/api/bookings/quote`                          | POST             | Booking quote generation |
 
 ### 24.4 Provider Routes
 
@@ -831,7 +975,9 @@
 | --------------------------------------- | ---------------- | -------------------------- |
 | `/api/provider/stats`                   | GET              | Provider stats             |
 | `/api/provider/profile`                 | GET/PATCH        | Provider profile           |
+| `/api/provider/activate`                | POST             | Provider activation        |
 | `/api/provider/services`                | GET/POST         | Services management        |
+| `/api/provider/services/[id]`           | GET/PATCH/DELETE | Service detail management  |
 | `/api/provider/availability`            | GET/POST         | Availability config        |
 | `/api/provider/availability/check`      | POST             | Slot conflict check        |
 | `/api/provider/availability/exceptions` | GET/POST         | Availability exceptions    |
@@ -841,6 +987,7 @@
 | `/api/provider/jobs`                    | GET              | Provider jobs              |
 | `/api/provider/earnings`                | GET              | Earnings breakdown         |
 | `/api/provider/earnings/chart`          | GET              | Earnings chart data        |
+| `/api/provider/expenses/jobs`           | GET              | Job-linked expense view    |
 | `/api/provider/reviews`                 | GET              | Provider reviews           |
 | `/api/provider/activities`              | GET              | Activity stream            |
 | `/api/provider/teams`                   | GET              | Teams list                 |
@@ -850,6 +997,7 @@
 | `/api/proposals/templates`              | GET/POST         | Proposal templates         |
 | `/api/proposals/templates/[id]`         | GET/PATCH/DELETE | Template management        |
 | `/api/onboarding-fee/initiate`          | POST             | Start fee payment          |
+| `/api/onboarding-fee/status`            | GET              | Onboarding fee status      |
 | `/api/subscription/initiate`            | POST             | Start subscription         |
 | `/api/subscription/status`              | GET              | Subscription status        |
 | `/api/services/[id]/interactions`       | POST             | Track service interactions |
@@ -857,29 +1005,54 @@
 
 ### 24.5 Admin Routes
 
-| Route                             | Method | Purpose                    |
-| --------------------------------- | ------ | -------------------------- |
-| `/api/admin/users/[id]/waive-fee` | POST   | Waive provider fee         |
-| `/api/admin/debug-notifications`  | POST   | Test notification delivery |
+| Route                                       | Method   | Purpose                       |
+| ------------------------------------------- | -------- | ----------------------------- |
+| `/api/admin/users/[id]/waive-fee`           | POST     | Waive provider fee            |
+| `/api/admin/debug-notifications`            | POST     | Test notification delivery    |
+| `/api/admin/invites`                        | GET/POST | Admin invite management       |
+| `/api/admin/invites/redeem`                 | POST     | Redeem admin invite           |
+| `/api/admin/marketing/events/export`        | GET      | Export marketing events       |
+| `/api/admin/marketing/events/stk-summary`   | GET      | STK telemetry summary         |
+| `/api/admin/partners/memberships`           | GET      | Partner memberships           |
+| `/api/admin/reconciliation/payment-intents` | GET      | Payment intent reconciliation |
 
 ### 24.6 Analytics & Internal
 
-| Route                                         | Method | Purpose                |
-| --------------------------------------------- | ------ | ---------------------- |
-| `/api/analytics/landing-events`               | POST   | Landing page events    |
-| `/api/analytics/jobs-events`                  | POST   | Job interaction events |
-| `/api/internal/jobs/sla-monitor`              | POST   | Job SLA cron check     |
-| `/api/integrations/n8n/language-switch`       | POST   | n8n language workflow  |
-| `/api/integrations/n8n/language-switch/debug` | POST   | n8n debug              |
+| Route                                                | Method | Purpose                         |
+| ---------------------------------------------------- | ------ | ------------------------------- |
+| `/api/analytics/landing-events`                      | POST   | Landing page events             |
+| `/api/analytics/jobs-events`                         | POST   | Job interaction events          |
+| `/api/recommendations/services`                      | GET    | Service recommendations         |
+| `/api/recommendations/professionals`                 | GET    | Professional recommendations    |
+| `/api/recommendations/jobs`                          | GET    | Job recommendations             |
+| `/api/internal/jobs/sla-monitor`                     | POST   | Job SLA cron check              |
+| `/api/internal/cron/churn`                           | POST   | Churn processing cron           |
+| `/api/internal/cron/expire-badges`                   | POST   | Badge expiry cron               |
+| `/api/internal/cron/expire-reward-redemptions`       | POST   | Reward redemption expiry cron   |
+| `/api/internal/cron/expire-subscriptions`            | POST   | Subscription expiry cron        |
+| `/api/internal/cron/process-daraja-webhook-receipts` | POST   | Process Daraja webhook receipts |
+| `/api/internal/cron/reconcile-daraja-payments`       | POST   | Reconcile Daraja payments       |
+| `/api/internal/notifications/outbox/process`         | POST   | Process notification outbox     |
+| `/api/integrations/n8n/language-switch`              | POST   | n8n language workflow           |
+| `/api/integrations/n8n/language-switch/debug`        | POST   | n8n debug                       |
 
 ### 24.7 Webhooks
 
-| Route                         | Source        | Purpose                   |
-| ----------------------------- | ------------- | ------------------------- |
-| `/api/wallet/webhook`         | Daraja        | Wallet top-up settlement  |
-| `/api/onboarding-fee/webhook` | Daraja        | Fee payment sync          |
-| `/api/subscription/webhook`   | Daraja        | Subscription renewal sync |
-| `/api/webhooks/whatsapp`      | Meta/WhatsApp | Inbound WhatsApp events   |
+| Route                                  | Source        | Purpose                           |
+| -------------------------------------- | ------------- | --------------------------------- |
+| `/api/wallet/webhook`                  | Daraja        | Wallet top-up settlement          |
+| `/api/wallet/webhook/[secret]`         | Daraja        | Wallet settlement (secret-scoped) |
+| `/api/onboarding-fee/webhook`          | Daraja        | Fee payment sync                  |
+| `/api/onboarding-fee/webhook/[secret]` | Daraja        | Fee sync (secret-scoped)          |
+| `/api/subscription/webhook`            | Daraja        | Subscription renewal sync         |
+| `/api/subscription/webhook/[secret]`   | Daraja        | Subscription sync (secret-scoped) |
+| `/api/webhooks/whatsapp`               | Meta/WhatsApp | Inbound WhatsApp events           |
+
+### 24.8 Additional Implemented Route Surfaces
+
+- `/api/bookings/[id]/confirm-completion` (booking completion lifecycle).
+- `/api/rewards/redemptions/validate` and `/api/rewards/redemptions/consume` (loyalty redemption lifecycle).
+- `/payment/verify` (unified payment verification page surface used across STK flows).
 
 ---
 
@@ -924,6 +1097,10 @@
 ### 25.10 Solar & Vertical Platform
 
 `VerticalCategory` · `VerticalCertification` · `VerticalSpecialist` · `EquipmentRegistry` · `ProjectTemplate` · `VerticalProject` · `ProjectMilestone` · `SolarEstimationConfig`
+
+### 25.11 Additional Implemented Models (Coverage Additions)
+
+`AdminInvite` · `IdentityVerificationRequest` · `MarketingEventLog` · `MessageConversationState` · `NotificationDelivery` · `NotificationOutbox` · `PartnerUser` · `PaymentIntent` · `PaymentWebhookReceipt` · `PricingQuote` · `ServiceInteractionDedup` · `SupportTicketMessage` · `TeamInvitation` · `WalletTopUp`
 
 ---
 
