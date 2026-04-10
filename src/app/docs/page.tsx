@@ -136,7 +136,7 @@ export default async function DocumentationPage() {
     h1({ children, ...props }) {
       return (
         <h1
-          className="scroll-mt-28 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl"
+          className="scroll-mt-28 break-words text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl"
           {...props}
         >
           {children}
@@ -148,7 +148,7 @@ export default async function DocumentationPage() {
       return (
         <h2
           id={id}
-          className="mt-10 scroll-mt-28 border-b border-slate-200 pb-2 text-2xl font-semibold text-slate-900"
+          className="mt-10 scroll-mt-28 break-words border-b border-slate-200 pb-2 text-2xl font-semibold text-slate-900"
           {...props}
         >
           {children}
@@ -160,7 +160,7 @@ export default async function DocumentationPage() {
       return (
         <h3
           id={id}
-          className="mt-7 scroll-mt-28 text-xl font-semibold text-slate-900"
+          className="mt-7 scroll-mt-28 break-words text-xl font-semibold text-slate-900"
           {...props}
         >
           {children}
@@ -169,7 +169,7 @@ export default async function DocumentationPage() {
     },
     p({ children, ...props }) {
       return (
-        <p className="mt-4 leading-7 text-slate-700" {...props}>
+        <p className="mt-4 break-words leading-7 text-slate-700" {...props}>
           {children}
         </p>
       );
@@ -193,7 +193,7 @@ export default async function DocumentationPage() {
     },
     li({ children, ...props }) {
       return (
-        <li className="leading-7" {...props}>
+        <li className="break-words leading-7" {...props}>
           {children}
         </li>
       );
@@ -210,8 +210,11 @@ export default async function DocumentationPage() {
     },
     table({ children, ...props }) {
       return (
-        <div className="mt-5 overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full min-w-[720px] border-collapse text-sm" {...props}>
+        <div className="mt-5 w-full max-w-full overflow-x-auto rounded-xl border border-slate-200 [-webkit-overflow-scrolling:touch]">
+          <table
+            className="w-full min-w-[520px] border-collapse text-sm sm:min-w-[720px]"
+            {...props}
+          >
             {children}
           </table>
         </div>
@@ -244,7 +247,7 @@ export default async function DocumentationPage() {
     pre({ children, ...props }) {
       return (
         <pre
-          className="mt-4 overflow-x-auto rounded-xl bg-slate-900 p-4 text-sm leading-6 text-slate-100"
+          className="mt-4 w-full max-w-full overflow-x-auto rounded-xl bg-slate-900 p-4 text-sm leading-6 text-slate-100 [-webkit-overflow-scrolling:touch]"
           {...props}
         >
           {children}
@@ -257,7 +260,7 @@ export default async function DocumentationPage() {
       if (isInlineCode) {
         return (
           <code
-            className="rounded-md bg-slate-200 px-1.5 py-0.5 text-[0.9em] text-slate-900"
+            className="break-all rounded-md bg-slate-200 px-1.5 py-0.5 text-[0.9em] text-slate-900"
             {...props}
           >
             {children}
@@ -277,7 +280,7 @@ export default async function DocumentationPage() {
       return (
         <a
           href={href}
-          className="font-medium text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800"
+          className="break-all font-medium text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800"
           target={isExternal ? "_blank" : undefined}
           rel={isExternal ? "noreferrer noopener" : undefined}
           {...props}
@@ -286,13 +289,23 @@ export default async function DocumentationPage() {
         </a>
       );
     },
+    img({ alt = "", src = "", ...props }) {
+      return (
+        <img
+          src={src}
+          alt={alt}
+          className="mt-4 h-auto max-w-full rounded-lg border border-slate-200"
+          {...props}
+        />
+      );
+    },
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col overflow-x-clip bg-slate-50">
       <Header />
-      <main className="flex-1 pt-[var(--public-header-h)]">
-        <section className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      <main className="flex-1 overflow-x-clip pt-[var(--public-header-h)]">
+        <section className="mx-auto w-full max-w-7xl min-w-0 px-3 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
               Public documentation
@@ -383,7 +396,7 @@ export default async function DocumentationPage() {
 
             <article
               id="doc-content"
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8"
+              className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8"
             >
               {hasLoadError ? (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
