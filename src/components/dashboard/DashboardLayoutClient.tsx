@@ -42,8 +42,7 @@ export default function DashboardLayoutClient({
   const needsVerificationActivation =
     isProvider &&
     profileData?.data &&
-    !profileData.data.hasPaidOnboardingFee &&
-    !profileData.data.onboardingFeeWaived;
+    !profileData.data.verificationAccessGranted;
 
   const mobileTitle = useMemo(() => getMobileTitle(pathname), [pathname]);
   const mobileNavItems = [

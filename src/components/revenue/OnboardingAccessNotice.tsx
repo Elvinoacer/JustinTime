@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
   BadgeCheck,
@@ -30,6 +31,7 @@ export function OnboardingAccessNotice({
   amount = 500,
   storageKey,
 }: OnboardingAccessNoticeProps) {
+  const queryClient = useQueryClient();
   const [gatewayLoading, setGatewayLoading] = useState(false);
   const [walletLoading, setWalletLoading] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -86,6 +88,17 @@ export function OnboardingAccessNotice({
       const data = await response.json();
 
       if (!response.ok) {
+        if (data?.alreadyActivated) {
+          toast.success(
+            "Verification access is already active. Refreshing your dashboard status.",
+          );
+          setGatewayLoading(false);
+          setIsPhonePromptOpen(false);
+          setDismissed(true);
+          queryClient.invalidateQueries({ queryKey: ["provider", "profile"] });
+          return;
+        }
+
         throw new Error(data.error || "Failed to initiate payment");
       }
 

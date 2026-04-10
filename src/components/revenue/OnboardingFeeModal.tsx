@@ -56,6 +56,16 @@ export function OnboardingFeeModal({
       const data = await response.json();
 
       if (!response.ok) {
+        if (data?.alreadyActivated) {
+          toast.success(
+            "Verification access is already active for this account.",
+          );
+          window.setTimeout(() => {
+            window.location.href = "/dashboard/verification";
+          }, 600);
+          return;
+        }
+
         throw new Error(data.error || "Failed to initiate payment");
       }
 

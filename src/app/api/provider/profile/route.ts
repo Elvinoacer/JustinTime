@@ -116,8 +116,14 @@ export async function GET(_request: NextRequest) {
     );
 
     // Combine user and profile data
+    const verificationStatus = String(
+      user.profile?.verificationStatus || "PENDING",
+    ).toUpperCase();
     const verificationAccessGranted = Boolean(
-      user.profile?.hasPaidOnboardingFee || user.profile?.onboardingFeeWaived,
+      user.profile?.hasPaidOnboardingFee ||
+        user.profile?.onboardingFeeWaived ||
+        verificationStatus === "VERIFIED" ||
+        isVerified,
     );
 
     const isVerified = isPubliclyVerified({
@@ -151,7 +157,7 @@ export async function GET(_request: NextRequest) {
       hourlyRate: user.profile?.hourlyRate,
       portfolio: user.profile?.portfolio || [],
       isVerified,
-      verificationStatus: user.profile?.verificationStatus || "PENDING",
+      verificationStatus,
       hasPaidOnboardingFee: user.profile?.hasPaidOnboardingFee || false,
       onboardingFeeWaived: user.profile?.onboardingFeeWaived || false,
       onboardingFeeAmount,
