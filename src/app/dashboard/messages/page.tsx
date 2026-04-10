@@ -678,7 +678,7 @@ function ProviderMessagesContent() {
     null;
 
   return (
-    <div className="h-[calc(100dvh-64px)] md:h-[calc(100dvh-80px)] overflow-hidden bg-gray-50 pb-[env(safe-area-inset-bottom)]">
+    <div className="h-[calc(100dvh-64px-var(--dashboard-mobile-bottom-nav-offset,0px))] md:h-[calc(100dvh-80px)] overflow-hidden bg-gray-50">
       <div className="max-w-7xl mx-auto h-full min-h-0 px-0 md:px-4">
         <div className="flex h-full min-h-0 bg-white rounded-none md:rounded-2xl overflow-hidden shadow-none md:shadow-sm border-0 md:border border-gray-200 mt-0 md:mt-4">
           <div

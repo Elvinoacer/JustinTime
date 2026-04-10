@@ -67,7 +67,7 @@ export default function DashboardLayoutClient({
         Skip to main content
       </a>
 
-      <div className="fixed inset-0 flex bg-gray-50 overflow-hidden flex-col lg:flex-row">
+      <div className="fixed inset-0 flex bg-gray-50 overflow-hidden flex-col lg:flex-row [--dashboard-mobile-bottom-nav-offset:calc(5rem+env(safe-area-inset-bottom))]">
         {/* Mobile Header */}
         <div className="lg:hidden shrink-0 flex items-center justify-between px-3 py-2.5 bg-white border-b border-gray-200 z-30">
           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -137,7 +137,7 @@ export default function DashboardLayoutClient({
 
         <main
           id="main-content"
-          className="flex-1 p-3 sm:p-4 lg:p-8 pb-24 lg:pb-8 overflow-y-auto w-full"
+          className="flex-1 p-3 sm:p-4 lg:p-8 pb-[calc(var(--dashboard-mobile-bottom-nav-offset)+0.75rem)] lg:pb-8 overflow-y-auto w-full"
           role="main"
         >
           <div className="max-w-7xl mx-auto h-full min-h-[50vh]">
