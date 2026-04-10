@@ -20,6 +20,7 @@ import {
   Settings,
   LogOut,
   ChevronDown,
+  ChevronRight,
   Home,
   Briefcase,
   Users,
@@ -477,73 +478,133 @@ const Header = () => {
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
-            className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-50 overflow-hidden bg-[#010705]/72 backdrop-blur-[3px] lg:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsMenuOpen(false)}
           >
             <motion.div
-              className="absolute top-0 right-0 flex h-full w-[min(92vw,22rem)] max-w-full flex-col bg-white shadow-2xl"
+              className="absolute inset-y-2 right-2 flex w-[min(92vw,23rem)] max-w-full flex-col overflow-hidden rounded-3xl border border-emerald-300/25 bg-linear-to-b from-[#081612]/95 via-[#0b1f18]/92 to-[#07140f]/95 shadow-[0_32px_90px_-18px_rgba(0,0,0,0.72)] backdrop-blur-2xl"
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 220 }}
               onClick={(e) => e.stopPropagation()}
             >
+              <motion.div
+                className="pointer-events-none absolute -top-20 -right-14 h-52 w-52 rounded-full bg-emerald-400/38 blur-3xl"
+                animate={{ x: [0, -10, 0], y: [0, 9, 0], scale: [1, 1.07, 1] }}
+                transition={{
+                  duration: 12,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
+              <motion.div
+                className="pointer-events-none absolute bottom-6 -left-20 h-56 w-56 rounded-full bg-cyan-400/28 blur-3xl"
+                animate={{ x: [0, 10, 0], y: [0, -8, 0], scale: [1, 1.1, 1] }}
+                transition={{
+                  duration: 15,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
+              <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-white/[0.07] via-transparent to-black/24" />
+              <div className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-white/10" />
+              <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-linear-to-r from-transparent via-emerald-300/55 to-transparent" />
+
               {/* Menu Header */}
-              <div className="flex items-center justify-between border-b border-gray-100 p-4 sm:p-5">
-                <div className="flex items-center gap-3">
-                  <Image
-                    src="/images/JustinTimeLogo.png"
-                    alt="JustInTime Logo"
-                    width={112}
-                    height={28}
-                    className="h-7 w-auto"
-                  />
-                  <span className="text-gray-900 text-lg font-bold tracking-tight">
-                    JustInTime
-                  </span>
+              <div className="relative z-10 border-b border-white/10 bg-white/[0.02] px-4 py-4 backdrop-blur-xl sm:px-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-3">
+                      <Image
+                        src="/images/JustinTimeLogo.png"
+                        alt="JustInTime Logo"
+                        width={112}
+                        height={28}
+                        className="h-7 w-auto"
+                      />
+                      <span className="text-white text-lg font-bold tracking-tight">
+                        JustInTime
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-[11px] font-medium text-emerald-100/72">
+                      Find trusted local services faster
+                    </p>
+                  </div>
+
+                  <button
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-white/14 bg-white/[0.05] p-2 text-slate-100 shadow-sm transition-colors hover:bg-white/[0.11]"
+                    onClick={() => setIsMenuOpen(false)}
+                    aria-label="Close menu"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-                <button
-                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-gray-100 p-2 transition-colors hover:bg-gray-200"
-                  onClick={() => setIsMenuOpen(false)}
-                  aria-label="Close menu"
-                >
-                  <X className="w-5 h-5 text-gray-700" />
-                </button>
               </div>
 
               {/* Navigation Items */}
-              <nav className="flex-1 overflow-y-auto p-3 sm:p-4">
-                <div className="space-y-1">
+              <nav className="relative z-10 flex-1 overflow-y-auto px-3 pb-4 pt-3 sm:px-4">
+                <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-100/58">
+                  Explore
+                </p>
+
+                <div className="space-y-2">
                   {navItems.map((item, index) => {
                     const Icon = item.icon;
+                    const isActive = pathname === item.href;
                     return (
-                      <Link
+                      <motion.div
                         key={index}
-                        href={item.href}
-                        className={`flex items-center gap-3 rounded-xl px-3.5 py-3 transition-colors ${
-                          pathname === item.href
-                            ? "bg-emerald-50 text-emerald-600 font-semibold"
-                            : "text-gray-700 hover:bg-gray-50"
-                        }`}
-                        onClick={() => setIsMenuOpen(false)}
+                        initial={{ opacity: 0, x: 14 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.08 + index * 0.055, duration: 0.24 }}
                       >
-                        <Icon className="w-5 h-5 shrink-0" />
-                        <span className="font-medium">{item.name}</span>
-                      </Link>
+                        <Link
+                          href={item.href}
+                          className={`group flex items-center gap-3 rounded-2xl border px-3.5 py-3.5 transition-all duration-200 ${
+                            isActive
+                              ? "border-emerald-300/55 bg-linear-to-r from-emerald-400/28 via-emerald-300/16 to-transparent text-white shadow-[0_14px_32px_-24px_rgba(16,185,129,0.95)]"
+                              : "border-white/12 bg-white/[0.03] text-slate-100 hover:border-emerald-300/35 hover:bg-emerald-400/8"
+                          }`}
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <span
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${
+                              isActive
+                                ? "border-emerald-300/55 bg-emerald-400/14 text-emerald-100"
+                                : "border-white/14 bg-black/22 text-slate-200"
+                            }`}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </span>
+                          <span className="font-semibold tracking-tight">
+                            {item.name}
+                          </span>
+                          <ChevronRight
+                            className={`ml-auto h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 ${
+                              isActive ? "text-emerald-200" : "text-slate-400"
+                            }`}
+                          />
+                        </Link>
+                      </motion.div>
                     );
                   })}
                 </div>
 
                 {isAuthenticated && (
-                  <div className="border-t border-gray-200 my-4" />
+                  <div className="my-4 border-t border-white/10" />
                 )}
 
                 {isAuthenticated ? (
                   <>
-                    <div className="mb-4 flex items-center gap-3 rounded-xl bg-emerald-50 p-3.5 sm:p-4">
+                    <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-100/58">
+                      Workspace
+                    </p>
+
+                    <div className="mb-4 flex items-center gap-3 rounded-2xl border border-emerald-300/24 bg-linear-to-r from-emerald-400/16 to-cyan-400/10 p-3.5 shadow-[0_14px_28px_-24px_rgba(16,185,129,0.9)] backdrop-blur-sm sm:p-4">
                       <div
                         className="w-10 h-10 rounded-full bg-cover bg-center border-2 border-emerald-500 shrink-0"
                         style={{
@@ -551,15 +612,20 @@ const Header = () => {
                         }}
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">
+                        <p className="text-sm font-semibold text-white truncate">
                           {session.user?.name}
                         </p>
-                        <p className="text-xs text-gray-500 truncate">
+                        <p className="text-xs text-emerald-100/74 truncate">
                           {session.user?.email}
                         </p>
                       </div>
+
+                      <span className="inline-flex items-center rounded-full border border-emerald-300/45 bg-emerald-400/18 px-2 py-1 text-[10px] font-semibold text-emerald-100">
+                        Active
+                      </span>
                     </div>
-                    <div className="space-y-1">
+
+                    <div className="space-y-2">
                       {[
                         {
                           href: dashboardRoute,
@@ -581,35 +647,50 @@ const Header = () => {
                           icon: Settings,
                           label: "Settings",
                         },
-                      ].map(({ href, icon: Icon, label }) => (
-                        <Link
+                      ].map(({ href, icon: Icon, label }, index) => (
+                        <motion.div
                           key={href}
-                          href={href}
-                          onClick={() => setIsMenuOpen(false)}
-                          className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-gray-700 transition-colors hover:bg-emerald-50 hover:text-emerald-600"
+                          initial={{ opacity: 0, x: 14 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.16 + index * 0.05, duration: 0.22 }}
                         >
-                          <Icon className="w-5 h-5 shrink-0" />
-                          <span className="font-medium">{label}</span>
-                        </Link>
+                          <Link
+                            href={href}
+                            onClick={() => setIsMenuOpen(false)}
+                            className="group flex items-center gap-3 rounded-2xl border border-white/12 bg-white/[0.03] px-3.5 py-3.5 text-slate-100 transition-all duration-200 hover:border-emerald-300/35 hover:bg-emerald-400/8 hover:text-emerald-100"
+                          >
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/14 bg-black/22 text-slate-200">
+                              <Icon className="h-4 w-4" />
+                            </span>
+                            <span className="font-semibold tracking-tight">
+                              {label}
+                            </span>
+                            <ChevronRight className="ml-auto h-4 w-4 text-slate-400 transition-transform duration-200 group-hover:translate-x-0.5" />
+                          </Link>
+                        </motion.div>
                       ))}
                     </div>
                   </>
                 ) : (
-                  <div className="mt-6 px-3.5 sm:px-4">
-                    <p className="text-sm text-gray-500">
-                      Sign in to access all features
+                  <div className="mt-5 rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3.5 shadow-sm">
+                    <p className="text-sm font-semibold text-white">
+                      Unlock your dashboard
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-emerald-100/74">
+                      Sign in to track bookings, chat with professionals, and
+                      manage payments in one place.
                     </p>
                   </div>
                 )}
               </nav>
 
               {/* Footer Actions */}
-              <div className="border-t border-gray-200 p-3 sm:p-4">
+              <div className="relative z-10 border-t border-white/10 bg-black/22 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:px-4">
                 {isAuthenticated ? (
                   <div className="space-y-3">
                     <motion.button
                       onClick={handlePostService}
-                      className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
+                      className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-emerald-500 via-emerald-400 to-teal-400 px-6 py-3.5 text-sm font-semibold text-[#02261a] shadow-[0_18px_34px_-18px_rgba(16,185,129,0.95)] transition-all hover:from-emerald-400 hover:to-teal-300"
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -623,7 +704,7 @@ const Header = () => {
                           callbackUrl: "/",
                         });
                       }}
-                      className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+                      className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-red-300/30 bg-red-400/8 px-6 py-3 text-sm font-semibold text-red-100 transition-colors hover:bg-red-400/14"
                     >
                       <LogOut className="w-5 h-5" />
                       Sign Out
@@ -634,19 +715,23 @@ const Header = () => {
                     <Link
                       href="/auth/signup"
                       onClick={() => setIsMenuOpen(false)}
-                      className="block min-h-[44px] w-full rounded-xl bg-emerald-600 px-4 py-3.5 text-center text-sm font-bold text-white"
+                      className="block min-h-[44px] w-full rounded-2xl bg-linear-to-r from-emerald-500 via-emerald-400 to-teal-400 px-4 py-3.5 text-center text-sm font-bold text-[#02261a] shadow-[0_18px_34px_-18px_rgba(16,185,129,0.95)]"
                     >
                       Get Started
                     </Link>
                     <Link
                       href="/auth/login"
                       onClick={() => setIsMenuOpen(false)}
-                      className="block min-h-[44px] w-full rounded-xl bg-gray-100 px-4 py-3 text-center text-sm font-semibold text-gray-700"
+                      className="block min-h-[44px] w-full rounded-2xl border border-white/18 bg-white/[0.06] px-4 py-3 text-center text-sm font-semibold text-slate-100"
                     >
                       Sign In
                     </Link>
                   </div>
                 )}
+
+                <p className="mt-2 text-center text-[11px] text-emerald-100/56">
+                  Need help? Contact support any time.
+                </p>
               </div>
             </motion.div>
           </motion.div>
