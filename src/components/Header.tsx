@@ -154,11 +154,12 @@ const Header = () => {
               className="flex min-w-0 items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 sm:gap-3 shrink-0"
             >
               <Image
-                src="/images/JustinTimeLogo.png"
+                src="/images/jit_logo-removebg-preview.png"
                 alt="JustInTime Logo"
-                width={128}
-                height={32}
-                className="h-7 sm:h-8 w-auto"
+                width={96}
+                height={64}
+                priority={isLandingPage}
+                className="h-9 w-auto object-contain sm:h-10"
               />
               <span
                 className={`hidden min-[360px]:inline text-sm font-bold tracking-tight sm:text-lg ${
@@ -520,11 +521,11 @@ const Header = () => {
                   <div className="min-w-0">
                     <div className="flex items-center gap-3">
                       <Image
-                        src="/images/JustinTimeLogo.png"
+                        src="/images/jit_logo-removebg-preview.png"
                         alt="JustInTime Logo"
-                        width={112}
-                        height={28}
-                        className="h-7 w-auto"
+                        width={96}
+                        height={64}
+                        className="h-10 w-auto object-contain"
                       />
                       <span className="text-white text-lg font-bold tracking-tight">
                         JustInTime

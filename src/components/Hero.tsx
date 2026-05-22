@@ -16,10 +16,13 @@ const HERO_STYLE = `
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    background:
-      linear-gradient(132deg, rgba(2, 12, 12, 0.9) 0%, rgba(6, 13, 18, 0.96) 48%, rgba(12, 11, 18, 0.98) 100%),
-      radial-gradient(ellipse 70% 55% at 76% 28%, rgba(56, 189, 248, 0.16), transparent 58%),
-      radial-gradient(ellipse 70% 50% at 22% 78%, rgba(245, 158, 11, 0.1), transparent 58%);
+    background-image:
+      linear-gradient(90deg, rgba(2, 8, 10, 0.9) 0%, rgba(2, 8, 10, 0.72) 42%, rgba(2, 8, 10, 0.34) 100%),
+      linear-gradient(180deg, rgba(2, 8, 10, 0.24) 0%, rgba(2, 8, 10, 0.18) 48%, rgba(2, 8, 10, 0.7) 100%),
+      url("/images/jitbanner.webp");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
   }
 
   .jit-hero-root::before {
@@ -27,7 +30,7 @@ const HERO_STYLE = `
     position: absolute;
     inset: 0;
     z-index: 0;
-    opacity: 0.22;
+    opacity: 0.12;
     background-image:
       linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
@@ -45,7 +48,7 @@ const HERO_STYLE = `
     background:
       linear-gradient(90deg, rgba(20, 184, 166, 0.14), rgba(59, 130, 246, 0.12), rgba(245, 158, 11, 0.08));
     filter: blur(1px);
-    opacity: 0.72;
+    opacity: 0.36;
   }
 
   .jit-hero-overlay {
