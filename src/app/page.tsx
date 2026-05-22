@@ -72,10 +72,9 @@ export default function Home() {
         }}
       />
       <main
-        className="landing-shell relative overflow-hidden bg-[#06110d]"
+        className="landing-shell relative overflow-hidden bg-[#05080a]"
         role="main"
       >
-        {/* ── Aurora animated background ── */}
         <div
           className="pointer-events-none absolute inset-0"
           aria-hidden="true"
@@ -84,14 +83,14 @@ export default function Home() {
             className="absolute inset-0"
             style={{
               background:
-                "linear-gradient(112deg, rgba(5,29,22,0.96) 0%, rgba(4,22,18,0.95) 32%, rgba(3,20,16,0.93) 56%, rgba(2,17,14,0.97) 100%)",
+                "linear-gradient(112deg, rgba(5,8,10,0.98) 0%, rgba(6,14,17,0.96) 38%, rgba(12,10,16,0.97) 100%)",
             }}
           />
           <div
             className="absolute inset-0"
             style={{
               background:
-                "radial-gradient(ellipse 80% 60% at 10% 10%, rgba(16,185,129,0.1), transparent 50%), radial-gradient(ellipse 60% 50% at 90% 15%, rgba(34,211,238,0.06), transparent 50%), radial-gradient(ellipse 70% 55% at 50% 90%, rgba(168,85,247,0.05), transparent 50%)",
+                "radial-gradient(ellipse 72% 48% at 14% 14%, rgba(20,184,166,0.07), transparent 54%), radial-gradient(ellipse 64% 46% at 88% 18%, rgba(59,130,246,0.08), transparent 54%), radial-gradient(ellipse 70% 48% at 52% 92%, rgba(245,158,11,0.055), transparent 56%)",
             }}
           />
           <div

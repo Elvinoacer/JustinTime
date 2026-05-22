@@ -10,23 +10,51 @@ const HERO_STYLE = `
   .jit-hero-root {
     position: relative;
     width: 100%;
-    min-height: calc(100vh - var(--public-header-h));
-    min-height: calc(100svh - var(--public-header-h));
+    min-height: calc(92vh - var(--public-header-h));
+    min-height: calc(92svh - var(--public-header-h));
     padding-top: var(--public-header-h);
     overflow: hidden;
     display: flex;
     flex-direction: column;
     background:
-      radial-gradient(circle at 18% 18%, rgba(16, 185, 129, 0.18), transparent 30%),
-      radial-gradient(circle at 86% 24%, rgba(34, 211, 238, 0.1), transparent 30%),
-      linear-gradient(112deg, #03100c 0%, #06150f 42%, #030907 100%);
+      linear-gradient(132deg, rgba(2, 12, 12, 0.9) 0%, rgba(6, 13, 18, 0.96) 48%, rgba(12, 11, 18, 0.98) 100%),
+      radial-gradient(ellipse 70% 55% at 76% 28%, rgba(56, 189, 248, 0.16), transparent 58%),
+      radial-gradient(ellipse 70% 50% at 22% 78%, rgba(245, 158, 11, 0.1), transparent 58%);
+  }
+
+  .jit-hero-root::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.22;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: linear-gradient(180deg, transparent 0%, #000 24%, #000 72%, transparent 100%);
+  }
+
+  .jit-hero-root::after {
+    content: "";
+    position: absolute;
+    inset: auto -8% -24% 34%;
+    z-index: 0;
+    height: 58%;
+    transform: skewY(-8deg);
+    background:
+      linear-gradient(90deg, rgba(20, 184, 166, 0.14), rgba(59, 130, 246, 0.12), rgba(245, 158, 11, 0.08));
+    filter: blur(1px);
+    opacity: 0.72;
   }
 
   .jit-hero-overlay {
     position: absolute;
     inset: 0;
     z-index: 1;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.06) 0%, rgba(0, 0, 0, 0.18) 54%, rgba(0, 0, 0, 0.42) 100%);
+    background:
+      linear-gradient(90deg, rgba(4, 8, 10, 0.16) 0%, rgba(4, 8, 10, 0.02) 48%, rgba(4, 8, 10, 0.36) 100%),
+      linear-gradient(180deg, rgba(4, 8, 10, 0.04) 0%, rgba(4, 8, 10, 0.16) 62%, rgba(4, 8, 10, 0.5) 100%);
   }
 
   .jit-liquid-glass {
@@ -66,15 +94,15 @@ const HERO_STYLE = `
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
-    padding: 0 64px 56px;
+    justify-content: center;
+    padding: 40px 64px 64px;
   }
 
   .jit-hero-grid {
     display: grid;
     grid-template-columns: 1fr;
-    align-items: end;
-    gap: 28px;
+    align-items: center;
+    gap: 42px;
   }
 
   .jit-hero-main-col {
@@ -93,9 +121,9 @@ const HERO_STYLE = `
     font-weight: 500;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(255,255,255,0.96);
+    color: rgba(236, 253, 245, 0.94);
     margin-bottom: 16px;
-    background: linear-gradient(130deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+    background: linear-gradient(130deg, rgba(20, 184, 166, 0.14) 0%, rgba(255, 255, 255, 0.05) 100%);
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
     box-shadow:
@@ -115,9 +143,9 @@ const HERO_STYLE = `
       114deg,
       #fdfefe 2%,
       #f3f4f6 24%,
-      #d1fae5 48%,
-      #6ee7b7 67%,
-      #a7f3d0 82%,
+      #e0f2fe 48%,
+      #67e8f9 67%,
+      #fde68a 86%,
       #f8fafc 98%
     );
     filter:
@@ -128,7 +156,7 @@ const HERO_STYLE = `
 
   .jit-hero-sub {
     font-size: 1.03rem;
-    color: rgba(248,250,252,0.8);
+    color: rgba(226, 232, 240, 0.82);
     margin-bottom: 22px;
     line-height: 1.72;
     max-width: 42rem;
@@ -177,24 +205,126 @@ const HERO_STYLE = `
 
   .jit-hero-tag-col {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: flex-start;
   }
 
-  .jit-hero-tag {
-    border: 1px solid rgba(255,255,255,0.25);
-    padding: 12px 22px;
-    border-radius: 12px;
-    background: linear-gradient(155deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.2) 100%);
-    animation: jit-hero-tag-float 9s ease-in-out infinite;
+  .jit-hero-visual {
+    width: min(100%, 520px);
+    margin-left: auto;
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background:
+      linear-gradient(145deg, rgba(15, 23, 42, 0.78) 0%, rgba(6, 19, 24, 0.72) 58%, rgba(21, 18, 30, 0.74) 100%);
+    box-shadow:
+      0 28px 90px -54px rgba(14, 165, 233, 0.7),
+      0 18px 60px -42px rgba(0, 0, 0, 0.9),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    padding: 18px;
   }
 
-  .jit-hero-tag-text {
-    font-weight: 300;
-    color: #fff;
-    font-size: clamp(1.08rem, 2.4vw, 1.45rem);
-    letter-spacing: -0.02em;
-    text-shadow: 0 1px 14px rgba(0, 0, 0, 0.36);
+  .jit-hero-visual-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 4px 16px;
+  }
+
+  .jit-hero-visual-title {
+    color: rgba(248, 250, 252, 0.92);
+    font-size: 0.86rem;
+    font-weight: 650;
+  }
+
+  .jit-hero-visual-pill {
+    border-radius: 999px;
+    background: rgba(20, 184, 166, 0.12);
+    color: #99f6e4;
+    padding: 5px 10px;
+    font-size: 0.72rem;
+    border: 1px solid rgba(45, 212, 191, 0.2);
+  }
+
+  .jit-hero-card-stack {
+    display: grid;
+    gap: 12px;
+  }
+
+  .jit-hero-mini-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    background: rgba(2, 6, 12, 0.42);
+    padding: 13px;
+  }
+
+  .jit-hero-mini-icon {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    color: #f8fafc;
+    font-weight: 700;
+    background: linear-gradient(145deg, rgba(20, 184, 166, 0.82), rgba(59, 130, 246, 0.72));
+  }
+
+  .jit-hero-mini-copy {
+    min-width: 0;
+  }
+
+  .jit-hero-mini-title {
+    display: block;
+    color: rgba(248, 250, 252, 0.92);
+    font-size: 0.9rem;
+    font-weight: 640;
+  }
+
+  .jit-hero-mini-meta {
+    display: block;
+    margin-top: 3px;
+    color: rgba(203, 213, 225, 0.7);
+    font-size: 0.76rem;
+  }
+
+  .jit-hero-mini-price {
+    color: #fde68a;
+    font-size: 0.84rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .jit-hero-visual-footer {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .jit-hero-stat {
+    display: block;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 12px;
+  }
+
+  .jit-hero-stat-value {
+    display: block;
+    color: #f8fafc;
+    font-size: 1rem;
+    font-weight: 750;
+  }
+
+  .jit-hero-stat-label {
+    display: block;
+    margin-top: 2px;
+    color: rgba(203, 213, 225, 0.68);
+    font-size: 0.7rem;
   }
 
   @supports ((-webkit-background-clip: text) or (background-clip: text)) {
@@ -220,22 +350,17 @@ const HERO_STYLE = `
     50% { transform: translateY(-3px); }
   }
 
-  @keyframes jit-hero-tag-float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
-  }
-
   @media (min-width: 1024px) {
     .jit-hero-grid {
       grid-template-columns: 1fr 1fr;
-      gap: 38px;
+      gap: 56px;
     }
 
     .jit-hero-tag-col { justify-content: flex-end; }
   }
 
   @media (max-width: 1023px) {
-    .jit-hero-content-layer { padding: 0 40px 48px; }
+    .jit-hero-content-layer { padding: 32px 40px 48px; }
   }
 
   @media (max-width: 767px) {
@@ -312,9 +437,7 @@ const HERO_STYLE = `
 
     .jit-btn-primary { flex: 0.95 1 0; }
     .jit-btn-glass { flex: 1.05 1 0; }
-    .jit-hero-tag-col { justify-content: flex-start; }
-    .jit-hero-tag { padding: 10px 14px; border-radius: 10px; }
-    .jit-hero-tag-text { font-size: 1.02rem; }
+    .jit-hero-tag-col { display: none; }
   }
 
   @media (max-height: 760px) {
@@ -333,8 +456,7 @@ const HERO_STYLE = `
 
   @media (prefers-reduced-motion: reduce) {
     .jit-hero-heading,
-    .jit-hero-badge,
-    .jit-hero-tag {
+    .jit-hero-badge {
       animation: none !important;
       transform: none !important;
     }
@@ -427,8 +549,59 @@ const Hero = () => {
             </div>
 
             <div className="jit-hero-tag-col">
-              <div className="jit-hero-tag jit-liquid-glass">
-                <span className="jit-hero-tag-text">{copy.tag}</span>
+              <div className="jit-hero-visual" aria-hidden="true">
+                <div className="jit-hero-visual-head">
+                  <span className="jit-hero-visual-title">
+                    Live local demand
+                  </span>
+                  <span className="jit-hero-visual-pill">{copy.tag}</span>
+                </div>
+                <div className="jit-hero-card-stack">
+                  <div className="jit-hero-mini-card">
+                    <span className="jit-hero-mini-icon">P</span>
+                    <span className="jit-hero-mini-copy">
+                      <span className="jit-hero-mini-title">Plumbing repair</span>
+                      <span className="jit-hero-mini-meta">
+                        Westlands · verified pro matched
+                      </span>
+                    </span>
+                    <span className="jit-hero-mini-price">KSh 2.4k</span>
+                  </div>
+                  <div className="jit-hero-mini-card">
+                    <span className="jit-hero-mini-icon">C</span>
+                    <span className="jit-hero-mini-copy">
+                      <span className="jit-hero-mini-title">Deep cleaning</span>
+                      <span className="jit-hero-mini-meta">
+                        Kilimani · secure checkout ready
+                      </span>
+                    </span>
+                    <span className="jit-hero-mini-price">KSh 3.8k</span>
+                  </div>
+                  <div className="jit-hero-mini-card">
+                    <span className="jit-hero-mini-icon">E</span>
+                    <span className="jit-hero-mini-copy">
+                      <span className="jit-hero-mini-title">Electrical callout</span>
+                      <span className="jit-hero-mini-meta">
+                        Karen · arrival window confirmed
+                      </span>
+                    </span>
+                    <span className="jit-hero-mini-price">KSh 1.9k</span>
+                  </div>
+                </div>
+                <div className="jit-hero-visual-footer">
+                  <span className="jit-hero-stat">
+                    <span className="jit-hero-stat-value">2 min</span>
+                    <span className="jit-hero-stat-label">avg booking</span>
+                  </span>
+                  <span className="jit-hero-stat">
+                    <span className="jit-hero-stat-value">4.8</span>
+                    <span className="jit-hero-stat-label">rated pros</span>
+                  </span>
+                  <span className="jit-hero-stat">
+                    <span className="jit-hero-stat-value">M-Pesa</span>
+                    <span className="jit-hero-stat-label">payments</span>
+                  </span>
+                </div>
               </div>
             </div>
           </div>
