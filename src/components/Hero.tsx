@@ -17,12 +17,18 @@ const HERO_STYLE = `
     display: flex;
     flex-direction: column;
     background-image:
-      linear-gradient(90deg, rgba(2, 8, 10, 0.9) 0%, rgba(2, 8, 10, 0.72) 42%, rgba(2, 8, 10, 0.34) 100%),
-      linear-gradient(180deg, rgba(2, 8, 10, 0.24) 0%, rgba(2, 8, 10, 0.18) 48%, rgba(2, 8, 10, 0.7) 100%),
+      linear-gradient(90deg, rgba(2, 8, 10, 0.94) 0%, rgba(2, 8, 10, 0.72) 36%, rgba(2, 8, 10, 0.18) 72%, rgba(2, 8, 10, 0.34) 100%),
+      linear-gradient(180deg, rgba(2, 8, 10, 0.08) 0%, rgba(2, 8, 10, 0.04) 50%, rgba(2, 8, 10, 0.48) 100%),
       url("/images/jitbanner.webp");
-    background-position: center;
+    background-position:
+      center,
+      center,
+      right center;
     background-repeat: no-repeat;
-    background-size: cover;
+    background-size:
+      cover,
+      cover,
+      auto 100%;
   }
 
   .jit-hero-root::before {
@@ -374,8 +380,8 @@ const HERO_STYLE = `
 
     .jit-hero-overlay {
       background:
-        linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.38) 56%, rgba(0, 0, 0, 0.66) 100%),
-        linear-gradient(90deg, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.42) 56%, rgba(0, 0, 0, 0.26) 100%);
+        linear-gradient(180deg, rgba(0, 0, 0, 0.24) 0%, rgba(0, 0, 0, 0.28) 56%, rgba(0, 0, 0, 0.62) 100%),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.68) 0%, rgba(0, 0, 0, 0.46) 56%, rgba(0, 0, 0, 0.18) 100%);
     }
 
     .jit-hero-grid { gap: 16px; }

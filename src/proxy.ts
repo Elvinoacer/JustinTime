@@ -650,5 +650,8 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/api/:path*", "/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/api/:path*",
+    "/((?!api|_next/static|_next/image|images|icons|videos|models|favicon.ico|robots.txt|manifest.json|firebase-messaging-sw.js|.*\\.(?:png|jpg|jpeg|webp|gif|svg|ico|css|js|map|txt|xml)$).*)",
+  ],
 };

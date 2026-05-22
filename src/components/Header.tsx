@@ -153,14 +153,26 @@ const Header = () => {
               href="/"
               className="flex min-w-0 items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 sm:gap-3 shrink-0"
             >
-              <Image
-                src="/images/jit_logo-removebg-preview.png"
-                alt="JustInTime Logo"
-                width={96}
-                height={64}
-                priority={isLandingPage}
-                className="h-9 w-auto object-contain sm:h-10"
-              />
+              <span
+                className={`grid h-10 w-12 place-items-center rounded-lg sm:h-11 sm:w-14 ${
+                  isLandingPage
+                    ? "bg-white/[0.08] shadow-[0_0_20px_-10px_rgba(153,246,228,0.9)] ring-1 ring-white/10"
+                    : "bg-emerald-950 ring-1 ring-emerald-900/20"
+                }`}
+              >
+                <Image
+                  src="/images/jit_logo-removebg-preview.png"
+                  alt="JustInTime Logo"
+                  width={96}
+                  height={64}
+                  priority={isLandingPage}
+                  className={`h-8 w-auto object-contain sm:h-9 ${
+                    isLandingPage
+                      ? "brightness-[2.6] contrast-125 drop-shadow-[0_0_8px_rgba(153,246,228,0.55)]"
+                      : "brightness-110 contrast-125"
+                  }`}
+                />
+              </span>
               <span
                 className={`hidden min-[360px]:inline text-sm font-bold tracking-tight sm:text-lg ${
                   isLandingPage ? "text-white" : "text-gray-900"
@@ -520,13 +532,15 @@ const Header = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-3">
-                      <Image
-                        src="/images/jit_logo-removebg-preview.png"
-                        alt="JustInTime Logo"
-                        width={96}
-                        height={64}
-                        className="h-10 w-auto object-contain"
-                      />
+                      <span className="grid h-11 w-14 place-items-center rounded-lg bg-white/[0.08] ring-1 ring-white/10">
+                        <Image
+                          src="/images/jit_logo-removebg-preview.png"
+                          alt="JustInTime Logo"
+                          width={96}
+                          height={64}
+                          className="h-9 w-auto object-contain brightness-[2.6] contrast-125 drop-shadow-[0_0_8px_rgba(153,246,228,0.55)]"
+                        />
+                      </span>
                       <span className="text-white text-lg font-bold tracking-tight">
                         JustInTime
                       </span>
