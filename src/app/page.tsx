@@ -1,19 +1,46 @@
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
-import LandingNarrativeRail from "@/components/LandingNarrativeRail";
-import ServiceCategories from "@/components/ServiceCategories";
-import PopularServices from "@/components/PopularServices";
-import TrustBanner from "@/components/TrustBanner";
-import HowItWorks from "@/components/HowItWorks";
-import FeaturedProfessionals from "@/components/FeaturedProfessionals";
-import JoinAsPro from "@/components/JoinAsPro";
-import Benefits from "@/components/Benefits";
-import Testimonials from "@/components/Testimonials";
-import FAQ from "@/components/FAQ";
-import CTA from "@/components/CTA";
 import Footer from "@/components/Footer";
 import { constructMetadata } from "@/lib/metadata";
+
+const LandingNarrativeRail = dynamic(
+  () => import("@/components/LandingNarrativeRail"),
+  { loading: () => <div className="min-h-32" /> },
+);
+const ServiceCategories = dynamic(
+  () => import("@/components/ServiceCategories"),
+  { loading: () => <div className="min-h-48" /> },
+);
+const PopularServices = dynamic(() => import("@/components/PopularServices"), {
+  loading: () => <div className="min-h-48" />,
+});
+const TrustBanner = dynamic(() => import("@/components/TrustBanner"), {
+  loading: () => <div className="min-h-32" />,
+});
+const HowItWorks = dynamic(() => import("@/components/HowItWorks"), {
+  loading: () => <div className="min-h-48" />,
+});
+const FeaturedProfessionals = dynamic(
+  () => import("@/components/FeaturedProfessionals"),
+  { loading: () => <div className="min-h-48" /> },
+);
+const JoinAsPro = dynamic(() => import("@/components/JoinAsPro"), {
+  loading: () => <div className="min-h-48" />,
+});
+const Benefits = dynamic(() => import("@/components/Benefits"), {
+  loading: () => <div className="min-h-48" />,
+});
+const Testimonials = dynamic(() => import("@/components/Testimonials"), {
+  loading: () => <div className="min-h-48" />,
+});
+const FAQ = dynamic(() => import("@/components/FAQ"), {
+  loading: () => <div className="min-h-48" />,
+});
+const CTA = dynamic(() => import("@/components/CTA"), {
+  loading: () => <div className="min-h-32" />,
+});
 
 export const metadata = constructMetadata({
   title: "JustInTime — Find Trusted Professionals Near You in Kenya",
@@ -60,7 +87,13 @@ export default function Home() {
                 "linear-gradient(112deg, rgba(5,29,22,0.96) 0%, rgba(4,22,18,0.95) 32%, rgba(3,20,16,0.93) 56%, rgba(2,17,14,0.97) 100%)",
             }}
           />
-          <div className="aurora-bg absolute inset-0" />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(ellipse 80% 60% at 10% 10%, rgba(16,185,129,0.1), transparent 50%), radial-gradient(ellipse 60% 50% at 90% 15%, rgba(34,211,238,0.06), transparent 50%), radial-gradient(ellipse 70% 55% at 50% 90%, rgba(168,85,247,0.05), transparent 50%)",
+            }}
+          />
           <div
             className="absolute inset-0"
             style={{

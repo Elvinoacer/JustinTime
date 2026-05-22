@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect } from "react";
 
 import useLandingEvents from "@/hooks/useLandingEvents";
 import { useLandingCopyVariant } from "@/hooks/useLandingCopyVariant";
@@ -16,40 +16,17 @@ const HERO_STYLE = `
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    background: #040806;
-  }
-
-  .jit-hero-video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center center;
-    z-index: 0;
-    opacity: 1;
-    filter: saturate(1.08) contrast(1.03);
-    transform-origin: center;
-    animation: jit-hero-video-drift 28s ease-in-out infinite alternate;
+    background:
+      radial-gradient(circle at 18% 18%, rgba(16, 185, 129, 0.18), transparent 30%),
+      radial-gradient(circle at 86% 24%, rgba(34, 211, 238, 0.1), transparent 30%),
+      linear-gradient(112deg, #03100c 0%, #06150f 42%, #030907 100%);
   }
 
   .jit-hero-overlay {
     position: absolute;
     inset: 0;
     z-index: 1;
-    background:
-      linear-gradient(
-        180deg,
-        rgba(0, 0, 0, 0.16) 0%,
-        rgba(0, 0, 0, 0.24) 52%,
-        rgba(0, 0, 0, 0.52) 100%
-      ),
-      linear-gradient(
-        100deg,
-        rgba(4, 16, 12, 0.46) 0%,
-        rgba(0, 0, 0, 0.2) 54%,
-        rgba(4, 16, 12, 0.18) 100%
-      );
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.06) 0%, rgba(0, 0, 0, 0.18) 54%, rgba(0, 0, 0, 0.42) 100%);
   }
 
   .jit-liquid-glass {
@@ -93,44 +70,6 @@ const HERO_STYLE = `
     padding: 0 64px 56px;
   }
 
-  @media (max-width: 1023px) {
-    .jit-hero-content-layer { padding: 0 40px 48px; }
-  }
-
-  @media (max-width: 767px) {
-    .jit-hero-content-layer {
-      justify-content: center;
-      padding: 20px 14px 24px;
-    }
-
-    .jit-hero-video {
-      object-position: 58% center;
-      filter: saturate(1) contrast(0.94) brightness(0.78);
-      animation: none;
-      transform: none;
-    }
-
-    .jit-hero-overlay {
-      background:
-        linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.38) 56%, rgba(0, 0, 0, 0.66) 100%),
-        linear-gradient(90deg, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.42) 56%, rgba(0, 0, 0, 0.26) 100%);
-    }
-
-    .jit-hero-grid {
-      gap: 16px;
-    }
-
-    .jit-hero-main-col {
-      max-width: 100%;
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      background: linear-gradient(180deg, rgba(1, 8, 6, 0.56) 0%, rgba(1, 8, 6, 0.3) 100%);
-      backdrop-filter: blur(2px);
-      -webkit-backdrop-filter: blur(2px);
-      padding: 12px 12px 10px;
-    }
-  }
-
   .jit-hero-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -142,13 +81,6 @@ const HERO_STYLE = `
     max-width: 46rem;
     position: relative;
     z-index: 1;
-  }
-
-  @media (min-width: 1024px) {
-    .jit-hero-grid {
-      grid-template-columns: 1fr 1fr;
-      gap: 38px;
-    }
   }
 
   .jit-hero-badge {
@@ -202,7 +134,134 @@ const HERO_STYLE = `
     max-width: 42rem;
   }
 
+  .jit-hero-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .jit-btn-primary,
+  .jit-btn-glass {
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.22s, box-shadow 0.22s, color 0.22s;
+  }
+
+  .jit-btn-primary {
+    background: linear-gradient(150deg, #ffffff 0%, #f0f9f4 100%);
+    color: #000;
+    font-weight: 600;
+    box-shadow: 0 12px 26px -18px rgba(0, 0, 0, 0.62);
+  }
+
+  .jit-btn-primary:hover {
+    background: linear-gradient(150deg, #ffffff 0%, #e8f6ee 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 16px 32px -20px rgba(0, 0, 0, 0.64);
+  }
+
+  .jit-btn-glass {
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    font-weight: 500;
+    background: linear-gradient(150deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.2) 100%);
+  }
+
+  .jit-btn-glass:hover {
+    background: #fff;
+    color: #000;
+    transform: translateY(-1px);
+  }
+
+  .jit-hero-tag-col {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+  }
+
+  .jit-hero-tag {
+    border: 1px solid rgba(255,255,255,0.25);
+    padding: 12px 22px;
+    border-radius: 12px;
+    background: linear-gradient(155deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.2) 100%);
+    animation: jit-hero-tag-float 9s ease-in-out infinite;
+  }
+
+  .jit-hero-tag-text {
+    font-weight: 300;
+    color: #fff;
+    font-size: clamp(1.08rem, 2.4vw, 1.45rem);
+    letter-spacing: -0.02em;
+    text-shadow: 0 1px 14px rgba(0, 0, 0, 0.36);
+  }
+
+  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .jit-hero-heading {
+      color: transparent;
+      background-image: var(--jit-heading-gradient);
+      background-size: 240% 240%;
+      background-position: 0% 50%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: jit-heading-gradient-shift 11s ease-in-out infinite;
+    }
+  }
+
+  @keyframes jit-heading-gradient-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  @keyframes jit-hero-badge-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+
+  @keyframes jit-hero-tag-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+
+  @media (min-width: 1024px) {
+    .jit-hero-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 38px;
+    }
+
+    .jit-hero-tag-col { justify-content: flex-end; }
+  }
+
+  @media (max-width: 1023px) {
+    .jit-hero-content-layer { padding: 0 40px 48px; }
+  }
+
   @media (max-width: 767px) {
+    .jit-hero-content-layer {
+      justify-content: center;
+      padding: 20px 14px 24px;
+    }
+
+    .jit-hero-overlay {
+      background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.38) 56%, rgba(0, 0, 0, 0.66) 100%),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.42) 56%, rgba(0, 0, 0, 0.26) 100%);
+    }
+
+    .jit-hero-grid { gap: 16px; }
+
+    .jit-hero-main-col {
+      max-width: 100%;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: linear-gradient(180deg, rgba(1, 8, 6, 0.56) 0%, rgba(1, 8, 6, 0.3) 100%);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      padding: 12px 12px 10px;
+    }
+
     .jit-hero-badge {
       margin-bottom: 12px;
       padding: 5px 10px;
@@ -222,15 +281,7 @@ const HERO_STYLE = `
       line-height: 1.5;
       max-width: 34rem;
     }
-  }
 
-  .jit-hero-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-
-  @media (max-width: 767px) {
     .jit-hero-buttons {
       width: 100%;
       max-width: 100%;
@@ -239,45 +290,7 @@ const HERO_STYLE = `
       align-items: stretch;
       gap: 10px;
     }
-  }
 
-  .jit-btn-primary {
-    background: linear-gradient(150deg, #ffffff 0%, #f0f9f4 100%);
-    color: #000;
-    padding: 12px 28px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.92rem;
-    text-decoration: none;
-    box-shadow: 0 12px 26px -18px rgba(0, 0, 0, 0.62);
-    transition: background 0.2s, transform 0.22s, box-shadow 0.22s;
-  }
-
-  .jit-btn-primary:hover {
-    background: linear-gradient(150deg, #ffffff 0%, #e8f6ee 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 16px 32px -20px rgba(0, 0, 0, 0.64);
-  }
-
-  .jit-btn-glass {
-    border: 1px solid rgba(255,255,255,0.3);
-    color: #fff;
-    padding: 12px 28px;
-    border-radius: 8px;
-    font-weight: 500;
-    font-size: 0.92rem;
-    text-decoration: none;
-    transition: background 0.22s, color 0.22s, transform 0.22s;
-    background: linear-gradient(150deg, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.2) 100%);
-  }
-
-  .jit-btn-glass:hover {
-    background: #fff;
-    color: #000;
-    transform: translateY(-1px);
-  }
-
-  @media (max-width: 767px) {
     .jit-btn-primary,
     .jit-btn-glass {
       width: auto;
@@ -297,130 +310,28 @@ const HERO_STYLE = `
       letter-spacing: -0.01em;
     }
 
-    .jit-btn-primary {
-      flex: 0.95 1 0;
-    }
-
-    .jit-btn-glass {
-      flex: 1.05 1 0;
-    }
-  }
-
-  .jit-hero-tag-col {
-    display: flex;
-    align-items: flex-end;
-    justify-content: flex-start;
-  }
-
-  @media (min-width: 1024px) {
-    .jit-hero-tag-col { justify-content: flex-end; }
-  }
-
-  @media (max-width: 767px) {
-    .jit-hero-tag-col {
-      justify-content: flex-start;
-    }
-
-    .jit-hero-tag {
-      padding: 10px 14px;
-      border-radius: 10px;
-    }
-
-    .jit-hero-tag-text {
-      font-size: 1.02rem;
-    }
-
+    .jit-btn-primary { flex: 0.95 1 0; }
+    .jit-btn-glass { flex: 1.05 1 0; }
+    .jit-hero-tag-col { justify-content: flex-start; }
+    .jit-hero-tag { padding: 10px 14px; border-radius: 10px; }
+    .jit-hero-tag-text { font-size: 1.02rem; }
   }
 
   @media (max-height: 760px) {
-    .jit-hero-content-layer {
-      padding-bottom: 16px;
-    }
-
+    .jit-hero-content-layer { padding-bottom: 16px; }
     .jit-hero-heading {
       font-size: clamp(1.68rem, 8.1vw, 2.3rem);
       margin-bottom: 8px;
     }
-
     .jit-hero-sub {
       margin-bottom: 10px;
       font-size: 0.9rem;
       line-height: 1.45;
     }
-
-    .jit-hero-tag-col {
-      display: none;
-    }
-  }
-
-  .jit-hero-tag {
-    border: 1px solid rgba(255,255,255,0.25);
-    padding: 12px 22px;
-    border-radius: 12px;
-    background: linear-gradient(155deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.2) 100%);
-    animation: jit-hero-tag-float 9s ease-in-out infinite;
-  }
-
-  .jit-hero-tag-text {
-    font-weight: 300;
-    color: #fff;
-    font-size: clamp(1.08rem, 2.4vw, 1.45rem);
-    letter-spacing: -0.02em;
-    text-shadow: 0 1px 14px rgba(0, 0, 0, 0.36);
-  }
-
-  .jit-char-span {
-    display: inline-block;
-    transition: opacity 520ms ease, transform 520ms ease, filter 520ms ease;
-    color: inherit;
-  }
-
-  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
-    .jit-hero-heading {
-      color: transparent;
-      background-image: var(--jit-heading-gradient);
-      background-size: 240% 240%;
-      background-position: 0% 50%;
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-      animation: jit-heading-gradient-shift 11s ease-in-out infinite;
-    }
-
-    .jit-char-span {
-      background-image: var(--jit-heading-gradient);
-      background-size: 240% 240%;
-      background-position: 0% 50%;
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-      color: transparent;
-      animation: jit-heading-gradient-shift 11s ease-in-out infinite;
-    }
-  }
-
-  @keyframes jit-hero-video-drift {
-    0% { transform: scale(1.03) translate3d(0%, 0%, 0); }
-    100% { transform: scale(1.08) translate3d(-1.1%, -1.2%, 0); }
-  }
-
-  @keyframes jit-heading-gradient-shift {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-  }
-
-  @keyframes jit-hero-badge-float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-3px); }
-  }
-
-  @keyframes jit-hero-tag-float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
+    .jit-hero-tag-col { display: none; }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .jit-hero-video,
     .jit-hero-heading,
     .jit-hero-badge,
     .jit-hero-tag {
@@ -429,105 +340,11 @@ const HERO_STYLE = `
     }
 
     .jit-btn-primary,
-    .jit-btn-glass,
-    .jit-char-span {
+    .jit-btn-glass {
       transition: none !important;
     }
   }
 `;
-
-interface FadeInProps {
-  delay?: number;
-  duration?: number;
-  children: React.ReactNode;
-  style?: CSSProperties;
-  className?: string;
-}
-
-function FadeIn({
-  delay = 0,
-  duration = 1000,
-  children,
-  style = {},
-  className = "",
-}: FadeInProps) {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setVisible(true), delay);
-    return () => clearTimeout(timer);
-  }, [delay]);
-
-  return (
-    <div
-      className={className}
-      style={{
-        opacity: visible ? 1 : 0,
-        transition: `opacity ${duration}ms ease`,
-        ...style,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-interface AnimatedHeadingProps {
-  text: string;
-  className?: string;
-  style?: CSSProperties;
-}
-
-function AnimatedHeading({
-  text,
-  className = "",
-  style = {},
-}: AnimatedHeadingProps) {
-  const charDelay = 28;
-  const initialDelay = 180;
-
-  const lines = text.split("\n");
-  const [started, setStarted] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setStarted(true), initialDelay);
-    return () => clearTimeout(timer);
-  }, []);
-
-  let charGlobalIndex = 0;
-
-  return (
-    <h1 className={`jit-hero-heading ${className}`} style={style}>
-      {lines.map((line, lineIndex) => {
-        const chars = line.split("");
-        const lineStartIndex = charGlobalIndex;
-        charGlobalIndex += chars.length;
-
-        return (
-          <span key={lineIndex} style={{ display: "block" }}>
-            {chars.map((char, charIndex) => {
-              const delay = lineStartIndex * charDelay + charIndex * charDelay;
-
-              return (
-                <span
-                  key={`${lineIndex}-${charIndex}`}
-                  className="jit-char-span"
-                  style={{
-                    opacity: started ? 1 : 0,
-                    transform: started ? "translateX(0)" : "translateX(-14px)",
-                    transitionDelay: `${delay}ms`,
-                  }}
-                >
-                  {char === " " ? "\u00A0" : char}
-                </span>
-              );
-            })}
-          </span>
-        );
-      })}
-    </h1>
-  );
-}
 
 const Hero = () => {
   const { trackEvent } = useLandingEvents();
@@ -562,72 +379,58 @@ const Hero = () => {
         tag: "Trusted. Fast. Transparent.",
       };
 
+  const handleCtaClick = (label: string) => {
+    trackEvent("landing:cta_clicked", {
+      ctaLabel: label,
+      ctaLocation: "hero",
+      variant,
+    });
+  };
+
   return (
     <>
       <style>{HERO_STYLE}</style>
       <section className="jit-hero-root" aria-label="Hero">
-        <video
-          className="jit-hero-video"
-          src="/videos/bannervid.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="metadata"
-        />
-
         <div className="jit-hero-overlay" />
 
         <div className="jit-hero-content-layer">
           <div className="jit-hero-grid">
             <div className="jit-hero-main-col">
-              <FadeIn delay={80} duration={700}>
-                <span className="jit-hero-badge">{copy.badge}</span>
-              </FadeIn>
+              <span className="jit-hero-badge">{copy.badge}</span>
 
-              <AnimatedHeading text={copy.heading} />
+              <h1 className="jit-hero-heading">
+                {copy.heading.split("\n").map((line) => (
+                  <span key={line} className="block">
+                    {line}
+                  </span>
+                ))}
+              </h1>
 
-              <FadeIn delay={720} duration={900}>
-                <p className="jit-hero-sub">{copy.subtitle}</p>
-              </FadeIn>
+              <p className="jit-hero-sub">{copy.subtitle}</p>
 
-              <FadeIn delay={1080} duration={900}>
-                <div className="jit-hero-buttons">
-                  <Link
-                    href={copy.primaryHref}
-                    className="jit-btn-primary"
-                    onClick={() =>
-                      trackEvent("landing:cta_clicked", {
-                        ctaLabel: copy.primaryLabel,
-                        ctaLocation: "hero",
-                        variant,
-                      })
-                    }
-                  >
-                    {copy.primaryLabel}
-                  </Link>
-                  <Link
-                    href={copy.secondaryHref}
-                    className="jit-btn-glass jit-liquid-glass"
-                    onClick={() =>
-                      trackEvent("landing:cta_clicked", {
-                        ctaLabel: copy.secondaryLabel,
-                        ctaLocation: "hero",
-                        variant,
-                      })
-                    }
-                  >
-                    {copy.secondaryLabel}
-                  </Link>
-                </div>
-              </FadeIn>
+              <div className="jit-hero-buttons">
+                <Link
+                  href={copy.primaryHref}
+                  className="jit-btn-primary"
+                  onClick={() => handleCtaClick(copy.primaryLabel)}
+                >
+                  {copy.primaryLabel}
+                </Link>
+                <Link
+                  href={copy.secondaryHref}
+                  className="jit-btn-glass jit-liquid-glass"
+                  onClick={() => handleCtaClick(copy.secondaryLabel)}
+                >
+                  {copy.secondaryLabel}
+                </Link>
+              </div>
             </div>
 
-            <FadeIn delay={1260} duration={900} className="jit-hero-tag-col">
+            <div className="jit-hero-tag-col">
               <div className="jit-hero-tag jit-liquid-glass">
                 <span className="jit-hero-tag-text">{copy.tag}</span>
               </div>
-            </FadeIn>
+            </div>
           </div>
         </div>
       </section>
